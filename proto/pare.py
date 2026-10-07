@@ -426,6 +426,7 @@ def summarize(
     head_n: int,
     tail_n: int,
     width: int,
+    max_templates: int = 0,
     run_path: str | None,
     in_bytes: int,
 ) -> str:
@@ -484,6 +485,8 @@ def summarize(
     tpl_shown_ids: list[int] = []
     taken: dict[str, int] = {}  # masked text -> lines already shown with that shape
     for tpl in by_sal:
+        if max_templates and tpl_shown >= max_templates:
+            break
         rec = records[tpl.records[0]]
         ex = lines[rec.start]
         count = len(tpl.records)
@@ -747,6 +750,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--head", type=int, default=5, help="lines to keep from the start; default 5")
     ap.add_argument("--tail", type=int, default=10, help="lines to keep from the end; default 10")
     ap.add_argument("--width", type=int, default=200, help="clip lines longer than this; default 200")
+    ap.add_argument("--max-templates", type=int, default=0, metavar="N",
+                    help="list at most N templates (highest salience first); 0 = all that fit. "
+                         "Unlisted templates still appear in the omitted ledger")
     ap.add_argument("--only", metavar="T<n>[,T<m>]", help="print raw lines of these templates only")
     ap.add_argument("--except", dest="exclude", metavar="T<n>[,T<m>]", help="print raw lines except these templates")
     ap.add_argument("--run-dir", default=None, help="directory for the raw run file (default $PARE_RUN_DIR or ~/.cache/pare/runs)")
@@ -779,7 +785,7 @@ def main(argv: list[str] | None = None) -> int:
         out = summarize(
             lines, records, templates,
             budget=args.budget, head_n=args.head, tail_n=args.tail, width=args.width,
-            run_path=run_path, in_bytes=len(data),
+            max_templates=args.max_templates, run_path=run_path, in_bytes=len(data),
         )
     sys.stdout.write(out)
     sys.stdout.flush()

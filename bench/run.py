@@ -22,6 +22,7 @@ import argparse
 import json
 import math
 import os
+import shlex
 import shutil
 import stat
 import subprocess
@@ -67,11 +68,13 @@ class Raw(Tool):
 
 class Pare(Tool):
     name = "pare"
+    extra_args: list[str] = []  # set from --pare-args
 
     def run(self, log_path, cmd, budget, work):
         with open(log_path, "rb") as f:
             p = subprocess.run(
-                [python(), os.path.join(ROOT, "proto", "pare.py"), "--budget", str(budget), "--run-dir", os.path.join(work, "runs")],
+                [python(), os.path.join(ROOT, "proto", "pare.py"), "--budget", str(budget),
+                 "--run-dir", os.path.join(work, "runs")] + self.extra_args,
                 stdin=f, capture_output=True, check=True,
             )
         return p.stdout
@@ -149,7 +152,9 @@ def main() -> int:
     ap.add_argument("--tools", default="pare,sqz,tidyout", help="comma-separated subset of pare,sqz,tidyout")
     ap.add_argument("--json", help="also write results as JSON to this path")
     ap.add_argument("--show-misses", action="store_true", help="list must-survive lines each tool dropped")
+    ap.add_argument("--pare-args", default="", help='extra flags for pare, e.g. "--max-templates 8"')
     args = ap.parse_args()
+    Pare.extra_args = shlex.split(args.pare_args)
 
     names = sorted(f[:-4] for f in os.listdir(args.corpus) if f.endswith(".log"))
     if not names:

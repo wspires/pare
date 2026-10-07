@@ -54,7 +54,9 @@ What it does, in order:
 
 `pare --only T3,T7 < runfile` prints the raw lines of those templates;
 `pare --except T4 < runfile` prints everything but. Template ids are stable
-because the pipeline is deterministic for a given input.
+because the pipeline is deterministic for a given input. `--max-templates N`
+lists at most N templates (highest salience first); the rest still show up
+in the omitted ledger.
 
 Example (a 4,813-line service log, budget 2000):
 
@@ -151,10 +153,22 @@ Notes on reading this:
   (go test, make, the service log) and strips well for the ones it knows
   (pytest, cargo); sqz is a general compressor that drops error lines as
   readily as noise.
-- pare keeps every must-survive line at budget 2000; at 600 it starts dropping the
-  per-failure `E` lines of pytest because the template table (52 templates)
-  takes most of a 2,400-byte budget. A `--max-templates` knob or merging
-  single-record templates would help there.
+- pare keeps every must-survive line at budget 2000. At 600 (2,400 bytes)
+  it drops the per-failure `E` lines of pytest and the deeper stack frames of
+  Jest. `--max-templates N` caps the template table, but at 600 the table is
+  already held to 60 % of the remaining budget, so the cap does not bind:
+
+  | `--max-templates` | out tok | recall | min recall |
+  |---|---:|---:|---:|
+  | 0 (all that fit), 16, 10 | 3,863 | 79% | 55% |
+  | 6 | 3,832 | 79% | 55% |
+
+  What actually costs recall at 600 is elsewhere: the fill phase ranks the
+  pytest progress lines (`test_x FAILED [ 95%]`) level with the `E` lines
+  because both carry error vocabulary and a unique template, and the ledger
+  reserve (300 bytes) is 12 % of the budget. Shrinking the reserve to a
+  sixteenth of the budget lifts recall to 81 % but lets one case overrun the
+  budget by a token, so it is not applied.
 - The cargo log (945 tokens) fits the budget, so pare passes it through with
   a two-line header; it never makes small inputs bigger than a fixed overhead.
 
