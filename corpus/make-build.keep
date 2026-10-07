@@ -1,0 +1,7 @@
+src/broken.c:4:25: error: 'struct point' has no member named 'z'
+src/broken.c:7:28: error: expected ';' before '}' token
+make: *** [Makefile:9: src/broken.o] Error 1
+src/main.c:8:14: warning: format '%d' expects argument of type 'int', but argument 2 has type 'long int' [-Wformat=]
+src/main.c:11:12: warning: implicit declaration of function 'undefined_symbol' [-Wimplicit-function-declaration]
+src/mod1.c:9:8: warning: 'n' is used uninitialized [-Wuninitialized]
+make: Target 'all' not remade because of errors.

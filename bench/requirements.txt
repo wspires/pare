@@ -1,0 +1,2 @@
+# comparison tools; see README for the sqz binary
+tidyout-cli

@@ -1,0 +1,8 @@
+error[E0308]: mismatched types
+--> src/main.rs:24:18
+expected `u32`, found `f64`
+error[E0425]: cannot find function `undefined_function` in this scope
+--> src/main.rs:26:19
+warning: unused variable: `y`
+warning: variable does not need to be mutable
+error: could not compile `inventory` (bin "inventory") due to 2 previous errors; 4 warnings emitted

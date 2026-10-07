@@ -1,0 +1,10 @@
++   "currency": undefined,
+at Object.<anonymous> (src/utils/parse.test.ts:43:17)
+TypeError: Cannot read properties of undefined (reading 'token')
+at useAuth (src/api/useAuth.ts:18:15)
+Exceeded timeout of 5000 ms for a test.
+at src/store/Table.test.ts:89:3
+Test Suites: 3 failed, 35 passed, 38 total
+ FAIL  src/api/useAuth.test.ts
+ FAIL  src/store/Table.test.ts
+ FAIL  src/utils/parse.test.ts

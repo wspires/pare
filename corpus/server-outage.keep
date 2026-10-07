@@ -1,0 +1,9 @@
+starting inventory-api v2.14.3 (git 9f1c2ab) pid=4182
+WARN  [cache] redis GET slow
+ERROR [db] connection to db-primary.internal:5432 lost: read tcp 10.4.1.17:53022->10.4.2.5:5432: connection reset by peer
+psycopg.OperationalError: connection failed: server closed the connection unexpectedly
+at inventory/handlers/orders.py:57 in list
+err="pool exhausted: timed out waiting for connection after 5000ms"
+FATAL [db] giving up after 30 reconnect attempts; circuit breaker OPEN for 60s
+INFO  [db] reconnected to db-primary.internal:5432 (pool 20/20 healthy)
+shutdown complete exit=0

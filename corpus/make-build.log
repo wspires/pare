@@ -1,0 +1,200 @@
+gcc -Wall -Wextra -O2 -std=c11 -Isrc -c src/broken.c -o src/broken.o
+src/broken.c:2:29: warning: no semicolon at end of struct or union
+    2 | struct point { int x; int y };
+      |                             ^
+src/broken.c: In function 'area':
+src/broken.c:4:25: error: 'struct point' has no member named 'z'
+    4 |     return p.x * p.y * p.z;
+      |                         ^
+src/broken.c: In function 'print_area':
+src/broken.c:7:28: error: expected ';' before '}' token
+    7 |     printf("%d\n", area(p))
+      |                            ^
+      |                            ;
+    8 | }
+      | ~                           
+src/broken.c: In function 'area':
+src/broken.c:5:1: warning: control reaches end of non-void function [-Wreturn-type]
+    5 | }
+      | ^
+make: *** [Makefile:9: src/broken.o] Error 1
+gcc -Wall -Wextra -O2 -std=c11 -Isrc -c src/main.c -o src/main.o
+src/main.c: In function 'main':
+src/main.c:8:14: warning: format '%d' expects argument of type 'int', but argument 2 has type 'long int' [-Wformat=]
+    8 |     printf("%d\n", total);
+      |             ~^     ~~~~~
+      |              |     |
+      |              int   long int
+      |             %ld
+src/main.c:11:12: warning: implicit declaration of function 'undefined_symbol' [-Wimplicit-function-declaration]
+   11 |     return undefined_symbol(total);
+      |            ^~~~~~~~~~~~~~~~
+gcc -Wall -Wextra -O2 -std=c11 -Isrc -c src/mod1.c -o src/mod1.o
+src/mod1.c: In function 'helper_1':
+src/mod1.c:4:41: warning: unused variable 'unused' [-Wunused-variable]
+    4 | static int helper_1(int a, int b) { int unused = a; return a + b; }
+      |                                         ^~~~~~
+src/mod1.c: In function 'mod1_run':
+src/mod1.c:9:8: warning: 'n' is used uninitialized [-Wuninitialized]
+    9 |     if (n > 3) printf("%s %d\n", buf, n);
+      |        ^
+src/mod1.c:7:9: note: 'n' was declared here
+    7 |     int n;
+      |         ^
+gcc -Wall -Wextra -O2 -std=c11 -Isrc -c src/mod10.c -o src/mod10.o
+src/mod10.c: In function 'helper_10':
+src/mod10.c:4:42: warning: unused variable 'unused' [-Wunused-variable]
+    4 | static int helper_10(int a, int b) { int unused = a; return a + b; }
+      |                                          ^~~~~~
+src/mod10.c: In function 'mod10_run':
+src/mod10.c:9:8: warning: 'n' is used uninitialized [-Wuninitialized]
+    9 |     if (n > 3) printf("%s %d\n", buf, n);
+      |        ^
+src/mod10.c:7:9: note: 'n' was declared here
+    7 |     int n;
+      |         ^
+gcc -Wall -Wextra -O2 -std=c11 -Isrc -c src/mod11.c -o src/mod11.o
+src/mod11.c: In function 'helper_11':
+src/mod11.c:4:42: warning: unused variable 'unused' [-Wunused-variable]
+    4 | static int helper_11(int a, int b) { int unused = a; return a + b; }
+      |                                          ^~~~~~
+src/mod11.c: In function 'mod11_run':
+src/mod11.c:9:8: warning: 'n' is used uninitialized [-Wuninitialized]
+    9 |     if (n > 3) printf("%s %d\n", buf, n);
+      |        ^
+src/mod11.c:7:9: note: 'n' was declared here
+    7 |     int n;
+      |         ^
+gcc -Wall -Wextra -O2 -std=c11 -Isrc -c src/mod12.c -o src/mod12.o
+src/mod12.c: In function 'helper_12':
+src/mod12.c:4:42: warning: unused variable 'unused' [-Wunused-variable]
+    4 | static int helper_12(int a, int b) { int unused = a; return a + b; }
+      |                                          ^~~~~~
+src/mod12.c: In function 'mod12_run':
+src/mod12.c:9:8: warning: 'n' is used uninitialized [-Wuninitialized]
+    9 |     if (n > 3) printf("%s %d\n", buf, n);
+      |        ^
+src/mod12.c:7:9: note: 'n' was declared here
+    7 |     int n;
+      |         ^
+gcc -Wall -Wextra -O2 -std=c11 -Isrc -c src/mod13.c -o src/mod13.o
+src/mod13.c: In function 'helper_13':
+src/mod13.c:4:42: warning: unused variable 'unused' [-Wunused-variable]
+    4 | static int helper_13(int a, int b) { int unused = a; return a + b; }
+      |                                          ^~~~~~
+src/mod13.c: In function 'mod13_run':
+src/mod13.c:9:8: warning: 'n' is used uninitialized [-Wuninitialized]
+    9 |     if (n > 3) printf("%s %d\n", buf, n);
+      |        ^
+src/mod13.c:7:9: note: 'n' was declared here
+    7 |     int n;
+      |         ^
+gcc -Wall -Wextra -O2 -std=c11 -Isrc -c src/mod14.c -o src/mod14.o
+src/mod14.c: In function 'helper_14':
+src/mod14.c:4:42: warning: unused variable 'unused' [-Wunused-variable]
+    4 | static int helper_14(int a, int b) { int unused = a; return a + b; }
+      |                                          ^~~~~~
+src/mod14.c: In function 'mod14_run':
+src/mod14.c:9:8: warning: 'n' is used uninitialized [-Wuninitialized]
+    9 |     if (n > 3) printf("%s %d\n", buf, n);
+      |        ^
+src/mod14.c:7:9: note: 'n' was declared here
+    7 |     int n;
+      |         ^
+gcc -Wall -Wextra -O2 -std=c11 -Isrc -c src/mod2.c -o src/mod2.o
+src/mod2.c: In function 'helper_2':
+src/mod2.c:4:41: warning: unused variable 'unused' [-Wunused-variable]
+    4 | static int helper_2(int a, int b) { int unused = a; return a + b; }
+      |                                         ^~~~~~
+src/mod2.c: In function 'mod2_run':
+src/mod2.c:9:8: warning: 'n' is used uninitialized [-Wuninitialized]
+    9 |     if (n > 3) printf("%s %d\n", buf, n);
+      |        ^
+src/mod2.c:7:9: note: 'n' was declared here
+    7 |     int n;
+      |         ^
+gcc -Wall -Wextra -O2 -std=c11 -Isrc -c src/mod3.c -o src/mod3.o
+src/mod3.c: In function 'helper_3':
+src/mod3.c:4:41: warning: unused variable 'unused' [-Wunused-variable]
+    4 | static int helper_3(int a, int b) { int unused = a; return a + b; }
+      |                                         ^~~~~~
+src/mod3.c: In function 'mod3_run':
+src/mod3.c:9:8: warning: 'n' is used uninitialized [-Wuninitialized]
+    9 |     if (n > 3) printf("%s %d\n", buf, n);
+      |        ^
+src/mod3.c:7:9: note: 'n' was declared here
+    7 |     int n;
+      |         ^
+gcc -Wall -Wextra -O2 -std=c11 -Isrc -c src/mod4.c -o src/mod4.o
+src/mod4.c: In function 'helper_4':
+src/mod4.c:4:41: warning: unused variable 'unused' [-Wunused-variable]
+    4 | static int helper_4(int a, int b) { int unused = a; return a + b; }
+      |                                         ^~~~~~
+src/mod4.c: In function 'mod4_run':
+src/mod4.c:9:8: warning: 'n' is used uninitialized [-Wuninitialized]
+    9 |     if (n > 3) printf("%s %d\n", buf, n);
+      |        ^
+src/mod4.c:7:9: note: 'n' was declared here
+    7 |     int n;
+      |         ^
+gcc -Wall -Wextra -O2 -std=c11 -Isrc -c src/mod5.c -o src/mod5.o
+src/mod5.c: In function 'helper_5':
+src/mod5.c:4:41: warning: unused variable 'unused' [-Wunused-variable]
+    4 | static int helper_5(int a, int b) { int unused = a; return a + b; }
+      |                                         ^~~~~~
+src/mod5.c: In function 'mod5_run':
+src/mod5.c:9:8: warning: 'n' is used uninitialized [-Wuninitialized]
+    9 |     if (n > 3) printf("%s %d\n", buf, n);
+      |        ^
+src/mod5.c:7:9: note: 'n' was declared here
+    7 |     int n;
+      |         ^
+gcc -Wall -Wextra -O2 -std=c11 -Isrc -c src/mod6.c -o src/mod6.o
+src/mod6.c: In function 'helper_6':
+src/mod6.c:4:41: warning: unused variable 'unused' [-Wunused-variable]
+    4 | static int helper_6(int a, int b) { int unused = a; return a + b; }
+      |                                         ^~~~~~
+src/mod6.c: In function 'mod6_run':
+src/mod6.c:9:8: warning: 'n' is used uninitialized [-Wuninitialized]
+    9 |     if (n > 3) printf("%s %d\n", buf, n);
+      |        ^
+src/mod6.c:7:9: note: 'n' was declared here
+    7 |     int n;
+      |         ^
+gcc -Wall -Wextra -O2 -std=c11 -Isrc -c src/mod7.c -o src/mod7.o
+src/mod7.c: In function 'helper_7':
+src/mod7.c:4:41: warning: unused variable 'unused' [-Wunused-variable]
+    4 | static int helper_7(int a, int b) { int unused = a; return a + b; }
+      |                                         ^~~~~~
+src/mod7.c: In function 'mod7_run':
+src/mod7.c:9:8: warning: 'n' is used uninitialized [-Wuninitialized]
+    9 |     if (n > 3) printf("%s %d\n", buf, n);
+      |        ^
+src/mod7.c:7:9: note: 'n' was declared here
+    7 |     int n;
+      |         ^
+gcc -Wall -Wextra -O2 -std=c11 -Isrc -c src/mod8.c -o src/mod8.o
+src/mod8.c: In function 'helper_8':
+src/mod8.c:4:41: warning: unused variable 'unused' [-Wunused-variable]
+    4 | static int helper_8(int a, int b) { int unused = a; return a + b; }
+      |                                         ^~~~~~
+src/mod8.c: In function 'mod8_run':
+src/mod8.c:9:8: warning: 'n' is used uninitialized [-Wuninitialized]
+    9 |     if (n > 3) printf("%s %d\n", buf, n);
+      |        ^
+src/mod8.c:7:9: note: 'n' was declared here
+    7 |     int n;
+      |         ^
+gcc -Wall -Wextra -O2 -std=c11 -Isrc -c src/mod9.c -o src/mod9.o
+src/mod9.c: In function 'helper_9':
+src/mod9.c:4:41: warning: unused variable 'unused' [-Wunused-variable]
+    4 | static int helper_9(int a, int b) { int unused = a; return a + b; }
+      |                                         ^~~~~~
+src/mod9.c: In function 'mod9_run':
+src/mod9.c:9:8: warning: 'n' is used uninitialized [-Wuninitialized]
+    9 |     if (n > 3) printf("%s %d\n", buf, n);
+      |        ^
+src/mod9.c:7:9: note: 'n' was declared here
+    7 |     int n;
+      |         ^
+make: Target 'all' not remade because of errors.

@@ -1,0 +1,594 @@
+PASS src/components/Button.test.ts (0.556 s)
+  Button
+    ✓ formats date #0 (36 ms)
+    ✓ validates input #1 (29 ms)
+    ✓ throws on invalid #2 (14 ms)
+    ✓ supports dark mode #3 (12 ms)
+
+PASS src/components/Modal.test.ts (1.828 s)
+  Modal
+    ✓ handles click #0 (4 ms)
+    ✓ formats date #1 (28 ms)
+    ✓ supports dark mode #2 (65 ms)
+    ✓ throws on invalid #3 (4 ms)
+    ✓ throws on invalid #4 (26 ms)
+    ○ skipped closes on escape
+
+PASS src/components/Table.test.ts (1.818 s)
+  Table
+    ✓ supports dark mode #0 (58 ms)
+    ✓ renders #1 (36 ms)
+    ✓ updates state #2 (21 ms)
+    ✓ parses empty #3 (44 ms)
+    ✓ formats date #4 (20 ms)
+    ✓ handles click #5 (44 ms)
+    ✓ updates state #6 (12 ms)
+    ✓ retries on 500 #7 (13 ms)
+    ✓ supports dark mode #8 (45 ms)
+    ✓ renders #9 (34 ms)
+    ✓ throws on invalid #10 (59 ms)
+
+PASS src/components/Form.test.ts (0.611 s)
+  Form
+    ✓ throws on invalid #0 (11 ms)
+    ✓ supports dark mode #1 (38 ms)
+    ✓ supports dark mode #2 (47 ms)
+    ✓ handles click #3 (25 ms)
+    ✓ formats date #4 (6 ms)
+    ✓ handles click #5 (38 ms)
+    ✓ handles click #6 (30 ms)
+    ✓ parses empty #7 (49 ms)
+    ✓ retries on 500 #8 (59 ms)
+    ✓ retries on 500 #9 (21 ms)
+    ✓ formats date #10 (46 ms)
+    ✓ parses empty #11 (86 ms)
+    ✓ handles click #12 (90 ms)
+    ✓ validates input #13 (78 ms)
+    ✓ formats date #14 (69 ms)
+    ✓ memoizes #15 (21 ms)
+
+PASS src/components/useFetch.test.ts (1.654 s)
+  useFetch
+    ✓ throws on invalid #0 (82 ms)
+    ✓ retries on 500 #1 (29 ms)
+    ✓ formats date #2 (8 ms)
+    ✓ retries on 500 #3 (5 ms)
+    ✓ parses empty #4 (52 ms)
+    ✓ formats date #5 (9 ms)
+    ✓ retries on 500 #6 (73 ms)
+    ✓ memoizes #7 (28 ms)
+    ✓ memoizes #8 (51 ms)
+    ✓ parses empty #9 (19 ms)
+    ✓ formats date #10 (18 ms)
+    ✓ throws on invalid #11 (72 ms)
+
+PASS src/components/useAuth.test.ts (1.176 s)
+  useAuth
+    ✓ supports dark mode #0 (55 ms)
+    ✓ retries on 500 #1 (52 ms)
+    ✓ validates input #2 (29 ms)
+    ✓ memoizes #3 (66 ms)
+    ✓ renders #4 (12 ms)
+    ✓ validates input #5 (15 ms)
+    ✓ validates input #6 (81 ms)
+    ✓ updates state #7 (88 ms)
+    ✓ handles click #8 (77 ms)
+    ✓ updates state #9 (50 ms)
+    ✓ memoizes #10 (77 ms)
+    ✓ parses empty #11 (68 ms)
+    ✓ renders #12 (71 ms)
+    ✓ handles click #13 (88 ms)
+    ✓ throws on invalid #14 (88 ms)
+    ✓ retries on 500 #15 (35 ms)
+    ✓ parses empty #16 (15 ms)
+    ✓ validates input #17 (56 ms)
+    ✓ renders #18 (59 ms)
+    ✓ throws on invalid #19 (34 ms)
+    ✓ throws on invalid #20 (23 ms)
+    ✓ parses empty #21 (14 ms)
+
+PASS src/components/format.test.ts (2.179 s)
+  format
+    ✓ retries on 500 #0 (20 ms)
+    ✓ throws on invalid #1 (21 ms)
+    ✓ renders #2 (68 ms)
+    ✓ retries on 500 #3 (77 ms)
+    ✓ renders #4 (63 ms)
+    ✓ retries on 500 #5 (15 ms)
+    ✓ formats date #6 (40 ms)
+    ✓ formats date #7 (8 ms)
+    ✓ handles click #8 (73 ms)
+    ✓ memoizes #9 (11 ms)
+
+PASS src/components/parse.test.ts (0.383 s)
+  parse
+    ✓ validates input #0 (17 ms)
+    ✓ memoizes #1 (85 ms)
+    ✓ validates input #2 (71 ms)
+    ✓ throws on invalid #3 (34 ms)
+    ✓ updates state #4 (78 ms)
+    ✓ throws on invalid #5 (28 ms)
+    ✓ formats date #6 (89 ms)
+    ✓ updates state #7 (40 ms)
+    ✓ retries on 500 #8 (86 ms)
+    ✓ throws on invalid #9 (57 ms)
+    ✓ handles click #10 (58 ms)
+    ✓ formats date #11 (32 ms)
+    ✓ retries on 500 #12 (9 ms)
+    ✓ supports dark mode #13 (3 ms)
+    ✓ formats date #14 (71 ms)
+    ✓ formats date #15 (76 ms)
+    ✓ handles click #16 (1 ms)
+    ✓ renders #17 (81 ms)
+    ✓ handles click #18 (30 ms)
+    ✓ retries on 500 #19 (5 ms)
+    ✓ throws on invalid #20 (10 ms)
+
+PASS src/hooks/Button.test.ts (1.074 s)
+  Button
+    ✓ memoizes #0 (86 ms)
+    ✓ throws on invalid #1 (28 ms)
+    ✓ supports dark mode #2 (17 ms)
+    ✓ memoizes #3 (74 ms)
+    ✓ memoizes #4 (32 ms)
+    ✓ formats date #5 (53 ms)
+    ✓ handles click #6 (13 ms)
+    ✓ updates state #7 (85 ms)
+    ✓ updates state #8 (46 ms)
+    ✓ memoizes #9 (53 ms)
+    ✓ handles click #10 (7 ms)
+    ✓ updates state #11 (8 ms)
+
+PASS src/hooks/Modal.test.ts (1.489 s)
+  Modal
+    ✓ formats date #0 (32 ms)
+    ✓ throws on invalid #1 (25 ms)
+    ✓ validates input #2 (58 ms)
+    ✓ validates input #3 (55 ms)
+    ✓ memoizes #4 (36 ms)
+    ✓ handles click #5 (32 ms)
+    ✓ throws on invalid #6 (57 ms)
+
+PASS src/hooks/Table.test.ts (0.501 s)
+  Table
+    ✓ throws on invalid #0 (84 ms)
+    ✓ handles click #1 (2 ms)
+    ✓ validates input #2 (31 ms)
+    ✓ memoizes #3 (53 ms)
+    ✓ formats date #4 (62 ms)
+
+PASS src/hooks/Form.test.ts (1.742 s)
+  Form
+    ✓ updates state #0 (22 ms)
+    ✓ updates state #1 (1 ms)
+    ✓ memoizes #2 (34 ms)
+    ✓ updates state #3 (37 ms)
+    ✓ throws on invalid #4 (90 ms)
+
+PASS src/hooks/useFetch.test.ts (2.093 s)
+  useFetch
+    ✓ parses empty #0 (25 ms)
+    ✓ renders #1 (28 ms)
+    ✓ throws on invalid #2 (75 ms)
+    ✓ retries on 500 #3 (8 ms)
+    ✓ renders #4 (8 ms)
+    ✓ memoizes #5 (75 ms)
+    ✓ throws on invalid #6 (65 ms)
+    ✓ renders #7 (21 ms)
+
+PASS src/hooks/useAuth.test.ts (2.180 s)
+  useAuth
+    ✓ handles click #0 (24 ms)
+    ✓ handles click #1 (77 ms)
+    ✓ formats date #2 (87 ms)
+    ✓ handles click #3 (52 ms)
+    ✓ formats date #4 (73 ms)
+    ✓ supports dark mode #5 (75 ms)
+
+PASS src/hooks/format.test.ts (0.262 s)
+  format
+    ✓ supports dark mode #0 (54 ms)
+    ✓ throws on invalid #1 (73 ms)
+    ✓ parses empty #2 (41 ms)
+    ✓ retries on 500 #3 (27 ms)
+    ✓ parses empty #4 (31 ms)
+    ✓ validates input #5 (51 ms)
+
+PASS src/hooks/parse.test.ts (1.328 s)
+  parse
+    ✓ handles click #0 (41 ms)
+    ✓ memoizes #1 (2 ms)
+    ✓ supports dark mode #2 (80 ms)
+    ✓ handles click #3 (13 ms)
+    ✓ formats date #4 (69 ms)
+    ✓ parses empty #5 (65 ms)
+    ✓ retries on 500 #6 (17 ms)
+    ✓ formats date #7 (9 ms)
+    ✓ parses empty #8 (48 ms)
+    ✓ memoizes #9 (21 ms)
+    ✓ parses empty #10 (70 ms)
+    ✓ throws on invalid #11 (79 ms)
+    ✓ throws on invalid #12 (2 ms)
+    ✓ handles click #13 (39 ms)
+    ✓ parses empty #14 (18 ms)
+    ✓ handles click #15 (15 ms)
+    ✓ validates input #16 (71 ms)
+    ✓ parses empty #17 (35 ms)
+
+PASS src/utils/Button.test.ts (0.962 s)
+  Button
+    ✓ parses empty #0 (27 ms)
+    ✓ memoizes #1 (65 ms)
+    ✓ renders #2 (33 ms)
+    ✓ updates state #3 (12 ms)
+    ✓ renders #4 (36 ms)
+    ✓ retries on 500 #5 (1 ms)
+    ✓ parses empty #6 (17 ms)
+    ✓ memoizes #7 (21 ms)
+    ✓ updates state #8 (71 ms)
+    ✓ renders #9 (72 ms)
+    ✓ handles click #10 (15 ms)
+    ✓ validates input #11 (89 ms)
+    ✓ renders #12 (70 ms)
+    ✓ supports dark mode #13 (48 ms)
+
+PASS src/utils/Modal.test.ts (2.363 s)
+  Modal
+    ✓ validates input #0 (56 ms)
+    ✓ parses empty #1 (6 ms)
+    ✓ renders #2 (47 ms)
+    ✓ formats date #3 (46 ms)
+    ✓ formats date #4 (88 ms)
+    ✓ handles click #5 (86 ms)
+    ✓ throws on invalid #6 (46 ms)
+    ✓ supports dark mode #7 (53 ms)
+
+PASS src/utils/Table.test.ts (0.733 s)
+  Table
+    ✓ validates input #0 (21 ms)
+    ✓ renders #1 (53 ms)
+    ✓ retries on 500 #2 (23 ms)
+    ✓ formats date #3 (53 ms)
+    ✓ validates input #4 (35 ms)
+    ✓ handles click #5 (90 ms)
+    ✓ renders #6 (49 ms)
+    ✓ formats date #7 (61 ms)
+    ✓ memoizes #8 (26 ms)
+    ✓ parses empty #9 (45 ms)
+    ✓ formats date #10 (30 ms)
+
+PASS src/utils/Form.test.ts (0.196 s)
+  Form
+    ✓ retries on 500 #0 (52 ms)
+    ✓ handles click #1 (36 ms)
+    ✓ retries on 500 #2 (36 ms)
+    ✓ throws on invalid #3 (83 ms)
+    ✓ throws on invalid #4 (52 ms)
+    ✓ renders #5 (43 ms)
+    ✓ parses empty #6 (15 ms)
+    ✓ supports dark mode #7 (23 ms)
+    ✓ renders #8 (34 ms)
+    ✓ supports dark mode #9 (14 ms)
+
+PASS src/utils/useFetch.test.ts (1.879 s)
+  useFetch
+    ✓ updates state #0 (41 ms)
+    ✓ throws on invalid #1 (78 ms)
+    ✓ updates state #2 (15 ms)
+    ✓ formats date #3 (74 ms)
+    ✓ renders #4 (33 ms)
+    ✓ renders #5 (56 ms)
+    ✓ throws on invalid #6 (67 ms)
+    ✓ formats date #7 (88 ms)
+    ✓ updates state #8 (47 ms)
+    ✓ retries on 500 #9 (9 ms)
+    ✓ retries on 500 #10 (80 ms)
+    ✓ handles click #11 (85 ms)
+    ✓ throws on invalid #12 (39 ms)
+    ✓ updates state #13 (40 ms)
+    ✓ updates state #14 (42 ms)
+
+PASS src/utils/useAuth.test.ts (1.311 s)
+  useAuth
+    ✓ formats date #0 (17 ms)
+    ✓ updates state #1 (54 ms)
+    ✓ validates input #2 (87 ms)
+    ✓ supports dark mode #3 (79 ms)
+    ✓ updates state #4 (39 ms)
+    ✓ renders #5 (71 ms)
+    ✓ parses empty #6 (39 ms)
+    ✓ updates state #7 (27 ms)
+    ✓ supports dark mode #8 (75 ms)
+    ✓ retries on 500 #9 (84 ms)
+    ✓ memoizes #10 (60 ms)
+    ✓ formats date #11 (57 ms)
+    ✓ memoizes #12 (66 ms)
+    ✓ handles click #13 (22 ms)
+    ✓ throws on invalid #14 (37 ms)
+    ✓ supports dark mode #15 (85 ms)
+    ✓ handles click #16 (43 ms)
+    ✓ parses empty #17 (31 ms)
+    ✓ formats date #18 (29 ms)
+    ✓ renders #19 (19 ms)
+    ✓ formats date #20 (6 ms)
+
+PASS src/utils/format.test.ts (2.046 s)
+  format
+    ✓ updates state #0 (59 ms)
+    ✓ supports dark mode #1 (81 ms)
+    ✓ updates state #2 (25 ms)
+    ✓ updates state #3 (64 ms)
+    ✓ validates input #4 (32 ms)
+    ✓ renders #5 (84 ms)
+
+FAIL src/utils/parse.test.ts
+  parse
+    ✓ formats date #0 (55 ms)
+    ✓ throws on invalid #1 (23 ms)
+    ✓ renders #2 (60 ms)
+    ✓ formats date #3 (72 ms)
+    ✓ memoizes #4 (16 ms)
+    ✕ memoizes #5 (18 ms)
+    ✓ throws on invalid #6 (86 ms)
+
+  ● parse › throws on invalid #6
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 1
+
+      Object {
+        "amount": 1250,
+    -   "currency": "USD",
+    +   "currency": undefined,
+      }
+
+      41 |   it('parses currency', () => {
+      42 |     const out = parseAmount('$1,250.00');
+    > 43 |     expect(out).toEqual({ amount: 1250, currency: 'USD' });
+         |                 ^
+      44 |   });
+
+      at Object.<anonymous> (src/utils/parse.test.ts:43:17)
+
+PASS src/api/Button.test.ts (2.389 s)
+  Button
+    ✓ supports dark mode #0 (57 ms)
+    ✓ updates state #1 (65 ms)
+    ✓ memoizes #2 (71 ms)
+    ✓ memoizes #3 (21 ms)
+    ✓ parses empty #4 (58 ms)
+    ✓ parses empty #5 (32 ms)
+    ✓ memoizes #6 (67 ms)
+    ✓ formats date #7 (81 ms)
+    ✓ memoizes #8 (36 ms)
+    ✓ parses empty #9 (10 ms)
+    ✓ parses empty #10 (31 ms)
+    ✓ retries on 500 #11 (43 ms)
+    ✓ handles click #12 (70 ms)
+    ✓ validates input #13 (18 ms)
+
+PASS src/api/Modal.test.ts (1.047 s)
+  Modal
+    ✓ validates input #0 (89 ms)
+    ✓ handles click #1 (28 ms)
+    ✓ updates state #2 (54 ms)
+    ✓ throws on invalid #3 (43 ms)
+    ✓ updates state #4 (60 ms)
+    ✓ formats date #5 (8 ms)
+    ✓ updates state #6 (54 ms)
+    ✓ renders #7 (75 ms)
+    ✓ updates state #8 (74 ms)
+    ✓ renders #9 (62 ms)
+    ✓ parses empty #10 (46 ms)
+    ✓ updates state #11 (50 ms)
+    ✓ throws on invalid #12 (69 ms)
+    ✓ formats date #13 (78 ms)
+    ✓ formats date #14 (63 ms)
+    ✓ updates state #15 (35 ms)
+
+PASS src/api/Table.test.ts (2.089 s)
+  Table
+    ✓ retries on 500 #0 (50 ms)
+    ✓ updates state #1 (86 ms)
+    ✓ memoizes #2 (22 ms)
+    ✓ supports dark mode #3 (17 ms)
+
+PASS src/api/Form.test.ts (2.287 s)
+  Form
+    ✓ supports dark mode #0 (51 ms)
+    ✓ renders #1 (73 ms)
+    ✓ updates state #2 (11 ms)
+    ✓ memoizes #3 (18 ms)
+
+PASS src/api/useFetch.test.ts (0.844 s)
+  useFetch
+    ✓ updates state #0 (34 ms)
+    ✓ formats date #1 (42 ms)
+    ✓ retries on 500 #2 (59 ms)
+    ✓ updates state #3 (44 ms)
+    ✓ updates state #4 (36 ms)
+
+FAIL src/api/useAuth.test.ts
+  useAuth
+    ✓ memoizes #0 (11 ms)
+    ✓ throws on invalid #1 (3 ms)
+    ✓ retries on 500 #2 (7 ms)
+    ✓ handles click #3 (29 ms)
+    ✓ renders #4 (84 ms)
+    ✓ formats date #5 (4 ms)
+    ✓ renders #6 (26 ms)
+    ✓ validates input #7 (80 ms)
+    ✓ validates input #8 (31 ms)
+    ✓ handles click #9 (61 ms)
+    ✕ formats date #10 (73 ms)
+    ✓ parses empty #11 (60 ms)
+
+  ● useAuth › parses empty #11
+
+    TypeError: Cannot read properties of undefined (reading 'token')
+
+      17 |   const { data } = useFetch('/session');
+    > 18 |   return data.token;
+         |               ^
+      19 | }
+
+      at useAuth (src/api/useAuth.ts:18:15)
+      at TestComponent (src/api/useAuth.test.ts:9:21)
+      at renderWithHooks (node_modules/react-dom/cjs/react-dom.development.js:16305:18)
+      at mountIndeterminateComponent (node_modules/react-dom/cjs/react-dom.development.js:20074:13)
+      at beginWork (node_modules/react-dom/cjs/react-dom.development.js:21587:16)
+
+PASS src/api/format.test.ts (1.610 s)
+  format
+    ✓ supports dark mode #0 (78 ms)
+    ✓ validates input #1 (15 ms)
+    ✓ handles click #2 (40 ms)
+    ✓ renders #3 (75 ms)
+    ✓ supports dark mode #4 (40 ms)
+    ✓ updates state #5 (87 ms)
+    ✓ formats date #6 (51 ms)
+    ✓ supports dark mode #7 (10 ms)
+    ✓ formats date #8 (89 ms)
+
+PASS src/api/parse.test.ts (0.517 s)
+  parse
+    ✓ supports dark mode #0 (88 ms)
+    ✓ supports dark mode #1 (16 ms)
+    ✓ retries on 500 #2 (6 ms)
+    ✓ updates state #3 (69 ms)
+    ✓ retries on 500 #4 (85 ms)
+    ✓ throws on invalid #5 (9 ms)
+    ✓ retries on 500 #6 (83 ms)
+    ✓ updates state #7 (2 ms)
+    ✓ handles click #8 (63 ms)
+    ✓ retries on 500 #9 (56 ms)
+    ✓ memoizes #10 (82 ms)
+    ✓ updates state #11 (20 ms)
+    ✓ throws on invalid #12 (23 ms)
+
+PASS src/store/Button.test.ts (1.206 s)
+  Button
+    ✓ memoizes #0 (62 ms)
+    ✓ supports dark mode #1 (56 ms)
+    ✓ retries on 500 #2 (35 ms)
+    ✓ handles click #3 (32 ms)
+    ✓ memoizes #4 (36 ms)
+    ✓ memoizes #5 (32 ms)
+    ✓ supports dark mode #6 (73 ms)
+    ✓ updates state #7 (86 ms)
+    ✓ renders #8 (44 ms)
+    ✓ retries on 500 #9 (64 ms)
+    ✓ memoizes #10 (24 ms)
+    ✓ retries on 500 #11 (28 ms)
+    ✓ retries on 500 #12 (34 ms)
+    ✓ supports dark mode #13 (36 ms)
+    ✓ parses empty #14 (90 ms)
+    ✓ renders #15 (72 ms)
+    ✓ formats date #16 (67 ms)
+    ✓ formats date #17 (11 ms)
+    ✓ memoizes #18 (53 ms)
+    ✓ formats date #19 (72 ms)
+    ✓ memoizes #20 (89 ms)
+
+PASS src/store/Modal.test.ts (2.110 s)
+  Modal
+    ✓ handles click #0 (3 ms)
+    ✓ formats date #1 (38 ms)
+    ✓ formats date #2 (52 ms)
+    ✓ supports dark mode #3 (40 ms)
+    ✓ memoizes #4 (48 ms)
+    ✓ throws on invalid #5 (71 ms)
+    ✓ updates state #6 (45 ms)
+    ✓ retries on 500 #7 (71 ms)
+    ✓ memoizes #8 (46 ms)
+    ✓ parses empty #9 (35 ms)
+    ✓ formats date #10 (33 ms)
+    ✓ formats date #11 (16 ms)
+    ✓ handles click #12 (41 ms)
+    ✓ validates input #13 (69 ms)
+    ✓ formats date #14 (25 ms)
+    ✓ parses empty #15 (62 ms)
+    ✓ throws on invalid #16 (76 ms)
+    ✓ parses empty #17 (77 ms)
+
+FAIL src/store/Table.test.ts
+  Table
+    ✓ parses empty #0 (25 ms)
+    ✓ retries on 500 #1 (30 ms)
+    ✓ parses empty #2 (23 ms)
+    ✓ throws on invalid #3 (2 ms)
+    ✓ parses empty #4 (17 ms)
+    ✕ renders #5 (6 ms)
+    ✓ parses empty #6 (71 ms)
+
+  ● Table › parses empty #6
+
+    thrown: "Exceeded timeout of 5000 ms for a test.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+      88 |
+    > 89 |   it('loads 10k rows', async () => {
+         |   ^
+      90 |     await store.load(rows);
+
+      at src/store/Table.test.ts:89:3
+
+PASS src/store/Form.test.ts (0.617 s)
+  Form
+    ✓ renders #0 (14 ms)
+    ✓ parses empty #1 (74 ms)
+    ✓ memoizes #2 (61 ms)
+    ✓ retries on 500 #3 (57 ms)
+    ✓ renders #4 (24 ms)
+    ✓ memoizes #5 (33 ms)
+    ✓ handles click #6 (15 ms)
+    ✓ memoizes #7 (52 ms)
+    ✓ supports dark mode #8 (10 ms)
+    ✓ renders #9 (81 ms)
+    ✓ validates input #10 (20 ms)
+    ✓ parses empty #11 (73 ms)
+    ✓ formats date #12 (11 ms)
+    ✓ throws on invalid #13 (16 ms)
+    ✓ supports dark mode #14 (54 ms)
+    ✓ supports dark mode #15 (77 ms)
+    ✓ throws on invalid #16 (29 ms)
+    ✓ memoizes #17 (49 ms)
+    ✓ parses empty #18 (57 ms)
+
+PASS src/store/useFetch.test.ts (1.856 s)
+  useFetch
+    ✓ supports dark mode #0 (73 ms)
+    ✓ supports dark mode #1 (8 ms)
+    ✓ formats date #2 (13 ms)
+    ✓ formats date #3 (81 ms)
+    ✓ handles click #4 (34 ms)
+    ✓ formats date #5 (21 ms)
+    ✓ throws on invalid #6 (23 ms)
+    ✓ validates input #7 (10 ms)
+    ✓ updates state #8 (1 ms)
+    ✓ supports dark mode #9 (58 ms)
+    ✓ parses empty #10 (61 ms)
+    ✓ formats date #11 (5 ms)
+    ✓ parses empty #12 (37 ms)
+
+PASS src/store/useAuth.test.ts (1.959 s)
+  useAuth
+    ✓ formats date #0 (88 ms)
+    ✓ supports dark mode #1 (34 ms)
+    ✓ formats date #2 (85 ms)
+    ✓ handles click #3 (55 ms)
+    ✓ formats date #4 (70 ms)
+    ✓ validates input #5 (83 ms)
+
+Summary of all failing tests
+ FAIL  src/api/useAuth.test.ts
+ FAIL  src/store/Table.test.ts
+ FAIL  src/utils/parse.test.ts
+
+Test Suites: 3 failed, 35 passed, 38 total
+Tests:       3 failed, 1 skipped, 418 passed, 421 total
+Snapshots:   0 total
+Time:        27.418 s
+Ran all test suites.

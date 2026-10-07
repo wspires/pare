@@ -1,0 +1,308 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.16, pytest-9.1.1, pluggy-1.6.0 -- /home/user/pare/.venv/bin/python
+rootdir: /home/dev/proj
+collecting ... collected 170 items
+
+tests/test_cart.py::test_add_many[0] PASSED                              [  0%]
+tests/test_cart.py::test_add_many[1] PASSED                              [  1%]
+tests/test_cart.py::test_add_many[2] PASSED                              [  1%]
+tests/test_cart.py::test_add_many[3] PASSED                              [  2%]
+tests/test_cart.py::test_add_many[4] PASSED                              [  2%]
+tests/test_cart.py::test_add_many[5] PASSED                              [  3%]
+tests/test_cart.py::test_add_many[6] PASSED                              [  4%]
+tests/test_cart.py::test_add_many[7] PASSED                              [  4%]
+tests/test_cart.py::test_add_many[8] PASSED                              [  5%]
+tests/test_cart.py::test_add_many[9] PASSED                              [  5%]
+tests/test_cart.py::test_add_many[10] PASSED                             [  6%]
+tests/test_cart.py::test_add_many[11] PASSED                             [  7%]
+tests/test_cart.py::test_add_many[12] PASSED                             [  7%]
+tests/test_cart.py::test_add_many[13] PASSED                             [  8%]
+tests/test_cart.py::test_add_many[14] PASSED                             [  8%]
+tests/test_cart.py::test_add_many[15] PASSED                             [  9%]
+tests/test_cart.py::test_add_many[16] PASSED                             [ 10%]
+tests/test_cart.py::test_add_many[17] PASSED                             [ 10%]
+tests/test_cart.py::test_add_many[18] PASSED                             [ 11%]
+tests/test_cart.py::test_add_many[19] PASSED                             [ 11%]
+tests/test_cart.py::test_add_many[20] PASSED                             [ 12%]
+tests/test_cart.py::test_add_many[21] PASSED                             [ 12%]
+tests/test_cart.py::test_add_many[22] PASSED                             [ 13%]
+tests/test_cart.py::test_add_many[23] PASSED                             [ 14%]
+tests/test_cart.py::test_add_many[24] PASSED                             [ 14%]
+tests/test_cart.py::test_add_many[25] PASSED                             [ 15%]
+tests/test_cart.py::test_add_many[26] PASSED                             [ 15%]
+tests/test_cart.py::test_add_many[27] PASSED                             [ 16%]
+tests/test_cart.py::test_add_many[28] PASSED                             [ 17%]
+tests/test_cart.py::test_add_many[29] PASSED                             [ 17%]
+tests/test_cart.py::test_add_many[30] PASSED                             [ 18%]
+tests/test_cart.py::test_add_many[31] PASSED                             [ 18%]
+tests/test_cart.py::test_add_many[32] PASSED                             [ 19%]
+tests/test_cart.py::test_add_many[33] PASSED                             [ 20%]
+tests/test_cart.py::test_add_many[34] PASSED                             [ 20%]
+tests/test_cart.py::test_add_many[35] PASSED                             [ 21%]
+tests/test_cart.py::test_add_many[36] PASSED                             [ 21%]
+tests/test_cart.py::test_add_many[37] PASSED                             [ 22%]
+tests/test_cart.py::test_add_many[38] PASSED                             [ 22%]
+tests/test_cart.py::test_add_many[39] PASSED                             [ 23%]
+tests/test_cart.py::test_add_many[40] PASSED                             [ 24%]
+tests/test_cart.py::test_add_many[41] PASSED                             [ 24%]
+tests/test_cart.py::test_add_many[42] PASSED                             [ 25%]
+tests/test_cart.py::test_add_many[43] PASSED                             [ 25%]
+tests/test_cart.py::test_add_many[44] PASSED                             [ 26%]
+tests/test_cart.py::test_add_many[45] PASSED                             [ 27%]
+tests/test_cart.py::test_add_many[46] PASSED                             [ 27%]
+tests/test_cart.py::test_add_many[47] PASSED                             [ 28%]
+tests/test_cart.py::test_add_many[48] PASSED                             [ 28%]
+tests/test_cart.py::test_add_many[49] PASSED                             [ 29%]
+tests/test_cart.py::test_add_many[50] PASSED                             [ 30%]
+tests/test_cart.py::test_add_many[51] PASSED                             [ 30%]
+tests/test_cart.py::test_add_many[52] PASSED                             [ 31%]
+tests/test_cart.py::test_add_many[53] PASSED                             [ 31%]
+tests/test_cart.py::test_add_many[54] PASSED                             [ 32%]
+tests/test_cart.py::test_add_many[55] PASSED                             [ 32%]
+tests/test_cart.py::test_add_many[56] PASSED                             [ 33%]
+tests/test_cart.py::test_add_many[57] PASSED                             [ 34%]
+tests/test_cart.py::test_add_many[58] PASSED                             [ 34%]
+tests/test_cart.py::test_add_many[59] PASSED                             [ 35%]
+tests/test_cart.py::test_add_many[60] PASSED                             [ 35%]
+tests/test_cart.py::test_add_many[61] PASSED                             [ 36%]
+tests/test_cart.py::test_add_many[62] PASSED                             [ 37%]
+tests/test_cart.py::test_add_many[63] PASSED                             [ 37%]
+tests/test_cart.py::test_add_many[64] PASSED                             [ 38%]
+tests/test_cart.py::test_add_many[65] PASSED                             [ 38%]
+tests/test_cart.py::test_add_many[66] PASSED                             [ 39%]
+tests/test_cart.py::test_add_many[67] PASSED                             [ 40%]
+tests/test_cart.py::test_add_many[68] PASSED                             [ 40%]
+tests/test_cart.py::test_add_many[69] PASSED                             [ 41%]
+tests/test_cart.py::test_add_many[70] PASSED                             [ 41%]
+tests/test_cart.py::test_add_many[71] PASSED                             [ 42%]
+tests/test_cart.py::test_add_many[72] PASSED                             [ 42%]
+tests/test_cart.py::test_add_many[73] PASSED                             [ 43%]
+tests/test_cart.py::test_add_many[74] PASSED                             [ 44%]
+tests/test_cart.py::test_add_many[75] PASSED                             [ 44%]
+tests/test_cart.py::test_add_many[76] PASSED                             [ 45%]
+tests/test_cart.py::test_add_many[77] PASSED                             [ 45%]
+tests/test_cart.py::test_add_many[78] PASSED                             [ 46%]
+tests/test_cart.py::test_add_many[79] PASSED                             [ 47%]
+tests/test_cart.py::test_add_many[80] PASSED                             [ 47%]
+tests/test_cart.py::test_add_many[81] PASSED                             [ 48%]
+tests/test_cart.py::test_add_many[82] PASSED                             [ 48%]
+tests/test_cart.py::test_add_many[83] PASSED                             [ 49%]
+tests/test_cart.py::test_add_many[84] PASSED                             [ 50%]
+tests/test_cart.py::test_add_many[85] PASSED                             [ 50%]
+tests/test_cart.py::test_add_many[86] PASSED                             [ 51%]
+tests/test_cart.py::test_add_many[87] PASSED                             [ 51%]
+tests/test_cart.py::test_add_many[88] PASSED                             [ 52%]
+tests/test_cart.py::test_add_many[89] PASSED                             [ 52%]
+tests/test_cart.py::test_add_many[90] PASSED                             [ 53%]
+tests/test_cart.py::test_add_many[91] PASSED                             [ 54%]
+tests/test_cart.py::test_add_many[92] PASSED                             [ 54%]
+tests/test_cart.py::test_add_many[93] PASSED                             [ 55%]
+tests/test_cart.py::test_add_many[94] PASSED                             [ 55%]
+tests/test_cart.py::test_add_many[95] PASSED                             [ 56%]
+tests/test_cart.py::test_add_many[96] PASSED                             [ 57%]
+tests/test_cart.py::test_add_many[97] PASSED                             [ 57%]
+tests/test_cart.py::test_add_many[98] PASSED                             [ 58%]
+tests/test_cart.py::test_add_many[99] PASSED                             [ 58%]
+tests/test_cart.py::test_add_many[100] PASSED                            [ 59%]
+tests/test_cart.py::test_add_many[101] PASSED                            [ 60%]
+tests/test_cart.py::test_add_many[102] PASSED                            [ 60%]
+tests/test_cart.py::test_add_many[103] PASSED                            [ 61%]
+tests/test_cart.py::test_add_many[104] PASSED                            [ 61%]
+tests/test_cart.py::test_add_many[105] PASSED                            [ 62%]
+tests/test_cart.py::test_add_many[106] PASSED                            [ 62%]
+tests/test_cart.py::test_add_many[107] PASSED                            [ 63%]
+tests/test_cart.py::test_add_many[108] PASSED                            [ 64%]
+tests/test_cart.py::test_add_many[109] PASSED                            [ 64%]
+tests/test_cart.py::test_add_many[110] PASSED                            [ 65%]
+tests/test_cart.py::test_add_many[111] PASSED                            [ 65%]
+tests/test_cart.py::test_add_many[112] PASSED                            [ 66%]
+tests/test_cart.py::test_add_many[113] PASSED                            [ 67%]
+tests/test_cart.py::test_add_many[114] PASSED                            [ 67%]
+tests/test_cart.py::test_add_many[115] PASSED                            [ 68%]
+tests/test_cart.py::test_add_many[116] PASSED                            [ 68%]
+tests/test_cart.py::test_add_many[117] PASSED                            [ 69%]
+tests/test_cart.py::test_add_many[118] PASSED                            [ 70%]
+tests/test_cart.py::test_add_many[119] PASSED                            [ 70%]
+tests/test_cart.py::test_parse_ok[{"a": 1}0] PASSED                      [ 71%]
+tests/test_cart.py::test_parse_ok[[1,2,3]0] PASSED                       [ 71%]
+tests/test_cart.py::test_parse_ok["s"0] PASSED                           [ 72%]
+tests/test_cart.py::test_parse_ok[{"nested": {"b": [1,2]}}0] PASSED      [ 72%]
+tests/test_cart.py::test_parse_ok[{"a": 1}1] PASSED                      [ 73%]
+tests/test_cart.py::test_parse_ok[[1,2,3]1] PASSED                       [ 74%]
+tests/test_cart.py::test_parse_ok["s"1] PASSED                           [ 74%]
+tests/test_cart.py::test_parse_ok[{"nested": {"b": [1,2]}}1] PASSED      [ 75%]
+tests/test_cart.py::test_parse_ok[{"a": 1}2] PASSED                      [ 75%]
+tests/test_cart.py::test_parse_ok[[1,2,3]2] PASSED                       [ 76%]
+tests/test_cart.py::test_parse_ok["s"2] PASSED                           [ 77%]
+tests/test_cart.py::test_parse_ok[{"nested": {"b": [1,2]}}2] PASSED      [ 77%]
+tests/test_cart.py::test_parse_ok[{"a": 1}3] PASSED                      [ 78%]
+tests/test_cart.py::test_parse_ok[[1,2,3]3] PASSED                       [ 78%]
+tests/test_cart.py::test_parse_ok["s"3] PASSED                           [ 79%]
+tests/test_cart.py::test_parse_ok[{"nested": {"b": [1,2]}}3] PASSED      [ 80%]
+tests/test_cart.py::test_parse_ok[{"a": 1}4] PASSED                      [ 80%]
+tests/test_cart.py::test_parse_ok[[1,2,3]4] PASSED                       [ 81%]
+tests/test_cart.py::test_parse_ok["s"4] PASSED                           [ 81%]
+tests/test_cart.py::test_parse_ok[{"nested": {"b": [1,2]}}4] PASSED      [ 82%]
+tests/test_cart.py::test_parse_ok[{"a": 1}5] PASSED                      [ 82%]
+tests/test_cart.py::test_parse_ok[[1,2,3]5] PASSED                       [ 83%]
+tests/test_cart.py::test_parse_ok["s"5] PASSED                           [ 84%]
+tests/test_cart.py::test_parse_ok[{"nested": {"b": [1,2]}}5] PASSED      [ 84%]
+tests/test_cart.py::test_parse_ok[{"a": 1}6] PASSED                      [ 85%]
+tests/test_cart.py::test_parse_ok[[1,2,3]6] PASSED                       [ 85%]
+tests/test_cart.py::test_parse_ok["s"6] PASSED                           [ 86%]
+tests/test_cart.py::test_parse_ok[{"nested": {"b": [1,2]}}6] PASSED      [ 87%]
+tests/test_cart.py::test_parse_ok[{"a": 1}7] PASSED                      [ 87%]
+tests/test_cart.py::test_parse_ok[[1,2,3]7] PASSED                       [ 88%]
+tests/test_cart.py::test_parse_ok["s"7] PASSED                           [ 88%]
+tests/test_cart.py::test_parse_ok[{"nested": {"b": [1,2]}}7] PASSED      [ 89%]
+tests/test_cart.py::test_parse_ok[{"a": 1}8] PASSED                      [ 90%]
+tests/test_cart.py::test_parse_ok[[1,2,3]8] PASSED                       [ 90%]
+tests/test_cart.py::test_parse_ok["s"8] PASSED                           [ 91%]
+tests/test_cart.py::test_parse_ok[{"nested": {"b": [1,2]}}8] PASSED      [ 91%]
+tests/test_cart.py::test_parse_ok[{"a": 1}9] PASSED                      [ 92%]
+tests/test_cart.py::test_parse_ok[[1,2,3]9] PASSED                       [ 92%]
+tests/test_cart.py::test_parse_ok["s"9] PASSED                           [ 93%]
+tests/test_cart.py::test_parse_ok[{"nested": {"b": [1,2]}}9] PASSED      [ 94%]
+tests/test_cart.py::test_parse_bad FAILED                                [ 94%]
+tests/test_cart.py::test_total_wrong FAILED                              [ 95%]
+tests/test_cart.py::test_add_rejects[0] PASSED                           [ 95%]
+tests/test_cart.py::test_add_rejects[-1] PASSED                          [ 96%]
+tests/test_cart.py::test_add_rejects[-5] PASSED                          [ 97%]
+tests/test_cart.py::test_skipped SKIPPED (flaky on CI)                   [ 97%]
+tests/test_cart.py::test_xfail XFAIL (known bug #42)                     [ 98%]
+tests/test_net.py::test_connect[127.0.0.1] FAILED                        [ 98%]
+tests/test_net.py::test_connect[10.255.255.1] FAILED                     [ 99%]
+tests/test_net.py::test_deep FAILED                                      [100%]
+
+=================================== FAILURES ===================================
+________________________________ test_parse_bad ________________________________
+
+    def test_parse_bad():
+>       parse('{"a": ')
+
+tests/test_cart.py:14: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/core.py:6: in parse
+    return json.loads(s)
+           ^^^^^^^^^^^^^
+/usr/lib/python3.13/json/__init__.py:352: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.13/json/decoder.py:345: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <json.decoder.JSONDecoder object at 0x7f7e97664590>, s = '{"a": '
+idx = 0
+
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+    
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+    
+        """
+        try:
+            obj, end = self.scan_once(s, idx)
+        except StopIteration as err:
+>           raise JSONDecodeError("Expecting value", s, err.value) from None
+E           json.decoder.JSONDecodeError: Expecting value: line 1 column 7 (char 6)
+
+/usr/lib/python3.13/json/decoder.py:363: JSONDecodeError
+------------------------------ Captured log setup ------------------------------
+INFO     app.core:conftest.py:5 fixture setup for test
+------------------------------ Captured log call -------------------------------
+INFO     app.core:core.py:5 parsing 6 bytes
+_______________________________ test_total_wrong _______________________________
+
+    def test_total_wrong():
+        c = Cart(); c.add("apple", 0.1, 3); c.add("pear", 0.2, 3)
+>       assert c.total() == 0.9
+E       assert 0.9000000000000001 == 0.9
+E        +  where 0.9000000000000001 = total()
+E        +    where total = <app.core.Cart object at 0x7f7e97197d40>.total
+
+tests/test_cart.py:18: AssertionError
+------------------------------ Captured log setup ------------------------------
+INFO     app.core:conftest.py:5 fixture setup for test
+___________________________ test_connect[127.0.0.1] ____________________________
+
+host = '127.0.0.1'
+
+    @pytest.mark.parametrize("host", ["127.0.0.1", "10.255.255.1"])
+    def test_connect(host):
+>       connect(host)
+
+tests/test_net.py:6: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+host = '127.0.0.1'
+
+    def connect(host):
+        import socket
+        sock = socket.socket()
+        sock.settimeout(0.2)
+>       sock.connect((host, 9))
+E       ConnectionRefusedError: [Errno 111] Connection refused
+
+app/core.py:15: ConnectionRefusedError
+------------------------------ Captured log setup ------------------------------
+INFO     app.core:conftest.py:5 fixture setup for test
+__________________________ test_connect[10.255.255.1] __________________________
+
+host = '10.255.255.1'
+
+    @pytest.mark.parametrize("host", ["127.0.0.1", "10.255.255.1"])
+    def test_connect(host):
+>       connect(host)
+
+tests/test_net.py:6: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+host = '10.255.255.1'
+
+    def connect(host):
+        import socket
+        sock = socket.socket()
+        sock.settimeout(0.2)
+>       sock.connect((host, 9))
+E       TimeoutError: timed out
+
+app/core.py:15: TimeoutError
+------------------------------ Captured log setup ------------------------------
+INFO     app.core:conftest.py:5 fixture setup for test
+__________________________________ test_deep ___________________________________
+
+    def test_deep():
+        def a(): return b()
+        def b(): return c()
+        def c(): raise RuntimeError("deep failure at level 3")
+>       a()
+
+tests/test_net.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_net.py:9: in a
+    def a(): return b()
+                    ^^^
+tests/test_net.py:10: in b
+    def b(): return c()
+                    ^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   def c(): raise RuntimeError("deep failure at level 3")
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   RuntimeError: deep failure at level 3
+
+tests/test_net.py:11: RuntimeError
+------------------------------ Captured log setup ------------------------------
+INFO     app.core:conftest.py:5 fixture setup for test
+=========================== short test summary info ============================
+FAILED tests/test_cart.py::test_parse_bad - json.decoder.JSONDecodeError: Exp...
+FAILED tests/test_cart.py::test_total_wrong - assert 0.9000000000000001 == 0.9
+FAILED tests/test_net.py::test_connect[127.0.0.1] - ConnectionRefusedError: [...
+FAILED tests/test_net.py::test_connect[10.255.255.1] - TimeoutError: timed out
+FAILED tests/test_net.py::test_deep - RuntimeError: deep failure at level 3
+============= 5 failed, 163 passed, 1 skipped, 1 xfailed in 0.51s ==============

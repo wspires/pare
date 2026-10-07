@@ -1,0 +1,239 @@
+#!/usr/bin/env python3
+"""Benchmark pare against sqz and tidyout on the corpus.
+
+For every corpus/<name>.log:
+  * <name>.keep  lines that must survive (one per line; a line survives if
+                 its stripped text appears as a substring of the tool output)
+  * <name>.cmd   the command that produced the log (optional). tidyout only
+                 applies rules keyed on the command name, so the runner puts
+                 a fake binary with that name on PATH that cats the log; sqz
+                 gets it as --cmd.
+
+Usage
+    python bench/run.py [--budget 2000] [--corpus corpus] [--tools pare,sqz,tidyout] [--json out.json]
+
+Tokens are approximated as ceil(bytes / 4) everywhere, matching pare's own
+budget accounting. Tools that are not installed are reported as "n/a".
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import os
+import shutil
+import stat
+import subprocess
+import sys
+import tempfile
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def tokens(data: bytes) -> int:
+    return math.ceil(len(data) / 4)
+
+
+def which(name: str) -> str | None:
+    venv = os.path.join(ROOT, ".venv", "bin", name)
+    if os.path.exists(venv):
+        return venv
+    return shutil.which(name)
+
+
+def python() -> str:
+    venv = os.path.join(ROOT, ".venv", "bin", "python")
+    return venv if os.path.exists(venv) else sys.executable
+
+
+class Tool:
+    name = "tool"
+
+    def available(self) -> bool:
+        return True
+
+    def run(self, log_path: str, cmd: list[str], budget: int, work: str) -> bytes:
+        raise NotImplementedError
+
+
+class Raw(Tool):
+    name = "raw"
+
+    def run(self, log_path, cmd, budget, work):
+        with open(log_path, "rb") as f:
+            return f.read()
+
+
+class Pare(Tool):
+    name = "pare"
+
+    def run(self, log_path, cmd, budget, work):
+        with open(log_path, "rb") as f:
+            p = subprocess.run(
+                [python(), os.path.join(ROOT, "proto", "pare.py"), "--budget", str(budget), "--run-dir", os.path.join(work, "runs")],
+                stdin=f, capture_output=True, check=True,
+            )
+        return p.stdout
+
+
+class Sqz(Tool):
+    name = "sqz"
+
+    def available(self):
+        return which("sqz") is not None
+
+    def run(self, log_path, cmd, budget, work):
+        args = [which("sqz"), "compress", "--no-cache"]
+        if cmd:
+            args += ["--cmd", cmd[0]]
+        env = dict(os.environ, HOME=os.path.join(work, "home"), SQZ_NO_DEDUP="1")
+        os.makedirs(env["HOME"], exist_ok=True)
+        with open(log_path, "rb") as f:
+            p = subprocess.run(args, stdin=f, capture_output=True, env=env)
+        if p.returncode != 0:
+            raise RuntimeError(p.stderr.decode(errors="replace")[:300])
+        return p.stdout
+
+
+class Tidyout(Tool):
+    name = "tidyout"
+
+    def available(self):
+        return which("tidyout") is not None
+
+    def run(self, log_path, cmd, budget, work):
+        # tidyout wraps a command; give it a fake one that replays the log so
+        # its per-command rules (pytest, cargo build, ...) apply.
+        if not cmd:
+            cmd = ["cat"]
+        fake_bin = os.path.join(work, "bin")
+        os.makedirs(fake_bin, exist_ok=True)
+        fake = os.path.join(fake_bin, cmd[0])
+        with open(fake, "w") as f:
+            f.write(f"#!/bin/sh\nexec cat {json.dumps(log_path)}\n")
+        os.chmod(fake, os.stat(fake).st_mode | stat.S_IEXEC)
+        env = dict(os.environ, PATH=fake_bin + os.pathsep + os.environ.get("PATH", ""))
+        p = subprocess.run([which("tidyout")] + cmd, capture_output=True, env=env)
+        return p.stdout
+
+
+TOOLS = {t.name: t for t in (Raw(), Pare(), Sqz(), Tidyout())}
+
+
+def recall(output: bytes, keep: list[str]) -> tuple[int, int]:
+    text = output.decode("utf-8", errors="replace")
+    hit = sum(1 for k in keep if k in text)
+    return hit, len(keep)
+
+
+def load_case(corpus: str, name: str):
+    log_path = os.path.join(corpus, name + ".log")
+    keep_path = os.path.join(corpus, name + ".keep")
+    cmd_path = os.path.join(corpus, name + ".cmd")
+    keep = []
+    if os.path.exists(keep_path):
+        with open(keep_path, encoding="utf-8") as f:
+            keep = [ln.strip() for ln in f if ln.strip()]
+    cmd: list[str] = []
+    if os.path.exists(cmd_path):
+        with open(cmd_path, encoding="utf-8") as f:
+            cmd = f.read().split()
+    return log_path, keep, cmd
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--corpus", default=os.path.join(ROOT, "corpus"))
+    ap.add_argument("--budget", type=int, default=2000, help="pare token budget (default 2000)")
+    ap.add_argument("--tools", default="pare,sqz,tidyout", help="comma-separated subset of pare,sqz,tidyout")
+    ap.add_argument("--json", help="also write results as JSON to this path")
+    ap.add_argument("--show-misses", action="store_true", help="list must-survive lines each tool dropped")
+    args = ap.parse_args()
+
+    names = sorted(f[:-4] for f in os.listdir(args.corpus) if f.endswith(".log"))
+    if not names:
+        sys.exit(f"no .log files in {args.corpus}")
+    tool_names = ["raw"] + [t.strip() for t in args.tools.split(",") if t.strip()]
+    tools = []
+    for tn in tool_names:
+        if tn not in TOOLS:
+            sys.exit(f"unknown tool {tn!r}; choose from {', '.join(TOOLS)}")
+        tools.append(TOOLS[tn])
+
+    rows = []
+    misses: dict[tuple[str, str], list[str]] = {}
+    with tempfile.TemporaryDirectory(prefix="pare-bench-") as work:
+        for name in names:
+            log_path, keep, cmd = load_case(args.corpus, name)
+            with open(log_path, "rb") as f:
+                in_tok = tokens(f.read())
+            for tool in tools:
+                row = {"case": name, "tool": tool.name, "in_tok": in_tok, "keep": len(keep)}
+                if not tool.available():
+                    row.update(out_tok=None, hit=None, err="not installed")
+                    rows.append(row)
+                    continue
+                try:
+                    out = tool.run(log_path, cmd, args.budget, work)
+                except Exception as e:  # noqa: BLE001
+                    row.update(out_tok=None, hit=None, err=str(e)[:80])
+                    rows.append(row)
+                    continue
+                hit, n = recall(out, keep)
+                row.update(out_tok=tokens(out), hit=hit)
+                text = out.decode("utf-8", errors="replace")
+                misses[(name, tool.name)] = [k for k in keep if k not in text]
+                rows.append(row)
+
+    # Per-case table.
+    print(f"budget={args.budget} tokens (bytes/4)   tools: {', '.join(t.name for t in tools)}\n")
+    hdr = f"{'case':<16} {'tool':<8} {'in_tok':>8} {'out_tok':>8} {'ratio':>7} {'recall':>9}"
+    print(hdr)
+    print("-" * len(hdr))
+    for row in rows:
+        if row.get("err"):
+            print(f"{row['case']:<16} {row['tool']:<8} {row['in_tok']:>8} {'n/a':>8} {'':>7} {'':>9}   {row['err']}")
+            continue
+        ratio = row["out_tok"] / row["in_tok"] if row["in_tok"] else 0.0
+        rec = f"{row['hit']}/{row['keep']}" if row["keep"] else "-"
+        print(f"{row['case']:<16} {row['tool']:<8} {row['in_tok']:>8} {row['out_tok']:>8} {ratio:>6.1%} {rec:>9}")
+
+    # Aggregate per tool.
+    print()
+    hdr = f"{'tool':<8} {'cases':>5} {'in_tok':>9} {'out_tok':>9} {'ratio':>7} {'recall':>9} {'min-recall':>11}"
+    print(hdr)
+    print("-" * len(hdr))
+    summary = []
+    for tool in tools:
+        ok = [r for r in rows if r["tool"] == tool.name and not r.get("err")]
+        if not ok:
+            print(f"{tool.name:<8} {0:>5}   (not installed or failed on every case)")
+            continue
+        in_t = sum(r["in_tok"] for r in ok)
+        out_t = sum(r["out_tok"] for r in ok)
+        kept = sum(r["hit"] for r in ok)
+        total = sum(r["keep"] for r in ok)
+        per_case = [r["hit"] / r["keep"] for r in ok if r["keep"]]
+        rec = kept / total if total else 0.0
+        mn = min(per_case) if per_case else 0.0
+        print(f"{tool.name:<8} {len(ok):>5} {in_t:>9} {out_t:>9} {out_t / in_t:>6.1%} {rec:>8.0%} {mn:>10.0%}")
+        summary.append({"tool": tool.name, "cases": len(ok), "in_tok": in_t, "out_tok": out_t,
+                        "ratio": out_t / in_t, "recall": rec, "min_recall": mn})
+
+    if args.show_misses:
+        print()
+        for (name, tn), lost in sorted(misses.items()):
+            if lost:
+                print(f"{name} / {tn} dropped {len(lost)}:")
+                for k in lost:
+                    print(f"    {k}")
+
+    if args.json:
+        with open(args.json, "w") as f:
+            json.dump({"budget": args.budget, "rows": rows, "summary": summary}, f, indent=2)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

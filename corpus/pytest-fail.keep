@@ -1,0 +1,11 @@
+E           json.decoder.JSONDecodeError: Expecting value: line 1 column 7 (char 6)
+E       assert 0.9000000000000001 == 0.9
+E       ConnectionRefusedError: [Errno 111] Connection refused
+E       TimeoutError: timed out
+E   RuntimeError: deep failure at level 3
+FAILED tests/test_cart.py::test_parse_bad - json.decoder.JSONDecodeError: Exp...
+FAILED tests/test_cart.py::test_total_wrong - assert 0.9000000000000001 == 0.9
+FAILED tests/test_net.py::test_connect[127.0.0.1] - ConnectionRefusedError: [...
+FAILED tests/test_net.py::test_connect[10.255.255.1] - TimeoutError: timed out
+FAILED tests/test_net.py::test_deep - RuntimeError: deep failure at level 3
+5 failed, 163 passed, 1 skipped, 1 xfailed in 0.51s

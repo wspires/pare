@@ -1,0 +1,239 @@
+=== RUN   TestAddTable
+=== RUN   TestAddTable/case_0
+    mathx_test.go:9: adding 0 and 1
+=== RUN   TestAddTable/case_1
+    mathx_test.go:9: adding 1 and 2
+=== RUN   TestAddTable/case_2
+    mathx_test.go:9: adding 2 and 3
+=== RUN   TestAddTable/case_3
+    mathx_test.go:9: adding 3 and 4
+=== RUN   TestAddTable/case_4
+    mathx_test.go:9: adding 4 and 5
+=== RUN   TestAddTable/case_5
+    mathx_test.go:9: adding 5 and 6
+=== RUN   TestAddTable/case_6
+    mathx_test.go:9: adding 6 and 7
+=== RUN   TestAddTable/case_7
+    mathx_test.go:9: adding 7 and 8
+=== RUN   TestAddTable/case_8
+    mathx_test.go:9: adding 8 and 9
+=== RUN   TestAddTable/case_9
+    mathx_test.go:9: adding 9 and 10
+=== RUN   TestAddTable/case_10
+    mathx_test.go:9: adding 10 and 11
+=== RUN   TestAddTable/case_11
+    mathx_test.go:9: adding 11 and 12
+=== RUN   TestAddTable/case_12
+    mathx_test.go:9: adding 12 and 13
+=== RUN   TestAddTable/case_13
+    mathx_test.go:9: adding 13 and 14
+=== RUN   TestAddTable/case_14
+    mathx_test.go:9: adding 14 and 15
+=== RUN   TestAddTable/case_15
+    mathx_test.go:9: adding 15 and 16
+=== RUN   TestAddTable/case_16
+    mathx_test.go:9: adding 16 and 17
+=== RUN   TestAddTable/case_17
+    mathx_test.go:9: adding 17 and 18
+=== RUN   TestAddTable/case_18
+    mathx_test.go:9: adding 18 and 19
+=== RUN   TestAddTable/case_19
+    mathx_test.go:9: adding 19 and 20
+=== RUN   TestAddTable/case_20
+    mathx_test.go:9: adding 20 and 21
+=== RUN   TestAddTable/case_21
+    mathx_test.go:9: adding 21 and 22
+=== RUN   TestAddTable/case_22
+    mathx_test.go:9: adding 22 and 23
+=== RUN   TestAddTable/case_23
+    mathx_test.go:9: adding 23 and 24
+=== RUN   TestAddTable/case_24
+    mathx_test.go:9: adding 24 and 25
+=== RUN   TestAddTable/case_25
+    mathx_test.go:9: adding 25 and 26
+=== RUN   TestAddTable/case_26
+    mathx_test.go:9: adding 26 and 27
+=== RUN   TestAddTable/case_27
+    mathx_test.go:9: adding 27 and 28
+=== RUN   TestAddTable/case_28
+    mathx_test.go:9: adding 28 and 29
+=== RUN   TestAddTable/case_29
+    mathx_test.go:9: adding 29 and 30
+=== RUN   TestAddTable/case_30
+    mathx_test.go:9: adding 30 and 31
+=== RUN   TestAddTable/case_31
+    mathx_test.go:9: adding 31 and 32
+=== RUN   TestAddTable/case_32
+    mathx_test.go:9: adding 32 and 33
+=== RUN   TestAddTable/case_33
+    mathx_test.go:9: adding 33 and 34
+=== RUN   TestAddTable/case_34
+    mathx_test.go:9: adding 34 and 35
+=== RUN   TestAddTable/case_35
+    mathx_test.go:9: adding 35 and 36
+=== RUN   TestAddTable/case_36
+    mathx_test.go:9: adding 36 and 37
+=== RUN   TestAddTable/case_37
+    mathx_test.go:9: adding 37 and 38
+=== RUN   TestAddTable/case_38
+    mathx_test.go:9: adding 38 and 39
+=== RUN   TestAddTable/case_39
+    mathx_test.go:9: adding 39 and 40
+=== RUN   TestAddTable/case_40
+    mathx_test.go:9: adding 40 and 41
+=== RUN   TestAddTable/case_41
+    mathx_test.go:9: adding 41 and 42
+=== RUN   TestAddTable/case_42
+    mathx_test.go:9: adding 42 and 43
+=== RUN   TestAddTable/case_43
+    mathx_test.go:9: adding 43 and 44
+=== RUN   TestAddTable/case_44
+    mathx_test.go:9: adding 44 and 45
+=== RUN   TestAddTable/case_45
+    mathx_test.go:9: adding 45 and 46
+=== RUN   TestAddTable/case_46
+    mathx_test.go:9: adding 46 and 47
+=== RUN   TestAddTable/case_47
+    mathx_test.go:9: adding 47 and 48
+=== RUN   TestAddTable/case_48
+    mathx_test.go:9: adding 48 and 49
+=== RUN   TestAddTable/case_49
+    mathx_test.go:9: adding 49 and 50
+=== RUN   TestAddTable/case_50
+    mathx_test.go:9: adding 50 and 51
+=== RUN   TestAddTable/case_51
+    mathx_test.go:9: adding 51 and 52
+=== RUN   TestAddTable/case_52
+    mathx_test.go:9: adding 52 and 53
+=== RUN   TestAddTable/case_53
+    mathx_test.go:9: adding 53 and 54
+=== RUN   TestAddTable/case_54
+    mathx_test.go:9: adding 54 and 55
+=== RUN   TestAddTable/case_55
+    mathx_test.go:9: adding 55 and 56
+=== RUN   TestAddTable/case_56
+    mathx_test.go:9: adding 56 and 57
+=== RUN   TestAddTable/case_57
+    mathx_test.go:9: adding 57 and 58
+=== RUN   TestAddTable/case_58
+    mathx_test.go:9: adding 58 and 59
+=== RUN   TestAddTable/case_59
+    mathx_test.go:9: adding 59 and 60
+--- PASS: TestAddTable (0.00s)
+    --- PASS: TestAddTable/case_0 (0.00s)
+    --- PASS: TestAddTable/case_1 (0.00s)
+    --- PASS: TestAddTable/case_2 (0.00s)
+    --- PASS: TestAddTable/case_3 (0.00s)
+    --- PASS: TestAddTable/case_4 (0.00s)
+    --- PASS: TestAddTable/case_5 (0.00s)
+    --- PASS: TestAddTable/case_6 (0.00s)
+    --- PASS: TestAddTable/case_7 (0.00s)
+    --- PASS: TestAddTable/case_8 (0.00s)
+    --- PASS: TestAddTable/case_9 (0.00s)
+    --- PASS: TestAddTable/case_10 (0.00s)
+    --- PASS: TestAddTable/case_11 (0.00s)
+    --- PASS: TestAddTable/case_12 (0.00s)
+    --- PASS: TestAddTable/case_13 (0.00s)
+    --- PASS: TestAddTable/case_14 (0.00s)
+    --- PASS: TestAddTable/case_15 (0.00s)
+    --- PASS: TestAddTable/case_16 (0.00s)
+    --- PASS: TestAddTable/case_17 (0.00s)
+    --- PASS: TestAddTable/case_18 (0.00s)
+    --- PASS: TestAddTable/case_19 (0.00s)
+    --- PASS: TestAddTable/case_20 (0.00s)
+    --- PASS: TestAddTable/case_21 (0.00s)
+    --- PASS: TestAddTable/case_22 (0.00s)
+    --- PASS: TestAddTable/case_23 (0.00s)
+    --- PASS: TestAddTable/case_24 (0.00s)
+    --- PASS: TestAddTable/case_25 (0.00s)
+    --- PASS: TestAddTable/case_26 (0.00s)
+    --- PASS: TestAddTable/case_27 (0.00s)
+    --- PASS: TestAddTable/case_28 (0.00s)
+    --- PASS: TestAddTable/case_29 (0.00s)
+    --- PASS: TestAddTable/case_30 (0.00s)
+    --- PASS: TestAddTable/case_31 (0.00s)
+    --- PASS: TestAddTable/case_32 (0.00s)
+    --- PASS: TestAddTable/case_33 (0.00s)
+    --- PASS: TestAddTable/case_34 (0.00s)
+    --- PASS: TestAddTable/case_35 (0.00s)
+    --- PASS: TestAddTable/case_36 (0.00s)
+    --- PASS: TestAddTable/case_37 (0.00s)
+    --- PASS: TestAddTable/case_38 (0.00s)
+    --- PASS: TestAddTable/case_39 (0.00s)
+    --- PASS: TestAddTable/case_40 (0.00s)
+    --- PASS: TestAddTable/case_41 (0.00s)
+    --- PASS: TestAddTable/case_42 (0.00s)
+    --- PASS: TestAddTable/case_43 (0.00s)
+    --- PASS: TestAddTable/case_44 (0.00s)
+    --- PASS: TestAddTable/case_45 (0.00s)
+    --- PASS: TestAddTable/case_46 (0.00s)
+    --- PASS: TestAddTable/case_47 (0.00s)
+    --- PASS: TestAddTable/case_48 (0.00s)
+    --- PASS: TestAddTable/case_49 (0.00s)
+    --- PASS: TestAddTable/case_50 (0.00s)
+    --- PASS: TestAddTable/case_51 (0.00s)
+    --- PASS: TestAddTable/case_52 (0.00s)
+    --- PASS: TestAddTable/case_53 (0.00s)
+    --- PASS: TestAddTable/case_54 (0.00s)
+    --- PASS: TestAddTable/case_55 (0.00s)
+    --- PASS: TestAddTable/case_56 (0.00s)
+    --- PASS: TestAddTable/case_57 (0.00s)
+    --- PASS: TestAddTable/case_58 (0.00s)
+    --- PASS: TestAddTable/case_59 (0.00s)
+=== RUN   TestFact
+--- PASS: TestFact (0.00s)
+=== RUN   TestFactOverflow
+--- PASS: TestFactOverflow (0.00s)
+=== RUN   TestDivZero
+    mathx_test.go:27: Div panicked: runtime error: integer divide by zero
+--- FAIL: TestDivZero (0.00s)
+FAIL
+FAIL	example.com/goproj/mathx	0.006s
+=== RUN   TestDialLocal
+    netx_test.go:6: dial failed: dial tcp 127.0.0.1:9: connect: connection refused
+--- FAIL: TestDialLocal (0.00s)
+=== RUN   TestDialOK
+    netx_test.go:8: skipping real network
+    netx_test.go:8: no network in CI
+--- SKIP: TestDialOK (0.00s)
+FAIL
+FAIL	example.com/goproj/netx	0.014s
+=== RUN   TestReverse
+=== RUN   TestReverse/rev_0
+    strx_test.go:9: roundtrip "abc" -> "abc"
+=== RUN   TestReverse/rev_1
+    strx_test.go:9: roundtrip "héllo" -> "héllo"
+=== RUN   TestReverse/rev_2
+    strx_test.go:9: roundtrip "" -> ""
+=== RUN   TestReverse/rev_3
+    strx_test.go:9: roundtrip "racecar" -> "racecar"
+=== RUN   TestReverse/rev_4
+    strx_test.go:9: roundtrip "Go!" -> "Go!"
+--- PASS: TestReverse (0.00s)
+    --- PASS: TestReverse/rev_0 (0.00s)
+    --- PASS: TestReverse/rev_1 (0.00s)
+    --- PASS: TestReverse/rev_2 (0.00s)
+    --- PASS: TestReverse/rev_3 (0.00s)
+    --- PASS: TestReverse/rev_4 (0.00s)
+=== RUN   TestTitleEmpty
+--- FAIL: TestTitleEmpty (0.00s)
+panic: runtime error: slice bounds out of range [:1] with length 0 [recovered]
+	panic: runtime error: slice bounds out of range [:1] with length 0
+
+goroutine 23 [running]:
+testing.tRunner.func1.2({0x568e80, 0xc0000b8150})
+	/usr/local/go1.24.7/src/testing/testing.go:1734 +0x21c
+testing.tRunner.func1()
+	/usr/local/go1.24.7/src/testing/testing.go:1737 +0x35e
+panic({0x568e80?, 0xc0000b8150?})
+	/usr/local/go1.24.7/src/runtime/panic.go:792 +0x132
+example.com/goproj/strx.Title(...)
+	/home/dev/proj/strx/strx.go:5
+example.com/goproj/strx.TestTitleEmpty(0xc000083340?)
+	/home/dev/proj/strx/strx_test.go:16 +0x15
+testing.tRunner(0xc000083340, 0x5854d0)
+	/usr/local/go1.24.7/src/testing/testing.go:1792 +0xf4
+created by testing.(*T).Run in goroutine 1
+	/usr/local/go1.24.7/src/testing/testing.go:1851 +0x413
+FAIL	example.com/goproj/strx	0.017s
+FAIL

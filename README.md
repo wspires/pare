@@ -1,0 +1,168 @@
+# pare
+
+A Unix filter that summarizes noisy command output (test runs, builds, logs)
+to fit a token budget, for AI agents and humans.
+
+```
+pytest -v 2>&1 | pare --budget 2000
+```
+
+`proto/` is a Python prototype; `bench/` compares it with
+[sqz](https://github.com/ojuschugh1/sqz) and
+[tidyout](https://github.com/sathish-2000/tidyout) on the logs in `corpus/`.
+
+## Prototype
+
+```
+uv venv .venv && uv pip install --python .venv/bin/python -r proto/requirements.txt
+some-noisy-command 2>&1 | .venv/bin/python proto/pare.py [--budget 2000]
+```
+
+What it does, in order:
+
+1. **Tee.** Raw stdin is saved to a run file named by content hash
+   (`$PARE_RUN_DIR` or `~/.cache/pare/runs/<sha>.log`), so nothing is lost
+   and the same input always maps to the same path.
+2. **Segment.** Lines become records: a line indented deeper than the
+   previous record's head, or shaped like a stack frame / compiler gutter /
+   diff hunk, joins that record. A single blank line inside an indented block
+   does not break it (Jest, pytest). Blank lines belong to no record.
+3. **Mask.** Timestamps, dates, UUIDs, IPs, URLs, hex and hashes, versions,
+   paths, numbers with units, and digits inside identifiers are replaced by
+   `<TS>`, `<IP>`, `<PATH>`, `<NUM>` and so on.
+4. **Cluster.** The masked head line of each record goes through
+   [drain3](https://github.com/logpai/Drain3) (sim 0.5, depth 4). Clusters
+   are renumbered `T1, T2, …` in order of first appearance.
+5. **Score.** Each template gets a salience: error vocabulary (+3), warning
+   vocabulary (+1.5), summary vocabulary (+1), noise vocabulary (−0.75),
+   passing-test markers (−1), rarity `2 / (1 + log2 count)`, a bonus for
+   sitting in the last 10 % or first 5 % of the output, and a bonus for
+   multi-line records (tracebacks).
+6. **Allocate** `--budget` tokens (`bytes / 4`):
+   - a head and a tail window (`--head 5`, `--tail 10`, at most 30 % of the budget);
+   - every template once, highest salience first, with its count and an
+     exemplar; error and warning exemplars also show up to 10 of their most
+     salient body lines (the traceback, the compiler snippet);
+   - the remaining budget is filled with the highest-salience raw lines.
+     Each line scores on its own vocabulary, a share of its record head's
+     vocabulary, template rarity, and position. Lines with the same masked
+     shape as something already shown are worth less each time, and lines
+     under a salience floor are never used just to fill the budget;
+   - an input that already fits the budget is passed through verbatim.
+7. **Ledger.** The output ends with how many lines were omitted and from
+   which templates, plus the run file path.
+
+`pare --only T3,T7 < runfile` prints the raw lines of those templates;
+`pare --except T4 < runfile` prints everything but. Template ids are stable
+because the pipeline is deterministic for a given input.
+
+Example (a 4,813-line service log, budget 2000):
+
+```
+# pare: 4,813 lines, 535,403 B (~133,851 tok) → ~1,422 tok (budget 2,000) · 14 templates
+## head (L1–L5)
+     1│ 2026-10-07T09:00:00.000Z INFO  [main] starting inventory-api v2.14.3 (git 9f1c2ab) pid=4182
+     ...
+## templates (by salience)
+T10  ×6 (42 lines) E <TS> ERROR [worker-<NUM>] unhandled exception in handler OrdersHandler.list
+     e.g. L3003: 2026-10-07T09:01:01.288Z ERROR [worker-0] unhandled exception in handler OrdersHandler.list
+  3004│     psycopg.OperationalError: connection failed: server closed the connection unexpectedly
+  3005│         at inventory/db/pool.py:212 in acquire
+     ...
+T9   ×180 E <TS> ERROR [worker-<NUM>] http: GET <PATH> <NUM> <NUM> rid=<HEX> err="pool exhausted: ..."
+T4   ×4,340 . <TS> INFO [worker-<NUM>] http: <*> <PATH>?page=<NUM> <NUM> <NUM> rid=<HEX> ip=<IP>
+     ...
+## selected lines
+     ...
+## tail (L4804–L4813)
+     ...
+## omitted 4,767/4,813 lines (99.0%): T4 ×4,329, T9 ×177, T5 ×169, ...
+## raw: /home/me/.cache/pare/runs/054ad7ad6155.log
+   expand with: pare --only T<n> < raw   ·   drop noise: pare --except T<n>,T<m> < raw
+```
+
+## Benchmark
+
+```
+uv pip install --python .venv/bin/python -r bench/requirements.txt   # tidyout
+# sqz: npm i -g sqz-cli, cargo install sqz-cli, or drop the release binary in .venv/bin
+.venv/bin/python bench/run.py [--budget 2000] [--show-misses] [--json out.json]
+```
+
+For each `corpus/<name>.log`, `<name>.keep` lists lines that must survive
+(a line survives if its stripped text is a substring of the tool's output)
+and `<name>.cmd` records the command that produced the log. tidyout only
+compresses output of commands it knows, so the runner puts a fake binary
+with that name on `PATH` that replays the log; sqz runs as
+`sqz compress --no-cache --cmd <name>`. Tokens are `bytes / 4` for every
+tool. `raw` is the unfiltered input.
+
+Corpus: real `pytest -v`, `go test -v`, `cargo build`, `make -k` (gcc) and
+`npm install --loglevel verbose` runs captured in a container, plus two
+seeded synthetic logs (`bench/gen_synthetic.py`): a Jest run with three
+failing suites and a 535 KB service log with a database outage.
+
+### budget 2000
+
+| case | tool | in tok | out tok | ratio | recall |
+|---|---|---:|---:|---:|---:|
+| cargo-build | pare | 945 | 973 | 103.0% | 8/8 |
+| cargo-build | sqz | 945 | 763 | 80.7% | 4/8 |
+| cargo-build | tidyout | 945 | 697 | 73.8% | 8/8 |
+| go-test | pare | 2212 | 833 | 37.7% | 11/11 |
+| go-test | sqz | 2212 | 2212 | 100.0% | 11/11 |
+| go-test | tidyout | 2212 | 2230 | 100.8% | 11/11 |
+| jest-fail | pare | 4396 | 1099 | 25.0% | 10/10 |
+| jest-fail | sqz | 4396 | 2099 | 47.7% | 2/10 |
+| jest-fail | tidyout | 4396 | 4402 | 100.1% | 10/10 |
+| make-build | pare | 2318 | 1029 | 44.4% | 7/7 |
+| make-build | sqz | 2318 | 990 | 42.7% | 1/7 |
+| make-build | tidyout | 2318 | 2336 | 100.8% | 7/7 |
+| npm-install | pare | 5459 | 682 | 12.5% | 2/2 |
+| npm-install | sqz | 5459 | 4902 | 89.8% | 2/2 |
+| npm-install | tidyout | 5459 | 5477 | 100.3% | 2/2 |
+| pytest-fail | pare | 4762 | 1622 | 34.1% | 11/11 |
+| pytest-fail | sqz | 4762 | 401 | 8.4% | 8/11 |
+| pytest-fail | tidyout | 4762 | 1483 | 31.1% | 11/11 |
+| server-outage | pare | 133851 | 1422 | 1.1% | 9/9 |
+| server-outage | sqz | 133851 | 63390 | 47.4% | 5/9 |
+| server-outage | tidyout | 133851 | 1388 | 1.0% | 1/9 |
+
+| tool | cases | in tok | out tok | ratio | recall | min recall |
+|---|---:|---:|---:|---:|---:|---:|
+| raw | 7 | 153943 | 153943 | 100.0% | 100% | 100% |
+| pare | 7 | 153943 | 7660 | 5.0% | 100% | 100% |
+| sqz | 7 | 153943 | 74757 | 48.6% | 57% | 14% |
+| tidyout | 7 | 153943 | 18013 | 11.7% | 86% | 11% |
+
+### budget 600
+
+| tool | cases | in tok | out tok | ratio | recall | min recall |
+|---|---:|---:|---:|---:|---:|---:|
+| raw | 7 | 153943 | 153943 | 100.0% | 100% | 100% |
+| pare | 7 | 153943 | 3863 | 2.5% | 79% | 55% |
+| sqz | 7 | 153943 | 74752 | 48.6% | 57% | 14% |
+| tidyout | 7 | 153943 | 18013 | 11.7% | 86% | 11% |
+
+Notes on reading this:
+
+- sqz and tidyout have no budget knob, so their rows are the same at both
+  budgets. tidyout is a pass-through for commands it has no rule for
+  (go test, make, the service log) and strips well for the ones it knows
+  (pytest, cargo); sqz is a general compressor that drops error lines as
+  readily as noise.
+- pare keeps every must-survive line at budget 2000; at 600 it starts dropping the
+  per-failure `E` lines of pytest because the template table (52 templates)
+  takes most of a 2,400-byte budget. A `--max-templates` knob or merging
+  single-record templates would help there.
+- The cargo log (945 tokens) fits the budget, so pare passes it through with
+  a two-line header; it never makes small inputs bigger than a fixed overhead.
+
+## Layout
+
+```
+proto/pare.py          the prototype (drain3 is its only dependency)
+bench/run.py           benchmark runner
+bench/gen_synthetic.py generator for the seeded synthetic corpus files
+corpus/*.log|.keep|.cmd
+```

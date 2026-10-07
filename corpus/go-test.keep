@@ -1,0 +1,11 @@
+mathx_test.go:27: Div panicked: runtime error: integer divide by zero
+--- FAIL: TestDivZero (0.00s)
+netx_test.go:6: dial failed: dial tcp 127.0.0.1:9: connect: connection refused
+--- FAIL: TestDialLocal (0.00s)
+--- FAIL: TestTitleEmpty (0.00s)
+panic: runtime error: slice bounds out of range [:1] with length 0
+example.com/goproj/strx.Title(...)
+/home/dev/proj/strx/strx.go:5
+FAIL	example.com/goproj/mathx	0.006s
+FAIL	example.com/goproj/netx	0.014s
+FAIL	example.com/goproj/strx	0.017s
