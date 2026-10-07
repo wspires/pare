@@ -13,10 +13,26 @@ pytest -v 2>&1 | pare --budget 2000
 
 ## Prototype
 
+The only dependency is [drain3](https://github.com/logpai/Drain3). Pick one:
+
 ```
-uv venv .venv && uv pip install --python .venv/bin/python -r proto/requirements.txt
-some-noisy-command 2>&1 | .venv/bin/python proto/pare.py [--budget 2000]
+# 1. uv (recommended): the script declares its dependency inline (PEP 723),
+#    so uv installs drain3 into a cached environment on first run.
+pytest -v 2>&1 | uv run proto/pare.py --budget 2000
+
+# 2. a virtualenv, if you don't use uv
+python3 -m venv .venv && .venv/bin/pip install -r proto/requirements.txt
+pytest -v 2>&1 | .venv/bin/python proto/pare.py --budget 2000
 ```
+
+`proto/pare.py` is executable, so `./proto/pare.py` works once drain3 is
+importable by `python3`. A bare `python3 proto/pare.py` with a system or
+Homebrew Python will stop with a message pointing at the two options
+above rather than a traceback. Python 3.10 or newer is required.
+
+To have it on your PATH as `pare`: `uv tool install --editable .` is not
+wired up yet (the prototype has no `pyproject.toml`); for now, a symlink or
+`alias pare='uv run ~/dev/pare/proto/pare.py'` does the job.
 
 What it does, in order:
 
@@ -86,10 +102,14 @@ T4   ×4,340 . <TS> INFO [worker-<NUM>] http: <*> <PATH>?page=<NUM> <NUM> <NUM> 
 ## Benchmark
 
 ```
-uv pip install --python .venv/bin/python -r bench/requirements.txt   # tidyout
+python3 -m venv .venv && .venv/bin/pip install -r proto/requirements.txt -r bench/requirements.txt
 # sqz: npm i -g sqz-cli, cargo install sqz-cli, or drop the release binary in .venv/bin
-.venv/bin/python bench/run.py [--budget 2000] [--show-misses] [--json out.json]
+.venv/bin/python bench/run.py [--budget 2000] [--show-misses] [--json out.json] [--pare-args "..."]
 ```
+
+The runner looks for `sqz` and `tidyout` in `.venv/bin` and then on `PATH`,
+and runs pare with `.venv/bin/python` when that exists, else `uv run`.
+Missing tools are reported as `n/a` rather than failing the run.
 
 For each `corpus/<name>.log`, `<name>.keep` lists lines that must survive
 (a line survives if its stripped text is a substring of the tool's output)

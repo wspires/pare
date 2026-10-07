@@ -13,7 +13,14 @@ Usage
 Output is deterministic for a given input and flags: template ids (T1, T2,
 ...) are numbered in order of first appearance, and the run file name is a
 content hash, so a later `pare --only T3 < runfile` sees the same ids.
+
+Install: `uv run proto/pare.py` picks up the dependency block below, or
+`python3 -m venv .venv && .venv/bin/pip install -r proto/requirements.txt`.
 """
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["drain3>=0.9.11"]
+# ///
 
 from __future__ import annotations
 
@@ -29,8 +36,16 @@ from dataclasses import dataclass, field
 
 logging.getLogger("drain3").setLevel(logging.ERROR)
 
-from drain3 import TemplateMiner  # noqa: E402
-from drain3.template_miner_config import TemplateMinerConfig  # noqa: E402
+try:
+    from drain3 import TemplateMiner
+    from drain3.template_miner_config import TemplateMinerConfig
+except ModuleNotFoundError:
+    sys.exit(
+        "pare: the 'drain3' package is not installed for this Python.\n"
+        "  run it with uv (installs drain3 into a cached env):  uv run proto/pare.py\n"
+        "  or in a venv:  python3 -m venv .venv && .venv/bin/pip install -r proto/requirements.txt\n"
+        "                 .venv/bin/python proto/pare.py"
+    )
 
 __version__ = "0.1.0"
 
