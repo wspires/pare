@@ -69,11 +69,13 @@ What it does, in order:
      line) is left to the ledger;
    - the remaining budget is filled with the highest-salience raw lines.
      Each line scores on its own vocabulary, a share of its record head's
-     vocabulary, template rarity, and position. Lines with the same masked
-     shape and severity as something already shown are worth less each time,
-     a record head whose tokens are mostly contained in a shown line is
-     skipped, and lines under a salience floor are never used just to fill
-     the budget;
+     vocabulary, template rarity, and position; the first occurrence of a
+     template counts like a near-the-end position. Lines with the same
+     masked shape and severity as something already shown are worth less
+     each time (more gently for error-level record heads, which are each a
+     distinct fact), a record head whose tokens are mostly contained in a
+     shown line is skipped, and lines under a salience floor are never used
+     just to fill the budget;
    - an input that already fits the budget is passed through verbatim.
 7. **Ledger.** The output ends with how many lines were omitted and from
    which templates, plus the run file path.
@@ -224,19 +226,19 @@ failing suites and a 535 KB service log with a database outage.
 | cargo-build | pare | 945 | 973 | 103.0% | 8/8 |
 | cargo-build | sqz | 945 | 763 | 80.7% | 4/8 |
 | cargo-build | tidyout | 945 | 697 | 73.8% | 8/8 |
-| go-test | pare | 2212 | 752 | 34.0% | 11/11 |
+| go-test | pare | 2212 | 742 | 33.5% | 11/11 |
 | go-test | sqz | 2212 | 2212 | 100.0% | 11/11 |
 | go-test | tidyout | 2212 | 2230 | 100.8% | 11/11 |
-| jest-fail | pare | 4396 | 929 | 21.1% | 10/10 |
+| jest-fail | pare | 4396 | 889 | 20.2% | 10/10 |
 | jest-fail | sqz | 4396 | 2099 | 47.7% | 2/10 |
 | jest-fail | tidyout | 4396 | 4402 | 100.1% | 10/10 |
-| make-build | pare | 2318 | 954 | 41.2% | 7/7 |
+| make-build | pare | 2318 | 921 | 39.7% | 7/7 |
 | make-build | sqz | 2318 | 990 | 42.7% | 1/7 |
 | make-build | tidyout | 2318 | 2336 | 100.8% | 7/7 |
-| npm-install | pare | 5459 | 459 | 8.4% | 2/2 |
+| npm-install | pare | 5459 | 493 | 9.0% | 2/2 |
 | npm-install | sqz | 5459 | 4902 | 89.8% | 2/2 |
 | npm-install | tidyout | 5459 | 5477 | 100.3% | 2/2 |
-| pytest-fail | pare | 4762 | 1576 | 33.1% | 11/11 |
+| pytest-fail | pare | 4762 | 1602 | 33.6% | 11/11 |
 | pytest-fail | sqz | 4762 | 401 | 8.4% | 8/11 |
 | pytest-fail | tidyout | 4762 | 1483 | 31.1% | 11/11 |
 | server-outage | pare | 133851 | 1056 | 0.8% | 9/9 |
@@ -246,7 +248,7 @@ failing suites and a 535 KB service log with a database outage.
 | tool | cases | in tok | out tok | ratio | recall | min recall |
 |---|---:|---:|---:|---:|---:|---:|
 | raw | 7 | 153943 | 153943 | 100.0% | 100% | 100% |
-| pare | 7 | 153943 | 6699 | 4.4% | 100% | 100% |
+| pare | 7 | 153943 | 6676 | 4.3% | 100% | 100% |
 | sqz | 7 | 153943 | 74757 | 48.6% | 57% | 14% |
 | tidyout | 7 | 153943 | 18013 | 11.7% | 86% | 11% |
 
@@ -255,15 +257,14 @@ failing suites and a 535 KB service log with a database outage.
 | tool | cases | in tok | out tok | ratio | recall | min recall |
 |---|---:|---:|---:|---:|---:|---:|
 | raw | 7 | 153943 | 153943 | 100.0% | 100% | 100% |
-| pare | 7 | 153943 | 3866 | 2.5% | 93% | 78% |
-| sqz | 7 | 153943 | 74755 | 48.6% | 57% | 14% |
+| pare | 7 | 153943 | 3889 | 2.5% | 97% | 78% |
+| sqz | 7 | 153943 | 74757 | 48.6% | 57% | 14% |
 | tidyout | 7 | 153943 | 18013 | 11.7% | 86% | 11% |
 
-At 600, pare's misses are one go package verdict line, one of fourteen
-identical gcc warnings, and two non-error lines of the service log (the
-slow-cache warning and the reconnect notice). pytest and Jest keep every
-must-survive line, and every error line of the service log survives at
-both budgets.
+At 600, pare's only misses are two non-error lines of the service log (the
+slow-cache warning and the reconnect notice). Every other corpus file keeps
+every must-survive line, and every error line of the service log survives
+at both budgets.
 
 Notes on reading this:
 
@@ -281,14 +282,21 @@ Notes on reading this:
   and an error word; progress lines (`test_x FAILED [ 95%]`) that restate
   the summary lines were listed as templates of their own; and the
   `total()` in `E + where … = total()` earned a summary bonus inside a
-  block. The 600 recall went from 79 % to 93 %.
-  `--max-templates N` now does bind at 600, since the table share is no
-  longer spent on references and restatements:
+  block. The go and make misses had the same flavour: goroutine-frame
+  singletons already printed by the tail window still got reference lines,
+  a later copy of a gcc warning beat the first one only because it sat in
+  the last 10 % of the file, and the third `FAIL <package>` line fell under
+  the salience floor because two same-shape lines were already shown. Now a
+  singleton whose whole record a window prints is not listed, the first
+  occurrence of a template gets the same bonus as a near-the-end position,
+  and error-level record heads (each a distinct fact) see gentler
+  diminishing returns than repeated chatter. The 600 recall went from 79 %
+  to 97 %. `--max-templates N` no longer changes it:
 
   | `--max-templates` | out tok | recall | min recall |
   |---|---:|---:|---:|
-  | 0 (all that fit) | 3,866 | 93% | 78% |
-  | 6 | 3,855 | 95% | 78% |
+  | 0 (all that fit) | 3,889 | 97% | 78% |
+  | 6 | 3,890 | 97% | 78% |
 - The cargo log (945 tokens) fits the budget, so pare passes it through with
   a two-line header; it never makes small inputs bigger than a fixed overhead.
 

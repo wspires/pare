@@ -647,6 +647,26 @@ def line_score(ln: Line, tpl: Template, head: Line, total: int) -> float:
     return s
 
 
+def first_occurrences(lines: list[Line], records: list[Record]) -> set[int]:
+    """Line numbers that are the first of their kind: for a record head, the
+    first record of its template; for a continuation line, the first line of
+    its shape at its depth within its template. The first instance of a
+    warning is where it matters, so it gets the same bonus as a line near the
+    end of the output; otherwise a later copy in the last 10% would always
+    win."""
+    seen: set[tuple] = set()
+    first: set[int] = set()
+    for ln in lines:
+        if ln.record < 0 or not ln.text.strip():
+            continue
+        tpl = records[ln.record].template
+        key = (tpl, 0) if ln.depth == 0 else (tpl, ln.depth, shape_key(ln.text))
+        if key not in seen:
+            seen.add(key)
+            first.add(ln.no)
+    return first
+
+
 TOKEN_RE = re.compile(r"[A-Za-z0-9_]+")
 NEAR_DUP_MIN_TOKENS = 4
 NEAR_DUP_CONTAINMENT = 0.8
@@ -695,6 +715,7 @@ EXEMPLAR_BODY_MIN = 3  # ...and the fewest; the cap scales with the budget betwe
 def exemplar_body_limit(budget: int) -> int:
     return max(EXEMPLAR_BODY_MIN, min(EXEMPLAR_BODY, budget // 200))
 FILL_PENALTY = 1.5  # divisor growth per already-shown line of the same masked shape
+FILL_PENALTY_ERROR = 0.75  # ...for error-level lines, whose copies are distinct facts
 FILL_FLOOR = 1.0  # lines scoring below this never pad the output
 
 
@@ -843,21 +864,25 @@ def summarize(
                 entry.append(f"     e.g. L{ex.no}: {clip(ex.text.strip(), width)}")
         body_nos: list[int] = []
         if tpl.marker in ("E", "W") and rec.end - rec.start > 1 and body_limit > 0:
-            body = exemplar_body(lines, rec, body_limit)
+            body = [b for b in exemplar_body(lines, rec, body_limit) if b.no not in window_nos]
             body_nos = [b.no for b in body]
-            entry.extend(render_ranges(lines, body_nos, width))
-            rest = sum(1 for b in lines[rec.start + 1 : rec.end] if b.text.strip()) - len(body)
+            if body_nos:
+                entry.extend(render_ranges(lines, body_nos, width))
+            rest = sum(1 for b in lines[rec.start + 1 : rec.end] if b.text.strip() and b.no not in window_nos) - len(body)
             if rest > 0:
                 entry.append(f"      ┆ (+{fmt_int(rest)} more lines in this record)")
         return entry, body_nos
+
+    window_nos = set(head_nos) | set(tail_nos)
 
     shown_tokens = [token_set(lines[no - 1].text) for no in sorted(shown)]
     for tpl in by_sal:
         if max_templates and len(tpl_entries) >= max_templates:
             break
-        ex_line = lines[records[tpl.exemplar].start]
-        if len(tpl.records) == 1 and ex_line.no in shown and records[tpl.exemplar].end - records[tpl.exemplar].start == 1:
-            continue  # a one-line template already printed by the head or tail window
+        ex_rec = records[tpl.exemplar]
+        ex_line = lines[ex_rec.start]
+        if len(tpl.records) == 1 and all(ln.no in window_nos for ln in lines[ex_rec.start : ex_rec.end] if ln.text.strip()):
+            continue  # a singleton whose whole record the head or tail window already prints
         if len(tpl.records) <= NEAR_DUP_MAX_COUNT and ex_line.no not in shown:
             # A rare line that restates something already on screen (a
             # progress line repeating the summary line) stays in the ledger only.
@@ -889,20 +914,30 @@ def summarize(
     # same masked shape as one already shown are worth less each time
     # (diminishing returns), and lines below the salience floor never pad the
     # output just to use up the budget.
-    def effective(s: float, key: str) -> float:
-        return s / (1.0 + FILL_PENALTY * taken.get(key, 0))
+    def effective(s: float, key: str, penalty: float) -> float:
+        return s / (1.0 + penalty * taken.get(key, 0))
 
     heap: list[tuple[float, int]] = []
-    base: dict[int, tuple[float, Line, str]] = {}
+    base: dict[int, tuple[float, Line, str, float]] = {}
+    firsts = first_occurrences(lines, records)
     for ln in lines:
         if ln.no in shown or ln.record < 0 or not ln.text.strip():
             continue
         rec = records[ln.record]
         tpl = templates[rec.template]
         s = line_score(ln, tpl, lines[rec.start], total)
+        if ln.no in firsts:
+            s += 0.5
         key = shape_key(ln.text)
-        base[ln.no] = (s, ln, key)
-        heapq.heappush(heap, (-effective(s, key), ln.no))
+        # Error-level record heads of one shape are each a distinct fact
+        # (which package failed, which request errored), so their returns
+        # diminish more gently than those of repeated chatter. Continuation
+        # lines (the same stack frame under every copy) get the full penalty.
+        sev = VOCAB.severity(ln.text)
+        is_err = ln.depth == 0 and ((sev is not None and sev >= 3) or VOCAB.has("error", ln.text))
+        penalty = FILL_PENALTY_ERROR if is_err else FILL_PENALTY
+        base[ln.no] = (s, ln, key, penalty)
+        heapq.heappush(heap, (-effective(s, key, penalty), ln.no))
     # shown_tokens holds the token sets of everything on screen so far, for
     # near-duplicate suppression: a record head whose tokens are mostly
     # contained in a line already shown (a progress line restating a summary
@@ -911,8 +946,8 @@ def summarize(
     fill_avail = avail
     while heap and fill_avail >= 40:
         neg, no = heapq.heappop(heap)
-        s, ln, key = base[no]
-        cur = effective(s, key)
+        s, ln, key, penalty = base[no]
+        cur = effective(s, key, penalty)
         if cur != -neg:  # stale entry: re-queue with the current score
             heapq.heappush(heap, (-cur, no))
             continue
