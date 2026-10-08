@@ -494,14 +494,12 @@ def summarize(
     # Template table: every template once, in salience order, up to 60% of what
     # is left. Error/warning templates whose exemplar is a multi-line record
     # (a stack trace, a compiler diagnostic) show the body of that exemplar.
-    tpl_lines: list[str] = []
+    # Each entry is (template idx, rendered lines, body line numbers shown).
+    tpl_entries: list[tuple[int, list[str], list[int]]] = []
     tpl_budget = avail * 0.6
-    tpl_shown = 0
-    tpl_shown_ids: list[int] = []
     taken: dict[str, int] = {}  # masked text -> lines already shown with that shape
-    for tpl in by_sal:
-        if max_templates and tpl_shown >= max_templates:
-            break
+
+    def tpl_entry(tpl: Template, body_limit: int) -> tuple[list[str], list[int]]:
         rec = records[tpl.records[0]]
         ex = lines[rec.start]
         count = len(tpl.records)
@@ -514,27 +512,38 @@ def summarize(
                 f"     e.g. L{ex.no}: {clip(ex.text.strip(), width)}",
             ]
         body_nos: list[int] = []
-        if tpl.marker in ("E", "W") and rec.end - rec.start > 1:
-            body = exemplar_body(lines, rec, EXEMPLAR_BODY)
+        if tpl.marker in ("E", "W") and rec.end - rec.start > 1 and body_limit > 0:
+            body = exemplar_body(lines, rec, body_limit)
             body_nos = [b.no for b in body]
             entry.extend(render_ranges(lines, body_nos, width))
             rest = sum(1 for b in lines[rec.start + 1 : rec.end] if b.text.strip()) - len(body)
             if rest > 0:
                 entry.append(f"      ┆ (+{fmt_int(rest)} more lines in this record)")
+        return entry, body_nos
+
+    for tpl in by_sal:
+        if max_templates and len(tpl_entries) >= max_templates:
+            break
+        entry, body_nos = tpl_entry(tpl, EXEMPLAR_BODY)
         cost = nbytes(entry)
-        if cost > tpl_budget and tpl_shown > 0:
-            continue
-        tpl_lines.extend(entry)
+        if cost > tpl_budget:
+            if tpl_entries:
+                continue
+            # The first template always gets a line; shrink its body to fit.
+            limit = len(body_nos)
+            while limit > 0 and cost > tpl_budget:
+                limit -= 1
+                entry, body_nos = tpl_entry(tpl, limit)
+                cost = nbytes(entry)
+        tpl_entries.append((tpl.idx, entry, body_nos))
         tpl_budget -= cost
-        tpl_shown += 1
-        tpl_shown_ids.append(tpl.idx)
-        shown.add(ex.no)
+        ex_no = lines[records[tpl.records[0]].start].no
+        shown.add(ex_no)
         shown.update(body_nos)
-        for no in [ex.no] + body_nos:
+        for no in [ex_no] + body_nos:
             key = mask(lines[no - 1].text)
             taken[key] = taken.get(key, 0) + 1
-    tpl_omitted = len(templates) - tpl_shown
-    avail -= nbytes(tpl_lines)
+    avail -= sum(nbytes(e) for _, e, _ in tpl_entries)
 
     # Fill with the highest-salience raw lines not yet shown. Lines with the
     # same masked shape as one already shown are worth less each time
@@ -573,7 +582,10 @@ def summarize(
         taken[key] = taken.get(key, 0) + 1
         fill_avail -= cost
 
+    ledger_detail = True  # per-template list; dropped only as a last resort
+
     def ledger(shown_set: set[int]) -> list[str]:
+        tpl_omitted = len(templates) - len(tpl_entries)
         omitted_total = total - len(shown_set)
         per_tpl = []
         for tpl in templates:
@@ -597,7 +609,7 @@ def summarize(
         shown_parts: list[str] = []
         used = len(head) + 2
         for p in parts:
-            if used + len(p) + 2 > ledger_reserve - 40:
+            if not ledger_detail or used + len(p) + 2 > ledger_reserve - 40:
                 break
             shown_parts.append(p)
             used += len(p) + 2
@@ -611,41 +623,86 @@ def summarize(
             line += " · " + "; ".join(tail_bits)
         return [line]
 
+    show_hint = True
+
     def render(picked_lines: list[tuple[float, Line]]) -> list[str]:
         out: list[str] = []
-        if head_block:
+        if head_nos:
             out.append(f"## head (L{head_nos[0]}–L{head_nos[-1]})")
-            out.extend(head_block)
-        if tpl_lines:
+            out.extend(render_ranges(lines, head_nos, width))
+        if tpl_entries:
             out.append("## templates (by salience)")
-            out.extend(tpl_lines)
+            for _, entry, _ in tpl_entries:
+                out.extend(entry)
         if picked_lines:
             out.append("## selected lines")
             out.extend(render_ranges(lines, sorted(ln.no for _, ln in picked_lines), width))
-        if tail_block:
+        if tail_nos:
             out.append(f"## tail (L{tail_nos[0]}–L{tail_nos[-1]})")
-            out.extend(tail_block)
+            out.extend(render_ranges(lines, tail_nos, width))
         shown_set = set(head_nos) | set(tail_nos) | {ln.no for _, ln in picked_lines}
-        for ti in tpl_shown_ids:
-            t = templates[ti]
-            rec = records[t.records[0]]
-            shown_set.add(lines[rec.start].no)
-            if t.marker in ("E", "W"):
-                shown_set.update(b.no for b in exemplar_body(lines, rec, EXEMPLAR_BODY))
+        for ti, _, body_nos in tpl_entries:
+            shown_set.add(lines[records[templates[ti].records[0]].start].no)
+            shown_set.update(body_nos)
         out.extend(ledger(shown_set))
         out.append(run_line)
-        out.append(run_hint)
+        if show_hint:
+            out.append(run_hint)
         return out
 
-    # Exact fit: drop the lowest-scoring fill lines until the rendering fits.
+    # Exact fit. The estimates above are close but not exact (gap markers, the
+    # ledger, a first template entry larger than its share), so shed content
+    # until the rendering fits: lowest-scoring fill lines first, then tail and
+    # head lines, then template entries from the bottom of the table, then the
+    # ledger detail and the usage hint. The budget is a hard limit.
     picked.sort(key=lambda p: (-p[0], p[1].no))
+
+    def shed() -> bool:
+        nonlocal ledger_detail, show_hint
+        if picked:
+            picked.pop()
+        elif tail_nos:
+            tail_nos.pop(0)
+        elif head_nos:
+            head_nos.pop()
+        elif len(tpl_entries) > 1:
+            tpl_entries.pop()
+        elif tpl_entries and tpl_entries[0][2]:
+            ti, _, body_nos = tpl_entries[0]
+            tpl_entries[0] = (ti, *tpl_entry(templates[ti], len(body_nos) - 1))
+        elif ledger_detail:
+            ledger_detail = False
+        elif show_hint:
+            show_hint = False
+        elif tpl_entries:
+            tpl_entries.pop()
+        else:
+            return False
+        return True
+
+    def measure(body: list[str]) -> int:
+        # The header quotes the output size, so its own length depends on the
+        # answer; iterate to a fixed point (digit count settles in a pass or two).
+        ob = nbytes(body) + len(header(0).encode()) + 1
+        for _ in range(4):
+            ob2 = nbytes(body) + len(header(ob).encode()) + 1
+            if ob2 == ob:
+                break
+            ob = ob2
+        return ob
+
     while True:
         body = render(picked)
-        out_bytes = nbytes(body) + len(header(0).encode()) + 1
-        if out_bytes <= budget_bytes or not picked:
+        out_bytes = measure(body)
+        if out_bytes <= budget_bytes or not shed():
             break
-        picked.pop()
+    # Absurdly small budget: even the skeleton does not fit. Cut from the end.
+    while out_bytes > budget_bytes and body:
+        body.pop()
+        out_bytes = measure(body)
     text = "\n".join([header(out_bytes)] + body) + "\n"
+    if len(text.encode()) > budget_bytes:
+        text = text.encode()[: budget_bytes - 1].decode("utf-8", errors="ignore").rstrip() + "\n"
     return text
 
 
