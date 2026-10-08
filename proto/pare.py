@@ -329,7 +329,9 @@ HTTP_STATUS_RX = re.compile(
 # Process exit codes. 0 -> info, 1-127 -> error, 128+ or negative (signals,
 # OOM kills) -> fatal.
 EXIT_CODE_RX = re.compile(
-    r"(?i)\bexit(?:ed)?(?:\s+with)?(?:\s+(?:code|status))?\s*[=:]?\s*(-?\d{1,3})\b"  # exit 1, exited with code 137, exit=0
+    r"(?i)\bexit(?:ed)?(?:\s+with)?\s+(?:code|status)\s*[=:]?\s*(-?\d{1,3})\b"  # exit code 1, exited with status 137
+    r"|\bexit(?:ed)?\s*[=:]\s*(-?\d{1,3})\b"  # exit=0
+    r"|^\s*exit\s+(-?\d{1,3})\b"  # a line-initial "exit 1" (not "exited with 3 warnings")
     r"|\b(?:exit[_ ]?code|exit[_ ]?status|return\s*code|returncode|rc)\s*[=:]\s*(-?\d{1,3})\b"  # rc=1 (not 1.4.0-rc1)
 )
 
@@ -413,6 +415,9 @@ DEFAULT_VOCAB: dict[str, list[str]] = {
 
 
 _GLOBAL_FLAGS = re.compile(r"^\(\?([aimsux]+)\)")
+ZERO_COUNT_RX = re.compile(  # a zero count before an error noun is a summary, not an error
+    r"(?i)\b(?:0|no|zero) (?:errors?|failures?|failed|failing|problems?|issues?|warnings?|vulnerabilit(?:y|ies))\b"
+)
 
 
 def _is_regex_entry(entry: str) -> bool:
@@ -474,6 +479,7 @@ class Vocab:
         # failure-detail marker, a bare E at column 0 followed by two spaces.
         self.level_letter_rx = re.compile(
             r"^(?:[\d:.\-]{5,24}\s+){0,2}(?:\d+\s+\d+\s+)?([EWIDVTF])/[\w.$]+[(:]"  # logcat E/Tag( or E/Tag:
+            r"|^(?:[\d:.\-]{5,24}\s+){1,2}\d+\s+\d+\s+([EWIDVF])\s+\S+:"  # logcat threadtime: date time pid tid E Tag:
             r"|^([EWIF])\d{4}\s"  # glog E0921 10:11:12
             r"|\[([EWIDVTF])\]"  # [I]
             r"|^(E)\s{2,}"  # pytest
@@ -482,7 +488,11 @@ class Vocab:
 
     def has(self, cls: str, text: str) -> bool:
         rx = self.rx[cls]
-        return bool(rx and rx.search(text))
+        if rx is None:
+            return False
+        if cls in ("error", "warn", "strong-error"):
+            text = ZERO_COUNT_RX.sub(" ", text)  # "0 errors", "no errors": a summary, not an error
+        return bool(rx.search(text))
 
     def detect_level(self, text: str) -> int | None:
         """Severity 0-4 of an explicit log-level token, or None. Structural:
@@ -503,7 +513,7 @@ class Vocab:
             )
             if ok:
                 return self.level_of[tok.upper()]
-        m = (self.level_letter_rx if TOOL_SPECIFIC else self.level_letter_generic_rx).search(text[:48])
+        m = (self.level_letter_rx if TOOL_SPECIFIC else self.level_letter_generic_rx).search(text[:80])
         if m:
             return LETTER_LEVEL[next(g for g in m.groups() if g)]
         return None
@@ -576,11 +586,6 @@ def dump_vocab(entries: dict[str, list[str]]) -> str:
 VOCAB = Vocab(DEFAULT_VOCAB)
 
 
-ZERO_COUNT_RX = re.compile(
-    r"(?i)\b0 (?:errors?|failures?|failed|failing|problems?|issues?|warnings?|vulnerabilit(?:y|ies))\b"
-)
-
-
 _UNSET = object()
 
 
@@ -591,9 +596,8 @@ def vocab_score(text: str, head: bool = True, sev=_UNSET) -> float:
     whatever language its message is in. Summary vocabulary (totals, final
     verdicts) only counts on a record head, not inside a block."""
     s = 0.0
-    words = ZERO_COUNT_RX.sub(" ", text)  # "0 errors" is a summary, not an error
-    err = VOCAB.has("error", words)
-    warn = VOCAB.has("warn", words)
+    err = VOCAB.has("error", text)  # Vocab.has strips zero counts ("0 errors") itself
+    warn = VOCAB.has("warn", text)
     if sev is _UNSET:
         sev = VOCAB.severity(text)
     if sev is None:
@@ -676,15 +680,13 @@ def score_templates(lines: list[Line], records: list[Record], templates: list[Te
             if (sev if sev is not None else -1) > best_sev:
                 best_sev, best_rec = (sev if sev is not None else -1), ri
         tpl.exemplar = best_rec
-        tpl_level = VOCAB.severity(tpl.text)
-        if tpl_level is None and tpl.levels:
-            tpl_level = max(tpl.levels)  # level varies across records: judge by the worst
-
-        # Vocabulary: the template text, plus one point if the exemplar's body
-        # carries a strong error signal (a traceback under a bland head line).
-        head_vocab = vocab_score(tpl.text)
-        if VOCAB.severity(tpl.text) is None and tpl_level is not None:
-            head_vocab = max(head_vocab, LEVEL_SCORE[tpl_level])
+        # The template is judged by its exemplar head line, a real line with
+        # the full per-line analysis, rather than by the masked template text
+        # (where "0 errors" has already become "<NUM> errors"). The exemplar is
+        # the highest-severity record, so its severity is the worst seen.
+        head = lines[records[tpl.exemplar].start]
+        tpl_level = line_sev(head)
+        head_vocab = line_vocab(head, head=True)
         body_err = 0.0
         rec = records[tpl.exemplar]
         for ln in lines[rec.start + 1 : rec.end]:
@@ -697,14 +699,14 @@ def score_templates(lines: list[Line], records: list[Record], templates: list[Te
         tpl.vocab = head_vocab
         tpl.salience = head_vocab + RARITY_WEIGHT * rarity_of(tpl)
         if tpl_level is not None and tpl_level <= 1 and not body_err:
-            tpl.marker = "S" if VOCAB.has("summary", tpl.text) else "."  # info/debug: structure wins
+            tpl.marker = "S" if line_has(head, "summary") else "."  # info/debug: structure wins
         elif (tpl_level is not None and tpl_level >= 3) or body_err or (
-            VOCAB.has("error", tpl.text) and not VOCAB.has("pass", tpl.text)
+            line_has(head, "error") and not line_has(head, "pass")
         ):
             tpl.marker = "E"
-        elif tpl_level == 2 or VOCAB.has("warn", tpl.text):
+        elif tpl_level == 2 or line_has(head, "warn"):
             tpl.marker = "W"
-        elif VOCAB.has("summary", tpl.text):
+        elif line_has(head, "summary"):
             tpl.marker = "S"
         else:
             tpl.marker = "."

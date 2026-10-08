@@ -93,10 +93,12 @@ replaces it, a plain line is a phrase and a `/.../` line a regex. See
 
 ## Scoring model
 
-A template's salience is what its head line says plus how unusual its
-shape is:
+A template's salience is what its exemplar head line says plus how unusual
+its shape is (the exemplar is the highest-severity record; a real line is
+judged, not the masked template text, where `0 errors` has already become
+`<NUM> errors`):
 
-    salience = vocab(head) + 2 / (1 + log2 count)
+    salience = vocab(exemplar head) + 2 / (1 + log2 count)
 
 A raw line's score is its own vocabulary plus a share of its record head's:
 
@@ -121,20 +123,31 @@ for continuing a record already on screen, decaying returns within one
 record, a gentler repeat penalty for error lines, line-level template
 rarity, and a first-occurrence bonus.
 
+Those removals were judged on the same eight dev cases, so "removed" means
+"did not help here", not "proven useless". Two of them are the kind that
+could matter on logs this corpus does not have and should be re-ablated
+once the held-out set exists: the **end-of-output position bonus** (a final
+verdict with no error vocabulary, in a tool whose summary line is not in
+the tail window) and the **first-occurrence bonus** (the first instance of
+a repeated warning when later copies happen to sit near the end). The
+others are less likely to come back: the template bonus and body-error
+bonus duplicated signals the queue already has, and the record decay and
+coherence bonus were superseded by the repeat penalty and exemplar bodies.
+
 | heuristic | without it: recall@600 / @2000 (out tok @2000 where that is the reason) |
 |---|---|
-| (the full model) | 97.3% / 100%, 7,595 |
+| (the full model) | 97.3% / 100%, 7,567 |
 | template rarity | 93.2% / 100% |
 | inheritance from the record head | 87.7% / 97.3% |
-| depth penalty | 95.9% / 100% |
+| depth penalty | 97.3% / 100%, 7,727 |
 | error-location bonus | 94.5% / 97.3% |
 | value-per-byte factor | 94.5% / 100% |
-| repeat penalty | 94.5% / 100%, 9,368 |
-| salience floor | 97.3% / 100%, 14,564 |
-| near-duplicate suppression | 97.3% / 100%, 7,972 |
+| repeat penalty | 93.2% / 100%, 9,362 |
+| salience floor | 97.3% / 100%, 14,547 |
+| near-duplicate suppression | 97.3% / 100%, 7,913 |
 | window skipping of frequent templates | 94.5% / 100% |
 | compact mode below 1,000 tokens | 89.0% / 100% |
-| tool-specific rules (see below) | 89.0% / 94.5% |
+| tool-specific rules (see below) | 87.7% / 94.5% |
 
 ## Allocation
 
@@ -199,7 +212,7 @@ or the "generic signals only" row of `bench/ablate.py`):
 - Jest, pytest: a single blank line inside an indented block does not end
   the record.
 
-Without them: 89.0 % at 600 and 94.5 % at 2000 on the dev corpus (with: 97.3
+Without them: 87.7 % at 600 and 94.5 % at 2000 on the dev corpus (with: 97.3
 % and 100 %). The generic signals (levels, status codes, exit codes,
 vocabulary, rarity, inheritance) are the real story; the tool rules add 5 to
 8 points on this corpus.
@@ -219,7 +232,7 @@ log, so its per-command rules apply.
 | cargo-build | pare | 945 | 945 | 100.0% | 8/8 |
 | cargo-build | sqz | 945 | 763 | 80.7% | 4/8 |
 | cargo-build | tidyout | 945 | 697 | 73.8% | 8/8 |
-| ci-pipeline | pare | 187524 | 1992 | 1.1% | 15/15 |
+| ci-pipeline | pare | 187524 | 1977 | 1.1% | 15/15 |
 | ci-pipeline | sqz | 187524 | 112882 | 60.2% | 7/15 |
 | ci-pipeline | tidyout | 187524 | 187543 | 100.0% | 15/15 |
 | go-test | pare | 2212 | 566 | 25.6% | 11/11 |
@@ -231,10 +244,10 @@ log, so its per-command rules apply.
 | make-build | pare | 2318 | 800 | 34.5% | 7/7 |
 | make-build | sqz | 2318 | 990 | 42.7% | 1/7 |
 | make-build | tidyout | 2318 | 2336 | 100.8% | 7/7 |
-| npm-install | pare | 5459 | 333 | 6.1% | 2/2 |
+| npm-install | pare | 5459 | 347 | 6.4% | 2/2 |
 | npm-install | sqz | 5459 | 4902 | 89.8% | 2/2 |
 | npm-install | tidyout | 5459 | 5477 | 100.3% | 2/2 |
-| pytest-fail | pare | 4762 | 1254 | 26.3% | 11/11 |
+| pytest-fail | pare | 4762 | 1227 | 25.8% | 11/11 |
 | pytest-fail | sqz | 4762 | 401 | 8.4% | 8/11 |
 | pytest-fail | tidyout | 4762 | 1483 | 31.1% | 11/11 |
 | server-outage | pare | 133851 | 862 | 0.6% | 9/9 |

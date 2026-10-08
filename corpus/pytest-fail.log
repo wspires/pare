@@ -1,5 +1,5 @@
 ============================= test session starts ==============================
-platform linux -- Python 3.13.16, pytest-9.1.1, pluggy-1.6.0 -- /home/user/pare/.venv/bin/python
+platform linux -- Python 3.13.16, pytest-9.1.1, pluggy-1.6.0 -- /home/dev/proj/.venv/bin/python
 rootdir: /home/dev/proj
 collecting ... collected 170 items
 

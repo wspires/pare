@@ -75,6 +75,8 @@ def test_detect_level_rejects_words(line):
     ("Process completed with exit code 1.", 3),
     ("shutdown complete exit=0", 1),
     ("container exited with code 137", 4),
+    ("10-08 09:00:00.123  1234  1235 E ActivityManager: ANR in com.example", 3),  # adb logcat threadtime
+    ("10-08 09:00:00.123  1234  1235 W PackageManager: unknown package", 2),
     ("go build failed: exit status 2", 3),
     ("command returncode=-9", 4),
 ])
@@ -93,6 +95,8 @@ def test_http_and_exit_code_forms(line, sev):
     "query returned 500 rows in 12ms",  # a row count, not an HTTP status
     "blk_update_request: I/O error, dev sda, sector 2048",  # I/O is not logcat's I/Tag
     "kernel: T/F flag set",
+    "Process exited with 3 warnings",  # a count after "exited with", not an exit code
+    "the job exited with no output",
 ])
 def test_http_and_exit_code_rejections(line):
     assert pare.VOCAB.severity(line) is None
@@ -104,7 +108,7 @@ def test_http_and_exit_code_rejections(line):
     ("rc=1", 3),
     ("returncode: 2", 3),
     ("exit 1", 3),
-    ("exited with 137", 4),
+    ("exited with status 137", 4),
     ("E/ActivityManager( 1234): ANR in com.example", 3),
     ("10-08 11:00:00.123 W/System.err( 512): java.lang.NullPointerException", 2),
     ("I/ActivityManager: Start proc 1234", 1),
@@ -124,9 +128,21 @@ def test_io_error_line_still_counts_as_error_vocabulary():
     "Tests: 0 failed, 12 passed",
     "0 failures, 0 errors, 12 tests run",
     "npm audit: found 0 vulnerabilities",
+    "no errors found",
 ])
 def test_zero_counts_are_not_errors(line):
     assert pare.vocab_score(line) < 3.0
+    assert not pare.VOCAB.has("error", line)  # every path (marker, locations, pass check) agrees
+
+
+def test_zero_count_line_is_not_marked_as_error_template():
+    # The line sits mid-file so it is listed as a template entry rather than
+    # printed by a head or tail window.
+    lines = [f"building {i}/80" for i in range(40)] + ["Found 0 errors. Watching for file changes."] + [f"building {i}/80" for i in range(40, 80)]
+    data = "\n".join(lines).encode() + b"\n"
+    out = run(["--budget", "300"], data).decode()
+    tpl = next(l for l in out.splitlines() if "Found 0 errors" in l and l.startswith("T"))
+    assert " E " not in tpl
 
 
 def test_nonzero_counts_still_are():
