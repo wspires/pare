@@ -101,6 +101,8 @@ class Template:
     salience: float = 0.0
     vocab: float = 0.0
     marker: str = "."
+    levels: dict = field(default_factory=dict)  # severity -> number of records
+    exemplar: int = -1  # record index shown for this template (highest severity)
 
     @property
     def tid(self) -> str:
@@ -274,7 +276,21 @@ VOCAB_CLASSES = {
     "pass": (-1.0, "passing-test markers (ignored when an error word is also present)"),
     "noise": (-0.75, "progress and chatter (ignored when an error word is also present)"),
     "strong-error": (0.0, "decides whether a record body counts as an error; no weight"),
+    # Structural log levels: a token in a level position or form (bare
+    # UPPERCASE, [bracketed], level=x, "level":"x", `error:` prefix). When one
+    # is found it sets the line's base score and, for info/debug, suppresses
+    # error-word bonuses. Entries are plain tokens, not regexes.
+    "level-fatal": (4.0, "level tokens meaning fatal/critical"),
+    "level-error": (3.0, "level tokens meaning error"),
+    "level-warn": (1.5, "level tokens meaning warning"),
+    "level-info": (-0.5, "level tokens meaning info/notice"),
+    "level-debug": (-1.0, "level tokens meaning debug/trace"),
 }
+
+LEVEL_CLASSES = {"level-fatal": 4, "level-error": 3, "level-warn": 2, "level-info": 1, "level-debug": 0}
+LEVEL_SCORE = {sev: VOCAB_CLASSES[cls][0] for cls, sev in LEVEL_CLASSES.items()}
+LEVEL_NAME = {4: "FATAL", 3: "ERROR", 2: "WARN", 1: "INFO", 0: "DEBUG"}
+LETTER_LEVEL = {"F": 4, "E": 3, "W": 2, "I": 1, "D": 0, "V": 0, "T": 0}
 
 DEFAULT_VOCAB: dict[str, list[str]] = {
     "error": [
@@ -319,6 +335,11 @@ DEFAULT_VOCAB: dict[str, list[str]] = {
         r"/(?i)\bassert\w*\b/", r"/(?i)\bfatal\b/", r"/(?i)\bfail(?:ed|ure|s)?\b/",
         r"/^\s*E\s{2,}/", "/✕|✗|FAIL/",
     ],
+    "level-fatal": ["FATAL", "CRITICAL", "CRIT", "EMERG", "EMERGENCY", "ALERT", "PANIC", "SEVERE"],
+    "level-error": ["ERROR", "ERR"],
+    "level-warn": ["WARN", "WARNING"],
+    "level-info": ["INFO", "INFORMATION", "NOTICE"],
+    "level-debug": ["DEBUG", "TRACE", "VERBOSE", "FINE", "FINER", "FINEST"],
 }
 
 
@@ -347,12 +368,57 @@ class Vocab:
         self.entries = entries
         self.rx: dict[str, re.Pattern | None] = {}
         for cls in VOCAB_CLASSES:
+            if cls in LEVEL_CLASSES:
+                continue
             items = entries.get(cls, [])
             self.rx[cls] = re.compile("|".join(f"(?:{_entry_regex(e)})" for e in items)) if items else None
+        # Level tokens, longest first so WARNING wins over WARN.
+        self.level_of: dict[str, int] = {}
+        for cls, sev in LEVEL_CLASSES.items():
+            for tok in entries.get(cls, []):
+                self.level_of[tok.upper()] = sev
+        alt = "|".join(re.escape(t) for t in sorted(self.level_of, key=len, reverse=True)) or "(?!x)x"
+        # key=value forms anywhere on the line: level=error, "level": "warn", severity=INFO
+        self.level_key_rx = re.compile(
+            r"(?i)\b(?:level|lvl|loglevel|log_level|severity|sev|priority)\b\s*[\"']?\s*[=:]\s*[\"']?(" + alt + r")(?![A-Za-z])"
+        )
+        # bare or bracketed forms near the start of the line
+        self.level_bare_rx = re.compile(
+            r"(?i)(?:^|[\s\[(<|{\"':,=/-])(" + alt + r")(?=$|[\s\])>|:,\"'/\[(.-])"
+        )
+        # single-letter forms: logcat E/Tag, glog E0921 10:11:12, [E]
+        self.level_letter_rx = re.compile(r"(?:^|\s)([EWIDVTF])(?:/\w|\d{4}\s)|\[([EWIDVTF])\]")
 
     def has(self, cls: str, text: str) -> bool:
         rx = self.rx[cls]
         return bool(rx and rx.search(text))
+
+    def detect_level(self, text: str) -> int | None:
+        """Severity 0-4 of an explicit log-level token, or None. Structural:
+        the token must be in a level form, not just a word in the message."""
+        m = self.level_key_rx.search(text)
+        if m:
+            return self.level_of[m.group(1).upper()]
+        head = text[:LEVEL_SCAN_CHARS]
+        for m in self.level_bare_rx.finditer(head):
+            tok = m.group(1)
+            start, end = m.start(1), m.end(1)
+            nxt = head[end : end + 1]
+            ok = (
+                tok.isupper()  # ERROR, WARN: an uppercase token is a level
+                or (start > 0 and head[start - 1] in "[(<|")  # [error], (warn)
+                or (nxt == ":" and start <= 60)  # error: ..., Warning: ...
+                or (start == 0 and nxt == "[")  # rustc error[E0308]:
+            )
+            if ok:
+                return self.level_of[tok.upper()]
+        m = self.level_letter_rx.search(text[:48])
+        if m:
+            return LETTER_LEVEL[m.group(1) or m.group(2)]
+        return None
+
+
+LEVEL_SCAN_CHARS = 120
 
 
 def parse_vocab(text: str, base: dict[str, list[str]], source: str = "vocab") -> dict[str, list[str]]:
@@ -382,6 +448,8 @@ def parse_vocab(text: str, base: dict[str, list[str]], source: str = "vocab") ->
         if cls is None:
             sys.exit(f"pare: {source}:{n}: entry {line!r} appears before any [class] header")
         if line.startswith("/") and line.endswith("/") and len(line) >= 2:
+            if cls in LEVEL_CLASSES:
+                sys.exit(f"pare: {source}:{n}: level classes take plain tokens, not regexes: {line!r}")
             try:
                 re.compile(line[1:-1])
             except re.error as e:
@@ -412,20 +480,34 @@ VOCAB = Vocab(DEFAULT_VOCAB)
 
 
 def vocab_score(text: str) -> float:
+    """Salience of one line's text. A structural log level, when present,
+    sets the base score and decides whether error/warn words count: an INFO
+    line that mentions 'error' is still info, and an ERROR line is an error
+    whatever language its message is in."""
     s = 0.0
     err = VOCAB.has("error", text)
-    if err:
-        s += VOCAB_CLASSES["error"][0]
-    if VOCAB.has("warn", text):
-        s += VOCAB_CLASSES["warn"][0]
+    warn = VOCAB.has("warn", text)
+    sev = VOCAB.detect_level(text)
+    if sev is None:
+        if err:
+            s += VOCAB_CLASSES["error"][0]
+        if warn:
+            s += VOCAB_CLASSES["warn"][0]
+        if not err and VOCAB.has("pass", text):
+            s += VOCAB_CLASSES["pass"][0]
+        if not err and VOCAB.has("noise", text):
+            s += VOCAB_CLASSES["noise"][0]
+    else:
+        s += LEVEL_SCORE[sev]
+        if sev >= 2:  # vocabulary reinforces a warning or error level
+            if err:
+                s += 0.5 * VOCAB_CLASSES["error"][0]
+            if warn:
+                s += 0.5 * VOCAB_CLASSES["warn"][0]
     if VOCAB.has("summary", text):
         s += VOCAB_CLASSES["summary"][0]
     if VOCAB.has("frame", text):
         s += VOCAB_CLASSES["frame"][0]
-    if not err and VOCAB.has("pass", text):
-        s += VOCAB_CLASSES["pass"][0]
-    if not err and VOCAB.has("noise", text):
-        s += VOCAB_CLASSES["noise"][0]
     if len(text.strip()) < 4:
         s -= 1.0
     return s
@@ -438,11 +520,29 @@ def rarity_of(tpl: Template) -> float:
 def score_templates(lines: list[Line], records: list[Record], templates: list[Template]) -> None:
     n = max(1, len(records))
     for tpl in templates:
+        # Structural levels of the member records. The exemplar is the first
+        # record at the highest severity, so a template of 4,000 INFO lines
+        # and 3 ERROR lines is represented by an ERROR line.
+        tpl.levels = {}
+        best_sev, best_rec = -1, tpl.records[0]
+        for ri in tpl.records:
+            sev = VOCAB.detect_level(lines[records[ri].start].text)
+            if sev is not None:
+                tpl.levels[sev] = tpl.levels.get(sev, 0) + 1
+            if (sev if sev is not None else -1) > best_sev:
+                best_sev, best_rec = (sev if sev is not None else -1), ri
+        tpl.exemplar = best_rec
+        tpl_level = VOCAB.detect_level(tpl.text)
+        if tpl_level is None and tpl.levels:
+            tpl_level = max(tpl.levels)  # level varies across records: judge by the worst
+
         # Vocabulary: the template text, plus one point if the exemplar's body
         # carries a strong error signal (a traceback under a bland head line).
         head_vocab = vocab_score(tpl.text)
+        if VOCAB.detect_level(tpl.text) is None and tpl_level is not None:
+            head_vocab = max(head_vocab, LEVEL_SCORE[tpl_level])
         body_err = 0.0
-        rec = records[tpl.records[0]]
+        rec = records[tpl.exemplar]
         for ln in lines[rec.start + 1 : rec.end]:
             if VOCAB.has("strong-error", ln.text):
                 body_err = 1.0
@@ -461,9 +561,13 @@ def score_templates(lines: list[Line], records: list[Record], templates: list[Te
         block = 0.75 if avg_cont >= 2 else 0.0
         tpl.vocab = vocab
         tpl.salience = vocab + 2.0 * rarity + position + block
-        if (VOCAB.has("error", tpl.text) and not VOCAB.has("pass", tpl.text)) or body_err:
+        if tpl_level is not None and tpl_level <= 1 and not body_err:
+            tpl.marker = "S" if VOCAB.has("summary", tpl.text) else "."  # info/debug: structure wins
+        elif (tpl_level is not None and tpl_level >= 3) or body_err or (
+            VOCAB.has("error", tpl.text) and not VOCAB.has("pass", tpl.text)
+        ):
             tpl.marker = "E"
-        elif VOCAB.has("warn", tpl.text):
+        elif tpl_level == 2 or VOCAB.has("warn", tpl.text):
             tpl.marker = "W"
         elif VOCAB.has("summary", tpl.text):
             tpl.marker = "S"
@@ -611,10 +715,13 @@ def summarize(
     taken: dict[str, int] = {}  # masked text -> lines already shown with that shape
 
     def tpl_entry(tpl: Template, body_limit: int) -> tuple[list[str], list[int]]:
-        rec = records[tpl.records[0]]
+        rec = records[tpl.exemplar]
         ex = lines[rec.start]
         count = len(tpl.records)
         extra = f" ({fmt_int(tpl.lines)} lines)" if tpl.lines != count else ""
+        if len(tpl.levels) > 1:  # mixed levels inside one template: say so
+            hist = " ".join(f"{LEVEL_NAME[s]}×{fmt_int(c)}" for s, c in sorted(tpl.levels.items(), reverse=True))
+            extra += f" [{hist}]"
         if count == 1:
             entry = [f"{tpl.tid:<4} ×{count}{extra} {tpl.marker} L{ex.no}: {clip(ex.text.strip(), width)}"]
         else:
@@ -648,7 +755,7 @@ def summarize(
                 cost = nbytes(entry)
         tpl_entries.append((tpl.idx, entry, body_nos))
         tpl_budget -= cost
-        ex_no = lines[records[tpl.records[0]].start].no
+        ex_no = lines[records[tpl.exemplar].start].no
         shown.add(ex_no)
         shown.update(body_nos)
         for no in [ex_no] + body_nos:
@@ -753,7 +860,7 @@ def summarize(
             out.extend(render_ranges(lines, tail_nos, width))
         shown_set = set(head_nos) | set(tail_nos) | {ln.no for _, ln in picked_lines}
         for ti, _, body_nos in tpl_entries:
-            shown_set.add(lines[records[templates[ti].records[0]].start].no)
+            shown_set.add(lines[records[templates[ti].exemplar].start].no)
             shown_set.update(body_nos)
         out.extend(ledger(shown_set))
         out.append(run_line)

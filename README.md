@@ -74,6 +74,26 @@ because the pipeline is deterministic for a given input. `--max-templates N`
 lists at most N templates (highest salience first); the rest still show up
 in the omitted ledger.
 
+### Log levels (structural severity)
+
+Before any words are weighed, pare looks for an explicit log level in a
+level *form*: a bare uppercase token near the start of the line (`ERROR`,
+`WARN`), a bracketed one (`[error]`, `(warn)`), a key-value pair anywhere
+(`level=error`, `"level": "warn"`, `severity=CRITICAL`), a prefix with a
+colon (`error:`, `Warning:`, rustc's `error[E0308]:`), or the single-letter
+forms of logcat (`E/Tag`), glog (`E0921 10:11:12`) and `[I]`. A level word
+in the middle of a message (`connection error occurred`) is vocabulary, not
+structure, and is not matched here.
+
+When a level is found it sets the line's base score (fatal +4, error +3,
+warn +1.5, info −0.5, debug −1) and decides whether error words count: an
+INFO line saying `0 errors` stays info, and an ERROR line is an error in
+any language. Per template, the levels of all member records are tallied;
+the record with the highest severity becomes the exemplar, and a template
+whose level varies shows the histogram (`[ERROR×3 INFO×4,340]`). The
+level tokens live in the vocabulary file as `level-fatal` … `level-debug`
+classes, so `FEHLER` or `ERRO` can be added with `--vocab`.
+
 ### Vocabulary
 
 The salience vocabulary is the one prior in the pipeline that is not learned
@@ -89,6 +109,7 @@ organised as classes with fixed weights:
 | `pass` | −1 | ✓, PASS, ok (ignored when the line also has an error word) |
 | `noise` | −0.75 | downloading, compiling, debug, progress bars, … (same) |
 | `strong-error` | — | decides whether a record *body* makes its template an error |
+| `level-fatal` … `level-debug` | +4 … −1 | plain level tokens for the structural detection above |
 
 `pare --dump-vocab` prints the built-in lists as a file you can edit; pass it
 back with `--vocab FILE` or `$PARE_VOCAB`. A section `[error]` adds to the
@@ -227,10 +248,22 @@ Notes on reading this:
 - The cargo log (945 tokens) fits the budget, so pare passes it through with
   a two-line header; it never makes small inputs bigger than a fixed overhead.
 
+## Tests
+
+```
+.venv/bin/pip install pytest && .venv/bin/python -m pytest proto/
+```
+
+Covers level detection forms, vocabulary parsing and round-tripping, the
+hard budget limit at several sizes on every corpus file, determinism,
+pass-through of small inputs, `--only`/`--except`, and the run file.
+
 ## Layout
 
 ```
 proto/pare.py          the prototype (drain3 is its only dependency)
+proto/test_pare.py     pytest suite
+proto/vocab.example    example vocabulary extension (German)
 bench/run.py           benchmark runner
 bench/gen_synthetic.py generator for the seeded synthetic corpus files
 corpus/*.log|.keep|.cmd
