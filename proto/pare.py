@@ -19,7 +19,7 @@ Install: `uv run proto/pare.py` picks up the dependency block below, or
 """
 # /// script
 # requires-python = ">=3.10"
-# dependencies = ["drain3>=0.9.11"]
+# dependencies = ["drain3==0.9.11"]
 # ///
 
 from __future__ import annotations
@@ -840,12 +840,11 @@ def summarize(
     run_line = f"## raw: {run_path}" if run_path else "## raw: (not saved)"
     run_hint = "   expand with: pare --only T<n> < raw   ·   drop noise: pare --except T<n>,T<m> < raw"
 
-    # Small input: never make it bigger. Pass it through verbatim if it fits.
-    verbatim = [ln.text for ln in lines] + [run_line]
-    verbatim_bytes = nbytes(verbatim) + 60
-    if verbatim_bytes <= budget_bytes:
-        head_v = f"# pare: {fmt_int(total)} lines (~{fmt_int(tokens(in_bytes))} tok) fit budget {fmt_int(budget)}; verbatim"
-        return "\n".join([head_v] + verbatim) + "\n"
+    # Small input: never make it bigger. Pass it through verbatim if it fits,
+    # with no header; the only addition is the run-file line when one exists.
+    verbatim = [ln.text for ln in lines] + ([run_line] if run_path else [])
+    if nbytes(verbatim) <= budget_bytes:
+        return "\n".join(verbatim) + "\n"
 
     # Fixed overhead: header + run lines + section titles + ledger reserve.
     ledger_reserve = min(400, max(120, budget_bytes // (16 if budget < COMPACT_BUDGET else 12)))

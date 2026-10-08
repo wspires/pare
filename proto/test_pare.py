@@ -235,9 +235,11 @@ def test_deterministic(name):
 
 def test_small_input_passes_through():
     data = b"one\nERROR two\nthree\n"
-    out = run(["--budget", "100"], data).decode()
-    assert "verbatim" in out.splitlines()[0]
-    assert "ERROR two" in out
+    out = run(["--budget", "100"], data)
+    assert out == data  # no header, no growth: the input is the output
+    p = subprocess.run([sys.executable, os.path.join(HERE, "pare.py"), "--budget", "100", "--run-dir",
+                        os.path.join(ROOT, ".pytest-run-dir-tmp")], input=data, capture_output=True, check=True)
+    assert p.stdout.startswith(data) and b"## raw: " in p.stdout  # with a run file, one line is added
 
 
 def test_only_and_except_select_by_template():

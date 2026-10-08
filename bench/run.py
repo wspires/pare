@@ -62,6 +62,9 @@ class Tool:
     def available(self) -> bool:
         return True
 
+    def version(self) -> str:
+        return "?"
+
     def run(self, log_path: str, cmd: list[str], budget: int, work: str) -> bytes:
         raise NotImplementedError
 
@@ -77,6 +80,14 @@ class Raw(Tool):
 class Pare(Tool):
     name = "pare"
     extra_args: list[str] = []  # set from --pare-args
+
+    def version(self) -> str:
+        p = subprocess.run(pare_cmd() + ["--version"], capture_output=True, text=True)
+        drain = subprocess.run(pare_cmd()[:-1] + ["-c", "import importlib.metadata as m; print(m.version('drain3'))"]
+                               if pare_cmd()[0] != "uv" else ["uv", "run", "--quiet", "--with", "drain3", "python", "-c",
+                                                             "import importlib.metadata as m; print(m.version('drain3'))"],
+                               capture_output=True, text=True)
+        return f"{p.stdout.strip().replace('pare ', '')} (drain3 {drain.stdout.strip() or '?'})"
 
     def run(self, log_path, cmd, budget, work):
         with open(log_path, "rb") as f:
@@ -97,6 +108,10 @@ class Sqz(Tool):
     def available(self):
         return which("sqz") is not None
 
+    def version(self):
+        p = subprocess.run([which("sqz"), "--version"], capture_output=True, text=True)
+        return p.stdout.strip().replace("sqz ", "") or "?"
+
     def run(self, log_path, cmd, budget, work):
         args = [which("sqz"), "compress", "--no-cache"]
         if cmd:
@@ -115,6 +130,19 @@ class Tidyout(Tool):
 
     def available(self):
         return which("tidyout") is not None
+
+    def version(self):
+        # tidyout has no --version flag (it would run "--version" as a command);
+        # ask the interpreter named in the script's shebang for its package version.
+        try:
+            with open(which("tidyout"), encoding="utf-8", errors="replace") as f:
+                shebang = f.readline().strip()
+            py = shebang[2:].split()[0] if shebang.startswith("#!") else sys.executable
+            p = subprocess.run([py, "-c", "import importlib.metadata as m; print(m.version('tidyout-cli'))"],
+                               capture_output=True, text=True)
+            return p.stdout.strip() or "?"
+        except OSError:
+            return "?"
 
     def run(self, log_path, cmd, budget, work):
         # tidyout wraps a command; give it a fake one that replays the log so
@@ -203,7 +231,11 @@ def main() -> int:
                 rows.append(row)
 
     # Per-case table.
-    print(f"budget={args.budget} tokens (bytes/4)   tools: {', '.join(t.name for t in tools)}\n")
+    versions = ", ".join(f"{t.name} {t.version()}" for t in tools if t.name != "raw" and t.available())
+    print(f"budget={args.budget} tokens (bytes/4)   tools: {', '.join(t.name for t in tools)}")
+    print(f"versions: {versions}")
+    print("modes: pare --no-tee; sqz compress --no-cache --cmd <name> (one-shot, so its session-level "
+          "dedup is not exercised); tidyout <cmd> with a fake <cmd> on PATH that replays the log\n")
     hdr = f"{'case':<16} {'tool':<8} {'in_tok':>8} {'out_tok':>8} {'ratio':>7} {'recall':>9}"
     print(hdr)
     print("-" * len(hdr))
