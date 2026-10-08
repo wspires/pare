@@ -306,13 +306,13 @@ HTTP_STATUS_RX = re.compile(
     r'\b(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+\S+(?:\s+HTTP/\d(?:\.\d)?"?)?\s+(\d{3})\b'  # GET /p 500, "GET /p HTTP/1.1" 500
     r"|(?i:\b(?:status(?:_?code)?|http_?status|statuscode|response_?code|code)\b\s*[\"']?\s*[=:]\s*[\"']?(\d{3})\b)"  # status=503
     r"|\bHTTP/\d(?:\.\d)?\s+(\d{3})\b"  # HTTP/1.1 502
-    r"|(?i:\b(?:returned|responded(?: with)?|status code|http)\s+(\d{3})\b)"  # returned 503, HTTP 500
+    r"|(?i:\b(?:returned\s+(?:http|status(?:\s+code)?)|responded(?: with)?|status code|http)\s+(\d{3})\b)"  # returned HTTP 500 (bare "returned 500" is a row count)
 )
 # Process exit codes. 0 -> info, 1-127 -> error, 128+ or negative (signals,
 # OOM kills) -> fatal.
 EXIT_CODE_RX = re.compile(
-    r"(?i)\b(?:exit(?:ed)?(?:\s+with)?(?:\s+(?:code|status))?|exit[_ ]?code|exit[_ ]?status|return\s*code|returncode|rc)"
-    r"\s*[=:]?\s*(-?\d{1,3})\b"
+    r"(?i)\bexit(?:ed)?(?:\s+with)?(?:\s+(?:code|status))?\s*[=:]?\s*(-?\d{1,3})\b"  # exit 1, exited with code 137, exit=0
+    r"|\b(?:exit[_ ]?code|exit[_ ]?status|return\s*code|returncode|rc)\s*[=:]\s*(-?\d{1,3})\b"  # rc=1 (not 1.4.0-rc1)
 )
 
 
@@ -334,7 +334,7 @@ def exit_severity(text: str) -> int | None:
     m = EXIT_CODE_RX.search(text)
     if not m:
         return None
-    code = int(m.group(1))
+    code = int(next(g for g in m.groups() if g))
     if code == 0:
         return 1
     if code < 0 or code >= 128:
@@ -377,7 +377,7 @@ DEFAULT_VOCAB: dict[str, list[str]] = {
         "downloading", "downloaded", "fetching", "fetched", "compiling", "installing", "installed",
         "resolving", "resolved", "extracting", "unpacking", "progress", "collecting", "checking",
         "building", "linking", "caching", "cached", "preparing", "processing", "pulling", "pushing",
-        "verbose", "debug", "trace", "info", "get", "head", "heartbeat", "ping", "pong", "poll",
+        "verbose", "debug", "trace", "info", "get", "heartbeat", "ping", "pong", "poll",
         "polling", "tick",
         r"/\d+%/", r"/\.{3,}/", "/[▏▎▍▌▋▊▉█░▒▓]/", r"/\b(?:200|204|304) (?:OK|No Content|Not Modified)\b/",
     ],
@@ -439,9 +439,15 @@ class Vocab:
             r"(?i)(?:^|[\s\[(<|{\"':,=/-])(" + alt + r")(?=$|[\s\])>|:,\"'/\[(.-])"
         )
         # single-letter forms: logcat E/Tag, glog E0921 10:11:12, [E]
-        # ...and pytest's failure-detail marker: a bare E at column 0 followed
-        # by at least two spaces.
-        self.level_letter_rx = re.compile(r"(?:^|\s)([EWIDVTF])(?:/\w|\d{4}\s)|\[([EWIDVTF])\]|^(E)\s{2,}")
+        # ...anchored to the line start (after an optional timestamp and
+        # pid/tid), so "I/O error" and "T/F flag" are not levels; and pytest's
+        # failure-detail marker, a bare E at column 0 followed by two spaces.
+        self.level_letter_rx = re.compile(
+            r"^(?:[\d:.\-]{5,24}\s+){0,2}(?:\d+\s+\d+\s+)?([EWIDVTF])/[\w.$]+[(:]"  # logcat E/Tag( or E/Tag:
+            r"|^([EWIF])\d{4}\s"  # glog E0921 10:11:12
+            r"|\[([EWIDVTF])\]"  # [I]
+            r"|^(E)\s{2,}"  # pytest
+        )
 
     def has(self, cls: str, text: str) -> bool:
         rx = self.rx[cls]
@@ -468,7 +474,7 @@ class Vocab:
                 return self.level_of[tok.upper()]
         m = self.level_letter_rx.search(text[:48])
         if m:
-            return LETTER_LEVEL[m.group(1) or m.group(2) or m.group(3)]
+            return LETTER_LEVEL[next(g for g in m.groups() if g)]
         return None
 
     def severity(self, text: str) -> int | None:
@@ -539,6 +545,11 @@ def dump_vocab(entries: dict[str, list[str]]) -> str:
 VOCAB = Vocab(DEFAULT_VOCAB)
 
 
+ZERO_COUNT_RX = re.compile(
+    r"(?i)\b0 (?:errors?|failures?|failed|failing|problems?|issues?|warnings?|vulnerabilit(?:y|ies))\b"
+)
+
+
 def vocab_score(text: str, head: bool = True) -> float:
     """Salience of one line's text. A structural log level, when present,
     sets the base score and decides whether error/warn words count: an INFO
@@ -546,8 +557,9 @@ def vocab_score(text: str, head: bool = True) -> float:
     whatever language its message is in. Summary vocabulary (totals, final
     verdicts) only counts on a record head, not inside a block."""
     s = 0.0
-    err = VOCAB.has("error", text)
-    warn = VOCAB.has("warn", text)
+    words = ZERO_COUNT_RX.sub(" ", text)  # "0 errors" is a summary, not an error
+    err = VOCAB.has("error", words)
+    warn = VOCAB.has("warn", words)
     sev = VOCAB.severity(text)
     if sev is None:
         if VOCAB.has("pass", text):

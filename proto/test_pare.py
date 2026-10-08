@@ -88,9 +88,54 @@ def test_http_and_exit_code_forms(line, sev):
     "zip code 90210",  # out of status range
     "the script exits 3 times a day",
     "copyright 2026 example",
+    "Successfully tagged myapp:1.4.0-rc1",  # rc1 is a release candidate, not rc=1
+    "npm notice using node 20.0.0-rc2",
+    "query returned 500 rows in 12ms",  # a row count, not an HTTP status
+    "blk_update_request: I/O error, dev sda, sector 2048",  # I/O is not logcat's I/Tag
+    "kernel: T/F flag set",
 ])
 def test_http_and_exit_code_rejections(line):
     assert pare.VOCAB.severity(line) is None
+
+
+@pytest.mark.parametrize("line,sev", [
+    ("returned HTTP 500", 3),
+    ("returned status 503 from upstream", 3),
+    ("rc=1", 3),
+    ("returncode: 2", 3),
+    ("exit 1", 3),
+    ("exited with 137", 4),
+    ("E/ActivityManager( 1234): ANR in com.example", 3),
+    ("10-08 11:00:00.123 W/System.err( 512): java.lang.NullPointerException", 2),
+    ("I/ActivityManager: Start proc 1234", 1),
+])
+def test_tightened_forms_still_match(line, sev):
+    assert pare.VOCAB.severity(line) == sev
+
+
+def test_io_error_line_still_counts_as_error_vocabulary():
+    # The old logcat letter form read "I/O" as an INFO level, which then
+    # suppressed the error word on the same line.
+    assert pare.vocab_score("blk_update_request: I/O error, dev sda, sector 2048") >= 3.0
+
+
+@pytest.mark.parametrize("line", [
+    "Found 0 errors. Watching for file changes.",  # tsc --watch
+    "Tests: 0 failed, 12 passed",
+    "0 failures, 0 errors, 12 tests run",
+    "npm audit: found 0 vulnerabilities",
+])
+def test_zero_counts_are_not_errors(line):
+    assert pare.vocab_score(line) < 3.0
+
+
+def test_nonzero_counts_still_are():
+    assert pare.vocab_score("Tests: 3 failed, 12 passed") >= 3.0
+    assert pare.vocab_score("Found 2 errors. Watching for file changes.") >= 3.0
+
+
+def test_git_head_is_not_noise():
+    assert pare.vocab_score("HEAD is now at 3e1f9a2 Merge pull request #4821") >= 0.0
 
 
 def test_access_log_needle():
