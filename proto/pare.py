@@ -2,8 +2,12 @@
 """pare - summarize noisy command output (tests, builds, logs) to a token budget.
 
 Pipeline
-    stdin -> tee to run file -> lines -> records -> mask -> drain3 templates
-          -> salience -> budget allocation -> summary on stdout
+    stdin -> one pass: tee to the run file, split, segment, mask, drain3
+             templates, line scores -> budget allocation -> summary on stdout
+
+The pass keeps a few bytes per line and reads line text back from the run
+file only for the lines the summary shows, so memory stays small on large
+inputs (see Store).
 
 Usage
     noisy-command 2>&1 | pare [--budget 2000]
@@ -25,6 +29,7 @@ Install: `uv run proto/pare.py` picks up the dependency block below, or
 from __future__ import annotations
 
 import argparse
+import array
 import hashlib
 import heapq
 import logging
@@ -32,6 +37,8 @@ import math
 import os
 import re
 import sys
+import tempfile
+from collections import OrderedDict
 from dataclasses import dataclass, field
 
 logging.getLogger("drain3").setLevel(logging.ERROR)
@@ -95,6 +102,7 @@ MAX_RECORD_LINES = 400
 
 @dataclass
 class Line:
+    """One input line, materialised from the spool on demand (see Store)."""
     no: int  # 1-based line number in the input
     text: str  # ANSI-stripped, \r-resolved, right-stripped
     indent: int
@@ -109,20 +117,22 @@ class Record:
     idx: int
     start: int  # 0-based index of head line
     end: int  # exclusive
-    template: int = -1  # template index (0-based), -1 before clustering
+    template: int = -1  # template index (0-based)
 
 
 @dataclass
 class Template:
     idx: int  # 0-based; shown as T{idx+1}
     text: str
-    records: list = field(default_factory=list)
+    cluster_id: int = -1  # drain3's id for the cluster
+    count: int = 0  # records
     lines: int = 0
     salience: float = 0.0
     vocab: float = 0.0
     marker: str = "."
     levels: dict = field(default_factory=dict)  # severity -> number of records
-    exemplar: int = -1  # record index shown for this template (highest severity)
+    exemplar: int = -1  # record shown for this template: the first at the highest severity
+    best_sev: int = -1  # that severity (-1: no structural level seen yet)
 
     @property
     def tid(self) -> str:
@@ -148,55 +158,6 @@ def indent_of(text: str) -> int:
         else:
             break
     return n
-
-
-def split_lines(data: bytes) -> list[Line]:
-    text = data.decode("utf-8", errors="replace")
-    raw_lines = text.split("\n")
-    if raw_lines and raw_lines[-1] == "":
-        raw_lines.pop()
-    lines = []
-    for i, raw in enumerate(raw_lines):
-        t = clean_line(raw)
-        lines.append(Line(no=i + 1, text=t, indent=indent_of(t)))
-    return lines
-
-
-def segment(lines: list[Line]) -> list[Record]:
-    """Join continuation lines (deeper indentation or known frame shapes) to
-    the preceding head line. Blank lines end a record and belong to none."""
-    records: list[Record] = []
-    cur: Record | None = None
-    pending_blank: Line | None = None  # a single blank line may sit inside a block
-    for i, ln in enumerate(lines):
-        if ln.text.strip() == "":
-            if pending_blank is not None or cur is None or not TOOL_SPECIFIC:
-                cur = None
-            pending_blank = ln if cur is not None else None
-            continue
-        head_indent = lines[cur.start].indent if cur else None
-        is_cont = (
-            cur is not None
-            and (cur.end - cur.start) < MAX_RECORD_LINES
-            and (ln.indent > head_indent or (CONT_RE if TOOL_SPECIFIC else CONT_GENERIC_RE).match(ln.text))
-        )
-        if is_cont and cur is not None:
-            if pending_blank is not None:
-                pending_blank.record = cur.idx
-                pending_blank.depth = 1
-            cur.end = i + 1
-            ln.record = cur.idx
-            ln.depth = max(1, (ln.indent - head_indent + 1) // 2)
-        else:
-            if pending_blank is not None:
-                cur = None
-            pending_blank = None
-            cur = Record(idx=len(records), start=i, end=i + 1)
-            records.append(cur)
-            ln.record = cur.idx
-            ln.depth = 0
-        pending_blank = None
-    return records
 
 
 # --------------------------------------------------------------------------
@@ -248,7 +209,7 @@ def mask(text: str) -> str:
 DRAIN_MAX_TOKENS = 40
 
 
-def cluster(lines: list[Line], records: list[Record]) -> list[Template]:
+def new_miner() -> TemplateMiner:
     cfg = TemplateMinerConfig()
     cfg.masking_instructions = []
     cfg.profiling_enabled = False
@@ -256,29 +217,11 @@ def cluster(lines: list[Line], records: list[Record]) -> list[Template]:
     cfg.drain_depth = 4
     cfg.drain_max_children = 100
     cfg.parametrize_numeric_tokens = True
-    miner = TemplateMiner(None, cfg)
+    return TemplateMiner(None, cfg)
 
-    cluster_to_tpl: dict[int, Template] = {}
-    templates: list[Template] = []
-    for rec in records:
-        head = lines[rec.start].text
-        msg = " ".join(mask(head).split()[:DRAIN_MAX_TOKENS]) or "<EMPTY>"
-        res = miner.add_log_message(msg)
-        cid = res["cluster_id"]
-        tpl = cluster_to_tpl.get(cid)
-        if tpl is None:
-            tpl = Template(idx=len(templates), text=res["template_mined"])
-            templates.append(tpl)
-            cluster_to_tpl[cid] = tpl
-        rec.template = tpl.idx
-        tpl.records.append(rec.idx)
-        tpl.lines += rec.end - rec.start
-    # Templates evolve as members join; take the final form.
-    for cid, tpl in cluster_to_tpl.items():
-        c = miner.drain.id_to_cluster.get(cid)
-        if c is not None:
-            tpl.text = c.get_template()
-    return templates
+
+def drain_message(head_text: str) -> str:
+    return " ".join(mask(head_text).split()[:DRAIN_MAX_TOKENS]) or "<EMPTY>"
 
 
 # --------------------------------------------------------------------------
@@ -589,19 +532,21 @@ VOCAB = Vocab(DEFAULT_VOCAB)
 _UNSET = object()
 
 
-def vocab_score(text: str, head: bool = True, sev=_UNSET) -> float:
+def vocab_score(text: str, head: bool = True, sev=_UNSET, has=None) -> float:
     """Salience of one line's text. A structural log level, when present,
     sets the base score and decides whether error/warn words count: an INFO
     line that mentions 'error' is still info, and an ERROR line is an error
     whatever language its message is in. Summary vocabulary (totals, final
     verdicts) only counts on a record head, not inside a block."""
+    if has is None:
+        has = VOCAB.has
     s = 0.0
-    err = VOCAB.has("error", text)  # Vocab.has strips zero counts ("0 errors") itself
-    warn = VOCAB.has("warn", text)
+    err = has("error", text)  # Vocab.has strips zero counts ("0 errors") itself
+    warn = has("warn", text)
     if sev is _UNSET:
         sev = VOCAB.severity(text)
     if sev is None:
-        if VOCAB.has("pass", text):
+        if has("pass", text):
             # A passing-test marker is structural: the words of a test name
             # ("throws on invalid") are not log vocabulary.
             s += VOCAB_CLASSES["pass"][0]
@@ -610,7 +555,7 @@ def vocab_score(text: str, head: bool = True, sev=_UNSET) -> float:
                 s += VOCAB_CLASSES["error"][0]
             if warn:
                 s += VOCAB_CLASSES["warn"][0]
-            if not err and VOCAB.has("noise", text):
+            if not err and has("noise", text):
                 s += VOCAB_CLASSES["noise"][0]
     else:
         s += LEVEL_SCORE[sev]
@@ -619,9 +564,9 @@ def vocab_score(text: str, head: bool = True, sev=_UNSET) -> float:
                 s += 0.5 * VOCAB_CLASSES["error"][0]
             if warn:
                 s += 0.5 * VOCAB_CLASSES["warn"][0]
-    if head and VOCAB.has("summary", text):
+    if head and has("summary", text):
         s += VOCAB_CLASSES["summary"][0]
-    if VOCAB.has("frame", text):
+    if has("frame", text):
         s += VOCAB_CLASSES["frame"][0]
     if len(text.strip()) < 4:
         s -= 1.0
@@ -663,33 +608,23 @@ def line_mask(ln: Line) -> str:
 
 
 def rarity_of(tpl: Template) -> float:
-    return 1.0 / (1.0 + math.log2(len(tpl.records)))
+    return 1.0 / (1.0 + math.log2(tpl.count))
 
 
-def score_templates(lines: list[Line], records: list[Record], templates: list[Template]) -> None:
-    for tpl in templates:
-        # Structural levels of the member records. The exemplar is the first
-        # record at the highest severity, so a template of 4,000 INFO lines
-        # and 3 ERROR lines is represented by an ERROR line.
-        tpl.levels = {}
-        best_sev, best_rec = -1, tpl.records[0]
-        for ri in tpl.records:
-            sev = line_sev(lines[records[ri].start])
-            if sev is not None:
-                tpl.levels[sev] = tpl.levels.get(sev, 0) + 1
-            if (sev if sev is not None else -1) > best_sev:
-                best_sev, best_rec = (sev if sev is not None else -1), ri
-        tpl.exemplar = best_rec
-        # The template is judged by its exemplar head line, a real line with
-        # the full per-line analysis, rather than by the masked template text
-        # (where "0 errors" has already become "<NUM> errors"). The exemplar is
-        # the highest-severity record, so its severity is the worst seen.
-        head = lines[records[tpl.exemplar].start]
+def score_templates(store: Store) -> None:
+    """Template salience and marker, judged by the exemplar record: the first
+    record at the template's highest structural severity, so a template of
+    4,000 INFO lines and 3 ERROR lines is represented by an ERROR line. The
+    exemplar head is a real line with the full per-line analysis, rather than
+    the masked template text (where "0 errors" has already become "<NUM>
+    errors"), so its severity is the worst the template has seen."""
+    for tpl in store.templates:
+        start, end = store.rstart[tpl.exemplar], store.rend[tpl.exemplar]
+        head = store.line(start)
         tpl_level = line_sev(head)
         head_vocab = line_vocab(head, head=True)
         body_err = 0.0
-        rec = records[tpl.exemplar]
-        for ln in lines[rec.start + 1 : rec.end]:
+        for ln in store.lines(start + 1, end):
             if line_has(ln, "strong-error"):
                 body_err = 1.0
                 break
@@ -710,39 +645,6 @@ def score_templates(lines: list[Line], records: list[Record], templates: list[Te
             tpl.marker = "S"
         else:
             tpl.marker = "."
-
-
-def line_score(ln: Line, head: Line) -> float:
-    """Salience of one raw line: its own vocabulary plus a share of its
-    record head's vocabulary, less a little per level of depth."""
-    s = line_vocab(ln, head=ln.depth == 0)
-    if ln.depth > 0:
-        s -= DEPTH_PENALTY * min(ln.depth, 4)
-        if not (line_has(ln, "pass") and not line_has(ln, "error")):
-            s += INHERIT * max(0.0, line_vocab(head, head=True))
-    return s
-
-
-def error_locations(lines: list[Line], records: list[Record]) -> set[int]:
-    """Line numbers of the first source location after an error line within
-    a record: the 'at file:line' under a Jest or Python exception, the '-->'
-    under a rustc error, the innermost frame under a logged exception. That
-    frame says where the failure is; the ones after it say how it got there."""
-    out: set[int] = set()
-    for rec in records:
-        armed = False
-        for ln in lines[rec.start : rec.end]:
-            t = ln.text
-            if not t.strip():
-                continue
-            sev = line_sev(ln)
-            is_loc = line_has(ln, "frame") and not t.lstrip().startswith(">")
-            if armed and is_loc:
-                out.add(ln.no)
-                armed = False
-            elif (sev is not None and sev >= 3) or (line_has(ln, "error") and not is_loc):
-                armed = True
-    return out
 
 
 TOKEN_RE = re.compile(r"[A-Za-z0-9_]+")
@@ -821,15 +723,18 @@ def fmt_line(ln: Line, width: int) -> str:
     return f"{ln.no:>6}│ {clip(ln.text, width)}"
 
 
-def render_ranges(lines: list[Line], nos: list[int], width: int) -> list[str]:
+def gap_marker(gap: int) -> str:
+    return f"      ┆ ({fmt_int(gap)} line{'s' if gap != 1 else ''})"
+
+
+def render_ranges(store: Store, nos: list[int], width: int) -> list[str]:
     """Render line numbers in order with gap markers between non-adjacent runs."""
     out = []
     prev = None
     for no in nos:
         if prev is not None and no != prev + 1:
-            gap = no - prev - 1
-            out.append(f"      ┆ ({fmt_int(gap)} line{'s' if gap != 1 else ''})")
-        out.append(fmt_line(lines[no - 1], width))
+            out.append(gap_marker(no - prev - 1))
+        out.append(fmt_line(store.line(no - 1), width))
         prev = no
     return out
 
@@ -839,14 +744,268 @@ def nbytes(parts: list[str]) -> int:
 
 
 # --------------------------------------------------------------------------
+# The single pass
+# --------------------------------------------------------------------------
+#
+# Input is read once, in chunks. Each chunk goes to the spool (the run file,
+# or a temporary file under --no-tee) and is split into lines, and each line
+# is segmented, clustered and scored as it arrives. What the pass keeps is a
+# few typed arrays per line and per record (about 40 bytes a line), the
+# templates, and each line's offset in the spool; a line's text is read back
+# from the spool when the allocator actually looks at it. Memory is
+# proportional to the number of lines rather than their size, and the raw
+# bytes are on disk the moment they arrive.
+
+CHUNK = 1 << 20
+LINE_CACHE = 4096  # Line objects kept materialised at once
+
+
+class Store:
+    def __init__(self, spool_path: str, width: int):
+        self.spool_path = spool_path
+        self.width = width
+        # per line
+        self.off = array.array("q")  # byte offset of the raw line in the spool
+        self.raw_len = array.array("i")  # its length, without the newline
+        self.rec = array.array("i")  # record index; -1 for a blank line outside any record
+        self.depth = array.array("b")
+        self.sev = array.array("b")  # structural severity; -1 for none
+        self.blank = array.array("b")
+        self.rlen = array.array("i")  # bytes of the rendered line (fmt_line) plus its newline
+        self.slen = array.array("i")  # characters after strip()
+        self.score = array.array("d")  # line salience: line score plus the location bonus
+        # per record
+        self.rstart = array.array("i")
+        self.rend = array.array("i")
+        self.rtpl = array.array("i")
+        self.templates: list[Template] = []
+        self.total_bytes = 0
+        self.verbatim_bytes = 0  # the cleaned text with one newline per line
+        self.blank_total = 0
+        self._fh = None
+        self._cache: OrderedDict[int, Line] = OrderedDict()
+
+    def __len__(self) -> int:
+        return len(self.off)
+
+    @property
+    def nrecords(self) -> int:
+        return len(self.rstart)
+
+    def open(self) -> None:
+        self._fh = open(self.spool_path, "rb")
+
+    def close(self) -> None:
+        if self._fh is not None:
+            self._fh.close()
+            self._fh = None
+
+    def record(self, ri: int) -> Record:
+        return Record(ri, self.rstart[ri], self.rend[ri], self.rtpl[ri])
+
+    def sev_of(self, i: int) -> int | None:
+        s = self.sev[i]
+        return s if s >= 0 else None
+
+    def raw(self, start: int, end: int) -> list[bytes]:
+        """Raw bytes of lines [start, end), read from the spool in one go."""
+        if start >= end:
+            return []
+        last = end - 1
+        self._fh.seek(self.off[start])
+        data = self._fh.read(self.off[last] + self.raw_len[last] - self.off[start])
+        return data.split(b"\n")
+
+    def text(self, i: int) -> str:
+        ln = self._cache.get(i)
+        if ln is not None:
+            return ln.text
+        return clean_line(self.raw(i, i + 1)[0].decode("utf-8", errors="replace"))
+
+    def _make(self, i: int, raw: bytes) -> Line:
+        text = clean_line(raw.decode("utf-8", errors="replace"))
+        ln = Line(no=i + 1, text=text, indent=indent_of(text), record=self.rec[i], depth=self.depth[i])
+        ln.memo["sev"] = self.sev_of(i)
+        self._cache[i] = ln
+        if len(self._cache) > LINE_CACHE:
+            self._cache.popitem(last=False)
+        return ln
+
+    def line(self, i: int) -> Line:
+        ln = self._cache.get(i)
+        if ln is not None:
+            self._cache.move_to_end(i)
+            return ln
+        return self._make(i, self.raw(i, i + 1)[0])
+
+    def lines(self, start: int, end: int) -> list[Line]:
+        raws = self.raw(start, end)
+        out = []
+        for k, i in enumerate(range(start, end)):
+            ln = self._cache.get(i)
+            if ln is None:
+                ln = self._make(i, raws[k])
+            else:
+                self._cache.move_to_end(i)
+            out.append(ln)
+        return out
+
+
+def ingest(stream, store: Store, spool, hasher) -> None:
+    """The pass: tee, split, segment, cluster and score, line by line."""
+    width = store.width
+    miner = new_miner()
+    by_cluster: dict[int, Template] = {}
+    templates = store.templates
+    off, raw_len, rec, depth, sev_a, blank_a = store.off, store.raw_len, store.rec, store.depth, store.sev, store.blank
+    rlen, slen, score = store.rlen, store.slen, store.score
+    rstart, rend, rtpl = store.rstart, store.rend, store.rtpl
+    cont_rx = CONT_RE if TOOL_SPECIFIC else CONT_GENERIC_RE
+    vocab_has = VOCAB.has
+    cur = -1  # current record, or -1
+    head_indent = 0
+    head_vocab = 0.0
+    armed = False  # inside a record: an error line seen, its first source location still to come
+    pending_blank = -1  # a single blank line that may turn out to sit inside a block
+    n = 0
+    pos = 0
+
+    def add(raw: bytes) -> None:
+        nonlocal cur, head_indent, head_vocab, armed, pending_blank, n, pos
+        i = n
+        n += 1
+        text = clean_line(raw.decode("utf-8", errors="replace"))
+        indent = indent_of(text)
+        stripped = text.strip()
+        off.append(pos)
+        raw_len.append(len(raw))
+        pos += len(raw) + 1
+        store.verbatim_bytes += len(text.encode("utf-8")) + 1
+        rlen.append(len(f"{i + 1:>6}│ {clip(text, width)}".encode("utf-8")) + 1)
+        slen.append(len(stripped))
+        sev = VOCAB.severity(text)
+        sev_a.append(-1 if sev is None else sev)
+        if not stripped:
+            # Blank lines end a record and belong to none, except that a
+            # single blank line may sit inside an indented block.
+            store.blank_total += 1
+            blank_a.append(1)
+            rec.append(-1)
+            depth.append(0)
+            score.append(0.0)
+            if pending_blank != -1 or cur == -1 or not TOOL_SPECIFIC:
+                cur = -1
+            pending_blank = i if cur != -1 else -1
+            return
+        blank_a.append(0)
+        memo: dict[str, bool] = {}
+
+        def has(cls: str, _text: str = "") -> bool:  # same signature as Vocab.has, memoised for this line
+            v = memo.get(cls)
+            if v is None:
+                v = memo[cls] = vocab_has(cls, text)
+            return v
+
+        # Segmentation: a deeper indent or a known continuation shape joins
+        # the line to the record above.
+        is_cont = (
+            cur != -1
+            and (rend[cur] - rstart[cur]) < MAX_RECORD_LINES
+            and (indent > head_indent or cont_rx.match(text))
+        )
+        if is_cont:
+            tpl = templates[rtpl[cur]]
+            if pending_blank != -1:
+                rec[pending_blank] = cur
+                depth[pending_blank] = 1
+                tpl.lines += 1
+            rend[cur] = i + 1
+            d = max(1, (indent - head_indent + 1) // 2)
+            rec.append(cur)
+            depth.append(d)
+            tpl.lines += 1
+            # A continuation line: its own vocabulary plus a share of its
+            # record head's, less a little per level of depth.
+            s = vocab_score(text, head=False, sev=sev, has=has)
+            s -= DEPTH_PENALTY * min(d, 4)
+            if not (has("pass") and not has("error")):
+                s += INHERIT * max(0.0, head_vocab)
+        else:
+            cur = len(rstart)
+            rstart.append(i)
+            rend.append(i + 1)
+            head_indent = indent
+            # Cluster the masked head line.
+            res = miner.add_log_message(drain_message(text))
+            cid = res["cluster_id"]
+            tpl = by_cluster.get(cid)
+            if tpl is None:
+                tpl = Template(idx=len(templates), text=res["template_mined"], cluster_id=cid, exemplar=cur)
+                templates.append(tpl)
+                by_cluster[cid] = tpl
+            rtpl.append(tpl.idx)
+            tpl.count += 1
+            tpl.lines += 1
+            if sev is not None:
+                tpl.levels[sev] = tpl.levels.get(sev, 0) + 1
+            if (sev if sev is not None else -1) > tpl.best_sev:
+                tpl.best_sev = sev if sev is not None else -1
+                tpl.exemplar = cur
+            rec.append(cur)
+            depth.append(0)
+            armed = False
+            head_vocab = s = vocab_score(text, head=True, sev=sev, has=has)
+        pending_blank = -1
+        # The first source location after an error line within a record (the
+        # 'at file:line' under an exception, the '-->' under a rustc error,
+        # the innermost frame) says where the failure is; the frames after it
+        # say how it got there.
+        is_loc = has("frame") and not text.lstrip().startswith(">")
+        if armed and is_loc:
+            s += LOCATION_BONUS
+            armed = False
+        elif (sev is not None and sev >= 3) or (has("error") and not is_loc):
+            armed = True
+        score.append(s)
+
+    rest = b""
+    while True:
+        chunk = stream.read(CHUNK)
+        if not chunk:
+            break
+        spool.write(chunk)
+        hasher.update(chunk)
+        store.total_bytes += len(chunk)
+        parts = (rest + chunk).split(b"\n")
+        rest = parts.pop()
+        for part in parts:
+            add(part)
+    if rest:
+        add(rest)
+    # Templates evolve as members join; take the final form.
+    for tpl in templates:
+        c = miner.drain.id_to_cluster.get(tpl.cluster_id)
+        if c is not None:
+            tpl.text = c.get_template()
+
+
+def analyze(stream, *, width: int, spool_path: str) -> tuple[Store, str]:
+    """Run the pass over a byte stream, spooling it to spool_path. Returns the
+    store and the content hash that names the run file."""
+    store = Store(spool_path, width)
+    hasher = hashlib.sha256()
+    with open(spool_path, "wb") as spool:
+        ingest(stream, store, spool, hasher)
+    return store, hasher.hexdigest()[:12]
+
+
+# --------------------------------------------------------------------------
 # Summary
 # --------------------------------------------------------------------------
 
 
 def summarize(
-    lines: list[Line],
-    records: list[Record],
-    templates: list[Template],
+    store: Store,
     *,
     budget: int,
     head_n: int,
@@ -856,8 +1015,11 @@ def summarize(
     run_path: str | None,
     in_bytes: int,
 ) -> str:
+    templates = store.templates
     budget_bytes = budget_bytes_for(budget)
-    total = len(lines)
+    total = len(store)
+    rec, rtpl, rstart, rend, blank = store.rec, store.rtpl, store.rstart, store.rend, store.blank
+    scores, slen, rlen = store.score, store.slen, store.rlen
     by_sal = sorted(templates, key=lambda t: (-t.salience, t.idx))
 
     def header(out_bytes: int) -> str:
@@ -871,8 +1033,12 @@ def summarize(
 
     # Small input: never make it bigger. Pass it through verbatim if it fits,
     # with no header; the only addition is the run-file line when one exists.
-    verbatim = [ln.text for ln in lines] + ([run_line] if run_path else [])
-    if nbytes(verbatim) <= budget_bytes:
+    if store.verbatim_bytes + (len(run_line.encode("utf-8")) + 1 if run_path else 0) <= budget_bytes:
+        verbatim = []
+        for start in range(0, total, 4096):
+            verbatim.extend(clean_line(r.decode("utf-8", errors="replace")) for r in store.raw(start, min(total, start + 4096)))
+        if run_path:
+            verbatim.append(run_line)
         return "\n".join(verbatim) + "\n"
 
     # Fixed overhead: header + run lines + section titles + ledger reserve.
@@ -889,36 +1055,38 @@ def summarize(
     # template (the template table already stands for those), except the
     # very first and last lines of the input. The scan is bounded so the
     # window stays a window and does not wander into the middle of the file.
-    def windowed(seq: list[Line], n: int, keep_no: int) -> list[int]:
+    def windowed(idxs, n: int, keep_no: int) -> list[int]:
         out: list[int] = []
-        for ln in seq[: max(n, WINDOW_SCAN_FACTOR * n)]:
+        for i in idxs:
             if len(out) >= n:
                 break
-            if ln.no == keep_no or ln.record < 0:
-                out.append(ln.no)
+            ri = rec[i]
+            if i + 1 == keep_no or ri < 0:
+                out.append(i + 1)
                 continue
-            rec = records[ln.record]
-            frequent = len(templates[rec.template].records) >= WINDOW_SKIP_COUNT
-            long_body = ln.depth > 0 and rec.end - rec.start >= WINDOW_SKIP_COUNT
+            frequent = templates[rtpl[ri]].count >= WINDOW_SKIP_COUNT
+            long_body = store.depth[i] > 0 and rend[ri] - rstart[ri] >= WINDOW_SKIP_COUNT
             if not frequent and not long_body:
-                out.append(ln.no)
+                out.append(i + 1)
         return out
 
     if budget < COMPACT_BUDGET:
         head_n = min(head_n, 3)  # a small budget gets a smaller head window (the tail keeps the verdicts)
-    head_nos = windowed(lines, head_n, 1)
-    tail_nos = sorted(windowed(list(reversed(lines)), tail_n, total))
+    head_span = max(head_n, WINDOW_SCAN_FACTOR * head_n)
+    tail_span = max(tail_n, WINDOW_SCAN_FACTOR * tail_n)
+    head_nos = windowed(range(0, min(total, head_span)), head_n, 1)
+    tail_nos = sorted(windowed(range(total - 1, max(-1, total - 1 - tail_span), -1), tail_n, total))
     tail_nos = [no for no in tail_nos if no not in head_nos]
     while head_nos or tail_nos:
-        cost = nbytes(render_ranges(lines, head_nos, width)) + nbytes(render_ranges(lines, tail_nos, width))
+        cost = nbytes(render_ranges(store, head_nos, width)) + nbytes(render_ranges(store, tail_nos, width))
         if cost <= avail * 0.3:
             break
         if len(tail_nos) >= len(head_nos) and tail_nos:
             tail_nos.pop(0)
         elif head_nos:
             head_nos.pop()
-    head_block = render_ranges(lines, head_nos, width)
-    tail_block = render_ranges(lines, tail_nos, width)
+    head_block = render_ranges(store, head_nos, width)
+    tail_block = render_ranges(store, tail_nos, width)
     shown.update(head_nos)
     shown.update(tail_nos)
     avail -= nbytes(head_block) + nbytes(tail_block)
@@ -939,9 +1107,8 @@ def summarize(
     window_nos = set(head_nos) | set(tail_nos)
 
     def tpl_head(tpl: Template) -> list[str]:
-        rec = records[tpl.exemplar]
-        ex = lines[rec.start]
-        count = len(tpl.records)
+        ex = store.line(rstart[tpl.exemplar])
+        count = tpl.count
         extra = f" ({fmt_int(tpl.lines)} lines)" if tpl.lines != count else ""
         if len(tpl.levels) > 1:  # mixed levels inside one template: say so
             hist = " ".join(f"{LEVEL_NAME[s]}×{fmt_int(c)}" for s, c in sorted(tpl.levels.items(), reverse=True))
@@ -954,76 +1121,97 @@ def summarize(
             return [f"{tpl.tid:<4} ×{fmt_int(count)}{extra} {tpl.marker} {ref}"]
         return [f"{tpl.tid:<4} ×{fmt_int(count)}{extra} {tpl.marker} {clip(tpl.text, width)}", f"     e.g. {ref}"]
 
-    def repeat_key(ln: Line) -> str:
+    def repeat_key(no: int) -> str:
         """What counts as 'another one of these' for diminishing returns: for a
         record head, its drain template plus severity (drain already decided
         that pod/storefront-x2k9p and pod/storefront-q7m2z are one shape);
         for a continuation line, its masked shape plus severity."""
-        if ln.depth == 0 and ln.record >= 0:
-            return f"tpl{records[ln.record].template}·sev{line_sev(ln)}"
-        return shape_key(ln)
+        i = no - 1
+        if store.depth[i] == 0 and rec[i] >= 0:
+            return f"tpl{rtpl[rec[i]]}·sev{store.sev_of(i)}"
+        return shape_key(store.line(i))
+
+    keys: dict[int, str] = {}
+
+    def key_of(no: int) -> str:
+        k = keys.get(no)
+        if k is None:
+            k = keys[no] = repeat_key(no)
+        return k
+
+    shown_tokens: list[frozenset[str]] = []
 
     def note_shown(no: int) -> None:
-        ln = lines[no - 1]
         shown.add(no)
-        key = repeat_key(ln)
+        key = key_of(no)
         taken[key] = taken.get(key, 0) + 1
-        shown_tokens.append(token_set(ln.text))
+        shown_tokens.append(token_set(store.line(no - 1).text))
 
-    shown_tokens = [token_set(lines[no - 1].text) for no in sorted(shown)]
-    exemplar_nos = {lines[records[t.exemplar].start].no for t in templates}
+    shown_tokens.extend(token_set(store.line(no - 1).text) for no in sorted(shown))
+    exemplar_nos = {rstart[t.exemplar] + 1 for t in templates}
 
-    # Raw-line candidates: everything not in a window. A template's exemplar
-    # head is a candidate too, so it can still appear when the template entry
-    # itself does not make the cut; if the entry is placed later it takes
-    # over that line.
-    base: dict[int, tuple[float, Line, str]] = {}
-    locations = error_locations(lines, records)
-    for ln in lines:
-        if ln.no in shown or ln.record < 0 or not ln.text.strip():
-            continue
-        rec = records[ln.record]
-        tpl = templates[rec.template]
-        s = line_score(ln, lines[rec.start])
-        if ln.no in locations:
-            s += LOCATION_BONUS
-        key = repeat_key(ln)
-        base[ln.no] = (s, ln, key)
-
-    def effective(no: int) -> float:
-        s, ln, key = base[no]
-        # Each repeat of a shape already on screen is worth less.
-        e = s / (1.0 + FILL_PENALTY * taken.get(key, 0))
+    # Raw-line candidates: everything not in a window that scores at least
+    # the floor (below it a line never pads the output, so it is not queued).
+    # A template's exemplar head is a candidate too, so it can still appear
+    # when the template entry itself does not make the cut; if the entry is
+    # placed later it takes over that line.
+    def initial(i: int) -> float:
         # Value per byte: a 180-byte advice line with a URL is worth less than
         # a 50-byte exception line of the same salience.
-        e *= (DENSITY_REF / (DENSITY_REF + len(ln.text.strip()))) ** DENSITY_POWER
+        return scores[i] * (DENSITY_REF / (DENSITY_REF + slen[i])) ** DENSITY_POWER
+
+    order = [i for i in range(total)
+             if (i + 1) not in shown and rec[i] >= 0 and not blank[i] and scores[i] >= FILL_FLOOR]
+    order.sort(key=lambda i: -initial(i))  # stable: ties stay in line order
+
+    def effective(no: int) -> float:
+        i = no - 1
+        # Each repeat of a shape already on screen is worth less.
+        e = scores[i] / (1.0 + FILL_PENALTY * taken.get(key_of(no), 0))
+        e *= (DENSITY_REF / (DENSITY_REF + slen[i])) ** DENSITY_POWER
         return e
 
-    # Heap items: (-priority, kind, id); kind 0 = template entry, 1 = line,
-    # so a template wins a tie and ordering is deterministic.
+    # Queue items: (-priority, kind, id); kind 0 = template entry, 1 = line,
+    # so a template wins a tie and ordering is deterministic. Lines enter the
+    # queue from `order` at their initial priority as the queue drains down
+    # to them, which is the same sequence a queue holding them all would
+    # produce; re-queued and deferred items live in the heap.
     heap: list[tuple[float, int, int]] = []
     for tpl in templates:
         heapq.heappush(heap, (-tpl.salience, 0, tpl.idx))
-    for no in base:
-        heapq.heappush(heap, (-effective(no), 1, no))
+    stream_pos = 0
+
+    def pending() -> bool:
+        return bool(heap) or stream_pos < len(order)
+
+    def next_item() -> tuple[float, int, int]:
+        nonlocal stream_pos
+        nxt = None
+        if stream_pos < len(order):
+            i = order[stream_pos]
+            nxt = (-initial(i), 1, i + 1)
+        if heap and (nxt is None or heap[0] < nxt):
+            return heapq.heappop(heap)
+        stream_pos += 1
+        return nxt
 
     picked: list[tuple[float, Line]] = []
     picked_nos: set[int] = set()
     deferred: list[tuple[float, int, int]] = []  # items that did not fit; retried against measured slack
 
     def place(avail: int) -> int:
-        """Greedy pass over the heap. Returns the budget left over."""
-        while heap and avail >= 40:
-            negp, kind, ident = heapq.heappop(heap)
+        """Greedy pass over the queue. Returns the budget left over."""
+        while pending() and avail >= 40:
+            negp, kind, ident = next_item()
             if kind == 0:
                 tpl = templates[ident]
                 if max_templates and len(placed) >= max_templates:
                     continue
-                ex_rec = records[tpl.exemplar]
-                ex_line = lines[ex_rec.start]
-                if len(tpl.records) == 1 and all(ln.no in window_nos for ln in lines[ex_rec.start : ex_rec.end] if ln.text.strip()):
+                ex_start, ex_end = rstart[tpl.exemplar], rend[tpl.exemplar]
+                ex_line = store.line(ex_start)
+                if tpl.count == 1 and all((j + 1) in window_nos for j in range(ex_start, ex_end) if not blank[j]):
                     continue  # a singleton whose whole record the head or tail window already prints
-                if len(tpl.records) <= NEAR_DUP_MAX_COUNT and ex_line.no not in shown and ex_rec.end - ex_rec.start == 1:
+                if tpl.count <= NEAR_DUP_MAX_COUNT and ex_line.no not in shown and ex_end - ex_start == 1:
                     # A rare one-line record that restates something already on
                     # screen (a progress line repeating the summary line) stays in
                     # the ledger. A multi-line record carries more than its head.
@@ -1031,7 +1219,7 @@ def summarize(
                         continue
                 entry = tpl_head(tpl)
                 cost = nbytes(entry)
-                if tpl.marker in ("E", "W") and ex_rec.end - ex_rec.start > 1:
+                if tpl.marker in ("E", "W") and ex_end - ex_start > 1:
                     cost += 30  # room for the "(+N more lines)" marker under it
                 if cost > avail and placed:
                     deferred.append((negp, kind, ident))
@@ -1047,7 +1235,7 @@ def summarize(
                 elif ex_line.no in picked_nos:  # the entry now shows this line
                     picked[:] = [(p, l) for p, l in picked if l.no != ex_line.no]
                     picked_nos.discard(ex_line.no)
-                    avail += len(fmt_line(ex_line, width).encode()) + 1 + 20
+                    avail += rlen[ex_start] + 20
                 continue
             no = ident
             cur = effective(no)
@@ -1056,15 +1244,15 @@ def summarize(
                 continue
             if cur < FILL_FLOOR or no in shown:
                 continue  # below the floor a line never pads the output
-            if no in exemplar_nos and records[lines[no - 1].record].template in placed:
+            if no in exemplar_nos and rtpl[rec[no - 1]] in placed:
                 continue  # its template entry already shows it
-            s, ln, key = base[no]
-            cost = len(fmt_line(ln, width).encode()) + 1 + 20  # + gap marker allowance
+            cost = rlen[no - 1] + 20  # + gap marker allowance
             if cost > avail:
                 deferred.append((negp, kind, ident))
                 if DEBUG:
-                    print(f"defer L{no:<7} prio={cur:6.2f} cost={cost:4d} left={avail:5d} {ln.text.strip()[:60]!r}", file=sys.stderr)
+                    print(f"defer L{no:<7} prio={cur:6.2f} cost={cost:4d} left={avail:5d} {store.text(no - 1).strip()[:60]!r}", file=sys.stderr)
                 continue
+            ln = store.line(no - 1)
             toks = token_set(ln.text)
             if ln.depth == 0 and is_near_duplicate(toks, shown_tokens):
                 continue
@@ -1083,10 +1271,10 @@ def summarize(
     def body_of(ti: int, picked_lines: list[tuple[float, Line]]) -> tuple[list[str], set[int]]:
         """Rendered body of a placed template: the picked lines inside its
         exemplar record, plus a marker for what is left unseen."""
-        rec = records[templates[ti].exemplar]
-        nos = sorted(ln.no for _, ln in picked_lines if rec.start < ln.no - 1 < rec.end)
-        out = render_ranges(lines, nos, width) if nos else []
-        rest = sum(1 for b in lines[rec.start + 1 : rec.end] if b.text.strip() and b.no not in window_nos) - len(nos)
+        start, end = rstart[templates[ti].exemplar], rend[templates[ti].exemplar]
+        nos = sorted(ln.no for _, ln in picked_lines if start < ln.no - 1 < end)
+        out = render_ranges(store, nos, width) if nos else []
+        rest = sum(1 for j in range(start + 1, end) if not blank[j] and (j + 1) not in window_nos) - len(nos)
         if rest > 0:
             out.append(f"      ┆ (+{fmt_int(rest)} more lines)")
         return out, set(nos)
@@ -1096,12 +1284,18 @@ def summarize(
     def ledger(shown_set: set[int]) -> list[str]:
         tpl_omitted = len(templates) - len(placed)
         omitted_total = total - len(shown_set)
+        shown_in: dict[int, int] = {}
+        blank_shown = 0
+        for no in shown_set:
+            j = no - 1
+            if blank[j]:
+                blank_shown += 1
+            ri = rec[j]
+            if ri >= 0:
+                shown_in[rtpl[ri]] = shown_in.get(rtpl[ri], 0) + 1
         per_tpl = []
         for tpl in templates:
-            om = 0
-            for ri in tpl.records:
-                r = records[ri]
-                om += sum(1 for ln in lines[r.start:r.end] if ln.no not in shown_set)
+            om = tpl.lines - shown_in.get(tpl.idx, 0)
             if om:
                 per_tpl.append((om, tpl))
         per_tpl.sort(key=lambda x: (-x[0], x[1].idx))
@@ -1111,7 +1305,7 @@ def summarize(
         tail_bits = []
         if tpl_omitted:
             tail_bits.append(f"{tpl_omitted} templates not listed")
-        blank_om = sum(1 for ln in lines if ln.text.strip() == "" and ln.no not in shown_set)
+        blank_om = store.blank_total - blank_shown
         if blank_om:
             tail_bits.append(f"{fmt_int(blank_om)} blank")
         # Fit the per-template list into the reserve.
@@ -1136,7 +1330,7 @@ def summarize(
         out: list[str] = []
         if head_nos:
             out.append(f"## head (L{head_nos[0]}–L{head_nos[-1]})")
-            out.extend(render_ranges(lines, head_nos, width))
+            out.extend(render_ranges(store, head_nos, width))
         in_bodies: set[int] = set()
         if placed:
             out.append("## templates (by salience)")
@@ -1150,13 +1344,13 @@ def summarize(
         rest_nos = sorted(ln.no for _, ln in picked_lines if ln.no not in in_bodies)
         if rest_nos:
             out.append("## selected lines")
-            out.extend(render_ranges(lines, rest_nos, width))
+            out.extend(render_ranges(store, rest_nos, width))
         if tail_nos:
             out.append(f"## tail (L{tail_nos[0]}–L{tail_nos[-1]})")
-            out.extend(render_ranges(lines, tail_nos, width))
+            out.extend(render_ranges(store, tail_nos, width))
         shown_set = set(head_nos) | set(tail_nos) | {ln.no for _, ln in picked_lines}
         for ti in placed:
-            shown_set.add(lines[records[templates[ti].exemplar].start].no)
+            shown_set.add(rstart[templates[ti].exemplar] + 1)
         out.extend(ledger(shown_set))
         out.append(run_line)
         if show_hint:
@@ -1207,7 +1401,7 @@ def summarize(
     # whatever is still queued against the measured slack, a few times.
     for _ in range(3):
         slack = budget_bytes - measure(render(picked))
-        if slack < 40 or not (deferred or heap):
+        if slack < 40 or not (deferred or pending()):
             break
         for item in deferred:
             heapq.heappush(heap, item)
@@ -1275,9 +1469,7 @@ def parse_tids(spec: str | None, ntpl: int) -> set[int]:
 
 
 def select(
-    lines: list[Line],
-    records: list[Record],
-    templates: list[Template],
+    store: Store,
     *,
     only: set[int],
     exclude: set[int],
@@ -1288,24 +1480,40 @@ def select(
     width: int,
     run_path: str | None,
 ) -> str:
-    want = []
-    for rec in records:
-        if only and rec.template not in only:
+    templates = store.templates
+    rstart, rend, rtpl, rlen = store.rstart, store.rend, store.rtpl, store.rlen
+    want_recs = array.array("i")
+    for ri in range(store.nrecords):
+        t = rtpl[ri]
+        if only and t not in only:
             continue
-        if rec.template in exclude:
+        if t in exclude:
             continue
         if min_severity is not None:
             # Decided by the record's head line; a record with no structural
             # signal (no level, status or exit code) is left out.
-            sev = VOCAB.severity(lines[rec.start].text)
+            sev = store.sev_of(rstart[ri])
             if sev is None or sev < min_severity:
                 continue
-        want.extend(ln.no for ln in lines[rec.start:rec.end])
+        want_recs.append(ri)
+    total = len(store)
     lo = since if since is not None else 1
-    hi = until if until is not None else len(lines)
+    hi = until if until is not None else total
     if lo > hi:
         sys.exit(f"pare: --since L{lo} is after --until L{hi}")
-    want = [no for no in want if lo <= no <= hi]
+
+    def forward():
+        for ri in want_recs:
+            for no in range(max(rstart[ri] + 1, lo), min(rend[ri], hi) + 1):
+                yield no
+
+    def backward():
+        for k in range(len(want_recs) - 1, -1, -1):
+            ri = want_recs[k]
+            for no in range(min(rend[ri], hi), max(rstart[ri] + 1, lo) - 1, -1):
+                yield no
+
+    n_want = sum(max(0, min(rend[ri], hi) - max(rstart[ri] + 1, lo) + 1) for ri in want_recs)
     label = (
         f"--only {','.join(templates[i].tid for i in sorted(only))}" if only else "all"
     )
@@ -1318,36 +1526,45 @@ def select(
     if until is not None:
         label += f" --until L{until}"
     budget_bytes = budget_bytes_for(budget)
-    head = f"# pare {label}: {fmt_int(len(want))} of {fmt_int(len(lines))} lines"
-    rows = render_ranges(lines, want, width)
-    body = rows
+    head = f"# pare {label}: {fmt_int(n_want)} of {fmt_int(total)} lines"
+    # Size of the full rendering, from the per-line sizes and the gap markers.
+    rows_bytes = 0
+    prev = None
+    for no in forward():
+        if prev is not None and no != prev + 1:
+            rows_bytes += len(gap_marker(no - prev - 1).encode("utf-8")) + 1
+        rows_bytes += rlen[no - 1]
+        prev = no
     omitted = 0
-    if nbytes(rows) + len(head) + 200 > budget_bytes:
+    if rows_bytes + len(head) + 200 > budget_bytes:
         # Keep the first 70% and last 30% of what fits.
         keep_bytes = max(0, budget_bytes - len(head) - 200)
         first_b, last_b = int(keep_bytes * 0.7), int(keep_bytes * 0.3)
         first, acc = [], 0
-        for no in want:
-            c = len(fmt_line(lines[no - 1], width).encode()) + 1
+        for no in forward():
+            c = rlen[no - 1]
             if acc + c > first_b:
                 break
             first.append(no)
             acc += c
+        first_set = set(first)
         last, acc = [], 0
-        for no in reversed(want):
-            if no in first:
+        for no in backward():
+            if no in first_set:
                 break
-            c = len(fmt_line(lines[no - 1], width).encode()) + 1
+            c = rlen[no - 1]
             if acc + c > last_b:
                 break
             last.append(no)
             acc += c
         last.reverse()
         kept = first + last
-        omitted = len(want) - len(kept)
-        body = render_ranges(lines, kept, width)
+        omitted = n_want - len(kept)
+        body = render_ranges(store, kept, width)
         if omitted:
             body.append(f"## omitted {fmt_int(omitted)} lines to fit budget {fmt_int(budget)}; raise --budget or narrow --only")
+    else:
+        body = render_ranges(store, list(forward()), width)
     body.append(f"## raw: {run_path}" if run_path else "## raw: (not saved)")
     return "\n".join([head] + body) + "\n"
 
@@ -1363,24 +1580,6 @@ def default_run_dir() -> str:
         return env
     cache = os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache")
     return os.path.join(cache, "pare", "runs")
-
-
-def tee(data: bytes, run_dir: str | None, run_file: str | None) -> str | None:
-    if run_file is None and run_dir is None:
-        return None
-    if run_file is None:
-        digest = hashlib.sha256(data).hexdigest()[:12]
-        os.makedirs(run_dir, exist_ok=True)
-        run_file = os.path.join(run_dir, f"{digest}.log")
-    else:
-        d = os.path.dirname(run_file)
-        if d:
-            os.makedirs(d, exist_ok=True)
-    tmp = run_file + ".tmp"
-    with open(tmp, "wb") as f:
-        f.write(data)
-    os.replace(tmp, run_file)
-    return os.path.abspath(run_file)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1431,38 +1630,64 @@ def main(argv: list[str] | None = None) -> int:
         sys.stdout.write(dump_vocab(VOCAB.entries))
         return 0
 
-    data = sys.stdin.buffer.read()
-    run_path = None
-    if not args.no_tee and data:
-        run_path = tee(data, args.run_dir or default_run_dir(), args.run_file)
-
-    lines = split_lines(data)
-    if not lines:
-        sys.stdout.write("# pare: empty input\n")
-        return 0
-    records = segment(lines)
-    templates = cluster(lines, records)
-    score_templates(lines, records, templates)
-
-    if args.only or args.exclude or args.min_severity or args.since or args.until:
-        out = select(
-            lines, records, templates,
-            only=parse_tids(args.only, len(templates)),
-            exclude=parse_tids(args.exclude, len(templates)),
-            min_severity=SEVERITY_BY_NAME[args.min_severity] if args.min_severity else None,
-            since=parse_lineno(args.since, len(lines), "--since"),
-            until=parse_lineno(args.until, len(lines), "--until"),
-            budget=args.budget, width=args.width, run_path=run_path,
-        )
+    # The spool receives the input as it is read. With tee it becomes the run
+    # file, renamed to its content hash once the hash is known; without, it
+    # is a temporary file removed on exit.
+    tee = not args.no_tee
+    if not tee:
+        fd, spool_path = tempfile.mkstemp(prefix="pare-", suffix=".spool")
+        os.close(fd)
+    elif args.run_file:
+        d = os.path.dirname(args.run_file)
+        if d:
+            os.makedirs(d, exist_ok=True)
+        spool_path = args.run_file + ".tmp"
     else:
-        out = summarize(
-            lines, records, templates,
-            budget=args.budget, head_n=args.head, tail_n=args.tail, width=args.width,
-            max_templates=args.max_templates, run_path=run_path, in_bytes=len(data),
-        )
-    sys.stdout.write(out)
-    sys.stdout.flush()
-    return 0
+        run_dir = args.run_dir or default_run_dir()
+        os.makedirs(run_dir, exist_ok=True)
+        spool_path = os.path.join(run_dir, f".pare-{os.getpid()}.tmp")
+    store = None
+    run_path = None
+    try:
+        store, digest = analyze(sys.stdin.buffer, width=args.width, spool_path=spool_path)
+        if store.total_bytes == 0:
+            sys.stdout.write("# pare: empty input\n")
+            return 0
+        if tee:
+            final = args.run_file or os.path.join(run_dir, f"{digest}.log")
+            os.replace(spool_path, final)
+            spool_path = store.spool_path = final
+            run_path = os.path.abspath(final)
+        store.open()
+        score_templates(store)
+
+        if args.only or args.exclude or args.min_severity or args.since or args.until:
+            out = select(
+                store,
+                only=parse_tids(args.only, len(store.templates)),
+                exclude=parse_tids(args.exclude, len(store.templates)),
+                min_severity=SEVERITY_BY_NAME[args.min_severity] if args.min_severity else None,
+                since=parse_lineno(args.since, len(store), "--since"),
+                until=parse_lineno(args.until, len(store), "--until"),
+                budget=args.budget, width=args.width, run_path=run_path,
+            )
+        else:
+            out = summarize(
+                store,
+                budget=args.budget, head_n=args.head, tail_n=args.tail, width=args.width,
+                max_templates=args.max_templates, run_path=run_path, in_bytes=store.total_bytes,
+            )
+        sys.stdout.write(out)
+        sys.stdout.flush()
+        return 0
+    finally:
+        if store is not None:
+            store.close()
+        if not tee or run_path is None:
+            try:
+                os.unlink(spool_path)
+            except OSError:
+                pass
 
 
 if __name__ == "__main__":

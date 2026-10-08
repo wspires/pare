@@ -180,7 +180,9 @@ sqz-cli` (not `pip install sqz`, which fetches a pinned 0.1.0 binary).
 
 ## How it works
 
-1. **Tee** stdin to a content-hashed run file.
+1. **Tee** stdin to a content-hashed run file, in one pass with the steps
+   below: pare keeps about 40 bytes per line in memory, not the lines,
+   so a 30 MB log runs in 65 MB.
 2. **Segment** lines into records: indented continuations, stack frames and
    compiler gutters join the line above.
 3. **Mask** timestamps, IPs, hashes, paths and numbers, then **cluster** the

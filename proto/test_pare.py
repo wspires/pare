@@ -369,6 +369,24 @@ def test_chars_per_token_calibrates_the_budget():
     assert b"(budget 600)" in out_default  # the header speaks in tokens, not bytes
 
 
+def test_memory_stays_small_on_large_input(tmp_path):
+    """The single pass keeps a few bytes per line, not the lines: a 6 MB input
+    (the CI log eight times over) must summarise in well under 100 MB of
+    peak memory. The all-in-memory design needed about 190 MB here."""
+    data = open(os.path.join(CORPUS, "ci-pipeline.log"), "rb").read() * 8
+    big = tmp_path / "big.log"
+    big.write_bytes(data)
+    probe = (
+        "import resource, subprocess, sys\n"
+        f"subprocess.run([sys.executable, {os.path.join(HERE, 'pare.py')!r}, '--no-tee', '--budget', '2000'],"
+        f" stdin=open({str(big)!r}, 'rb'), stdout=subprocess.DEVNULL, check=True)\n"
+        "print(resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss)\n"
+    )
+    p = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True, check=True)
+    peak_kb = int(p.stdout.strip())
+    assert peak_kb < 100 * 1024, f"peak RSS {peak_kb // 1024} MB"
+
+
 def test_run_file_is_content_addressed(tmp_path):
     data = b"a\nb\nERROR c\n" * 50
     p = subprocess.run([sys.executable, os.path.join(HERE, "pare.py"), "--run-dir", str(tmp_path)],

@@ -291,7 +291,8 @@ A record head "repeats" by its drain template and severity (two pods'
 readiness warnings are one shape); a continuation line by its masked
 shape. Lines under a salience floor of 1.0 never pad the output.
 
-Every term survived an ablation (`bench/ablate.py`): switching it off
+Every term survived an ablation (`bench/ablate.py`, run in bytes/4 units,
+the default at the time): switching it off
 lowers recall at some budget or grows the output at the same recall. Nine
 earlier heuristics did neither and were removed one or two at a time: a
 bonus for template entries over lines, start/end position zones, a bonus
@@ -581,20 +582,129 @@ Observations, recorded rather than fixed:
 ## Performance
 
 About 1.7 s on the 750 KB / 17,832-line CI log. drain3 is 0.35 s of that;
-the rest is the vocabulary and severity regexes, now one pass per class per
-line with per-line memoisation. The prototype reads all of stdin into
-memory.
+the rest is the vocabulary and severity regexes, one pass per class per
+line.
+
+**Memory.** The prototype makes a single pass over stdin. Each chunk is
+written to the spool (the run file, or a temporary file under `--no-tee`)
+as it is read, split into lines, and each line is segmented, clustered and
+scored on arrival. What survives the pass is a set of typed arrays with
+about 40 bytes per line (spool offset, record, depth, severity, rendered
+size, score) and per record, plus the templates; a line's text is read
+back from the spool only when the allocator looks at it, through a small
+cache of materialised lines. The output is byte-identical to the earlier
+all-in-memory design (checked against it on every corpus file, budget and
+flag combination). Measured on the CI log concatenated to size:
+
+| input | wall time | peak memory | before (all in memory) |
+|---|---|---|---|
+| 0.75 MB | 1.9 s | 29 MB | 2.3 s, 46 MB |
+| 7.5 MB | 13.6 s | 41 MB | 19 s, 231 MB |
+| 30 MB | 54 s | 65 MB | 76 s, 849 MB |
+
+Time is still linear in the input, about 1.8 s per MB, and that is now
+the limit on large files rather than memory. The candidate list for the
+allocator holds every non-blank line scoring at or above the floor, as
+one integer per line, which is the one structure still proportional to
+line count; the raw bytes are never held in memory beyond one chunk.
+
+pare still reads to end-of-file before it writes anything, because the
+template counts, the tail window and the rarity term all depend on the
+whole input. A long-running producer sees the summary when it exits; an
+endless stream never gets one. That is a different mode, sketched below.
+
+## Follow mode (design, not built)
+
+Batch pare answers "what happened" once the command has exited. A
+`tail -f`, a long server log or a two-hour build needs a different
+question answered on a schedule: "what has happened since I last looked".
+This section is the design for that mode; nothing of it is implemented.
+
+**Shape.** `pare --follow` reads stdin as it arrives and writes a *delta
+summary* each time a flush condition is met, then clears its per-window
+state. Each delta is a self-contained block in the batch format, budgeted
+by `--budget` on its own, ending with a blank line so a consumer can split
+the stream:
+
+```
+# pare follow #3: L4,201–L6,730 (2,530 new, 6,730 total) · 2 new templates
+## templates (in this window, by salience)
+T19  ×1 E new L5,912: ERROR [db] connection to db-primary.internal:5432 lost: ...
+T7   ×340 W L4,310: WARN  [cache] redis GET slow key=<*> took <NUM>ms      (0.2/s before, 11/s now)
+T3   ×2,180 . L4,201: INFO  [http] GET <PATH> <NUM> <NUM>ms
+## selected lines
+  5913│     psycopg.OperationalError: connection failed: server closed the connection unexpectedly
+## tail (L6,728–L6,730)
+  ...
+## omitted 2,514/2,530 lines in this window · raw: /path/run.log --since L4201 --until L6730
+```
+
+**Flush conditions.** Any of: `--every N` lines, `--interval S` seconds
+(checked while waiting for input, so an idle stream still flushes on
+time), end of input, and, with `--flush-on error` (default) a line at
+error severity or above, debounced to at most one flush per
+`--min-interval` so an error storm does not become a flush storm. A
+window with nothing above the salience floor and no new template emits a
+one-line heartbeat (`# pare follow #4: L6,731–L8,002, nothing new (T3
+×1,270)`) unless `--quiet`; a heartbeat is how a reader knows the stream
+is alive.
+
+**What carries across windows.** The drain3 miner and its cumulative
+per-template counts, the line counter, and the run file (the spool is
+appended to as in batch mode, so every window's raw lines stay
+recoverable with `--since/--until`). Template ids are assigned at first
+appearance and never renumbered, so `T7` means the same thing in every
+flush and in a later `pare --only T7 < run.log`, because drain is online
+and deterministic in arrival order: a batch pass over the finished run
+file assigns the same ids.
+
+**What changes in scoring.** Rarity uses the cumulative count, not the
+window's: a template seen 100,000 times before the window is a known
+quantity even if it appears once more. Two signals that batch mode does
+not have become the point of follow mode: *novelty* (a template first
+seen in this window is marked `new` and gets a bonus) and *rate change*
+(a template whose per-second rate in the window is well above its running
+average is marked with both rates, which is what an outage looks like
+before the first ERROR line). Head window only on the first flush; the
+tail window is the last lines of each window, since verdicts tend to be
+at the end of a run.
+
+**Memory.** Per-window arrays are the ones the single pass already keeps,
+cleared at each flush, so memory is bounded by the window size. Window
+size is capped at `--every` lines (default 20,000) even when
+`--interval` is the trigger. Cumulative state is one small record per
+template, which grows only with new shapes.
+
+**Rolling mode.** A delta stream suits a human terminal or a harness that
+streams tool output. An agent that runs a long command in the background
+and polls a file is better served by `--follow --rolling --out
+digest.md`: a budgeted summary of the *whole* run so far, rewritten in
+place at each flush. That needs a bounded reservoir of candidate lines
+instead of the window arrays: for each repeat key keep the K highest
+scoring lines (K a little above the number that could ever be shown at
+the budget), and evict whole keys by their best score when the key count
+passes a cap. The rolling summary approximates the batch summary rather
+than matching it; batch mode on the run file afterwards is still the
+exact one.
+
+**Implementation path.** `ingest` already works line by line; it becomes
+an object with `feed(chunk)` and `flush()` that owns the miner and the
+cumulative counts and hands a window `Store` (with a line-number offset)
+to `summarize`. The read loop uses non-blocking reads with a poll timeout
+so `--interval` fires on an idle pipe. With `--every` as the only trigger
+the output is deterministic, which is how tests should drive it; with
+`--interval` it depends on timing, by design.
 
 ## Notes for a native port
 
 - Template ids must stay stable across versions, or `--only T3 < runfile`
   breaks: a native Drain must match drain3 0.9.11's clustering exactly, or
   the change is a breaking one and should say so.
-- Design for streaming: cluster in one pass while teeing to the run file,
-  keep per-template statistics and exemplar offsets, then allocate from
-  those statistics plus a second pass over the run file (mmap). The
-  prototype's unified queue needs every line's score up front, which a
-  second pass provides.
+- The single pass is already the streaming shape a native port needs:
+  tee, segment, cluster and score on arrival, keep per-line numbers and
+  per-template statistics, read line text back from the run file by
+  offset at allocation time. A native port can replace the typed arrays
+  with packed structs and the spool reads with mmap.
 - Fuse masking and clustering in one pass; with the regex costs fixed,
   drain is the remaining per-line cost and a native implementation can
   tokenize and mask once.

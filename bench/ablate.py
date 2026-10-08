@@ -12,6 +12,7 @@ heuristic whose removal does not lower recall is a candidate for removal.
 import argparse
 import os
 import sys
+import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "proto"))
@@ -35,13 +36,18 @@ ABLATIONS = {
 
 
 def run_case(log_path, keep, budget):
-    data = open(log_path, "rb").read()
-    lines = pare.split_lines(data)
-    records = pare.segment(lines)
-    templates = pare.cluster(lines, records)
-    pare.score_templates(lines, records, templates)
-    out = pare.summarize(lines, records, templates, budget=budget, head_n=5, tail_n=10, width=200,
-                         run_path=None, in_bytes=len(data))
+    fd, spool = tempfile.mkstemp(prefix="pare-ablate-", suffix=".spool")
+    os.close(fd)
+    try:
+        with open(log_path, "rb") as f:
+            store, _ = pare.analyze(f, width=200, spool_path=spool)
+        store.open()
+        pare.score_templates(store)
+        out = pare.summarize(store, budget=budget, head_n=5, tail_n=10, width=200,
+                             run_path=None, in_bytes=store.total_bytes)
+        store.close()
+    finally:
+        os.unlink(spool)
     hit = sum(1 for k in keep if k in out)
     return hit, len(keep), pare.tokens(len(out.encode()))
 
