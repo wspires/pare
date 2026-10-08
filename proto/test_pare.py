@@ -350,6 +350,15 @@ def test_min_severity_rejects_unknown_level():
     assert p.returncode == 2 and b"invalid choice" in p.stderr
 
 
+def test_chars_per_token_calibrates_the_budget():
+    data = open(os.path.join(CORPUS, "server-outage.log"), "rb").read()
+    out4 = run(["--budget", "600"], data)
+    out3 = run(["--budget", "600", "--chars-per-token", "3.3"], data)
+    assert len(out4) <= 600 * 4 and len(out3) <= 600 * 3.3
+    assert len(out3) < len(out4)
+    assert b"(budget 600)" in out3  # the header still speaks in tokens
+
+
 def test_run_file_is_content_addressed(tmp_path):
     data = b"a\nb\nERROR c\n" * 50
     p = subprocess.run([sys.executable, os.path.join(HERE, "pare.py"), "--run-dir", str(tmp_path)],

@@ -57,6 +57,12 @@ T19  ×4 S L183: tests/test_cart.py:14:
 template; `--except`, `--min-severity error` and `--since L200` narrow it
 further. Template ids are stable because the pipeline is deterministic.
 
+Tokens are estimated as bytes / 4, a proxy; log text runs nearer 3.3 bytes
+per token on common tokenizers, and `--chars-per-token 3.3` budgets in
+those units. The budget is a hard ceiling; 1,000 to 2,000 is a good default
+for an agent loop, and small outputs pass through untouched. See
+[docs/DESIGN.md](docs/DESIGN.md#tokens-and-the-budget).
+
 ## Install
 
 The only dependency is [drain3](https://github.com/logpai/Drain3) (pinned).

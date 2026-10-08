@@ -1,9 +1,163 @@
 # pare: design notes
 
 The README has the pitch, an example, install and the summary numbers. This
-file has the rest: how the pipeline works in detail, the structural and
-vocabulary signals, the full benchmark tables and their history, what is
-validated and what is not, and notes for a native port.
+file has the rest: the algorithm at a high level, how it differs from Drain,
+what "tokens" means here and how to pick a budget, the pipeline in detail,
+the structural and vocabulary signals, the full benchmark tables and their
+history, what is validated and what is not, and notes for a native port.
+
+## The algorithm at a high level
+
+The core idea: noisy command output is mostly a small number of line
+*shapes* repeated thousands of times, plus a handful of lines that are
+actually different. pare finds the shapes, counts them, and spends the
+token budget on the handful.
+
+1. **Save everything first.** Stdin is written to a run file named by its
+   content hash before anything else happens. The summary is a view, not a
+   replacement; every line it omits can be pulled back by template id or
+   line range from that file.
+2. **Group lines into records.** A log is not really line-oriented. A stack
+   trace is one unit, so is a compiler diagnostic with its code snippet. A
+   line indented deeper than the line above, or shaped like a frame
+   (`at foo.py:12`), a caret marker or a `Caused by:`, is attached to the
+   record above it. Each record has a head line, which is what gets
+   clustered, and a body.
+3. **Mask the variable parts.** Timestamps, IPs, hashes, paths, numbers and
+   runs of rule characters become placeholders, so
+   `2026-10-07 ERROR [worker-3] GET /api/cart 500 1137ms` and the same line
+   from worker-5 a second later look identical:
+   `<TS> ERROR [worker-<N>] GET <PATH> <NUM> <NUM>`.
+4. **Cluster into templates.** The masked head lines go through Drain, a
+   streaming log-template miner. It keys a parse tree on token count and
+   the first tokens, and merges lines whose tokens agree above a similarity
+   threshold, turning the differing tokens into wildcards. The result is a
+   few dozen templates with counts: `T4 ×4,340 INFO http …`,
+   `T9 ×180 ERROR http … 500`, `T12 ×1 FATAL giving up`. The 4,340 INFO
+   lines have just become one line of output.
+5. **Score salience.** Two signals, in priority order. First, *structural*
+   severity: an explicit log level in a level position, an HTTP status in a
+   request line, an exit code. These are language-independent and override
+   words: an INFO line that says `0 errors` is info; an ERROR line is an
+   error in German. Second, *vocabulary*: error words +3, warning words
+   +1.5, summary words +1, stack frames +1, passing-test markers and
+   progress chatter negative. A template's salience is its exemplar head's
+   score plus a rarity term, `2 / (1 + log2 count)`, so a line seen once
+   outranks a shape seen a thousand times. A raw line's score is its own
+   vocabulary plus 0.6 of its record head's, so a bland stack frame under
+   an ERROR head still rates, plus a bonus if it is the first location after
+   an error message.
+6. **Fill the budget with one priority queue.** Head and tail windows are
+   placed first, since the command line and the final verdict usually live
+   there. Then template entries and individual raw lines compete in a
+   single queue on the same scale. A template entry costs one line and buys
+   a count and an exemplar. A raw line is worth its score divided by
+   `1 + 1.5 × (lines of that shape already shown)`, so the first `503` is
+   valuable, the second less, the twentieth nothing. Lines under a floor
+   never pad the output. Lines that land inside a placed template's
+   exemplar record render under it as its body, which is how a traceback
+   appears as one block. Guards drop restatements: a progress line that
+   repeats the summary line, an exemplar already in the tail window.
+7. **Enforce the limit and end with a ledger.** Allowances are
+   conservative, so a second pass re-offers what did not fit against the
+   measured slack; then a final loop sheds the lowest-priority items until
+   the rendering fits. The budget is a hard ceiling. The last lines say what
+   was omitted and from which templates, and where the raw file is.
+
+Two properties fall out of this. It is deterministic, so template ids are
+stable and `pare --only T9` means the same thing tomorrow. And it is
+learned per input rather than per tool: nothing in it knows what pytest or
+cargo output looks like except a short list of continuation shapes, and
+with those switched off it still keeps 88 % of must-survive lines at a
+600-token budget. The limits: the vocabulary is an English prior, the
+severity forms are a finite list, and it only makes sense on line-oriented,
+repetitive input. On a diff, a JSON blob or prose there is nothing to
+cluster and it degrades to head, tail and whatever matches the word lists.
+
+## How this differs from Drain
+
+Drain ([He et al., 2017](https://jiemingzhu.github.io/pub/pjhe_icws2017.pdf);
+[drain3](https://github.com/logpai/Drain3) is the Python implementation
+pare uses) is a *log parser*: given a stream of lines it decides, online,
+which template each line belongs to and which tokens are parameters. Its
+output is the complete set of templates and a cluster id per line. It has
+no notion of which templates matter, no budget, and no output format
+beyond that.
+
+pare uses Drain for exactly step 4 above and supplies everything around it:
+
+- **Records, not lines.** Drain sees one string per call. pare segments
+  the input into records first and clusters only the head line of each,
+  so a 40-line stack trace is one record under one template rather than
+  40 clusters of frames. The body travels with the head.
+- **Masking before Drain, on pare's terms.** drain3 has its own masking
+  hooks; pare masks first with placeholders chosen for developer-tool
+  output (paths that must contain a letter, versions, units, rule runs)
+  and then hands Drain the masked text with drain3's masking disabled.
+  This keeps the shapes under pare's control and the clustering
+  deterministic.
+- **Stable ids.** Drain numbers clusters in creation order; pare renumbers
+  them by first appearance, takes each cluster's final template text after
+  all records are in, and pins the drain3 version so `T9` means the same
+  thing across runs of the same input.
+- **Salience and allocation.** Everything from step 5 on is pare: the
+  structural severity, the vocabulary, the exemplar choice (the
+  highest-severity record of each template), the priority queue, the
+  diminishing returns, the hard budget, the ledger and the selection
+  modes. Drain would list the 4,340 INFO lines' template and the FATAL
+  line's template as peers; pare decides that one of them is worth 120
+  bytes of a 2,400-byte budget and the other is worth one line in the
+  ledger.
+
+Drain could be swapped for any template miner that gives stable clusters
+over masked head lines; the native-port notes below consider writing one
+that fuses masking and clustering in a single pass.
+
+## Tokens and the budget
+
+**What a token is here.** pare counts tokens as `ceil(bytes / 4)` of
+UTF-8 text, for its own output and for the budget, and the benchmark uses
+the same rule for every tool. This is a proxy, not a tokenizer. Four bytes
+per token is the usual rule of thumb for English prose; log text is denser
+in tokens because paths, hashes, hex, punctuation and digits split into
+many short pieces. With the common BPE tokenizers (OpenAI's cl100k and
+o200k, and Claude's), log-like text typically runs 3 to 3.5 bytes per
+token, so a pare output that measures 600 "tokens" by bytes/4 is more like
+700 to 800 real tokens. The ratio is roughly the same for the raw input,
+so the *compression ratios* in the benchmark hold; the *absolute* counts
+are optimistic by that factor. (This could not be measured inside the
+development container, which cannot fetch tokenizer vocabularies; the
+figures above are from the tokenizers' published behaviour on code-like
+text. Measuring it is on the held-out list.)
+
+`--chars-per-token` (default 4) calibrates the estimate. If your agent's
+tokenizer averages 3.3 bytes per token on tool output, `--chars-per-token
+3.3 --budget 600` keeps the output under 600 real tokens. The bench has the
+same flag so the tables can be regenerated in calibrated units.
+
+**How to set the budget.** The budget is a hard ceiling on what reaches
+the agent's context, and the ledger plus run file make everything above it
+recoverable on demand, so the question is how much context one tool
+result should cost by default:
+
+- For an agent loop, 1,000 to 2,000 tokens per tool call is a good
+  default. At 2,000 (bytes/4) pare kept every must-survive line on all
+  eight corpus files, including the 750 KB CI log, at 2.2 % of the input.
+- 600 is the tight setting: the eight files held 97 %, and the misses were
+  two stack-frame locations in the largest log. Below about 400 the fixed
+  skeleton (header, windows, ledger) is most of the output.
+- Small outputs are passed through untouched when they fit, so a high
+  budget costs nothing on a 50-line command; the budget only bites on
+  output that needs it.
+- Spend more only when needed: start at the default, and when the summary
+  points at a template or line range, pay for that slice with
+  `--only T9 --min-severity error` or `--since L3001 --until L3100` rather
+  than by raising the budget for every call.
+
+The right number ultimately depends on the context window and how many
+tool calls a task takes; a 200k-token window with 40 tool calls at 2,000
+each spends 80k on tool output, which is the kind of arithmetic the budget
+exists to make explicit.
 
 ## Pipeline
 

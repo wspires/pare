@@ -793,8 +793,18 @@ COMPACT_BUDGET = 1000  # below this many tokens, multi-record entries are one li
 HINT_BUDGET = 1000  # below this, the usage hint at the end is dropped
 
 
+CHARS_PER_TOKEN = 4.0  # bytes per token for the estimate; --chars-per-token calibrates it
+
+
 def tokens(nbytes: int) -> int:
-    return math.ceil(nbytes / 4)
+    """Token estimate: bytes / CHARS_PER_TOKEN. A proxy, not a tokenizer; log
+    text runs about 3 to 3.5 bytes per token on common BPE tokenizers, so
+    pass --chars-per-token 3.3 to budget in units closer to the real count."""
+    return math.ceil(nbytes / CHARS_PER_TOKEN)
+
+
+def budget_bytes_for(budget: int) -> int:
+    return int(budget * CHARS_PER_TOKEN)
 
 
 def fmt_int(n: int) -> str:
@@ -846,7 +856,7 @@ def summarize(
     run_path: str | None,
     in_bytes: int,
 ) -> str:
-    budget_bytes = budget * 4
+    budget_bytes = budget_bytes_for(budget)
     total = len(lines)
     by_sal = sorted(templates, key=lambda t: (-t.salience, t.idx))
 
@@ -1307,7 +1317,7 @@ def select(
         label += f" --since L{since}"
     if until is not None:
         label += f" --until L{until}"
-    budget_bytes = budget * 4
+    budget_bytes = budget_bytes_for(budget)
     head = f"# pare {label}: {fmt_int(len(want))} of {fmt_int(len(lines))} lines"
     rows = render_ranges(lines, want, width)
     body = rows
@@ -1374,11 +1384,15 @@ def tee(data: bytes, run_dir: str | None, run_file: str | None) -> str | None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    global VOCAB, CHARS_PER_TOKEN
     ap = argparse.ArgumentParser(prog="pare", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--budget", type=int, default=2000, help="output budget in tokens (~bytes/4); default 2000")
     ap.add_argument("--head", type=int, default=5, help="lines to keep from the start; default 5")
     ap.add_argument("--tail", type=int, default=10, help="lines to keep from the end; default 10")
     ap.add_argument("--width", type=int, default=200, help="clip lines longer than this; default 200")
+    ap.add_argument("--chars-per-token", type=float, default=CHARS_PER_TOKEN, metavar="N",
+                    help="bytes per token for the budget and the token estimate (default 4; log text is "
+                         "nearer 3.3 on common tokenizers)")
     ap.add_argument("--max-templates", type=int, default=0, metavar="N",
                     help="list at most N templates (highest salience first); 0 = all that fit. "
                          "Unlisted templates still appear in the omitted ledger")
@@ -1403,7 +1417,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--version", action="version", version=f"pare {__version__}")
     args = ap.parse_args(argv)
 
-    global VOCAB
+    if args.chars_per_token <= 0:
+        sys.exit("pare: --chars-per-token must be positive")
+    CHARS_PER_TOKEN = args.chars_per_token
     if args.vocab:
         try:
             with open(args.vocab, encoding="utf-8") as f:

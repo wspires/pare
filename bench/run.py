@@ -32,8 +32,11 @@ import tempfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+CHARS_PER_TOKEN = 4.0  # set from --chars-per-token
+
+
 def tokens(data: bytes) -> int:
-    return math.ceil(len(data) / 4)
+    return math.ceil(len(data) / CHARS_PER_TOKEN)
 
 
 def which(name: str) -> str | None:
@@ -94,7 +97,7 @@ class Pare(Tool):
             p = subprocess.run(
                 # --no-tee: the run-file path is part of pare's output, and temp
                 # paths differ in length between machines (macOS /var/folders/...).
-                pare_cmd() + ["--budget", str(budget), "--no-tee"] + self.extra_args,
+                pare_cmd() + ["--budget", str(budget), "--no-tee", "--chars-per-token", str(CHARS_PER_TOKEN)] + self.extra_args,
                 stdin=f, capture_output=True,
             )
         if p.returncode != 0:
@@ -192,7 +195,11 @@ def main() -> int:
     ap.add_argument("--json", help="also write results as JSON to this path")
     ap.add_argument("--show-misses", action="store_true", help="list must-survive lines each tool dropped")
     ap.add_argument("--pare-args", default="", help='extra flags for pare, e.g. "--max-templates 8"')
+    ap.add_argument("--chars-per-token", type=float, default=4.0,
+                    help="bytes per token for every tool's count and pare's budget (default 4)")
     args = ap.parse_args()
+    global CHARS_PER_TOKEN
+    CHARS_PER_TOKEN = args.chars_per_token
     Pare.extra_args = shlex.split(args.pare_args)
 
     names = sorted(f[:-4] for f in os.listdir(args.corpus) if f.endswith(".log"))
@@ -232,7 +239,7 @@ def main() -> int:
 
     # Per-case table.
     versions = ", ".join(f"{t.name} {t.version()}" for t in tools if t.name != "raw" and t.available())
-    print(f"budget={args.budget} tokens (bytes/4)   tools: {', '.join(t.name for t in tools)}")
+    print(f"budget={args.budget} tokens (bytes/{CHARS_PER_TOKEN:g})   tools: {', '.join(t.name for t in tools)}")
     print(f"versions: {versions}")
     print("modes: pare --no-tee; sqz compress --no-cache --cmd <name> (one-shot, so its session-level "
           "dedup is not exercised); tidyout <cmd> with a fake <cmd> on PATH that replays the log\n")
