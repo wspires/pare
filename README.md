@@ -63,18 +63,20 @@ The only dependency is [drain3](https://github.com/logpai/Drain3) (pinned).
 Python 3.10 or newer.
 
 ```
-# uv: the script declares its dependency inline (PEP 723)
+# a `pare` command on your PATH (add --editable to track the checkout)
+uv tool install .            # or: pipx install .
+pytest -v 2>&1 | pare --budget 2000
+
+# or run the script directly; it declares its dependency inline (PEP 723)
 pytest -v 2>&1 | uv run proto/pare.py --budget 2000
 
 # or a virtualenv
-python3 -m venv .venv && .venv/bin/pip install -r proto/requirements.txt
-pytest -v 2>&1 | .venv/bin/python proto/pare.py --budget 2000
+python3 -m venv .venv && .venv/bin/pip install -e '.[dev,bench]'
+pytest -v 2>&1 | .venv/bin/pare --budget 2000
 ```
 
 `proto/pare.py` is executable; a bare `python3 proto/pare.py` without
-drain3 stops with these two options rather than a traceback. There is no
-`pyproject.toml` yet, so for a `pare` on your PATH use a symlink or
-`alias pare='uv run ~/dev/pare/proto/pare.py'`.
+drain3 stops with these options rather than a traceback.
 
 ## Benchmark
 
