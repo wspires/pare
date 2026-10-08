@@ -43,9 +43,17 @@ def which(name: str) -> str | None:
     return shutil.which(name)
 
 
-def python() -> str:
+def pare_cmd() -> list[str]:
+    """How to run proto/pare.py: the repo venv if there is one, else `uv run`
+    (which installs drain3 from the script's inline metadata), else the
+    current interpreter."""
+    script = os.path.join(ROOT, "proto", "pare.py")
     venv = os.path.join(ROOT, ".venv", "bin", "python")
-    return venv if os.path.exists(venv) else sys.executable
+    if os.path.exists(venv):
+        return [venv, script]
+    if shutil.which("uv"):
+        return ["uv", "run", "--quiet", script]
+    return [sys.executable, script]
 
 
 class Tool:
@@ -73,10 +81,11 @@ class Pare(Tool):
     def run(self, log_path, cmd, budget, work):
         with open(log_path, "rb") as f:
             p = subprocess.run(
-                [python(), os.path.join(ROOT, "proto", "pare.py"), "--budget", str(budget),
-                 "--run-dir", os.path.join(work, "runs")] + self.extra_args,
-                stdin=f, capture_output=True, check=True,
+                pare_cmd() + ["--budget", str(budget), "--run-dir", os.path.join(work, "runs")] + self.extra_args,
+                stdin=f, capture_output=True,
             )
+        if p.returncode != 0:
+            raise RuntimeError(p.stderr.decode(errors="replace").strip().splitlines()[-1][:120] if p.stderr else "pare failed")
         return p.stdout
 
 
