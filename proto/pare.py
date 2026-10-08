@@ -693,13 +693,6 @@ def shape_key(text: str) -> str:
     return mask(text) + (f" ·sev{sev}" if sev is not None else "")
 
 
-def exemplar_body(lines: list[Line], rec: Record, limit: int) -> list[Line]:
-    """The most salient continuation lines of a record, in original order."""
-    body = [b for b in lines[rec.start + 1 : rec.end] if b.text.strip()]
-    ranked = sorted(body, key=lambda b: (-vocab_score(b.text, head=False), b.no))[:limit]
-    return sorted(ranked, key=lambda b: b.no)
-
-
 # --------------------------------------------------------------------------
 # Rendering
 # --------------------------------------------------------------------------
@@ -708,12 +701,12 @@ def exemplar_body(lines: list[Line], rec: Record, limit: int) -> list[Line]:
 WINDOW_SKIP_COUNT = 20  # head/tail windows skip lines of templates this common
 WINDOW_SCAN_FACTOR = 3  # ...looking at most this many window-lengths into the file
 NEAR_DUP_MAX_COUNT = 5  # templates this small are skipped when their exemplar restates a shown line
-EXEMPLAR_BODY = 10  # most continuation lines shown for an error/warning exemplar
-EXEMPLAR_BODY_MIN = 3  # ...and the fewest; the cap scales with the budget between them
-
-
-def exemplar_body_limit(budget: int) -> int:
-    return max(EXEMPLAR_BODY_MIN, min(EXEMPLAR_BODY, budget // 200))
+TABLE_BONUS = 1.0  # a template entry's priority over a raw line of equal salience
+COHERENCE_BONUS = 0.5  # for a continuation line whose record head is already on screen
+RECORD_FREE_LINES = 8  # continuation lines one record may show before its returns decay
+RECORD_DECAY = 0.25  # divisor growth per further continuation line from that record
+COMPACT_BUDGET = 1000  # below this many tokens, multi-record entries are one line
+HINT_BUDGET = 1000  # below this, the usage hint at the end is dropped
 FILL_PENALTY = 1.5  # divisor growth per already-shown line of the same masked shape
 FILL_PENALTY_ERROR = 0.75  # ...for error-level lines, whose copies are distinct facts
 FILL_FLOOR = 1.0  # lines scoring below this never pad the output
@@ -795,7 +788,8 @@ def summarize(
 
     # Fixed overhead: header + run lines + section titles + ledger reserve.
     ledger_reserve = min(400, max(120, budget_bytes // 12))
-    fixed = nbytes([header(budget_bytes), run_line, run_hint, "## head", "## templates (by salience)",
+    show_hint = budget >= HINT_BUDGET
+    fixed = nbytes([header(budget_bytes), run_line, run_hint if show_hint else "", "## head", "## templates (by salience)",
                     "## selected lines", "## tail"]) + ledger_reserve
     avail = max(0, budget_bytes - fixed)
 
@@ -811,7 +805,13 @@ def summarize(
         for ln in seq[: max(n, WINDOW_SCAN_FACTOR * n)]:
             if len(out) >= n:
                 break
-            if ln.no == keep_no or ln.record < 0 or len(templates[records[ln.record].template].records) < WINDOW_SKIP_COUNT:
+            if ln.no == keep_no or ln.record < 0:
+                out.append(ln.no)
+                continue
+            rec = records[ln.record]
+            frequent = len(templates[rec.template].records) >= WINDOW_SKIP_COUNT
+            long_body = ln.depth > 0 and rec.end - rec.start >= WINDOW_SKIP_COUNT
+            if not frequent and not long_body:
                 out.append(ln.no)
         return out
 
@@ -832,15 +832,23 @@ def summarize(
     shown.update(tail_nos)
     avail -= nbytes(head_block) + nbytes(tail_block)
 
-    # Template table: every template once, in salience order, up to 60% of what
-    # is left. Error/warning templates whose exemplar is a multi-line record
-    # (a stack trace, a compiler diagnostic) show the body of that exemplar.
-    # Each entry is (template idx, rendered lines, body line numbers shown).
-    tpl_entries: list[tuple[int, list[str], list[int]]] = []
-    tpl_budget = avail * 0.6
-    taken: dict[str, int] = {}  # masked text -> lines already shown with that shape
+    # One priority queue for template entries and raw lines, on the same
+    # salience scale. A template entry (its count, marker and exemplar head
+    # line) competes at tpl.salience + TABLE_BONUS; a raw line at its line
+    # score with diminishing returns for repeated shapes and for long records.
+    # So at any budget a high-salience exception line beats a low-salience
+    # singleton template, and a warning template beats the sixth frame of a
+    # stack trace. Lines that land in a placed template's exemplar record are
+    # rendered under that entry as its body; the rest go to "selected lines".
+    # At small budgets a multi-record entry is one line (count + exemplar)
+    # instead of template text plus exemplar.
+    placed: dict[int, list[str]] = {}  # template idx -> head entry lines
+    taken: dict[str, int] = {}  # masked shape -> lines already shown with it
+    taken_rec: dict[int, int] = {}  # record idx -> continuation lines already shown
+    compact = budget < COMPACT_BUDGET
+    window_nos = set(head_nos) | set(tail_nos)
 
-    def tpl_entry(tpl: Template, body_limit: int) -> tuple[list[str], list[int]]:
+    def tpl_head(tpl: Template) -> list[str]:
         rec = records[tpl.exemplar]
         ex = lines[rec.start]
         count = len(tpl.records)
@@ -851,77 +859,35 @@ def summarize(
         # An exemplar that the head or tail window already prints is referenced,
         # not repeated.
         where = "head" if ex.no in head_nos else "tail" if ex.no in tail_nos else None
-        if count == 1:
-            if where:
-                entry = [f"{tpl.tid:<4} ×{count}{extra} {tpl.marker} L{ex.no} (in {where})"]
-            else:
-                entry = [f"{tpl.tid:<4} ×{count}{extra} {tpl.marker} L{ex.no}: {clip(ex.text.strip(), width)}"]
-        else:
-            entry = [f"{tpl.tid:<4} ×{fmt_int(count)}{extra} {tpl.marker} {clip(tpl.text, width)}"]
-            if where:
-                entry.append(f"     e.g. L{ex.no} (in {where})")
-            else:
-                entry.append(f"     e.g. L{ex.no}: {clip(ex.text.strip(), width)}")
-        body_nos: list[int] = []
-        if tpl.marker in ("E", "W") and rec.end - rec.start > 1 and body_limit > 0:
-            body = [b for b in exemplar_body(lines, rec, body_limit) if b.no not in window_nos]
-            body_nos = [b.no for b in body]
-            if body_nos:
-                entry.extend(render_ranges(lines, body_nos, width))
-            rest = sum(1 for b in lines[rec.start + 1 : rec.end] if b.text.strip() and b.no not in window_nos) - len(body)
-            if rest > 0:
-                entry.append(f"      ┆ (+{fmt_int(rest)} more lines in this record)")
-        return entry, body_nos
+        ref = f"L{ex.no} (in {where})" if where else f"L{ex.no}: {clip(ex.text.strip(), width)}"
+        if count == 1 or compact:
+            return [f"{tpl.tid:<4} ×{fmt_int(count)}{extra} {tpl.marker} {ref}"]
+        return [f"{tpl.tid:<4} ×{fmt_int(count)}{extra} {tpl.marker} {clip(tpl.text, width)}", f"     e.g. {ref}"]
 
-    window_nos = set(head_nos) | set(tail_nos)
+    taken_text: set[str] = set()  # exact (stripped) texts already shown
+
+    def note_shown(no: int) -> None:
+        ln = lines[no - 1]
+        shown.add(no)
+        key = shape_key(ln.text)
+        taken[key] = taken.get(key, 0) + 1
+        taken_text.add(ln.text.strip())
+        if ln.depth > 0:
+            taken_rec[ln.record] = taken_rec.get(ln.record, 0) + 1
+        shown_tokens.append(token_set(ln.text))
+
+    for no in sorted(shown):
+        taken_text.add(lines[no - 1].text.strip())
 
     shown_tokens = [token_set(lines[no - 1].text) for no in sorted(shown)]
-    for tpl in by_sal:
-        if max_templates and len(tpl_entries) >= max_templates:
-            break
-        ex_rec = records[tpl.exemplar]
-        ex_line = lines[ex_rec.start]
-        if len(tpl.records) == 1 and all(ln.no in window_nos for ln in lines[ex_rec.start : ex_rec.end] if ln.text.strip()):
-            continue  # a singleton whose whole record the head or tail window already prints
-        if len(tpl.records) <= NEAR_DUP_MAX_COUNT and ex_line.no not in shown:
-            # A rare line that restates something already on screen (a
-            # progress line repeating the summary line) stays in the ledger only.
-            if is_near_duplicate(token_set(ex_line.text), shown_tokens):
-                continue
-        entry, body_nos = tpl_entry(tpl, exemplar_body_limit(budget))
-        cost = nbytes(entry)
-        if cost > tpl_budget:
-            if tpl_entries:
-                continue
-            # The first template always gets a line; shrink its body to fit.
-            limit = len(body_nos)
-            while limit > 0 and cost > tpl_budget:
-                limit -= 1
-                entry, body_nos = tpl_entry(tpl, limit)
-                cost = nbytes(entry)
-        tpl_entries.append((tpl.idx, entry, body_nos))
-        tpl_budget -= cost
-        ex_no = lines[records[tpl.exemplar].start].no
-        shown.add(ex_no)
-        shown.update(body_nos)
-        for no in [ex_no] + body_nos:
-            key = shape_key(lines[no - 1].text)
-            taken[key] = taken.get(key, 0) + 1
-            shown_tokens.append(token_set(lines[no - 1].text))
-    avail -= sum(nbytes(e) for _, e, _ in tpl_entries)
+    exemplar_nos = {lines[records[t.exemplar].start].no for t in templates}
 
-    # Fill with the highest-salience raw lines not yet shown. Lines with the
-    # same masked shape as one already shown are worth less each time
-    # (diminishing returns), and lines below the salience floor never pad the
-    # output just to use up the budget.
-    def effective(s: float, key: str, penalty: float) -> float:
-        return s / (1.0 + penalty * taken.get(key, 0))
-
-    heap: list[tuple[float, int]] = []
+    # Raw-line candidates: everything not in a window and not a template's
+    # exemplar head (the template entry stands for that line).
     base: dict[int, tuple[float, Line, str, float]] = {}
     firsts = first_occurrences(lines, records)
     for ln in lines:
-        if ln.no in shown or ln.record < 0 or not ln.text.strip():
+        if ln.no in shown or ln.no in exemplar_nos or ln.record < 0 or not ln.text.strip():
             continue
         rec = records[ln.record]
         tpl = templates[rec.template]
@@ -929,46 +895,104 @@ def summarize(
         if ln.no in firsts:
             s += 0.5
         key = shape_key(ln.text)
-        # Error-level record heads of one shape are each a distinct fact
-        # (which package failed, which request errored), so their returns
-        # diminish more gently than those of repeated chatter. Continuation
-        # lines (the same stack frame under every copy) get the full penalty.
+        # Error-level record heads of one shape (which package failed, which
+        # request errored) and source locations (where this diagnostic points)
+        # are each a distinct fact, so their returns diminish more gently than
+        # those of repeated chatter. An exact repeat of a shown line (the same
+        # exception text under every copy of a record) always gets the full
+        # penalty.
         sev = VOCAB.severity(ln.text)
         is_err = ln.depth == 0 and ((sev is not None and sev >= 3) or VOCAB.has("error", ln.text))
-        penalty = FILL_PENALTY_ERROR if is_err else FILL_PENALTY
+        penalty = FILL_PENALTY_ERROR if is_err or VOCAB.has("frame", ln.text) else FILL_PENALTY
         base[ln.no] = (s, ln, key, penalty)
-        heapq.heappush(heap, (-effective(s, key, penalty), ln.no))
-    # shown_tokens holds the token sets of everything on screen so far, for
-    # near-duplicate suppression: a record head whose tokens are mostly
-    # contained in a line already shown (a progress line restating a summary
-    # line) adds nothing.
-    picked: list[tuple[float, Line]] = []
-    fill_avail = avail
-    while heap and fill_avail >= 40:
-        neg, no = heapq.heappop(heap)
+
+    def effective(no: int) -> float:
         s, ln, key, penalty = base[no]
-        cur = effective(s, key, penalty)
-        if cur != -neg:  # stale entry: re-queue with the current score
-            heapq.heappush(heap, (-cur, no))
-            continue
-        if cur < FILL_FLOOR:
-            break
-        cost = len(fmt_line(ln, width).encode()) + 1 + 20  # + gap marker allowance
-        if cost > fill_avail:
-            continue
-        toks = token_set(ln.text)
-        if ln.depth == 0 and is_near_duplicate(toks, shown_tokens):
-            continue
-        picked.append((cur, ln))
-        shown.add(ln.no)
-        shown_tokens.append(toks)
-        taken[key] = taken.get(key, 0) + 1
-        fill_avail -= cost
+        if ln.depth > 0 and lines[records[ln.record].start].no in shown:
+            s += COHERENCE_BONUS  # continue a record whose head is on screen
+        if ln.text.strip() in taken_text:
+            penalty = FILL_PENALTY
+        e = s / (1.0 + penalty * taken.get(key, 0))
+        if ln.depth > 0:  # a very long record yields its lines with decaying returns
+            e /= 1.0 + RECORD_DECAY * max(0, taken_rec.get(ln.record, 0) - RECORD_FREE_LINES)
+        return e
+
+    # Heap items: (-priority, kind, id); kind 0 = template entry, 1 = line,
+    # so a template wins a tie and ordering is deterministic.
+    heap: list[tuple[float, int, int]] = []
+    for tpl in templates:
+        heapq.heappush(heap, (-(tpl.salience + TABLE_BONUS), 0, tpl.idx))
+    for no in base:
+        heapq.heappush(heap, (-effective(no), 1, no))
+
+    picked: list[tuple[float, Line]] = []
+    deferred: list[tuple[float, int, int]] = []  # items that did not fit; retried against measured slack
+
+    def place(avail: int) -> int:
+        """Greedy pass over the heap. Returns the budget left over."""
+        while heap and avail >= 40:
+            negp, kind, ident = heapq.heappop(heap)
+            if kind == 0:
+                tpl = templates[ident]
+                if max_templates and len(placed) >= max_templates:
+                    continue
+                ex_rec = records[tpl.exemplar]
+                ex_line = lines[ex_rec.start]
+                if len(tpl.records) == 1 and all(ln.no in window_nos for ln in lines[ex_rec.start : ex_rec.end] if ln.text.strip()):
+                    continue  # a singleton whose whole record the head or tail window already prints
+                if len(tpl.records) <= NEAR_DUP_MAX_COUNT and ex_line.no not in shown:
+                    # A rare line that restates something already on screen (a
+                    # progress line repeating the summary line) stays in the ledger.
+                    if is_near_duplicate(token_set(ex_line.text), shown_tokens):
+                        continue
+                entry = tpl_head(tpl)
+                cost = nbytes(entry)
+                if tpl.marker in ("E", "W") and ex_rec.end - ex_rec.start > 1:
+                    cost += 30  # room for the "(+N more lines)" marker under it
+                if cost > avail and placed:
+                    deferred.append((negp, kind, ident))
+                    continue  # the first template always gets a line
+                placed[tpl.idx] = entry
+                avail -= cost
+                if ex_line.no not in shown:
+                    note_shown(ex_line.no)
+                continue
+            no = ident
+            cur = effective(no)
+            if cur != -negp:  # stale: re-queue at the current score
+                heapq.heappush(heap, (-cur, 1, no))
+                continue
+            if cur < FILL_FLOOR or no in shown:
+                continue  # below the floor a line never pads the output
+            s, ln, key, penalty = base[no]
+            cost = len(fmt_line(ln, width).encode()) + 1 + 20  # + gap marker allowance
+            if cost > avail:
+                deferred.append((negp, kind, ident))
+                continue
+            if ln.depth == 0 and is_near_duplicate(token_set(ln.text), shown_tokens):
+                continue
+            picked.append((cur, ln))
+            note_shown(no)
+            avail -= cost
+        return avail
+
+    avail = place(avail)
+
+    def body_of(ti: int, picked_lines: list[tuple[float, Line]]) -> tuple[list[str], set[int]]:
+        """Rendered body of a placed template: the picked lines inside its
+        exemplar record, plus a marker for what is left unseen."""
+        rec = records[templates[ti].exemplar]
+        nos = sorted(ln.no for _, ln in picked_lines if rec.start < ln.no - 1 < rec.end)
+        out = render_ranges(lines, nos, width) if nos else []
+        rest = sum(1 for b in lines[rec.start + 1 : rec.end] if b.text.strip() and b.no not in window_nos) - len(nos)
+        if rest > 0:
+            out.append(f"      ┆ (+{fmt_int(rest)} more lines)")
+        return out, set(nos)
 
     ledger_detail = True  # per-template list; dropped only as a last resort
 
     def ledger(shown_set: set[int]) -> list[str]:
-        tpl_omitted = len(templates) - len(tpl_entries)
+        tpl_omitted = len(templates) - len(placed)
         omitted_total = total - len(shown_set)
         per_tpl = []
         for tpl in templates:
@@ -1006,27 +1030,31 @@ def summarize(
             line += " · " + "; ".join(tail_bits)
         return [line]
 
-    show_hint = True
-
     def render(picked_lines: list[tuple[float, Line]]) -> list[str]:
         out: list[str] = []
         if head_nos:
             out.append(f"## head (L{head_nos[0]}–L{head_nos[-1]})")
             out.extend(render_ranges(lines, head_nos, width))
-        if tpl_entries:
+        in_bodies: set[int] = set()
+        if placed:
             out.append("## templates (by salience)")
-            for _, entry, _ in tpl_entries:
-                out.extend(entry)
-        if picked_lines:
+            for tpl in by_sal:
+                if tpl.idx not in placed:
+                    continue
+                out.extend(placed[tpl.idx])
+                body, nos = body_of(tpl.idx, picked_lines)
+                out.extend(body)
+                in_bodies |= nos
+        rest_nos = sorted(ln.no for _, ln in picked_lines if ln.no not in in_bodies)
+        if rest_nos:
             out.append("## selected lines")
-            out.extend(render_ranges(lines, sorted(ln.no for _, ln in picked_lines), width))
+            out.extend(render_ranges(lines, rest_nos, width))
         if tail_nos:
             out.append(f"## tail (L{tail_nos[0]}–L{tail_nos[-1]})")
             out.extend(render_ranges(lines, tail_nos, width))
         shown_set = set(head_nos) | set(tail_nos) | {ln.no for _, ln in picked_lines}
-        for ti, _, body_nos in tpl_entries:
+        for ti in placed:
             shown_set.add(lines[records[templates[ti].exemplar].start].no)
-            shown_set.update(body_nos)
         out.extend(ledger(shown_set))
         out.append(run_line)
         if show_hint:
@@ -1034,11 +1062,12 @@ def summarize(
         return out
 
     # Exact fit. The estimates above are close but not exact (gap markers, the
-    # ledger, a first template entry larger than its share), so shed content
-    # until the rendering fits: lowest-scoring fill lines first, then tail and
-    # head lines, then template entries from the bottom of the table, then the
-    # ledger detail and the usage hint. The budget is a hard limit.
+    # ledger, a first template entry larger than the budget), so shed content
+    # until the rendering fits: lowest-scoring picked lines first, then tail
+    # and head lines, then template entries from the bottom of the table,
+    # then the ledger detail and the usage hint. The budget is a hard limit.
     picked.sort(key=lambda p: (-p[0], p[1].no))
+    placed_order = [t.idx for t in by_sal if t.idx in placed]
 
     def shed() -> bool:
         nonlocal ledger_detail, show_hint
@@ -1048,17 +1077,14 @@ def summarize(
             tail_nos.pop(0)
         elif head_nos:
             head_nos.pop()
-        elif len(tpl_entries) > 1:
-            tpl_entries.pop()
-        elif tpl_entries and tpl_entries[0][2]:
-            ti, _, body_nos = tpl_entries[0]
-            tpl_entries[0] = (ti, *tpl_entry(templates[ti], len(body_nos) - 1))
+        elif len(placed_order) > 1:
+            placed.pop(placed_order.pop())
         elif ledger_detail:
             ledger_detail = False
         elif show_hint:
             show_hint = False
-        elif tpl_entries:
-            tpl_entries.pop()
+        elif placed_order:
+            placed.pop(placed_order.pop())
         else:
             return False
         return True
@@ -1073,6 +1099,23 @@ def summarize(
                 break
             ob = ob2
         return ob
+
+    # The per-item allowances (gap markers, record markers) are conservative,
+    # so the first pass usually leaves slack. Offer the deferred items and
+    # whatever is still queued against the measured slack, a few times.
+    for _ in range(3):
+        slack = budget_bytes - measure(render(picked))
+        if slack < 40 or not (deferred or heap):
+            break
+        for item in deferred:
+            heapq.heappush(heap, item)
+        deferred.clear()
+        placed_before, picked_before = len(placed), len(picked)
+        place(slack)
+        if len(placed) == placed_before and len(picked) == picked_before:
+            break
+        picked.sort(key=lambda p: (-p[0], p[1].no))
+        placed_order[:] = [t.idx for t in by_sal if t.idx in placed]
 
     while True:
         body = render(picked)

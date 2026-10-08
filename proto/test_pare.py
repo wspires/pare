@@ -105,7 +105,7 @@ def test_access_log_needle():
     out = run(["--budget", "600"], data).decode()
     tpl = next(l for l in out.splitlines() if l.startswith("T1 "))
     assert "ERROR×12 INFO×3,988" in tpl and " E " in tpl
-    assert "e.g. L8:" in out  # first 503 (i=7) is the exemplar
+    assert " L8: " in tpl  # first 503 (i=7) is the exemplar (compact one-line form at this budget)
     # Identical-shape lines get diminishing returns, so the exemplar plus one
     # more 503 is expected at this budget; the histogram carries the count.
     assert out.count('" 503 ') >= 2
