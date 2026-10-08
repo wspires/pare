@@ -220,24 +220,24 @@ failing suites and a 535 KB service log with a database outage.
 | jest-fail | pare | 4396 | 1099 | 25.0% | 10/10 |
 | jest-fail | sqz | 4396 | 2099 | 47.7% | 2/10 |
 | jest-fail | tidyout | 4396 | 4402 | 100.1% | 10/10 |
-| make-build | pare | 2318 | 1029 | 44.4% | 7/7 |
-| make-build | sqz | 2318 | 990 | 42.7% | 1/7 |
+| make-build | pare | 2318 | 1046 | 45.1% | 7/7 |
+| make-build | sqz | 2318 | 988 | 42.6% | 1/7 |
 | make-build | tidyout | 2318 | 2336 | 100.8% | 7/7 |
-| npm-install | pare | 5459 | 682 | 12.5% | 2/2 |
+| npm-install | pare | 5459 | 671 | 12.3% | 2/2 |
 | npm-install | sqz | 5459 | 4902 | 89.8% | 2/2 |
 | npm-install | tidyout | 5459 | 5477 | 100.3% | 2/2 |
-| pytest-fail | pare | 4762 | 1622 | 34.1% | 11/11 |
+| pytest-fail | pare | 4762 | 1602 | 33.6% | 11/11 |
 | pytest-fail | sqz | 4762 | 401 | 8.4% | 8/11 |
 | pytest-fail | tidyout | 4762 | 1483 | 31.1% | 11/11 |
-| server-outage | pare | 133851 | 1422 | 1.1% | 9/9 |
+| server-outage | pare | 133851 | 1527 | 1.1% | 9/9 |
 | server-outage | sqz | 133851 | 63390 | 47.4% | 5/9 |
 | server-outage | tidyout | 133851 | 1388 | 1.0% | 1/9 |
 
 | tool | cases | in tok | out tok | ratio | recall | min recall |
 |---|---:|---:|---:|---:|---:|---:|
 | raw | 7 | 153943 | 153943 | 100.0% | 100% | 100% |
-| pare | 7 | 153943 | 7660 | 5.0% | 100% | 100% |
-| sqz | 7 | 153943 | 74757 | 48.6% | 57% | 14% |
+| pare | 7 | 153943 | 7751 | 5.0% | 100% | 100% |
+| sqz | 7 | 153943 | 74755 | 48.6% | 57% | 14% |
 | tidyout | 7 | 153943 | 18013 | 11.7% | 86% | 11% |
 
 ### budget 600
@@ -245,9 +245,15 @@ failing suites and a 535 KB service log with a database outage.
 | tool | cases | in tok | out tok | ratio | recall | min recall |
 |---|---:|---:|---:|---:|---:|---:|
 | raw | 7 | 153943 | 153943 | 100.0% | 100% | 100% |
-| pare | 7 | 153943 | 3863 | 2.5% | 79% | 55% |
-| sqz | 7 | 153943 | 74752 | 48.6% | 57% | 14% |
+| pare | 7 | 153943 | 3852 | 2.5% | 79% | 55% |
+| sqz | 7 | 153943 | 74755 | 48.6% | 57% | 14% |
 | tidyout | 7 | 153943 | 18013 | 11.7% | 86% | 11% |
+
+At 600, pare's misses are the five per-failure `E` lines of pytest, two
+deep Jest stack frames, one of fourteen identical gcc warnings, a go panic
+location and package verdict, and two non-error lines of the service log
+(the slow-cache warning and the reconnect notice). Every error line of the
+service log survives at both budgets.
 
 Notes on reading this:
 
@@ -263,15 +269,15 @@ Notes on reading this:
 
   | `--max-templates` | out tok | recall | min recall |
   |---|---:|---:|---:|
-  | 0 (all that fit), 16, 10 | 3,863 | 79% | 55% |
-  | 6 | 3,832 | 79% | 55% |
+  | 0 (all that fit), 16, 10 | 3,852 | 79% | 55% |
+  | 6 | 3,826 | 79% | 55% |
 
   What actually costs recall at 600 is elsewhere: the fill phase ranks the
   pytest progress lines (`test_x FAILED [ 95%]`) level with the `E` lines
   because both carry error vocabulary and a unique template, and the ledger
-  reserve (300 bytes) is 12 % of the budget. Shrinking the reserve to a
-  sixteenth of the budget lifts recall to 81 % but lets one case overrun the
-  budget by a token, so it is not applied.
+  reserve (300 bytes) is 12 % of the budget. An earlier experiment with a
+  smaller reserve gained two points of recall but let one case overrun the
+  budget by a token, so the reserve stays and the budget stays a hard limit.
 - The cargo log (945 tokens) fits the budget, so pare passes it through with
   a two-line header; it never makes small inputs bigger than a fixed overhead.
 
@@ -281,9 +287,11 @@ Notes on reading this:
 .venv/bin/pip install pytest && .venv/bin/python -m pytest proto/
 ```
 
-Covers level detection forms, vocabulary parsing and round-tripping, the
-hard budget limit at several sizes on every corpus file, determinism,
-pass-through of small inputs, `--only`/`--except`, and the run file.
+Covers log-level, HTTP-status and exit-code detection forms and their
+rejections, vocabulary parsing and round-tripping, the hard budget limit at
+several sizes on every corpus file, determinism, pass-through of small
+inputs, `--only`/`--except`, `--min-severity`, `--since`/`--until`, and the
+run file.
 
 ## Layout
 
