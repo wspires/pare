@@ -74,6 +74,41 @@ because the pipeline is deterministic for a given input. `--max-templates N`
 lists at most N templates (highest salience first); the rest still show up
 in the omitted ledger.
 
+### Vocabulary
+
+The salience vocabulary is the one prior in the pipeline that is not learned
+from the input, and it is English and developer-tool flavoured. It is
+organised as classes with fixed weights:
+
+| class | weight | holds |
+|---|---:|---|
+| `error` | +3 | error, failed, refused, panic, CamelCase `*Error`, `FAIL`, … |
+| `warn` | +1.5 | warning, deprecated, retry, skipped, flaky, … |
+| `summary` | +1 | passed, total, finished, `====` rules, … |
+| `frame` | +1 | stack frames and `file.ext:line` locations |
+| `pass` | −1 | ✓, PASS, ok (ignored when the line also has an error word) |
+| `noise` | −0.75 | downloading, compiling, debug, progress bars, … (same) |
+| `strong-error` | — | decides whether a record *body* makes its template an error |
+
+`pare --dump-vocab` prints the built-in lists as a file you can edit; pass it
+back with `--vocab FILE` or `$PARE_VOCAB`. A section `[error]` adds to the
+built-in class, `[error replace]` discards it first. A plain line is a word
+or phrase matched whole and case-insensitively; a `/.../` line is a regex
+used as written. See `proto/vocab.example` for a German-log example:
+
+```
+[error]
+fehler
+abgebrochen
+/(?i)zeitüberschreitung/
+[warn]
+warnung
+langsam
+```
+
+Without it, a `FEHLER datenbank verbindung abgebrochen` line is listed only
+because it is rare; with it, it is ranked first and marked `E`.
+
 Example (a 4,813-line service log, budget 2000):
 
 ```

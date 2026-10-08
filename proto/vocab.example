@@ -1,0 +1,32 @@
+# Example pare vocabulary: extend the built-in English lists with German
+# log vocabulary. Use with:  pare --vocab proto/vocab.example
+# or set PARE_VOCAB=/path/to/this/file.
+#
+# A plain line is a word or phrase, matched whole and case-insensitively.
+# A /.../ line is a regular expression used as written.
+# [class] adds to the built-in class; [class replace] discards the built-in
+# entries first. Run `pare --dump-vocab` to see every class and its defaults.
+
+[error]
+fehler
+fehlgeschlagen
+abgebrochen
+verworfen
+zeitüberschreitung
+nicht gefunden
+/(?i)\bausnahme\b/
+
+[warn]
+warnung
+langsam
+veraltet
+übersprungen
+
+[summary]
+beendet
+zusammenfassung
+
+[noise]
+verarbeitet
+lade
+herunterladen

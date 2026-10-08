@@ -258,63 +258,174 @@ def cluster(lines: list[Line], records: list[Record]) -> list[Template]:
 # Salience
 # --------------------------------------------------------------------------
 
-ERR_RE = re.compile(
-    r"(?i)(?<![a-z])(?:error|errors|err|fatal|panic|panicked|exception|traceback|assert|assertion|"
-    r"fail|fails|failed|failure|failures|failing|denied|refused|unreachable|timeout|timed out|"
-    r"cannot|can't|could not|couldn't|unable|not found|no such|missing|invalid|unexpected|"
-    r"segfault|segmentation fault|abort|aborted|killed|oom|out of memory|critical|crash|crashed|"
-    r"rejected|unhandled|uncaught|undefined|null pointer|stack overflow|overflow|exit code|"
-    r"exited with|non-zero|conflict|corrupt|corrupted|broken|mismatch|does not match|"
-    r"not ok|errno|exc_info|stacktrace|stack trace)(?![a-z])"
-    r"|[A-Z]\w*(?:Error|Exception|Fault|Panic)\b"  # CamelCase exception names
-    r"|✗|✘|❌|^\s*E\s{2,}|FAIL(?:ED|URE|S)?\b"
-)
-WARN_RE = re.compile(
-    r"(?i)(?<![a-z])(?:warn|warning|warnings|deprecated|deprecation|retry|retrying|retried|slow|"
-    r"skipped|skip|skipping|xfail|xpass|flaky|unstable|ignored|pending|todo|fixme|leak|stale|"
-    r"outdated|vulnerab\w*|insecure|unused|unreachable code)(?![a-z])|⚠"
-)
-SUMMARY_RE = re.compile(
-    r"(?i)(?<![a-z])(?:passed|tests?|total|summary|finished|completed|done|built|compiled|"
-    r"elapsed|duration|exit status|results?|ran \d+|success|succeeded|complete|"
-    r"coverage|report)(?![a-z])|^\s*={3,}|^\s*-{3,}|^\s*#{1,3}\s|^\s*\*{3,}"
-)
-# Passing-test lines: low value unless something else on the line is loud.
-PASS_RE = re.compile(r"✓|✔|\bPASS(?:ED)?\b|^\s*ok\b|\bok\s*$")
-# Source locations / stack frames: where the problem is.
-FRAME_RE = re.compile(
-    r"^\s*at\s|^\s*File \"|^\s*-->|^\s*>\s*\d+\s*\|"
-    r"|[\w./-]+\.(?:py|ts|tsx|js|jsx|mjs|go|rs|c|cc|cpp|h|hpp|java|kt|rb|cs|swift|php|scala|ex|exs)[:(]\d+"
-)
-# A stricter error vocabulary used to decide whether a record *body* is an error.
-STRONG_ERR_RE = re.compile(
-    r"(?i)\b\w*(?:error|exception)\b|\bpanic|\btraceback\b|\bassert\w*\b|\bfatal\b|\bfail(?:ed|ure|s)?\b"
-    r"|^\s*E\s{2,}|✕|✗|FAIL"
-)
-NOISE_RE = re.compile(
-    r"(?i)(?<![a-z])(?:downloading|downloaded|fetching|fetched|compiling|installing|installed|"
-    r"resolving|resolved|extracting|unpacking|progress|collecting|checking|building|linking|"
-    r"caching|cached|preparing|processing|pulling|pushing|verbose|debug|trace|info|get|head|"
-    r"heartbeat|ping|pong|poll|polling|tick)(?![a-z])"
-    r"|\d+%|\.{3,}|[▏▎▍▌▋▊▉█░▒▓]|\b(?:200|204|304) (?:OK|No Content|Not Modified)\b"
-)
+# The vocabulary is the one part of the pipeline that is a prior rather than
+# learned from the input. It is organised as classes of entries; each entry is
+# a word or phrase (matched whole, case-insensitively, not inside another
+# word) or a /regex/ used as written. A user file (--vocab, $PARE_VOCAB)
+# extends or replaces any class; --dump-vocab prints these defaults in that
+# format.
+
+VOCAB_CLASSES = {
+    # class: (weight, description)
+    "error": (3.0, "something went wrong"),
+    "warn": (1.5, "worth a look"),
+    "summary": (1.0, "totals, section rules, final verdicts"),
+    "frame": (1.0, "source locations and stack frames"),
+    "pass": (-1.0, "passing-test markers (ignored when an error word is also present)"),
+    "noise": (-0.75, "progress and chatter (ignored when an error word is also present)"),
+    "strong-error": (0.0, "decides whether a record body counts as an error; no weight"),
+}
+
+DEFAULT_VOCAB: dict[str, list[str]] = {
+    "error": [
+        "error", "errors", "err", "fatal", "panic", "panicked", "exception", "traceback", "assert",
+        "assertion", "fail", "fails", "failed", "failure", "failures", "failing", "denied", "refused",
+        "unreachable", "timeout", "timed out", "cannot", "can't", "could not", "couldn't", "unable",
+        "not found", "no such", "missing", "invalid", "unexpected", "segfault", "segmentation fault",
+        "abort", "aborted", "killed", "oom", "out of memory", "critical", "crash", "crashed", "rejected",
+        "unhandled", "uncaught", "undefined", "null pointer", "stack overflow", "overflow", "exit code",
+        "exited with", "non-zero", "conflict", "corrupt", "corrupted", "broken", "mismatch",
+        "does not match", "not ok", "errno", "exc_info", "stacktrace", "stack trace",
+        r"/[A-Z]\w*(?:Error|Exception|Fault|Panic)\b/",  # CamelCase exception names
+        "/✗|✘|❌/", r"/^\s*E\s{2,}/", r"/FAIL(?:ED|URE|S)?\b/",
+    ],
+    "warn": [
+        "warn", "warning", "warnings", "deprecated", "deprecation", "retry", "retrying", "retried",
+        "slow", "skipped", "skip", "skipping", "xfail", "xpass", "flaky", "unstable", "ignored",
+        "pending", "todo", "fixme", "leak", "stale", "outdated", "insecure", "unused",
+        "unreachable code", r"/(?i)(?<![a-z])vulnerab\w*/", "/⚠/",
+    ],
+    "summary": [
+        "passed", "test", "tests", "total", "summary", "finished", "completed", "done", "built",
+        "compiled", "elapsed", "duration", "exit status", "result", "results", "success", "succeeded",
+        "complete", "coverage", "report", r"/(?i)(?<![a-z])ran \d+/",
+        r"/^\s*={3,}/", r"/^\s*-{3,}/", r"/^\s*#{1,3}\s/", r"/^\s*\*{3,}/",
+    ],
+    "frame": [
+        r"/^\s*at\s/", r'/^\s*File "/', r"/^\s*-->/", r"/^\s*>\s*\d+\s*\|/",
+        r"/[\w./-]+\.(?:py|ts|tsx|js|jsx|mjs|go|rs|c|cc|cpp|h|hpp|java|kt|rb|cs|swift|php|scala|ex|exs)[:(]\d+/",
+    ],
+    "pass": ["/✓|✔/", r"/\bPASS(?:ED)?\b/", r"/^\s*ok\b/", r"/\bok\s*$/"],
+    "noise": [
+        "downloading", "downloaded", "fetching", "fetched", "compiling", "installing", "installed",
+        "resolving", "resolved", "extracting", "unpacking", "progress", "collecting", "checking",
+        "building", "linking", "caching", "cached", "preparing", "processing", "pulling", "pushing",
+        "verbose", "debug", "trace", "info", "get", "head", "heartbeat", "ping", "pong", "poll",
+        "polling", "tick",
+        r"/\d+%/", r"/\.{3,}/", "/[▏▎▍▌▋▊▉█░▒▓]/", r"/\b(?:200|204|304) (?:OK|No Content|Not Modified)\b/",
+    ],
+    "strong-error": [
+        r"/(?i)\b\w*(?:error|exception)\b/", r"/(?i)\bpanic/", r"/(?i)\btraceback\b/",
+        r"/(?i)\bassert\w*\b/", r"/(?i)\bfatal\b/", r"/(?i)\bfail(?:ed|ure|s)?\b/",
+        r"/^\s*E\s{2,}/", "/✕|✗|FAIL/",
+    ],
+}
+
+
+_GLOBAL_FLAGS = re.compile(r"^\(\?([aimsux]+)\)")
+
+
+def _entry_regex(entry: str) -> str:
+    """One entry as a regex fragment that can be joined with others by '|'.
+    Leading global flags like (?i) are rewritten to a scoped group (?i:...),
+    since Python only allows global flags at the start of a whole pattern."""
+    if len(entry) >= 2 and entry.startswith("/") and entry.endswith("/"):
+        rx = entry[1:-1]
+        m = _GLOBAL_FLAGS.match(rx)
+        if m:
+            rx = f"(?{m.group(1)}:{rx[m.end():]})"
+        return rx
+    # A word or phrase: whole-word, case-insensitive (the boundary check is
+    # inside the group, so it is case-insensitive too: not inside a word).
+    return r"(?i:(?<![a-z])" + re.escape(entry) + r"(?![a-z]))"
+
+
+class Vocab:
+    """Compiled vocabulary: one regex per class, or None for an empty class."""
+
+    def __init__(self, entries: dict[str, list[str]]):
+        self.entries = entries
+        self.rx: dict[str, re.Pattern | None] = {}
+        for cls in VOCAB_CLASSES:
+            items = entries.get(cls, [])
+            self.rx[cls] = re.compile("|".join(f"(?:{_entry_regex(e)})" for e in items)) if items else None
+
+    def has(self, cls: str, text: str) -> bool:
+        rx = self.rx[cls]
+        return bool(rx and rx.search(text))
+
+
+def parse_vocab(text: str, base: dict[str, list[str]], source: str = "vocab") -> dict[str, list[str]]:
+    """Parse a vocab file on top of `base`.
+
+        # comment
+        [error]            entries below extend the built-in class
+        [error replace]    entries below replace it
+        timeout            a word or phrase (whole-word, case-insensitive)
+        /(?i)\\bfehler\\b/ a regex, used as written
+    """
+    out = {cls: list(v) for cls, v in base.items()}
+    cls = None
+    for n, raw in enumerate(text.splitlines(), 1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            parts = line[1:-1].split()
+            if not parts or parts[0] not in VOCAB_CLASSES or len(parts) > 2 or (len(parts) == 2 and parts[1] != "replace"):
+                sys.exit(f"pare: {source}:{n}: expected [class] or [class replace] with class in "
+                         f"{', '.join(VOCAB_CLASSES)}; got {line!r}")
+            cls = parts[0]
+            if len(parts) == 2:
+                out[cls] = []
+            continue
+        if cls is None:
+            sys.exit(f"pare: {source}:{n}: entry {line!r} appears before any [class] header")
+        if line.startswith("/") and line.endswith("/") and len(line) >= 2:
+            try:
+                re.compile(line[1:-1])
+            except re.error as e:
+                sys.exit(f"pare: {source}:{n}: bad regex {line!r}: {e}")
+        out[cls].append(line)
+    return out
+
+
+def dump_vocab(entries: dict[str, list[str]]) -> str:
+    lines = [
+        "# pare vocabulary. Edit and pass with --vocab FILE (or $PARE_VOCAB).",
+        "# A plain line is a word or phrase, matched whole and case-insensitively.",
+        "# A /.../ line is a regular expression used as written.",
+        "# [class] adds entries to the built-in class; [class replace] discards the",
+        "# built-in entries first. This dump uses 'replace' so it reproduces the",
+        "# defaults exactly; switch a header to plain [class] to keep the defaults",
+        "# and add to them.",
+    ]
+    for cls, (weight, desc) in VOCAB_CLASSES.items():
+        lines.append("")
+        lines.append(f"# {desc}" + (f" (weight {weight:+g})" if weight else ""))
+        lines.append(f"[{cls} replace]")
+        lines.extend(entries.get(cls, []))
+    return "\n".join(lines) + "\n"
+
+
+VOCAB = Vocab(DEFAULT_VOCAB)
 
 
 def vocab_score(text: str) -> float:
     s = 0.0
-    err = bool(ERR_RE.search(text))
+    err = VOCAB.has("error", text)
     if err:
-        s += 3.0
-    if WARN_RE.search(text):
-        s += 1.5
-    if SUMMARY_RE.search(text):
-        s += 1.0
-    if FRAME_RE.search(text):
-        s += 1.0
-    if not err and PASS_RE.search(text):
-        s -= 1.0
-    if not err and NOISE_RE.search(text):
-        s -= 0.75
+        s += VOCAB_CLASSES["error"][0]
+    if VOCAB.has("warn", text):
+        s += VOCAB_CLASSES["warn"][0]
+    if VOCAB.has("summary", text):
+        s += VOCAB_CLASSES["summary"][0]
+    if VOCAB.has("frame", text):
+        s += VOCAB_CLASSES["frame"][0]
+    if not err and VOCAB.has("pass", text):
+        s += VOCAB_CLASSES["pass"][0]
+    if not err and VOCAB.has("noise", text):
+        s += VOCAB_CLASSES["noise"][0]
     if len(text.strip()) < 4:
         s -= 1.0
     return s
@@ -333,7 +444,7 @@ def score_templates(lines: list[Line], records: list[Record], templates: list[Te
         body_err = 0.0
         rec = records[tpl.records[0]]
         for ln in lines[rec.start + 1 : rec.end]:
-            if STRONG_ERR_RE.search(ln.text):
+            if VOCAB.has("strong-error", ln.text):
                 body_err = 1.0
                 break
         vocab = head_vocab + body_err
@@ -350,11 +461,11 @@ def score_templates(lines: list[Line], records: list[Record], templates: list[Te
         block = 0.75 if avg_cont >= 2 else 0.0
         tpl.vocab = vocab
         tpl.salience = vocab + 2.0 * rarity + position + block
-        if (ERR_RE.search(tpl.text) and not PASS_RE.search(tpl.text)) or body_err:
+        if (VOCAB.has("error", tpl.text) and not VOCAB.has("pass", tpl.text)) or body_err:
             tpl.marker = "E"
-        elif WARN_RE.search(tpl.text):
+        elif VOCAB.has("warn", tpl.text):
             tpl.marker = "W"
-        elif SUMMARY_RE.search(tpl.text):
+        elif VOCAB.has("summary", tpl.text):
             tpl.marker = "S"
         else:
             tpl.marker = "."
@@ -367,7 +478,7 @@ def line_score(ln: Line, tpl: Template, head: Line, total: int) -> float:
     s = vocab_score(ln.text)
     if ln.depth > 0:
         s -= 0.25 * min(ln.depth, 4)
-        if not (PASS_RE.search(ln.text) and not ERR_RE.search(ln.text)):
+        if not (VOCAB.has("pass", ln.text) and not VOCAB.has("error", ln.text)):
             s += 0.6 * max(0.0, vocab_score(head.text))
     s += rarity_of(tpl)
     if total and ln.no / total >= 0.9:
@@ -830,8 +941,25 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--run-dir", default=None, help="directory for the raw run file (default $PARE_RUN_DIR or ~/.cache/pare/runs)")
     ap.add_argument("--run-file", default=None, help="explicit path for the raw run file")
     ap.add_argument("--no-tee", action="store_true", help="do not save the raw input")
+    ap.add_argument("--vocab", metavar="FILE", default=os.environ.get("PARE_VOCAB"),
+                    help="vocabulary file that extends or replaces the built-in error/warn/... word "
+                         "lists (default: $PARE_VOCAB); see --dump-vocab for the format")
+    ap.add_argument("--dump-vocab", action="store_true",
+                    help="print the built-in vocabulary (after applying --vocab) in file format and exit")
     ap.add_argument("--version", action="version", version=f"pare {__version__}")
     args = ap.parse_args(argv)
+
+    global VOCAB
+    if args.vocab:
+        try:
+            with open(args.vocab, encoding="utf-8") as f:
+                vocab_text = f.read()
+        except OSError as e:
+            sys.exit(f"pare: cannot read vocab file {args.vocab}: {e.strerror}")
+        VOCAB = Vocab(parse_vocab(vocab_text, DEFAULT_VOCAB, source=args.vocab))
+    if args.dump_vocab:
+        sys.stdout.write(dump_vocab(VOCAB.entries))
+        return 0
 
     data = sys.stdin.buffer.read()
     run_path = None
