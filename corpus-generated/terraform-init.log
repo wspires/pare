@@ -1,0 +1,20 @@
+Initializing the backend...
+Initializing modules...
+- api in ../modules/service
+Initializing provider plugins...
+- Finding hashicorp/random versions matching "~> 3.6"...
+- Finding hashicorp/aws versions matching "~> 5.60"...
+
+Error: Failed to query available provider packages
+
+Could not retrieve the list of available versions for provider
+hashicorp/random: could not connect to registry.terraform.io: failed to
+request discovery document: Get
+"https://registry.terraform.io/.well-known/terraform.json": Forbidden
+
+Error: Failed to query available provider packages
+
+Could not retrieve the list of available versions for provider hashicorp/aws:
+could not connect to registry.terraform.io: failed to request discovery
+document: Get "https://registry.terraform.io/.well-known/terraform.json":
+Forbidden

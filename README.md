@@ -218,6 +218,7 @@ bench/ablate.py        ablation study of the scoring heuristics
 bench/tokens.py        byte proxy vs real tokenizer counts
 bench/gen_synthetic.py generator for the seeded synthetic corpus files
 corpus/                dev corpus: *.log, *.keep, *.cmd
+corpus-generated/      real Maven, tsc, Terraform and kubectl output from small projects in src/ (a second dev corpus, not held-out)
 corpus-heldout/        protocol for the held-out corpus (empty until collected)
 docs/DESIGN.md         design notes, full results, port notes
 ```

@@ -19,6 +19,8 @@ import pare  # noqa: E402
 
 CORPUS = os.path.join(ROOT, "corpus")
 LOGS = sorted(f for f in os.listdir(CORPUS) if f.endswith(".log"))
+GENERATED = os.path.join(ROOT, "corpus-generated")
+GENERATED_LOGS = sorted(f for f in os.listdir(GENERATED) if f.endswith(".log"))
 
 
 def run(args, data: bytes) -> bytes:
@@ -239,6 +241,14 @@ def test_vocab_level_tokens_extend(tmp_path):
 @pytest.mark.parametrize("budget", [50, 150, 600, 2000])
 def test_budget_is_a_hard_limit(name, budget):
     data = open(os.path.join(CORPUS, name), "rb").read()
+    out = run(["--budget", str(budget)], data)
+    assert pare.tokens(len(out)) <= budget
+
+
+@pytest.mark.parametrize("name", GENERATED_LOGS)
+@pytest.mark.parametrize("budget", [150, 600])
+def test_budget_is_a_hard_limit_on_generated_corpus(name, budget):
+    data = open(os.path.join(GENERATED, name), "rb").read()
     out = run(["--budget", str(budget)], data)
     assert pare.tokens(len(out)) <= budget
 

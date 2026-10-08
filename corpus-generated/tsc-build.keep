@@ -1,0 +1,13 @@
+src/api/auth.ts(2,25): error TS2307: Cannot find module './session' or its corresponding type declarations.
+src/api/client.ts(15,17): error TS2339: Property 'data' does not exist on type 'ApiResult<Product>'.
+src/api/client.ts(18,53): error TS2355: A function whose declared type is neither 'undefined', 'void', nor 'any' must return a value.
+src/components/form.ts(19,23): error TS18048: 'v' is possibly 'undefined'.
+src/components/table.ts(26,17): error TS18048: 'row' is possibly 'undefined'.
+src/main.ts(9,31): error TS2580: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+src/pages/checkout.ts(22,5): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/pages/orders.ts(17,5): error TS2322: Type '"customer"' is not assignable to type 'keyof Order'.
+src/pages/orders.ts(26,73): error TS2820: Type '"placed"' is not assignable to type 'keyof Order'. Did you mean '"placedAt"'?
+src/store/cart.ts(10,42): error TS2353: Object literal may only specify known properties, and 'discount' does not exist in type 'CartLine'.
+src/store/cart.ts(25,3): error TS2375: Type '{ coupon: string | undefined; lines: CartLine[]; }' is not assignable to type 'Cart' with 'exactOptionalPropertyTypes: true'.
+src/store/index.ts(2,29): error TS2307: Cannot find module './store' or its corresponding type declarations.
+src/utils/money.ts(17,9): error TS6133: 'unused' is declared but its value is never read.

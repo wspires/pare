@@ -1,0 +1,462 @@
+
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # terraform_data.dns["api"] will be created
+  + resource "terraform_data" "dns" {
+      + id     = (known after apply)
+      + input  = {
+          + fqdn    = "api.staging.shop.example.com"
+          + targets = [
+              + (known after apply),
+              + (known after apply),
+            ]
+        }
+      + output = (known after apply)
+    }
+
+  # terraform_data.dns["cron"] will be created
+  + resource "terraform_data" "dns" {
+      + id     = (known after apply)
+      + input  = {
+          + fqdn    = "cron.staging.shop.example.com"
+          + targets = [
+              + (known after apply),
+              + (known after apply),
+            ]
+        }
+      + output = (known after apply)
+    }
+
+  # terraform_data.dns["mailer"] will be created
+  + resource "terraform_data" "dns" {
+      + id     = (known after apply)
+      + input  = {
+          + fqdn    = "mailer.staging.shop.example.com"
+          + targets = [
+              + (known after apply),
+              + (known after apply),
+            ]
+        }
+      + output = (known after apply)
+    }
+
+  # terraform_data.dns["search"] will be created
+  + resource "terraform_data" "dns" {
+      + id     = (known after apply)
+      + input  = {
+          + fqdn    = "search.staging.shop.example.com"
+          + targets = [
+              + (known after apply),
+              + (known after apply),
+            ]
+        }
+      + output = (known after apply)
+    }
+
+  # terraform_data.dns["web"] will be created
+  + resource "terraform_data" "dns" {
+      + id     = (known after apply)
+      + input  = {
+          + fqdn    = "web.staging.shop.example.com"
+          + targets = [
+              + (known after apply),
+              + (known after apply),
+            ]
+        }
+      + output = (known after apply)
+    }
+
+  # terraform_data.dns["worker"] will be created
+  + resource "terraform_data" "dns" {
+      + id     = (known after apply)
+      + input  = {
+          + fqdn    = "worker.staging.shop.example.com"
+          + targets = [
+              + (known after apply),
+              + (known after apply),
+            ]
+        }
+      + output = (known after apply)
+    }
+
+  # terraform_data.network["eu-central-1"] will be created
+  + resource "terraform_data" "network" {
+      + id     = (known after apply)
+      + input  = {
+          + cidr   = "10.0.0.0/16"
+          + name   = "shop-staging-eu-central-1"
+          + region = "eu-central-1"
+        }
+      + output = (known after apply)
+    }
+
+  # terraform_data.network["us-east-1"] will be created
+  + resource "terraform_data" "network" {
+      + id     = (known after apply)
+      + input  = {
+          + cidr   = "10.1.0.0/16"
+          + name   = "shop-staging-us-east-1"
+          + region = "us-east-1"
+        }
+      + output = (known after apply)
+    }
+
+  # terraform_data.service["eu-central-1/api"] will be created
+  + resource "terraform_data" "service" {
+      + id               = (known after apply)
+      + input            = {
+          + cpu      = 256
+          + image    = "ghcr.io/example/shop-api:1.4.0"
+          + memory   = 512
+          + name     = "shop-staging-api"
+          + network  = (known after apply)
+          + port     = 8080
+          + region   = "eu-central-1"
+          + replicas = 3
+        }
+      + output           = (known after apply)
+      + triggers_replace = [
+          + "ghcr.io/example/shop-api:1.4.0",
+        ]
+    }
+
+  # terraform_data.service["eu-central-1/cron"] will be created
+  + resource "terraform_data" "service" {
+      + id               = (known after apply)
+      + input            = {
+          + cpu      = 256
+          + image    = "ghcr.io/example/shop-cron:1.4.0"
+          + memory   = 512
+          + name     = "shop-staging-cron"
+          + network  = (known after apply)
+          + port     = 0
+          + region   = "eu-central-1"
+          + replicas = 1
+        }
+      + output           = (known after apply)
+      + triggers_replace = [
+          + "ghcr.io/example/shop-cron:1.4.0",
+        ]
+    }
+
+  # terraform_data.service["eu-central-1/mailer"] will be created
+  + resource "terraform_data" "service" {
+      + id               = (known after apply)
+      + input            = {
+          + cpu      = 256
+          + image    = "ghcr.io/example/shop-mailer:0.9.7"
+          + memory   = 512
+          + name     = "shop-staging-mailer"
+          + network  = (known after apply)
+          + port     = 2525
+          + region   = "eu-central-1"
+          + replicas = 1
+        }
+      + output           = (known after apply)
+      + triggers_replace = [
+          + "ghcr.io/example/shop-mailer:0.9.7",
+        ]
+    }
+
+  # terraform_data.service["eu-central-1/search"] will be created
+  + resource "terraform_data" "service" {
+      + id               = (known after apply)
+      + input            = {
+          + cpu      = 1024
+          + image    = "ghcr.io/example/shop-search:2.0.0-rc1"
+          + memory   = 4096
+          + name     = "shop-staging-search"
+          + network  = (known after apply)
+          + port     = 9200
+          + region   = "eu-central-1"
+          + replicas = 2
+        }
+      + output           = (known after apply)
+      + triggers_replace = [
+          + "ghcr.io/example/shop-search:2.0.0-rc1",
+        ]
+    }
+
+  # terraform_data.service["eu-central-1/web"] will be created
+  + resource "terraform_data" "service" {
+      + id               = (known after apply)
+      + input            = {
+          + cpu      = 128
+          + image    = "ghcr.io/example/shop-web:0.3.1"
+          + memory   = 512
+          + name     = "shop-staging-web"
+          + network  = (known after apply)
+          + port     = 3000
+          + region   = "eu-central-1"
+          + replicas = 2
+        }
+      + output           = (known after apply)
+      + triggers_replace = [
+          + "ghcr.io/example/shop-web:0.3.1",
+        ]
+    }
+
+  # terraform_data.service["eu-central-1/worker"] will be created
+  + resource "terraform_data" "service" {
+      + id               = (known after apply)
+      + input            = {
+          + cpu      = 256
+          + image    = "ghcr.io/example/shop-worker:1.4.0"
+          + memory   = 2048
+          + name     = "shop-staging-worker"
+          + network  = (known after apply)
+          + port     = 9000
+          + region   = "eu-central-1"
+          + replicas = 1
+        }
+      + output           = (known after apply)
+      + triggers_replace = [
+          + "ghcr.io/example/shop-worker:1.4.0",
+        ]
+    }
+
+  # terraform_data.service["us-east-1/api"] will be created
+  + resource "terraform_data" "service" {
+      + id               = (known after apply)
+      + input            = {
+          + cpu      = 256
+          + image    = "ghcr.io/example/shop-api:1.4.0"
+          + memory   = 512
+          + name     = "shop-staging-api"
+          + network  = (known after apply)
+          + port     = 8080
+          + region   = "us-east-1"
+          + replicas = 3
+        }
+      + output           = (known after apply)
+      + triggers_replace = [
+          + "ghcr.io/example/shop-api:1.4.0",
+        ]
+    }
+
+  # terraform_data.service["us-east-1/cron"] will be created
+  + resource "terraform_data" "service" {
+      + id               = (known after apply)
+      + input            = {
+          + cpu      = 256
+          + image    = "ghcr.io/example/shop-cron:1.4.0"
+          + memory   = 512
+          + name     = "shop-staging-cron"
+          + network  = (known after apply)
+          + port     = 0
+          + region   = "us-east-1"
+          + replicas = 1
+        }
+      + output           = (known after apply)
+      + triggers_replace = [
+          + "ghcr.io/example/shop-cron:1.4.0",
+        ]
+    }
+
+  # terraform_data.service["us-east-1/mailer"] will be created
+  + resource "terraform_data" "service" {
+      + id               = (known after apply)
+      + input            = {
+          + cpu      = 256
+          + image    = "ghcr.io/example/shop-mailer:0.9.7"
+          + memory   = 512
+          + name     = "shop-staging-mailer"
+          + network  = (known after apply)
+          + port     = 2525
+          + region   = "us-east-1"
+          + replicas = 1
+        }
+      + output           = (known after apply)
+      + triggers_replace = [
+          + "ghcr.io/example/shop-mailer:0.9.7",
+        ]
+    }
+
+  # terraform_data.service["us-east-1/search"] will be created
+  + resource "terraform_data" "service" {
+      + id               = (known after apply)
+      + input            = {
+          + cpu      = 1024
+          + image    = "ghcr.io/example/shop-search:2.0.0-rc1"
+          + memory   = 4096
+          + name     = "shop-staging-search"
+          + network  = (known after apply)
+          + port     = 9200
+          + region   = "us-east-1"
+          + replicas = 2
+        }
+      + output           = (known after apply)
+      + triggers_replace = [
+          + "ghcr.io/example/shop-search:2.0.0-rc1",
+        ]
+    }
+
+  # terraform_data.service["us-east-1/web"] will be created
+  + resource "terraform_data" "service" {
+      + id               = (known after apply)
+      + input            = {
+          + cpu      = 128
+          + image    = "ghcr.io/example/shop-web:0.3.1"
+          + memory   = 512
+          + name     = "shop-staging-web"
+          + network  = (known after apply)
+          + port     = 3000
+          + region   = "us-east-1"
+          + replicas = 2
+        }
+      + output           = (known after apply)
+      + triggers_replace = [
+          + "ghcr.io/example/shop-web:0.3.1",
+        ]
+    }
+
+  # terraform_data.service["us-east-1/worker"] will be created
+  + resource "terraform_data" "service" {
+      + id               = (known after apply)
+      + input            = {
+          + cpu      = 256
+          + image    = "ghcr.io/example/shop-worker:1.4.0"
+          + memory   = 2048
+          + name     = "shop-staging-worker"
+          + network  = (known after apply)
+          + port     = 9000
+          + region   = "us-east-1"
+          + replicas = 1
+        }
+      + output           = (known after apply)
+      + triggers_replace = [
+          + "ghcr.io/example/shop-worker:1.4.0",
+        ]
+    }
+
+Plan: 20 to add, 0 to change, 0 to destroy.
+
+Changes to Outputs:
+  + capacity    = {
+      + cpu    = 7680
+      + memory = 27648
+    }
+  + deployments = {
+      + "eu-central-1/api"    = (known after apply)
+      + "eu-central-1/cron"   = (known after apply)
+      + "eu-central-1/mailer" = (known after apply)
+      + "eu-central-1/search" = (known after apply)
+      + "eu-central-1/web"    = (known after apply)
+      + "eu-central-1/worker" = (known after apply)
+      + "us-east-1/api"       = (known after apply)
+      + "us-east-1/cron"      = (known after apply)
+      + "us-east-1/mailer"    = (known after apply)
+      + "us-east-1/search"    = (known after apply)
+      + "us-east-1/web"       = (known after apply)
+      + "us-east-1/worker"    = (known after apply)
+    }
+  + dns         = {
+      + api    = (known after apply)
+      + cron   = (known after apply)
+      + mailer = (known after apply)
+      + search = (known after apply)
+      + web    = (known after apply)
+      + worker = (known after apply)
+    }
+terraform_data.network["us-east-1"]: Creating...
+terraform_data.network["eu-central-1"]: Creating...
+terraform_data.network["us-east-1"]: Creation complete after 0s [id=920e10b2-2e24-2fd7-d62a-8c9a43e5d6cd]
+terraform_data.network["eu-central-1"]: Creation complete after 0s [id=683e0638-59ce-4114-bd43-b768cf938cc5]
+terraform_data.service["us-east-1/cron"]: Creating...
+terraform_data.service["eu-central-1/web"]: Creating...
+terraform_data.service["us-east-1/worker"]: Creating...
+terraform_data.service["us-east-1/cron"]: Creation complete after 0s [id=7bc5ca2e-543b-ca70-f50b-ab527f520072]
+terraform_data.service["us-east-1/api"]: Creating...
+terraform_data.service["eu-central-1/cron"]: Creating...
+terraform_data.service["eu-central-1/api"]: Creating...
+terraform_data.service["eu-central-1/search"]: Creating...
+terraform_data.service["eu-central-1/mailer"]: Creating...
+terraform_data.service["eu-central-1/web"]: Creation complete after 0s [id=c14eefc3-28b7-9b54-7da2-fb93bb503191]
+terraform_data.service["us-east-1/web"]: Creating...
+terraform_data.service["us-east-1/search"]: Creating...
+terraform_data.service["us-east-1/mailer"]: Creating...
+terraform_data.service["us-east-1/worker"]: Creation complete after 0s [id=b6b0c6ce-55c8-44a1-1a7c-5e00007f57ac]
+terraform_data.service["eu-central-1/cron"]: Creation complete after 0s [id=853a283d-526a-b62d-4bf2-fab45d1d5eb0]
+terraform_data.service["us-east-1/api"]: Creation complete after 0s [id=928a8f1d-4eee-f2cc-2e6e-cdc43583b486]
+terraform_data.service["eu-central-1/api"]: Creation complete after 0s [id=fa54426d-f3a1-1d7b-9e17-fd8093a61bd1]
+terraform_data.service["eu-central-1/worker"]: Creating...
+terraform_data.service["us-east-1/mailer"]: Creation complete after 0s [id=ea5a4b19-0dbe-b0ea-f5ec-7da8957e5fb8]
+terraform_data.service["eu-central-1/mailer"]: Creation complete after 0s [id=7cff5556-c553-1afa-ab13-bed61569f19d]
+terraform_data.service["eu-central-1/search"]: Creation complete after 0s [id=57232c73-db46-6f17-d5ea-e3284fe6aa73]
+terraform_data.service["us-east-1/search"]: Creation complete after 0s [id=deb94d01-73db-7192-2774-884a31ab1551]
+terraform_data.service["us-east-1/web"]: Creation complete after 0s [id=a9de3536-e3d4-e23e-6621-4568534f2f39]
+terraform_data.service["eu-central-1/worker"]: Creation complete after 0s [id=414b6d41-3bf0-2737-5bbd-e002f3b31494]
+terraform_data.dns["api"]: Creating...
+terraform_data.dns["search"]: Creating...
+terraform_data.dns["worker"]: Creating...
+terraform_data.dns["cron"]: Creating...
+terraform_data.dns["mailer"]: Creating...
+terraform_data.dns["api"]: Creation complete after 0s [id=c3c6c07c-bc2d-6deb-6f0d-abbb8c13218d]
+terraform_data.dns["web"]: Creating...
+terraform_data.dns["cron"]: Creation complete after 0s [id=120e1f23-e0c9-890a-5527-02c59b43c95f]
+terraform_data.dns["mailer"]: Creation complete after 0s [id=86824245-cf1d-058f-fa5b-be64af76ce95]
+terraform_data.dns["web"]: Creation complete after 0s [id=639b634c-9c5b-263d-fcdd-ae4da0dba7e1]
+terraform_data.dns["search"]: Creation complete after 0s [id=92eef1cd-c1f4-d2d0-a1e9-8d0c4503748b]
+terraform_data.dns["worker"]: Creation complete after 0s [id=4f39916a-38b7-341a-df75-dc81c0e67f50]
+
+Warning: Check block assertion failed
+
+  on main.tf line 85, in check "capacity":
+  85:     condition     = local.total_cpu <= 4096
+    ├────────────────
+    │ local.total_cpu is 7680
+
+total cpu 7680 exceeds the staging quota of 4096
+
+Warning: Check block assertion failed
+
+  on main.tf line 92, in check "release_candidates":
+  92:     condition     = length([for s in var.services : s if can(regex("-rc", s.image))]) == 0
+    ├────────────────
+    │ var.services is map of object with 6 elements
+
+release-candidate images are deployed: ghcr.io/example/shop-search:2.0.0-rc1
+
+Warning: Check block assertion failed
+
+  on main.tf line 99, in check "cron_port":
+  99:     condition     = alltrue([for s in var.services : s.port > 0])
+    ├────────────────
+    │ var.services is map of object with 6 elements
+
+every service must expose a port
+
+Apply complete! Resources: 20 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+capacity = {
+  "cpu" = 7680
+  "memory" = 27648
+}
+deployments = {
+  "eu-central-1/api" = "shop-staging-api"
+  "eu-central-1/cron" = "shop-staging-cron"
+  "eu-central-1/mailer" = "shop-staging-mailer"
+  "eu-central-1/search" = "shop-staging-search"
+  "eu-central-1/web" = "shop-staging-web"
+  "eu-central-1/worker" = "shop-staging-worker"
+  "us-east-1/api" = "shop-staging-api"
+  "us-east-1/cron" = "shop-staging-cron"
+  "us-east-1/mailer" = "shop-staging-mailer"
+  "us-east-1/search" = "shop-staging-search"
+  "us-east-1/web" = "shop-staging-web"
+  "us-east-1/worker" = "shop-staging-worker"
+}
+dns = {
+  "api" = "api.staging.shop.example.com"
+  "cron" = "cron.staging.shop.example.com"
+  "mailer" = "mailer.staging.shop.example.com"
+  "search" = "search.staging.shop.example.com"
+  "web" = "web.staging.shop.example.com"
+  "worker" = "worker.staging.shop.example.com"
+}

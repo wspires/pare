@@ -1,0 +1,4 @@
+Error: Failed to query available provider packages
+hashicorp/random: could not connect to registry.terraform.io
+hashicorp/aws:
+Forbidden

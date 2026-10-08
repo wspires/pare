@@ -1,0 +1,8 @@
+Error: Reference to undeclared input variable
+on main.tf line 23, in locals:
+An input variable with the name "tags" has not been declared.
+on main.tf line 25, in locals:
+An input variable with the name "subnet_ids" has not been declared.
+Error: Too many function arguments
+on main.tf line 26, in locals:
+Function "formatdate" expects only 2 argument(s).

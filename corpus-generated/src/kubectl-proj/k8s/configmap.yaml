@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shop-api-config
+  namespace: shop
+data:
+  LOG_LEVEL: info
+  DB_HOST: db-primary.internal
+  DB_PORT: "5432"
+  CACHE_TTL: 300

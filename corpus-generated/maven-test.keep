@@ -1,0 +1,9 @@
+[ERROR] Tests run: 7, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.197 s <<< FAILURE! -- in com.example.core.PricingTest
+org.opentest4j.AssertionFailedError: expected: <$1,250.00> but was: <$1250.00>
+at com.example.core.PricingTest.formatsThousandsSeparator(PricingTest.java:30)
+[ERROR] com.example.core.CartTest.findMissingSkuReturnsNullNotThrows -- Time elapsed: 0.002 s <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "com.example.core.LineItem.qty()" because the return value of "com.example.core.Cart.find(String)" is null
+at com.example.core.CartTest.findMissingSkuReturnsNullNotThrows(CartTest.java:37)
+[ERROR] Tests run: 15, Failures: 1, Errors: 1, Skipped: 0
+[INFO] BUILD FAILURE
+on project shop-core: There are test failures.

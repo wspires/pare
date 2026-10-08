@@ -1,0 +1,9 @@
+Plan: 20 to add, 0 to change, 0 to destroy.
+Warning: Check block assertion failed
+on main.tf line 85, in check "capacity":
+total cpu 7680 exceeds the staging quota of 4096
+on main.tf line 92, in check "release_candidates":
+release-candidate images are deployed: ghcr.io/example/shop-search:2.0.0-rc1
+on main.tf line 99, in check "cron_port":
+every service must expose a port
+Apply complete! Resources: 20 added, 0 changed, 0 destroyed.

@@ -529,6 +529,49 @@ come from:
    with sqz and with tidyout in the agent's context, reporting task success
    and tokens side by side.
 
+### Generated corpus: real tools, chosen failures
+
+`corpus-generated/` holds output captured from real Maven, tsc, Terraform
+and kubectl runs on small projects written to fail (sources in its `src/`,
+provenance in its README). The tools and their formatting are genuine; the
+failures and the keep lists are not blind, so this is a second development
+corpus for formats `corpus/` lacks, and it does not count toward the
+held-out set. Nothing was tuned on it. Pare, frozen, scores:
+
+| case | in tok | budget 2000: out, recall | budget 600: out, recall |
+|---|---:|---|---|
+| maven-compile (cold cache, 495 lines) | 22,628 | 1,857, 8/10 | 598, 6/10 |
+| maven-test (Surefire, 128 lines) | 3,763 | 1,998, 9/9 | 596, 3/9 |
+| tsc-build (35 errors, 49 lines) | 1,614 | pass-through, 13/13 | 578, 8/13 |
+| terraform-init (20 lines) | 287 | pass-through, 4/4 | pass-through, 4/4 |
+| terraform-validate (37 lines) | 473 | pass-through, 8/8 | pass-through, 8/8 |
+| terraform-apply (plan + apply, 462 lines) | 5,922 | 1,401, 9/9 | 596, 2/9 |
+
+Observations, recorded rather than fixed:
+
+- **maven-compile at 2000** lists all 43 templates and runs out of budget
+  before any selected lines: the second and third compile errors share
+  one template (`incompatible types: <*> cannot be converted to <*>`, ×4
+  because Maven prints the block twice), so only the exemplar is shown and
+  the `[22,16]` sibling is in the ledger. The reactor summary's
+  `shop-api ... FAILURE` line is a plain `[INFO]` line whose only signal
+  is the word FAILURE inside a dotted leader; it ranked below the download
+  templates' entries. A cap on template entries when the table alone
+  would exhaust the budget is the obvious candidate, to be tested on the
+  held-out set.
+- **maven-test at 600** keeps the Surefire results block (both failure
+  summaries with file:line) but not the stack-trace lines; 600 real tokens
+  is below the skeleton plus nine keep lines here.
+- **terraform-apply at 600** keeps the `Warning: Check block assertion
+  failed` template but loses the three assertion messages and the plan and
+  apply summary lines; the plan diff supplies 20 near-identical resource
+  blocks that the template table spends the budget on.
+- Surefire's `[ERROR] Tests run: … <<< FAILURE!` lines, glog-style
+  `E1008 19:43:51 …` lines from kubectl, Terraform's `Error:` /
+  `Warning:` blocks with `on main.tf line N` context, and tsc's indented
+  continuation messages all segment and level-detect as intended; no
+  regex change was needed for these four formats.
+
 ## Performance
 
 About 1.7 s on the 750 KB / 17,832-line CI log. drain3 is 0.35 s of that;

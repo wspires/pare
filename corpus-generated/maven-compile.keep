@@ -1,0 +1,10 @@
+[ERROR] COMPILATION ERROR
+/home/dev/proj/api/src/main/java/com/example/api/CartController.java:[17,40] cannot find symbol
+symbol:   method quantity()
+location: variable item of type com.example.core.LineItem
+/home/dev/proj/api/src/main/java/com/example/api/CartController.java:[21,29] incompatible types: int cannot be converted to java.lang.String
+/home/dev/proj/api/src/main/java/com/example/api/CartController.java:[22,16] incompatible types: java.lang.String cannot be converted to int
+[INFO] shop-api ........................................... FAILURE
+[INFO] BUILD FAILURE
+on project shop-api: Compilation failure
+mvn <args> -rf :shop-api

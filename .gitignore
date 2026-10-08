@@ -7,3 +7,9 @@ bench/results*.json
 build/
 dist/
 *.egg-info/
+# corpus-generated/src: build outputs of the capture projects
+target/
+node_modules/
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate*

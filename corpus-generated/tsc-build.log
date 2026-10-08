@@ -1,0 +1,49 @@
+
+> shop-web@0.3.1 build
+> tsc -p tsconfig.json
+
+src/api/auth.ts(2,25): error TS2307: Cannot find module './session' or its corresponding type declarations.
+src/api/client.ts(15,17): error TS2339: Property 'data' does not exist on type 'ApiResult<Product>'.
+  Property 'data' does not exist on type '{ ok: false; error: string; }'.
+src/api/client.ts(18,53): error TS2355: A function whose declared type is neither 'undefined', 'void', nor 'any' must return a value.
+src/components/form.ts(19,23): error TS18048: 'v' is possibly 'undefined'.
+src/components/form.ts(25,33): error TS18048: 'f.options' is possibly 'undefined'.
+src/components/form.ts(25,52): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/components/form.ts(26,53): error TS18048: 'f.options' is possibly 'undefined'.
+src/components/form.ts(34,17): error TS2538: Type 'undefined' cannot be used as an index type.
+src/components/form.ts(40,5): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/components/form.ts(40,41): error TS18048: 'f.options' is possibly 'undefined'.
+src/components/table.ts(26,17): error TS18048: 'row' is possibly 'undefined'.
+src/components/table.ts(27,34): error TS2345: Argument of type 'T | undefined' is not assignable to parameter of type 'T'.
+  'T' could be instantiated with an arbitrary type which could be unrelated to 'T | undefined'.
+src/components/table.ts(31,41): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/components/table.ts(37,14): error TS2532: Object is possibly 'undefined'.
+src/components/table.ts(37,31): error TS2532: Object is possibly 'undefined'.
+src/main.ts(7,38): error TS2366: Function lacks ending return statement and return type does not include 'undefined'.
+src/main.ts(9,31): error TS2580: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+src/main.ts(9,54): error TS2580: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+src/main.ts(24,6): error TS2580: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+src/main.ts(24,44): error TS2580: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+src/pages/checkout.ts(22,5): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/pages/checkout.ts(22,26): error TS2538: Type 'undefined' cannot be used as an index type.
+src/pages/checkout.ts(31,20): error TS18048: 'first' is possibly 'undefined'.
+src/pages/checkout.ts(32,105): error TS18048: 'first' is possibly 'undefined'.
+src/pages/checkout.ts(36,3): error TS2322: Type 'string | undefined' is not assignable to type '"US" | "DE" | "FR"'.
+  Type 'undefined' is not assignable to type '"US" | "DE" | "FR"'.
+src/pages/orders.ts(17,5): error TS2322: Type '"customer"' is not assignable to type 'keyof Order'.
+src/pages/orders.ts(26,73): error TS2820: Type '"placed"' is not assignable to type 'keyof Order'. Did you mean '"placedAt"'?
+src/pages/orders.ts(29,44): error TS2366: Function lacks ending return statement and return type does not include 'undefined'.
+src/pages/orders.ts(41,3): error TS2322: Type 'Order | undefined' is not assignable to type 'Order'.
+  Type 'undefined' is not assignable to type 'Order'.
+src/store/cart.ts(10,42): error TS2353: Object literal may only specify known properties, and 'discount' does not exist in type 'CartLine'.
+src/store/cart.ts(21,57): error TS2532: Object is possibly 'undefined'.
+src/store/cart.ts(25,3): error TS2375: Type '{ coupon: string | undefined; lines: CartLine[]; }' is not assignable to type 'Cart' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'coupon' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/store/index.ts(2,29): error TS2307: Cannot find module './store' or its corresponding type declarations.
+src/utils/money.ts(11,17): error TS2532: Object is possibly 'undefined'.
+src/utils/money.ts(17,9): error TS6133: 'unused' is declared but its value is never read.

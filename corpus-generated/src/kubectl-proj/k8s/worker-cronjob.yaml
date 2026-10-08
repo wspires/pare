@@ -1,0 +1,16 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: shop-reindex
+  namespace: shop
+spec:
+  schedule: "*/15 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: reindex
+              image: ghcr.io/example/shop-worker:1.4.0
+              args: ["reindex", "--all"]
