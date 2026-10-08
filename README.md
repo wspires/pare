@@ -57,31 +57,40 @@ What it does, in order:
    multi-line records (tracebacks).
 6. **Allocate** `--budget` tokens (`bytes / 4`):
    - a head and a tail window (`--head 5`, `--tail 10`, at most 30 % of the
-     budget). Lines of templates with 20 or more records, and continuation
-     lines of records 20 or more lines long, are skipped inside the windows,
-     since the table already stands for them; the first and last lines
-     always stay;
+     budget; the head shrinks to 3 below 1,000 tokens). Lines of templates
+     with 5 or more records, and continuation lines of records 20 or more
+     lines long, are skipped inside the windows, since the table already
+     stands for them; the first and last lines always stay;
    - then one priority queue for template entries and raw lines, on the
      same salience scale. A template entry (count, marker, exemplar head
      line) competes at its salience plus a small bonus, so every template
      is listed once if the budget allows, highest salience first; a raw
      line competes at its own score: its vocabulary, a share of its record
-     head's vocabulary, template rarity, position, a bonus for being the
-     first occurrence of its template, and a bonus for continuing a record
-     whose head is already on screen. So a high-salience exception line
-     beats a low-salience singleton template, and a warning template beats
-     the sixth frame of a trace. Lines that land in a placed template's
-     exemplar record are rendered under it as its body (the traceback, the
-     compiler snippet); the rest go to "selected lines";
-   - diminishing returns keep repetition out: a line with the same masked
-     shape and severity as one already shown is worth less each time, more
-     gently when it is a distinct fact (an error-level record head, a source
-     location) and fully when it is an exact repeat; a record head whose
-     tokens are mostly contained in a shown line is skipped; a very long
-     record yields its lines with decaying returns after eight; and lines
-     under a salience floor never pad the output. An exemplar the head or
-     tail window already prints is referenced, not repeated, and a rare
-     line that restates one already on screen is left to the ledger;
+     head's vocabulary, template rarity, position (the start and end zones
+     are bounded in lines, since "the last 10 %" of a 17,000-line log is
+     nothing special), a bonus for being the first occurrence of its
+     template, a bonus for continuing a record whose head is already on
+     screen, a bonus for being the first source location after an error
+     line in its record (where the failure is, as opposed to how it got
+     there), and a mild value-per-byte factor so a 180-byte advice line
+     with a URL does not outrank a 50-byte exception line. So a
+     high-salience exception line beats a low-salience singleton template,
+     and a warning template beats the sixth frame of a trace. Lines that
+     land in a placed template's exemplar record are rendered under it as
+     its body (the traceback, the compiler snippet); the rest go to
+     "selected lines";
+   - diminishing returns keep repetition out: a record head counts as "one
+     of these" by its drain template and severity (so two pods' readiness
+     warnings are one shape), a continuation line by its masked shape; each
+     repeat is worth less, more gently when it is a distinct fact (an
+     error-level record head, a source location) and fully when it is an
+     exact repeat; a one-line record whose tokens are mostly contained in a
+     shown line, or a continuation line that is a pure token subset of one,
+     is skipped; a very long record yields its lines with decaying returns
+     after eight; and lines under a salience floor never pad the output.
+     An exemplar the head or tail window already prints is referenced, not
+     repeated, and a rare one-line record that restates one already on
+     screen is left to the ledger;
    - the per-item allowances are conservative, so a second pass re-offers
      what did not fit against the measured slack, and a final loop sheds
      content until the rendering fits. The budget is a hard limit;
@@ -154,8 +163,8 @@ organised as classes with fixed weights:
 | `warn` | +1.5 | warning, deprecated, retry, skipped, flaky, … |
 | `summary` | +1 | passed, total, finished, `====` rules, … |
 | `frame` | +1 | stack frames and `file.ext:line` locations |
-| `pass` | −1 | ✓, PASS, ok (ignored when the line also has an error word) |
-| `noise` | −0.75 | downloading, compiling, debug, progress bars, … (same) |
+| `pass` | −1 | ✓, PASS, ok: structural, so words in a test name (`✓ throws on invalid`) do not count |
+| `noise` | −0.75 | downloading, compiling, debug, progress bars, … (ignored when the line also has an error word) |
 | `strong-error` | — | decides whether a record *body* makes its template an error |
 | `level-fatal` … `level-debug` | +4 … −1 | plain level tokens for the structural detection above |
 
@@ -213,7 +222,16 @@ python3 -m venv .venv && .venv/bin/pip install -r proto/requirements.txt -r benc
 
 The runner looks for `sqz` and `tidyout` in `.venv/bin` and then on `PATH`,
 and runs pare with `.venv/bin/python` when that exists, else `uv run`.
-Missing tools are reported as `n/a` rather than failing the run.
+Missing tools are reported as `n/a` rather than failing the run. pare is
+run with `--no-tee` so the run-file path, which is part of its output, does
+not make the token counts depend on the machine's temp directory (macOS
+puts it under `/var/folders/…`, about 45 bytes longer than `/tmp`).
+
+On macOS, without a repo venv: `uv tool install tidyout-cli` (or `pipx
+install tidyout-cli`) puts `tidyout` on `PATH`; for sqz, its README offers
+`brew install ojuschugh1/sqz/sqz`, `npm i -g sqz-cli` or
+`cargo install sqz-cli`. The `pip install sqz` wrapper downloads a pinned
+0.1.0 binary on first run, so prefer one of the other three.
 
 For each `corpus/<name>.log`, `<name>.keep` lists lines that must survive
 (a line survives if its stripped text is a substring of the tool's output)
@@ -236,36 +254,36 @@ CI log, almost all of it in drain3.
 
 | case | tool | in tok | out tok | ratio | recall |
 |---|---|---:|---:|---:|---:|
-| cargo-build | pare | 945 | 973 | 103.0% | 8/8 |
+| cargo-build | pare | 945 | 964 | 102.0% | 8/8 |
 | cargo-build | sqz | 945 | 763 | 80.7% | 4/8 |
 | cargo-build | tidyout | 945 | 697 | 73.8% | 8/8 |
-| ci-pipeline | pare | 187524 | 1998 | 1.1% | 15/15 |
+| ci-pipeline | pare | 187524 | 1980 | 1.1% | 15/15 |
 | ci-pipeline | sqz | 187524 | 112882 | 60.2% | 7/15 |
 | ci-pipeline | tidyout | 187524 | 187543 | 100.0% | 15/15 |
-| go-test | pare | 2212 | 731 | 33.0% | 11/11 |
+| go-test | pare | 2212 | 668 | 30.2% | 11/11 |
 | go-test | sqz | 2212 | 2212 | 100.0% | 11/11 |
 | go-test | tidyout | 2212 | 2230 | 100.8% | 11/11 |
-| jest-fail | pare | 4396 | 867 | 19.7% | 10/10 |
+| jest-fail | pare | 4396 | 855 | 19.4% | 10/10 |
 | jest-fail | sqz | 4396 | 2099 | 47.7% | 2/10 |
 | jest-fail | tidyout | 4396 | 4402 | 100.1% | 10/10 |
-| make-build | pare | 2318 | 953 | 41.1% | 7/7 |
+| make-build | pare | 2318 | 821 | 35.4% | 7/7 |
 | make-build | sqz | 2318 | 990 | 42.7% | 1/7 |
 | make-build | tidyout | 2318 | 2336 | 100.8% | 7/7 |
-| npm-install | pare | 5459 | 518 | 9.5% | 2/2 |
+| npm-install | pare | 5459 | 333 | 6.1% | 2/2 |
 | npm-install | sqz | 5459 | 4902 | 89.8% | 2/2 |
 | npm-install | tidyout | 5459 | 5477 | 100.3% | 2/2 |
-| pytest-fail | pare | 4762 | 1667 | 35.0% | 11/11 |
+| pytest-fail | pare | 4762 | 1352 | 28.4% | 11/11 |
 | pytest-fail | sqz | 4762 | 401 | 8.4% | 8/11 |
 | pytest-fail | tidyout | 4762 | 1483 | 31.1% | 11/11 |
-| server-outage | pare | 133851 | 1056 | 0.8% | 9/9 |
+| server-outage | pare | 133851 | 909 | 0.7% | 9/9 |
 | server-outage | sqz | 133851 | 63390 | 47.4% | 5/9 |
 | server-outage | tidyout | 133851 | 1388 | 1.0% | 1/9 |
 
 | tool | cases | in tok | out tok | ratio | recall | min recall |
 |---|---:|---:|---:|---:|---:|---:|
 | raw | 8 | 341467 | 341467 | 100.0% | 100% | 100% |
-| pare | 8 | 341467 | 8763 | 2.6% | 100% | 100% |
-| sqz | 8 | 341467 | 187637 | 55.0% | 55% | 14% |
+| pare | 8 | 341467 | 7882 | 2.3% | 100% | 100% |
+| sqz | 8 | 341467 | 187634 | 54.9% | 55% | 14% |
 | tidyout | 8 | 341467 | 205556 | 60.2% | 89% | 11% |
 
 ### budget 600
@@ -273,19 +291,22 @@ CI log, almost all of it in drain3.
 | tool | cases | in tok | out tok | ratio | recall | min recall |
 |---|---:|---:|---:|---:|---:|---:|
 | raw | 8 | 341467 | 341467 | 100.0% | 100% | 100% |
-| pare | 8 | 341467 | 4619 | 1.4% | 90% | 53% |
-| sqz | 8 | 341467 | 187637 | 55.0% | 55% | 14% |
+| pare | 8 | 341467 | 4416 | 1.3% | 97% | 87% |
+| sqz | 8 | 341467 | 187639 | 55.0% | 55% | 14% |
 | tidyout | 8 | 341467 | 205556 | 60.2% | 89% | 11% |
 
 At 600 the seven smaller files keep every must-survive line, and each
-output lands within a few tokens of the budget (591 to 600) rather than
-leaving slack unused. The CI log keeps 8 of 15: its keep list spans four
+output lands within a few tokens of the budget (588 to 595) rather than
+leaving slack unused. The CI log keeps 13 of 15: its keep list spans four
 failing sections (webpack, Jest, docker, the rollout), and the fifteen
 lines alone are about 1,300 bytes of a 2,400-byte budget whose skeleton
-(header, windows, ledger, run path) takes 900. What survives there is the
-rollout failure, the webpack error, the Jest totals and the exit code;
-what goes is the per-test Jest detail. At 2000 all fifteen survive in
-1.1 % of the input.
+(header, windows, ledger) takes about 800. The two that go are the
+`at file:line` locations of two of the four Jest failures; the rollout
+failure, the webpack error and warning, the four Jest failure messages,
+the totals, the npm summary and the exit code all survive. Shifting the
+weights to fit those two frames pushes out the `TypeError` message
+instead, so the budget there is saturated rather than misallocated. At
+2000 all fifteen survive in 1.1 % of the input.
 
 Notes on reading this:
 
@@ -320,8 +341,8 @@ Notes on reading this:
 
   | `--max-templates` | out tok | recall | min recall |
   |---|---:|---:|---:|
-  | 0 (all that fit) | 4,619 | 90% | 53% |
-  | 6 | 4,615 | 84% | 33% |
+  | 0 (all that fit) | 4,416 | 97% | 87% |
+  | 6 | 4,354 | 90% | 71% |
 - The cargo log (945 tokens) fits the budget, so pare passes it through with
   a two-line header; it never makes small inputs bigger than a fixed overhead.
 

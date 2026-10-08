@@ -81,7 +81,9 @@ class Pare(Tool):
     def run(self, log_path, cmd, budget, work):
         with open(log_path, "rb") as f:
             p = subprocess.run(
-                pare_cmd() + ["--budget", str(budget), "--run-dir", os.path.join(work, "runs")] + self.extra_args,
+                # --no-tee: the run-file path is part of pare's output, and temp
+                # paths differ in length between machines (macOS /var/folders/...).
+                pare_cmd() + ["--budget", str(budget), "--no-tee"] + self.extra_args,
                 stdin=f, capture_output=True,
             )
         if p.returncode != 0:

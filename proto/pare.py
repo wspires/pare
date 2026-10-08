@@ -48,6 +48,7 @@ except ModuleNotFoundError:
     )
 
 __version__ = "0.1.0"
+DEBUG = bool(os.environ.get("PARE_DEBUG"))  # trace the allocation to stderr
 
 # --------------------------------------------------------------------------
 # Lines and records
@@ -352,6 +353,7 @@ DEFAULT_VOCAB: dict[str, list[str]] = {
         "does not match", "not ok", "errno", "exc_info", "stacktrace", "stack trace",
         r"/[A-Z]\w*(?:Error|Exception|Fault|Panic)\b/",  # CamelCase exception names
         "/✗|✘|❌/", r"/(?<![A-Za-z])FAIL(?:ED|URE|S)?\b/",  # not XFAIL; pytest's E marker is structural
+        r"/^\s*[-+]?\s*(?:Expected|Received|Actual|Got|Want)\b\s*[:+-]/",  # assertion diff lines
     ],
     "warn": [
         "warn", "warning", "warnings", "deprecated", "deprecation", "retry", "retrying", "retried",
@@ -362,6 +364,7 @@ DEFAULT_VOCAB: dict[str, list[str]] = {
     "summary": [
         "passed", "test", "tests", "total", "summary", "finished", "completed", "done", "built",
         "compiled", "elapsed", "duration", "exit status", "result", "results", "success", "succeeded",
+        "added", "removed", "audited",  # npm-style install summaries
         "complete", "coverage", "report", r"/(?i)(?<![a-z])ran \d+/",
         r"/^\s*={3,}/", r"/^\s*-{3,}/", r"/^\s*_{3,}/", r"/^\s*#{1,3}\s/", r"/^\s*\*{3,}/",
     ],
@@ -405,8 +408,9 @@ def _entry_regex(entry: str) -> str:
             rx = f"(?{m.group(1)}:{rx[m.end():]})"
         return rx
     # A word or phrase: whole-word, case-insensitive (the boundary check is
-    # inside the group, so it is case-insensitive too: not inside a word).
-    return r"(?i:(?<![a-z])" + re.escape(entry) + r"(?![a-z]))"
+    # inside the group, so it is case-insensitive too: not inside a word, and
+    # not inside a hyphenated flag or identifier such as --timeout=300s).
+    return r"(?i:(?<![a-z-])" + re.escape(entry) + r"(?![a-z-]))"
 
 
 class Vocab:
@@ -546,14 +550,17 @@ def vocab_score(text: str, head: bool = True) -> float:
     warn = VOCAB.has("warn", text)
     sev = VOCAB.severity(text)
     if sev is None:
-        if err:
-            s += VOCAB_CLASSES["error"][0]
-        if warn:
-            s += VOCAB_CLASSES["warn"][0]
-        if not err and VOCAB.has("pass", text):
+        if VOCAB.has("pass", text):
+            # A passing-test marker is structural: the words of a test name
+            # ("throws on invalid") are not log vocabulary.
             s += VOCAB_CLASSES["pass"][0]
-        if not err and VOCAB.has("noise", text):
-            s += VOCAB_CLASSES["noise"][0]
+        else:
+            if err:
+                s += VOCAB_CLASSES["error"][0]
+            if warn:
+                s += VOCAB_CLASSES["warn"][0]
+            if not err and VOCAB.has("noise", text):
+                s += VOCAB_CLASSES["noise"][0]
     else:
         s += LEVEL_SCORE[sev]
         if sev >= 2:  # vocabulary reinforces a warning or error level
@@ -607,12 +614,16 @@ def score_templates(lines: list[Line], records: list[Record], templates: list[Te
         vocab = head_vocab + body_err
         count = len(tpl.records)
         rarity = rarity_of(tpl)
-        first = tpl.records[0] / n
-        last = tpl.records[-1] / n
+        # Position: the end zone holds the final verdicts, the start zone the
+        # command and environment. Both are bounded in lines, since "the last
+        # 10%" of a 17,000-line CI log is 1,700 lines of nothing special.
+        end_zone = n - zone_len(n, END_ZONE_FRACTION, END_ZONE_MAX)
+        start_zone = zone_len(n, START_ZONE_FRACTION, START_ZONE_MAX)
+        first, last = tpl.records[0], tpl.records[-1]
         position = 0.0
-        if last >= 0.9:
-            position += 1.0 if first >= 0.9 else 0.5
-        if first <= 0.05:
+        if last >= end_zone:
+            position += 1.0 if first >= end_zone else 0.5
+        if first < start_zone:
             position += 0.4
         avg_cont = tpl.lines / count - 1.0
         block = 0.75 if avg_cont >= 2 else 0.0
@@ -642,9 +653,37 @@ def line_score(ln: Line, tpl: Template, head: Line, total: int) -> float:
         if not (VOCAB.has("pass", ln.text) and not VOCAB.has("error", ln.text)):
             s += 0.6 * max(0.0, vocab_score(head.text))
     s += rarity_of(tpl)
-    if total and ln.no / total >= 0.9:
+    if total and ln.no > total - zone_len(total, END_ZONE_FRACTION, END_ZONE_MAX):
         s += 0.5
     return s
+
+
+def zone_len(n: int, fraction: float, cap: int) -> int:
+    """Length of a start or end zone: a fraction of the input, capped in lines
+    so it stays a window on a large file, and at least ZONE_MIN lines."""
+    return max(min(n, ZONE_MIN), min(int(n * fraction), cap))
+
+
+def error_locations(lines: list[Line], records: list[Record]) -> set[int]:
+    """Line numbers of the first source location after an error line within
+    a record: the 'at file:line' under a Jest or Python exception, the '-->'
+    under a rustc error, the innermost frame under a logged exception. That
+    frame says where the failure is; the ones after it say how it got there."""
+    out: set[int] = set()
+    for rec in records:
+        armed = False
+        for ln in lines[rec.start : rec.end]:
+            t = ln.text
+            if not t.strip():
+                continue
+            sev = VOCAB.severity(t)
+            is_loc = VOCAB.has("frame", t) and not t.lstrip().startswith(">")
+            if armed and is_loc:
+                out.add(ln.no)
+                armed = False
+            elif (sev is not None and sev >= 3) or (VOCAB.has("error", t) and not is_loc):
+                armed = True
+    return out
 
 
 def first_occurrences(lines: list[Line], records: list[Record]) -> set[int]:
@@ -698,11 +737,17 @@ def shape_key(text: str) -> str:
 # --------------------------------------------------------------------------
 
 
-WINDOW_SKIP_COUNT = 20  # head/tail windows skip lines of templates this common
+WINDOW_SKIP_COUNT = 5  # head/tail windows skip lines of templates this common
 WINDOW_SCAN_FACTOR = 3  # ...looking at most this many window-lengths into the file
 NEAR_DUP_MAX_COUNT = 5  # templates this small are skipped when their exemplar restates a shown line
 TABLE_BONUS = 1.0  # a template entry's priority over a raw line of equal salience
 COHERENCE_BONUS = 0.5  # for a continuation line whose record head is already on screen
+LOCATION_BONUS = 1.5  # for the first source location after an error line in a record
+END_ZONE_FRACTION, END_ZONE_MAX = 0.1, 60  # the 'end of output' zone for position bonuses
+START_ZONE_FRACTION, START_ZONE_MAX = 0.05, 30  # the 'start of output' zone
+ZONE_MIN = 10  # lines; a zone is never shorter than this on a small input
+DENSITY_REF = 120  # bytes; a raw line's priority is scaled by (REF / (REF + len))^POWER
+DENSITY_POWER = 0.35
 RECORD_FREE_LINES = 8  # continuation lines one record may show before its returns decay
 RECORD_DECAY = 0.25  # divisor growth per further continuation line from that record
 COMPACT_BUDGET = 1000  # below this many tokens, multi-record entries are one line
@@ -787,7 +832,7 @@ def summarize(
         return "\n".join([head_v] + verbatim) + "\n"
 
     # Fixed overhead: header + run lines + section titles + ledger reserve.
-    ledger_reserve = min(400, max(120, budget_bytes // 12))
+    ledger_reserve = min(400, max(120, budget_bytes // (16 if budget < COMPACT_BUDGET else 12)))
     show_hint = budget >= HINT_BUDGET
     fixed = nbytes([header(budget_bytes), run_line, run_hint if show_hint else "", "## head", "## templates (by salience)",
                     "## selected lines", "## tail"]) + ledger_reserve
@@ -815,6 +860,8 @@ def summarize(
                 out.append(ln.no)
         return out
 
+    if budget < COMPACT_BUDGET:
+        head_n = min(head_n, 3)  # a small budget gets a smaller head window (the tail keeps the verdicts)
     head_nos = windowed(lines, head_n, 1)
     tail_nos = sorted(windowed(list(reversed(lines)), tail_n, total))
     tail_nos = [no for no in tail_nos if no not in head_nos]
@@ -866,10 +913,20 @@ def summarize(
 
     taken_text: set[str] = set()  # exact (stripped) texts already shown
 
+    def repeat_key(ln: Line) -> str:
+        """What counts as 'another one of these' for diminishing returns: for a
+        record head, its drain template plus severity (drain already decided
+        that pod/storefront-x2k9p and pod/storefront-q7m2z are one shape);
+        for a continuation line, its masked shape plus severity."""
+        if ln.depth == 0 and ln.record >= 0:
+            sev = VOCAB.severity(ln.text)
+            return f"tpl{records[ln.record].template}·sev{sev}"
+        return shape_key(ln.text)
+
     def note_shown(no: int) -> None:
         ln = lines[no - 1]
         shown.add(no)
-        key = shape_key(ln.text)
+        key = repeat_key(ln)
         taken[key] = taken.get(key, 0) + 1
         taken_text.add(ln.text.strip())
         if ln.depth > 0:
@@ -886,6 +943,7 @@ def summarize(
     # exemplar head (the template entry stands for that line).
     base: dict[int, tuple[float, Line, str, float]] = {}
     firsts = first_occurrences(lines, records)
+    locations = error_locations(lines, records)
     for ln in lines:
         if ln.no in shown or ln.no in exemplar_nos or ln.record < 0 or not ln.text.strip():
             continue
@@ -894,7 +952,9 @@ def summarize(
         s = line_score(ln, tpl, lines[rec.start], total)
         if ln.no in firsts:
             s += 0.5
-        key = shape_key(ln.text)
+        if ln.no in locations:
+            s += LOCATION_BONUS
+        key = repeat_key(ln)
         # Error-level record heads of one shape (which package failed, which
         # request errored) and source locations (where this diagnostic points)
         # are each a distinct fact, so their returns diminish more gently than
@@ -915,6 +975,9 @@ def summarize(
         e = s / (1.0 + penalty * taken.get(key, 0))
         if ln.depth > 0:  # a very long record yields its lines with decaying returns
             e /= 1.0 + RECORD_DECAY * max(0, taken_rec.get(ln.record, 0) - RECORD_FREE_LINES)
+        # Value per byte: a 180-byte advice line with a URL is worth less than
+        # a 50-byte exception line of the same salience.
+        e *= (DENSITY_REF / (DENSITY_REF + len(ln.text.strip()))) ** DENSITY_POWER
         return e
 
     # Heap items: (-priority, kind, id); kind 0 = template entry, 1 = line,
@@ -940,9 +1003,10 @@ def summarize(
                 ex_line = lines[ex_rec.start]
                 if len(tpl.records) == 1 and all(ln.no in window_nos for ln in lines[ex_rec.start : ex_rec.end] if ln.text.strip()):
                     continue  # a singleton whose whole record the head or tail window already prints
-                if len(tpl.records) <= NEAR_DUP_MAX_COUNT and ex_line.no not in shown:
-                    # A rare line that restates something already on screen (a
-                    # progress line repeating the summary line) stays in the ledger.
+                if len(tpl.records) <= NEAR_DUP_MAX_COUNT and ex_line.no not in shown and ex_rec.end - ex_rec.start == 1:
+                    # A rare one-line record that restates something already on
+                    # screen (a progress line repeating the summary line) stays in
+                    # the ledger. A multi-line record carries more than its head.
                     if is_near_duplicate(token_set(ex_line.text), shown_tokens):
                         continue
                 entry = tpl_head(tpl)
@@ -951,9 +1015,13 @@ def summarize(
                     cost += 30  # room for the "(+N more lines)" marker under it
                 if cost > avail and placed:
                     deferred.append((negp, kind, ident))
+                    if DEBUG:
+                        print(f"defer tpl {tpl.tid:<4} prio={-negp:6.2f} cost={cost:4d} left={avail:5d}", file=sys.stderr)
                     continue  # the first template always gets a line
                 placed[tpl.idx] = entry
                 avail -= cost
+                if DEBUG:
+                    print(f"place tpl {tpl.tid:<4} prio={-negp:6.2f} cost={cost:4d} left={avail:5d} {ex_line.text.strip()[:60]!r}", file=sys.stderr)
                 if ex_line.no not in shown:
                     note_shown(ex_line.no)
                 continue
@@ -968,12 +1036,19 @@ def summarize(
             cost = len(fmt_line(ln, width).encode()) + 1 + 20  # + gap marker allowance
             if cost > avail:
                 deferred.append((negp, kind, ident))
+                if DEBUG:
+                    print(f"defer L{no:<7} prio={cur:6.2f} cost={cost:4d} left={avail:5d} {ln.text.strip()[:60]!r}", file=sys.stderr)
                 continue
-            if ln.depth == 0 and is_near_duplicate(token_set(ln.text), shown_tokens):
+            toks = token_set(ln.text)
+            if ln.depth == 0 and is_near_duplicate(toks, shown_tokens):
                 continue
+            if ln.depth > 0 and len(toks) >= NEAR_DUP_MIN_TOKENS and any(toks <= t for t in shown_tokens):
+                continue  # a continuation line that is a pure restatement of a shown line
             picked.append((cur, ln))
             note_shown(no)
             avail -= cost
+            if DEBUG:
+                print(f"place L{no:<7} prio={cur:6.2f} cost={cost:4d} left={avail:5d} {ln.text.strip()[:60]!r}", file=sys.stderr)
         return avail
 
     avail = place(avail)
