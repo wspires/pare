@@ -84,6 +84,8 @@ class Line:
     indent: int
     record: int = -1  # record index
     depth: int = 0  # 0 for head line, >0 for continuation
+    # Memoised per-line analysis (filled lazily; see line_sev and friends).
+    memo: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -397,6 +399,10 @@ DEFAULT_VOCAB: dict[str, list[str]] = {
 _GLOBAL_FLAGS = re.compile(r"^\(\?([aimsux]+)\)")
 
 
+def _is_regex_entry(entry: str) -> bool:
+    return len(entry) >= 2 and entry.startswith("/") and entry.endswith("/")
+
+
 def _entry_regex(entry: str) -> str:
     """One entry as a regex fragment that can be joined with others by '|'.
     Leading global flags like (?i) are rewritten to a scoped group (?i:...),
@@ -423,7 +429,15 @@ class Vocab:
             if cls in LEVEL_CLASSES:
                 continue
             items = entries.get(cls, [])
-            self.rx[cls] = re.compile("|".join(f"(?:{_entry_regex(e)})" for e in items)) if items else None
+            # All plain words of a class share one boundary group (one
+            # lookbehind for the whole alternation, not one per word), which
+            # is several times faster to scan than a branch per word.
+            words = [e for e in items if not _is_regex_entry(e)]
+            parts = [_entry_regex(e) for e in items if _is_regex_entry(e)]
+            if words:
+                alt = "|".join(re.escape(w) for w in sorted(words, key=len, reverse=True))
+                parts.insert(0, r"(?i:(?<![a-z-])(?:" + alt + r")(?![a-z-]))")
+            self.rx[cls] = re.compile("|".join(f"(?:{p})" for p in parts)) if parts else None
         # Level tokens, longest first so WARNING wins over WARN.
         self.level_of: dict[str, int] = {}
         for cls, sev in LEVEL_CLASSES.items():
@@ -550,7 +564,10 @@ ZERO_COUNT_RX = re.compile(
 )
 
 
-def vocab_score(text: str, head: bool = True) -> float:
+_UNSET = object()
+
+
+def vocab_score(text: str, head: bool = True, sev=_UNSET) -> float:
     """Salience of one line's text. A structural log level, when present,
     sets the base score and decides whether error/warn words count: an INFO
     line that mentions 'error' is still info, and an ERROR line is an error
@@ -560,7 +577,8 @@ def vocab_score(text: str, head: bool = True) -> float:
     words = ZERO_COUNT_RX.sub(" ", text)  # "0 errors" is a summary, not an error
     err = VOCAB.has("error", words)
     warn = VOCAB.has("warn", words)
-    sev = VOCAB.severity(text)
+    if sev is _UNSET:
+        sev = VOCAB.severity(text)
     if sev is None:
         if VOCAB.has("pass", text):
             # A passing-test marker is structural: the words of a test name
@@ -589,6 +607,40 @@ def vocab_score(text: str, head: bool = True) -> float:
     return s
 
 
+def line_sev(ln: Line) -> int | None:
+    """Structural severity of a line, computed once."""
+    m = ln.memo
+    if "sev" not in m:
+        m["sev"] = VOCAB.severity(ln.text)
+    return m["sev"]
+
+
+def line_has(ln: Line, cls: str) -> bool:
+    """Vocabulary class membership of a line, computed once per class."""
+    m = ln.memo
+    key = "has:" + cls
+    if key not in m:
+        m[key] = VOCAB.has(cls, ln.text)
+    return m[key]
+
+
+def line_vocab(ln: Line, head: bool) -> float:
+    """vocab_score of a line, computed once per (line, head)."""
+    m = ln.memo
+    key = "vocab:head" if head else "vocab:body"
+    if key not in m:
+        m[key] = vocab_score(ln.text, head=head, sev=line_sev(ln))
+    return m[key]
+
+
+def line_mask(ln: Line) -> str:
+    """Masked text of a line, computed once."""
+    m = ln.memo
+    if "mask" not in m:
+        m["mask"] = mask(ln.text)
+    return m["mask"]
+
+
 def rarity_of(tpl: Template) -> float:
     return 1.0 / (1.0 + math.log2(len(tpl.records)))
 
@@ -601,7 +653,7 @@ def score_templates(lines: list[Line], records: list[Record], templates: list[Te
         tpl.levels = {}
         best_sev, best_rec = -1, tpl.records[0]
         for ri in tpl.records:
-            sev = VOCAB.severity(lines[records[ri].start].text)
+            sev = line_sev(lines[records[ri].start])
             if sev is not None:
                 tpl.levels[sev] = tpl.levels.get(sev, 0) + 1
             if (sev if sev is not None else -1) > best_sev:
@@ -619,7 +671,7 @@ def score_templates(lines: list[Line], records: list[Record], templates: list[Te
         body_err = 0.0
         rec = records[tpl.exemplar]
         for ln in lines[rec.start + 1 : rec.end]:
-            if VOCAB.has("strong-error", ln.text):
+            if line_has(ln, "strong-error"):
                 body_err = 1.0
                 break
         # Salience: what the head line says, plus how unusual the shape is.
@@ -644,11 +696,11 @@ def score_templates(lines: list[Line], records: list[Record], templates: list[Te
 def line_score(ln: Line, head: Line) -> float:
     """Salience of one raw line: its own vocabulary plus a share of its
     record head's vocabulary, less a little per level of depth."""
-    s = vocab_score(ln.text, head=ln.depth == 0)
+    s = line_vocab(ln, head=ln.depth == 0)
     if ln.depth > 0:
         s -= DEPTH_PENALTY * min(ln.depth, 4)
-        if not (VOCAB.has("pass", ln.text) and not VOCAB.has("error", ln.text)):
-            s += INHERIT * max(0.0, vocab_score(head.text))
+        if not (line_has(ln, "pass") and not line_has(ln, "error")):
+            s += INHERIT * max(0.0, line_vocab(head, head=True))
     return s
 
 
@@ -664,12 +716,12 @@ def error_locations(lines: list[Line], records: list[Record]) -> set[int]:
             t = ln.text
             if not t.strip():
                 continue
-            sev = VOCAB.severity(t)
-            is_loc = VOCAB.has("frame", t) and not t.lstrip().startswith(">")
+            sev = line_sev(ln)
+            is_loc = line_has(ln, "frame") and not t.lstrip().startswith(">")
             if armed and is_loc:
                 out.add(ln.no)
                 armed = False
-            elif (sev is not None and sev >= 3) or (VOCAB.has("error", t) and not is_loc):
+            elif (sev is not None and sev >= 3) or (line_has(ln, "error") and not is_loc):
                 armed = True
     return out
 
@@ -692,12 +744,12 @@ def is_near_duplicate(toks: frozenset[str], shown: list[frozenset[str]]) -> bool
     return any(len(toks & s) >= need for s in shown)
 
 
-def shape_key(text: str) -> str:
+def shape_key(ln: Line) -> str:
     """Dedup key for the fill phase: the masked shape plus the structural
     severity, so a 503 request line is not a duplicate of a 200 one even
     though masking turns both status codes into <NUM>."""
-    sev = VOCAB.severity(text)
-    return mask(text) + (f" ·sev{sev}" if sev is not None else "")
+    sev = line_sev(ln)
+    return line_mask(ln) + (f" ·sev{sev}" if sev is not None else "")
 
 
 # --------------------------------------------------------------------------
@@ -777,7 +829,6 @@ def summarize(
 ) -> str:
     budget_bytes = budget * 4
     total = len(lines)
-    blank = sum(1 for ln in lines if ln.text.strip() == "")
     by_sal = sorted(templates, key=lambda t: (-t.salience, t.idx))
 
     def header(out_bytes: int) -> str:
@@ -881,9 +932,8 @@ def summarize(
         that pod/storefront-x2k9p and pod/storefront-q7m2z are one shape);
         for a continuation line, its masked shape plus severity."""
         if ln.depth == 0 and ln.record >= 0:
-            sev = VOCAB.severity(ln.text)
-            return f"tpl{records[ln.record].template}·sev{sev}"
-        return shape_key(ln.text)
+            return f"tpl{records[ln.record].template}·sev{line_sev(ln)}"
+        return shape_key(ln)
 
     def note_shown(no: int) -> None:
         ln = lines[no - 1]

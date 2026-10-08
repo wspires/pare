@@ -238,8 +238,9 @@ seeded synthetic logs (`bench/gen_synthetic.py`): a Jest run with three
 failing suites, a 535 KB service log with a database outage, and a 750 KB
 / 17,832-line CI job log (verbose `npm ci`, a webpack build with one type
 error, a 600-suite Jest run with four failures, a docker build, and a
-Kubernetes rollout that never becomes ready). pare takes about 5 s on the
-CI log, almost all of it in drain3.
+Kubernetes rollout that never becomes ready). pare takes about 4 s on the
+CI log; drain3 is under half a second of that, the rest is the vocabulary
+and severity regexes (one pass per class per line).
 
 ### budget 2000
 
