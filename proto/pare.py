@@ -290,6 +290,7 @@ VOCAB_CLASSES = {
 LEVEL_CLASSES = {"level-fatal": 4, "level-error": 3, "level-warn": 2, "level-info": 1, "level-debug": 0}
 LEVEL_SCORE = {sev: VOCAB_CLASSES[cls][0] for cls, sev in LEVEL_CLASSES.items()}
 LEVEL_NAME = {4: "FATAL", 3: "ERROR", 2: "WARN", 1: "INFO", 0: "DEBUG"}
+SEVERITY_BY_NAME = {"debug": 0, "info": 1, "warn": 2, "error": 3, "fatal": 4}
 LETTER_LEVEL = {"F": 4, "E": 3, "W": 2, "I": 1, "D": 0, "V": 0, "T": 0}
 
 # HTTP status codes in request or key-value forms. 5xx -> error, 4xx -> warn,
@@ -1007,6 +1008,7 @@ def select(
     *,
     only: set[int],
     exclude: set[int],
+    min_severity: int | None = None,
     budget: int,
     width: int,
     run_path: str | None,
@@ -1017,12 +1019,20 @@ def select(
             continue
         if rec.template in exclude:
             continue
+        if min_severity is not None:
+            # Decided by the record's head line; a record with no structural
+            # signal (no level, status or exit code) is left out.
+            sev = VOCAB.severity(lines[rec.start].text)
+            if sev is None or sev < min_severity:
+                continue
         want.extend(ln.no for ln in lines[rec.start:rec.end])
     label = (
         f"--only {','.join(templates[i].tid for i in sorted(only))}" if only else "all"
     )
     if exclude:
         label += f" --except {','.join(templates[i].tid for i in sorted(exclude))}"
+    if min_severity is not None:
+        label += f" --min-severity {LEVEL_NAME[min_severity].lower()}"
     budget_bytes = budget * 4
     head = f"# pare {label}: {fmt_int(len(want))} of {fmt_int(len(lines))} lines"
     rows = render_ranges(lines, want, width)
@@ -1100,6 +1110,10 @@ def main(argv: list[str] | None = None) -> int:
                          "Unlisted templates still appear in the omitted ledger")
     ap.add_argument("--only", metavar="T<n>[,T<m>]", help="print raw lines of these templates only")
     ap.add_argument("--except", dest="exclude", metavar="T<n>[,T<m>]", help="print raw lines except these templates")
+    ap.add_argument("--min-severity", choices=list(SEVERITY_BY_NAME), metavar="LEVEL",
+                    help="with --only/--except (or alone, for all templates): print only records whose head "
+                         "line carries a structural severity (log level, HTTP status, exit code) at or above "
+                         "LEVEL: debug, info, warn, error or fatal")
     ap.add_argument("--run-dir", default=None, help="directory for the raw run file (default $PARE_RUN_DIR or ~/.cache/pare/runs)")
     ap.add_argument("--run-file", default=None, help="explicit path for the raw run file")
     ap.add_argument("--no-tee", action="store_true", help="do not save the raw input")
@@ -1136,11 +1150,12 @@ def main(argv: list[str] | None = None) -> int:
     templates = cluster(lines, records)
     score_templates(lines, records, templates)
 
-    if args.only or args.exclude:
+    if args.only or args.exclude or args.min_severity:
         out = select(
             lines, records, templates,
             only=parse_tids(args.only, len(templates)),
             exclude=parse_tids(args.exclude, len(templates)),
+            min_severity=SEVERITY_BY_NAME[args.min_severity] if args.min_severity else None,
             budget=args.budget, width=args.width, run_path=run_path,
         )
     else:

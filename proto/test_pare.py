@@ -206,6 +206,43 @@ def test_only_and_except_select_by_template():
     assert "FATAL [db] giving up" not in rest
 
 
+def access_log() -> bytes:
+    lines = []
+    for i in range(4000):
+        code = 503 if i % 333 == 7 else (404 if i % 100 == 50 else 200)
+        lines.append(f'10.0.{i % 7}.{i % 251} - - [08/Oct/2026:10:{(i // 60) % 60:02d}:{i % 60:02d} +0000] '
+                     f'"GET /api/items/{i} HTTP/1.1" {code} {100 + i % 900}')
+    return "\n".join(lines).encode() + b"\n"
+
+
+def test_min_severity_isolates_errors_inside_a_template():
+    out = run(["--only", "T1", "--min-severity", "error", "--budget", "100000"], access_log()).decode()
+    body = [l for l in out.splitlines() if "│" in l]
+    assert len(body) == 12 and all('" 503 ' in l for l in body)
+    assert out.splitlines()[0].startswith("# pare --only T1 --min-severity error: 12 of 4,000 lines")
+
+
+def test_min_severity_alone_and_warn_threshold():
+    out = run(["--min-severity", "warn", "--budget", "100000"], access_log()).decode()
+    body = [l for l in out.splitlines() if "│" in l]
+    assert len(body) == 12 + 40  # 503s and 404s, no 200s
+    assert not any('" 200 ' in l for l in body)
+
+
+def test_min_severity_on_server_log_excludes_info():
+    data = open(os.path.join(CORPUS, "server-outage.log"), "rb").read()
+    out = run(["--min-severity", "warn", "--budget", "100000"], data).decode()
+    body = [l for l in out.splitlines() if "│" in l]
+    assert body and all((" WARN " in l or " ERROR " in l or " FATAL " in l) for l in body if "│ 20" in l)
+    assert "FATAL [db] giving up" in out
+
+
+def test_min_severity_rejects_unknown_level():
+    p = subprocess.run([sys.executable, os.path.join(HERE, "pare.py"), "--no-tee", "--min-severity", "loud"],
+                       input=b"x\n", capture_output=True)
+    assert p.returncode == 2 and b"invalid choice" in p.stderr
+
+
 def test_run_file_is_content_addressed(tmp_path):
     data = b"a\nb\nERROR c\n" * 50
     p = subprocess.run([sys.executable, os.path.join(HERE, "pare.py"), "--run-dir", str(tmp_path)],

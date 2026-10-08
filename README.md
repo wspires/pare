@@ -74,6 +74,15 @@ because the pipeline is deterministic for a given input. `--max-templates N`
 lists at most N templates (highest salience first); the rest still show up
 in the omitted ledger.
 
+`--min-severity LEVEL` (debug, info, warn, error, fatal) narrows a
+selection to records whose head line carries a structural severity at or
+above LEVEL, so the twelve 503s hiding in a 4,000-line access-log template
+come out with `pare --only T1 --min-severity error < runfile`. On its own it
+applies to every template: `pare --min-severity warn < runfile` is "all
+the warnings and worse". Records with no structural signal at all (a
+pytest `E` line, a bare traceback) are left out, since there is nothing to
+compare against the threshold; use `--only` for those.
+
 ### Log levels (structural severity)
 
 Before any words are weighed, pare looks for an explicit log level in a
