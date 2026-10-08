@@ -57,22 +57,38 @@ DEBUG = bool(os.environ.get("PARE_DEBUG"))  # trace the allocation to stderr
 ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[@-Z\\-_]")
 
 # Lines that continue the previous record regardless of indentation.
-CONT_RE = re.compile(
+# Generic continuation shapes: conventions shared by many tools.
+CONT_GENERIC = (
     r"^\s+at\s"  # JS/Java stack frame
     r"|^\s*File \"[^\"]+\", line \d+"  # Python frame
     r"|^\s*\^+\s*$"  # caret marker
     r"|^\s*~+\s*$"  # tilde underline
+    r"|^Caused by:"  # Java/Rust cause chain
+    r"|^\s*\.\.\. \d+ more"  # Java elided frames
+    r"|^\s*(?:Expected|Received|Actual|Got|Want|Diff):"  # assertion detail
+    r"|^\s*[+-]{3}\s"  # diff headers
+    r"|^\s*@@ "  # diff hunk
+)
+# Tool-specific continuation shapes. Everything pare knows about particular
+# tools is listed here and in TOOL_SPECIFIC_NOTES, and can be switched off
+# together (TOOL_SPECIFIC = False) to measure what the generic signals alone
+# achieve; bench/ablate.py has an entry for that.
+CONT_TOOL = (
     r"|^\s*\d*\s*\|(?:\s|$)"  # rustc/gcc gutter lines
     r"|^\s*-->\s"  # rustc location
     r"|^\s*= (?:note|help|warning):"  # rustc notes
     r"|^\s*::: "  # rustc secondary location
-    r"|^Caused by:"  # Java/Rust cause chain
-    r"|^\s*\.\.\. \d+ more"  # Java elided frames
-    r"|^\s*(?:Expected|Received|Actual|Got|Want|Diff):"  # assertion detail
     r"|^E\s{2,}|^>\s{2,}"  # pytest failure detail and source marker lines
-    r"|^\s*[+-]{3}\s"  # diff headers
-    r"|^\s*@@ "  # diff hunk
 )
+CONT_GENERIC_RE = re.compile(CONT_GENERIC)
+CONT_RE = re.compile(CONT_GENERIC + CONT_TOOL)
+TOOL_SPECIFIC = True
+TOOL_SPECIFIC_NOTES = [
+    "pytest: E and > marker lines continue the failure block; a bare E at column 0 is an error level",
+    "rustc/gcc: gutter (NN |), --> location, = note/help and ::: lines continue the diagnostic; error[E0308]: is a level",
+    "logcat: E/Tag( and E/Tag: at the line start are levels; glog: E0921 10:11:12",
+    "Jest/pytest: a single blank line inside an indented block does not end the record",
+]
 
 MAX_RECORD_LINES = 400
 
@@ -154,7 +170,7 @@ def segment(lines: list[Line]) -> list[Record]:
     pending_blank: Line | None = None  # a single blank line may sit inside a block
     for i, ln in enumerate(lines):
         if ln.text.strip() == "":
-            if pending_blank is not None or cur is None:
+            if pending_blank is not None or cur is None or not TOOL_SPECIFIC:
                 cur = None
             pending_blank = ln if cur is not None else None
             continue
@@ -162,7 +178,7 @@ def segment(lines: list[Line]) -> list[Record]:
         is_cont = (
             cur is not None
             and (cur.end - cur.start) < MAX_RECORD_LINES
-            and (ln.indent > head_indent or CONT_RE.match(ln.text))
+            and (ln.indent > head_indent or (CONT_RE if TOOL_SPECIFIC else CONT_GENERIC_RE).match(ln.text))
         )
         if is_cont and cur is not None:
             if pending_blank is not None:
@@ -462,6 +478,7 @@ class Vocab:
             r"|\[([EWIDVTF])\]"  # [I]
             r"|^(E)\s{2,}"  # pytest
         )
+        self.level_letter_generic_rx = re.compile(r"\[([EWIDVTF])\]")
 
     def has(self, cls: str, text: str) -> bool:
         rx = self.rx[cls]
@@ -482,11 +499,11 @@ class Vocab:
                 tok.isupper()  # ERROR, WARN: an uppercase token is a level
                 or (start > 0 and head[start - 1] in "[(<|")  # [error], (warn)
                 or (nxt == ":" and start <= 60)  # error: ..., Warning: ...
-                or (start == 0 and nxt == "[")  # rustc error[E0308]:
+                or (TOOL_SPECIFIC and start == 0 and nxt == "[")  # rustc error[E0308]:
             )
             if ok:
                 return self.level_of[tok.upper()]
-        m = self.level_letter_rx.search(text[:48])
+        m = (self.level_letter_rx if TOOL_SPECIFIC else self.level_letter_generic_rx).search(text[:48])
         if m:
             return LETTER_LEVEL[next(g for g in m.groups() if g)]
         return None

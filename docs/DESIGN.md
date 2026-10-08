@@ -1,0 +1,327 @@
+# pare: design notes
+
+The README has the pitch, an example, install and the summary numbers. This
+file has the rest: how the pipeline works in detail, the structural and
+vocabulary signals, the full benchmark tables and their history, what is
+validated and what is not, and notes for a native port.
+
+## Pipeline
+
+1. **Tee.** Raw stdin is saved to a run file named by content hash
+   (`$PARE_RUN_DIR` or `~/.cache/pare/runs/<sha>.log`), so nothing is lost
+   and the same input always maps to the same path.
+2. **Segment.** Lines become records: a line indented deeper than the
+   previous record's head, or shaped like a continuation (stack frame,
+   caret marker, `Caused by:`, assertion detail, diff hunk; plus the
+   tool-specific shapes listed under **Tool-specific rules**), joins that
+   record. Blank lines belong to no record; a single blank line inside an
+   indented block does not end it (a tool-specific rule, for Jest and
+   pytest). Records are capped at 400 lines.
+3. **Mask.** Runs of rule characters shrink to three; timestamps, dates,
+   times, UUIDs, IPs, URLs, hex and hashes, versions, paths, numbers with
+   units, and digits inside identifiers become `<RULE>`, `<TS>`, `<IP>`,
+   `<PATH>`, `<NUM>`, `<N>` and so on. Paths must contain a letter, so
+   `1/30` is not a path.
+4. **Cluster.** The masked head line of each record (first 40 tokens) goes
+   through [drain3](https://github.com/logpai/Drain3) with similarity 0.5,
+   depth 4, max 100 children. Clusters are renumbered `T1, T2, …` in order
+   of first appearance; a cluster's final template text is taken after all
+   records are in. drain3 is pinned to 0.9.11 because template ids depend on
+   its exact clustering and `--only T3 < runfile` relies on them.
+5. **Score.** See **Scoring model**.
+6. **Allocate.** See **Allocation**.
+7. **Ledger.** The output ends with how many lines were omitted and from
+   which templates, the run-file path, and (above 1,000 tokens) a usage
+   hint.
+
+## Structural severity
+
+Before any words are weighed, each line is checked for an explicit severity
+in a structural *form*. A level word in the middle of a message
+(`connection error occurred`) is vocabulary, not structure.
+
+- **Log levels.** A bare uppercase token near the start of the line
+  (`ERROR`, `WARN`), a bracketed one (`[error]`, `(warn)`), a key-value pair
+  anywhere (`level=error`, `"level": "warn"`, `severity=CRITICAL`), a prefix
+  with a colon (`error:`, `Warning:`), `[I]`, and (tool-specific) rustc's
+  `error[E0308]:`, logcat's `E/Tag(` or `E/Tag:` at the line start after an
+  optional timestamp and pid/tid, glog's `E0921 10:11:12`, and pytest's bare
+  `E` at column 0. The tokens live in the vocabulary file as `level-fatal`
+  … `level-debug` so `FEHLER` or `ERRO` can be added with `--vocab`.
+- **HTTP status codes** from request lines (`GET /path 503`,
+  `"GET /path HTTP/1.1" 503`), key-value pairs (`status=502`,
+  `"status_code": 404`) and phrases (`responded with 504`, `returned HTTP
+  500`, `HTTP/1.1 302`): 5xx error, 4xx warn, 1xx–3xx info. Bare
+  `returned 500` is a row count and does not match.
+- **Exit codes** from `exit code 1`, `exit status 2`, `exited with code 137`,
+  `exit=0`, `rc=1`, `returncode: 2`: 0 info, 1–127 error, 128 and up or
+  negative (signals, OOM kills) fatal. The `rc`, `returncode`, `exit_code`
+  and `exit_status` forms require `=` or `:` so `1.4.0-rc1` is not an exit
+  code.
+
+A line's severity is the strongest signal on it. It sets the base score
+(fatal +4, error +3, warn +1.5, info −0.5, debug −1) and decides whether
+error words count: an INFO line saying `0 errors` stays info, an ERROR line
+is an error in any language. Per template, the severities of all member
+records are tallied; the highest-severity record becomes the exemplar, and
+a template whose severity varies shows the histogram (`[ERROR×12 INFO×3,988]`).
+
+## Vocabulary
+
+The salience vocabulary is the one prior in the pipeline that is not learned
+from the input, and it is English and developer-tool flavoured. Classes and
+weights:
+
+| class | weight | holds |
+|---|---:|---|
+| `error` | +3 | error, failed, refused, panic, CamelCase `*Error`, `FAIL`, assertion-diff lines (`Expected:`, `Received:`), … |
+| `warn` | +1.5 | warning, deprecated, retry, skipped, flaky, … |
+| `summary` | +1 | passed, total, finished, `added N packages`, `====` rules, … (record heads only) |
+| `frame` | +1 | stack frames and `file.ext:line` locations |
+| `pass` | −1 | ✓, PASS, ok: structural, so words in a test name (`✓ throws on invalid`) do not count |
+| `noise` | −0.75 | downloading, compiling, debug, progress bars, … (ignored when the line also has an error word) |
+| `strong-error` | — | decides whether a record *body* makes its template an error |
+| `level-fatal` … `level-debug` | +4 … −1 | plain level tokens for the structural detection above |
+
+Words match whole, case-insensitively, and not inside a hyphenated flag or
+identifier (`--timeout=300s` is not an error). A zero count before an error
+noun (`0 errors`, `0 failed`) is removed before matching. `pare
+--dump-vocab` prints the lists as a file; `--vocab FILE` or `$PARE_VOCAB`
+loads one back, where `[error]` adds to a class and `[error replace]`
+replaces it, a plain line is a phrase and a `/.../` line a regex. See
+`proto/vocab.example` for a German extension.
+
+## Scoring model
+
+A template's salience is what its head line says plus how unusual its
+shape is:
+
+    salience = vocab(head) + 2 / (1 + log2 count)
+
+A raw line's score is its own vocabulary plus a share of its record head's:
+
+    score = vocab(line) + 0.6 × vocab(head) − 0.25 × min(depth, 4)
+          + 1.5 if it is the first source location after an error line in its record
+
+where `vocab()` is the structural-severity base plus class weights above
+(summary words only on heads). In the queue a raw line's priority is
+
+    score / (1 + 1.5 × repeats of its shape already shown) × (120 / (120 + bytes))^0.35
+
+A record head "repeats" by its drain template and severity (two pods'
+readiness warnings are one shape); a continuation line by its masked
+shape. Lines under a salience floor of 1.0 never pad the output.
+
+Every term survived an ablation (`bench/ablate.py`): switching it off
+lowers recall at some budget or grows the output at the same recall. Nine
+earlier heuristics did neither and were removed one or two at a time: a
+bonus for template entries over lines, start/end position zones, a bonus
+for multi-line templates, a bonus for a body with error vocabulary, a bonus
+for continuing a record already on screen, decaying returns within one
+record, a gentler repeat penalty for error lines, line-level template
+rarity, and a first-occurrence bonus.
+
+| heuristic | without it: recall@600 / @2000 (out tok @2000 where that is the reason) |
+|---|---|
+| (the full model) | 97.3% / 100%, 7,595 |
+| template rarity | 93.2% / 100% |
+| inheritance from the record head | 87.7% / 97.3% |
+| depth penalty | 95.9% / 100% |
+| error-location bonus | 94.5% / 97.3% |
+| value-per-byte factor | 94.5% / 100% |
+| repeat penalty | 94.5% / 100%, 9,368 |
+| salience floor | 97.3% / 100%, 14,564 |
+| near-duplicate suppression | 97.3% / 100%, 7,972 |
+| window skipping of frequent templates | 94.5% / 100% |
+| compact mode below 1,000 tokens | 89.0% / 100% |
+| tool-specific rules (see below) | 89.0% / 94.5% |
+
+## Allocation
+
+The budget is `--budget` tokens at `bytes / 4`, and it is a hard limit.
+
+- A head and a tail window (`--head 5`, `--tail 10`, at most 30 % of the
+  budget; the head shrinks to 3 below 1,000 tokens). Lines of templates
+  with 5 or more records, and continuation lines of records 20 or more
+  lines long, are skipped inside the windows, since the table already
+  stands for them; the first and last lines always stay.
+- Then one priority queue for template entries and raw lines on the same
+  salience scale. A template entry (count, marker, exemplar head line)
+  competes at its salience, so every template is listed once if the budget
+  allows, highest first; a raw line competes at the priority above. So a
+  high-salience exception line beats a low-salience singleton template, and
+  a warning template beats the sixth frame of a trace. Lines that land in a
+  placed template's exemplar record are rendered under it as its body (the
+  traceback, the compiler snippet); the rest go to "selected lines". A
+  template's exemplar head is itself a line candidate, so it can appear even
+  when the entry does not make the cut; the entry takes the line over if
+  placed later.
+- Guards against restatement: a one-line record whose tokens are mostly
+  (80 %) contained in a shown line, or a continuation line that is a pure
+  token subset of one, is skipped; an exemplar the head or tail window
+  already prints is referenced (`L308 (in tail)`), not repeated; a
+  singleton whose whole record a window prints is not listed.
+- Below 1,000 tokens, multi-record entries are one line (count + exemplar)
+  instead of template text plus exemplar, the ledger reserve shrinks, and
+  the usage hint is dropped.
+- The per-item allowances (gap markers, record markers) are conservative,
+  so a second pass re-offers what did not fit against the measured slack;
+  then a final loop sheds content, lowest priority first, until the
+  rendering fits, cutting from the end as a last resort.
+- An input that already fits the budget is returned exactly, plus the
+  run-file line when there is one.
+
+`PARE_DEBUG=1` traces every placement and deferral to stderr.
+
+## Selection modes
+
+`pare --only T3,T7 < runfile` prints the raw lines of those templates;
+`--except T4` prints everything but. `--min-severity LEVEL` (debug, info,
+warn, error, fatal) keeps records whose head carries a structural severity
+at or above LEVEL, so the twelve 503s hiding in a 4,000-line access-log
+template come out with `--only T1 --min-severity error`; alone it applies
+to every template. `--since L<n>` / `--until L<n>` restrict to a line range
+(the `L` is optional; negative counts from the end). All three compose and
+the budget still applies. `--max-templates N` caps the table.
+
+## Tool-specific rules
+
+Everything pare knows about particular tools, in one place, so recall can
+be measured with and without it (`TOOL_SPECIFIC = False` in `proto/pare.py`,
+or the "generic signals only" row of `bench/ablate.py`):
+
+- pytest: `E` and `>` marker lines continue the failure block; a bare `E`
+  at column 0 is an error level.
+- rustc/gcc: gutter (`NN |`), `-->` location, `= note/help` and `:::` lines
+  continue the diagnostic; `error[E0308]:` is a level.
+- logcat: `E/Tag(` and `E/Tag:` at the line start are levels; glog:
+  `E0921 10:11:12`.
+- Jest, pytest: a single blank line inside an indented block does not end
+  the record.
+
+Without them: 89.0 % at 600 and 94.5 % at 2000 on the dev corpus (with: 97.3
+% and 100 %). The generic signals (levels, status codes, exit codes,
+vocabulary, rarity, inheritance) are the real story; the tool rules add 5 to
+8 points on this corpus.
+
+## Benchmark detail
+
+Methodology is in the README. Versions: pare 0.1.0 with drain3 0.9.11, sqz
+1.9.0, tidyout-cli 0.2.0. Modes: pare `--no-tee`; sqz
+`compress --no-cache --cmd <name>`, one-shot, so its session-level dedup is
+not exercised; tidyout `<cmd>` with a fake `<cmd>` on PATH that replays the
+log, so its per-command rules apply.
+
+### budget 2000, per case
+
+| case | tool | in tok | out tok | ratio | recall |
+|---|---|---:|---:|---:|---:|
+| cargo-build | pare | 945 | 945 | 100.0% | 8/8 |
+| cargo-build | sqz | 945 | 763 | 80.7% | 4/8 |
+| cargo-build | tidyout | 945 | 697 | 73.8% | 8/8 |
+| ci-pipeline | pare | 187524 | 1992 | 1.1% | 15/15 |
+| ci-pipeline | sqz | 187524 | 112882 | 60.2% | 7/15 |
+| ci-pipeline | tidyout | 187524 | 187543 | 100.0% | 15/15 |
+| go-test | pare | 2212 | 566 | 25.6% | 11/11 |
+| go-test | sqz | 2212 | 2212 | 100.0% | 11/11 |
+| go-test | tidyout | 2212 | 2230 | 100.8% | 11/11 |
+| jest-fail | pare | 4396 | 843 | 19.2% | 10/10 |
+| jest-fail | sqz | 4396 | 2099 | 47.7% | 2/10 |
+| jest-fail | tidyout | 4396 | 4402 | 100.1% | 10/10 |
+| make-build | pare | 2318 | 800 | 34.5% | 7/7 |
+| make-build | sqz | 2318 | 990 | 42.7% | 1/7 |
+| make-build | tidyout | 2318 | 2336 | 100.8% | 7/7 |
+| npm-install | pare | 5459 | 333 | 6.1% | 2/2 |
+| npm-install | sqz | 5459 | 4902 | 89.8% | 2/2 |
+| npm-install | tidyout | 5459 | 5477 | 100.3% | 2/2 |
+| pytest-fail | pare | 4762 | 1254 | 26.3% | 11/11 |
+| pytest-fail | sqz | 4762 | 401 | 8.4% | 8/11 |
+| pytest-fail | tidyout | 4762 | 1483 | 31.1% | 11/11 |
+| server-outage | pare | 133851 | 862 | 0.6% | 9/9 |
+| server-outage | sqz | 133851 | 63390 | 47.4% | 5/9 |
+| server-outage | tidyout | 133851 | 1388 | 1.0% | 1/9 |
+
+### budget 600
+
+At 600 the seven smaller files keep every must-survive line, and each
+output lands within a few tokens of the budget rather than leaving slack
+unused. The CI log keeps 13 of 15: its keep list spans four failing
+sections (webpack, Jest, docker, the rollout), and the fifteen lines alone
+are about 1,300 bytes of a 2,400-byte budget whose skeleton (header,
+windows, ledger) takes about 800. The two that go are the `at file:line`
+locations of two of the four Jest failures; the rollout failure, the
+webpack error and warning, the four Jest failure messages, the totals, the
+npm summary and the exit code all survive. Shifting the weights to fit
+those two frames pushes out a failure message instead, so the budget there
+is saturated rather than misallocated. `--max-templates 6` lowers the 600
+recall to 93 %.
+
+### How the misses were fixed (history)
+
+Each round traced where the budget went with `PARE_DEBUG=1` and fixed a
+cause rather than a weight:
+
+- The tail window repeated lines the template table had already listed;
+  exemplars inside a window are now referenced, not repeated.
+- pytest's `E` lines began at column 0 and were records of their own; they
+  now join the failure block, and the `E` marker is a structural level
+  rather than an error word counted twice.
+- Progress lines (`test_x FAILED [ 95%]`) that restate the summary lines
+  were listed as templates of their own; near-duplicate suppression.
+- `total()` inside a failure block earned a summary bonus; summary words
+  now count only on record heads.
+- A later copy of a gcc warning beat the first because it sat in the last
+  10 % of the file; the position bonus was later removed entirely.
+- Two pods' readiness warnings masked to different shapes, so the second
+  escaped the repeat penalty; heads now repeat by drain template.
+- A fixed split between the template table and the fill phase could not be
+  right at every budget; one priority queue replaced it.
+- `✓ throws on invalid` outranked real failure detail through the word
+  `invalid`; a pass marker is now structural.
+- The `kubectl … --timeout=300s` command echo ranked as an error; word
+  boundaries exclude `-`.
+
+## Validation status
+
+The numbers above are a **training score**. The misses were fixed by
+looking at the same eight cases, and three of the eight (jest-fail,
+server-outage, ci-pipeline) are synthetic, generated by
+`bench/gen_synthetic.py`, including the two largest wins. Recall also
+measures presence, not usefulness.
+
+The heuristics are **frozen** as of this document. The next evidence should
+come from:
+
+1. A held-out corpus of 15 to 20 real logs from actual agent sessions,
+   ideally tools not yet covered (Maven, Terraform, kubectl, Bazel, Next.js
+   build, tsc), with `.keep` files written **before** pare is run on them.
+   `corpus-heldout/README.md` has the protocol; `bench/run.py --corpus
+   corpus-heldout` reports it separately.
+2. An agent-success evaluation: a few real tasks (fix a failing test, fix a
+   broken build, find an outage cause) run with the full output, with pare,
+   with sqz and with tidyout in the agent's context, reporting task success
+   and tokens side by side.
+
+## Performance
+
+About 1.7 s on the 750 KB / 17,832-line CI log. drain3 is 0.35 s of that;
+the rest is the vocabulary and severity regexes, now one pass per class per
+line with per-line memoisation. The prototype reads all of stdin into
+memory.
+
+## Notes for a native port
+
+- Template ids must stay stable across versions, or `--only T3 < runfile`
+  breaks: a native Drain must match drain3 0.9.11's clustering exactly, or
+  the change is a breaking one and should say so.
+- Design for streaming: cluster in one pass while teeing to the run file,
+  keep per-template statistics and exemplar offsets, then allocate from
+  those statistics plus a second pass over the run file (mmap). The
+  prototype's unified queue needs every line's score up front, which a
+  second pass provides.
+- Fuse masking and clustering in one pass; with the regex costs fixed,
+  drain is the remaining per-line cost and a native implementation can
+  tokenize and mask once.
+- The vocabulary classes compile to one alternation per class; a native
+  port can use an Aho-Corasick scan for the plain words and keep the few
+  regex entries separate.
