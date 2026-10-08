@@ -50,11 +50,13 @@ What it does, in order:
 4. **Cluster.** The masked head line of each record goes through
    [drain3](https://github.com/logpai/Drain3) (sim 0.5, depth 4). Clusters
    are renumbered `T1, T2, …` in order of first appearance.
-5. **Score.** Each template gets a salience: error vocabulary (+3), warning
-   vocabulary (+1.5), summary vocabulary (+1), noise vocabulary (−0.75),
-   passing-test markers (−1), rarity `2 / (1 + log2 count)`, a bonus for
-   sitting in the last 10 % or first 5 % of the output, and a bonus for
-   multi-line records (tracebacks).
+5. **Score.** A template's salience is what its head line says plus how
+   unusual its shape is: the vocabulary and structural score of the head
+   (see below) plus `2 / (1 + log2 count)`. A raw line's score is its own
+   vocabulary plus 0.6 of its record head's, less 0.25 per level of
+   indentation, plus 1.5 if it is the first source location after an error
+   line in its record. That is the whole model; each term survived an
+   ablation (see **Ablation** below).
 6. **Allocate** `--budget` tokens (`bytes / 4`):
    - a head and a tail window (`--head 5`, `--tail 10`, at most 30 % of the
      budget; the head shrinks to 3 below 1,000 tokens). Lines of templates
@@ -63,34 +65,23 @@ What it does, in order:
      stands for them; the first and last lines always stay;
    - then one priority queue for template entries and raw lines, on the
      same salience scale. A template entry (count, marker, exemplar head
-     line) competes at its salience plus a small bonus, so every template
-     is listed once if the budget allows, highest salience first; a raw
-     line competes at its own score: its vocabulary, a share of its record
-     head's vocabulary, template rarity, position (the start and end zones
-     are bounded in lines, since "the last 10 %" of a 17,000-line log is
-     nothing special), a bonus for being the first occurrence of its
-     template, a bonus for continuing a record whose head is already on
-     screen, a bonus for being the first source location after an error
-     line in its record (where the failure is, as opposed to how it got
-     there), and a mild value-per-byte factor so a 180-byte advice line
-     with a URL does not outrank a 50-byte exception line. So a
-     high-salience exception line beats a low-salience singleton template,
-     and a warning template beats the sixth frame of a trace. Lines that
-     land in a placed template's exemplar record are rendered under it as
-     its body (the traceback, the compiler snippet); the rest go to
-     "selected lines";
-   - diminishing returns keep repetition out: a record head counts as "one
-     of these" by its drain template and severity (so two pods' readiness
-     warnings are one shape), a continuation line by its masked shape; each
-     repeat is worth less, more gently when it is a distinct fact (an
-     error-level record head, a source location) and fully when it is an
-     exact repeat; a one-line record whose tokens are mostly contained in a
-     shown line, or a continuation line that is a pure token subset of one,
-     is skipped; a very long record yields its lines with decaying returns
-     after eight; and lines under a salience floor never pad the output.
-     An exemplar the head or tail window already prints is referenced, not
-     repeated, and a rare one-line record that restates one already on
-     screen is left to the ledger;
+     line) competes at its salience, so every template is listed once if
+     the budget allows, highest first; a raw line competes at its score
+     divided by `1 + 1.5 × (repeats of its shape already shown)` and
+     scaled by a mild value-per-byte factor, `(120 / (120 + bytes))^0.35`,
+     so a 180-byte advice line with a URL does not outrank a 50-byte
+     exception line. A record head repeats by its drain template and
+     severity (two pods' readiness warnings are one shape); a continuation
+     line by its masked shape. So a high-salience exception line beats a
+     low-salience singleton template, and a warning template beats the
+     sixth frame of a trace. Lines that land in a placed template's
+     exemplar record are rendered under it as its body (the traceback, the
+     compiler snippet); the rest go to "selected lines";
+   - a few guards keep restatements out: a one-line record whose tokens are
+     mostly contained in a shown line, or a continuation line that is a
+     pure token subset of one, is skipped; an exemplar the head or tail
+     window already prints is referenced, not repeated; and lines under a
+     salience floor of 1.0 never pad the output;
    - the per-item allowances are conservative, so a second pass re-offers
      what did not fit against the measured slack, and a final loop sheds
      content until the rendering fits. The budget is a hard limit;
@@ -257,32 +248,32 @@ CI log, almost all of it in drain3.
 | cargo-build | pare | 945 | 964 | 102.0% | 8/8 |
 | cargo-build | sqz | 945 | 763 | 80.7% | 4/8 |
 | cargo-build | tidyout | 945 | 697 | 73.8% | 8/8 |
-| ci-pipeline | pare | 187524 | 1980 | 1.1% | 15/15 |
+| ci-pipeline | pare | 187524 | 1992 | 1.1% | 15/15 |
 | ci-pipeline | sqz | 187524 | 112882 | 60.2% | 7/15 |
 | ci-pipeline | tidyout | 187524 | 187543 | 100.0% | 15/15 |
-| go-test | pare | 2212 | 668 | 30.2% | 11/11 |
+| go-test | pare | 2212 | 566 | 25.6% | 11/11 |
 | go-test | sqz | 2212 | 2212 | 100.0% | 11/11 |
 | go-test | tidyout | 2212 | 2230 | 100.8% | 11/11 |
-| jest-fail | pare | 4396 | 855 | 19.4% | 10/10 |
+| jest-fail | pare | 4396 | 843 | 19.2% | 10/10 |
 | jest-fail | sqz | 4396 | 2099 | 47.7% | 2/10 |
 | jest-fail | tidyout | 4396 | 4402 | 100.1% | 10/10 |
-| make-build | pare | 2318 | 821 | 35.4% | 7/7 |
+| make-build | pare | 2318 | 800 | 34.5% | 7/7 |
 | make-build | sqz | 2318 | 990 | 42.7% | 1/7 |
 | make-build | tidyout | 2318 | 2336 | 100.8% | 7/7 |
 | npm-install | pare | 5459 | 333 | 6.1% | 2/2 |
 | npm-install | sqz | 5459 | 4902 | 89.8% | 2/2 |
 | npm-install | tidyout | 5459 | 5477 | 100.3% | 2/2 |
-| pytest-fail | pare | 4762 | 1352 | 28.4% | 11/11 |
+| pytest-fail | pare | 4762 | 1254 | 26.3% | 11/11 |
 | pytest-fail | sqz | 4762 | 401 | 8.4% | 8/11 |
 | pytest-fail | tidyout | 4762 | 1483 | 31.1% | 11/11 |
-| server-outage | pare | 133851 | 909 | 0.7% | 9/9 |
+| server-outage | pare | 133851 | 862 | 0.6% | 9/9 |
 | server-outage | sqz | 133851 | 63390 | 47.4% | 5/9 |
 | server-outage | tidyout | 133851 | 1388 | 1.0% | 1/9 |
 
 | tool | cases | in tok | out tok | ratio | recall | min recall |
 |---|---:|---:|---:|---:|---:|---:|
 | raw | 8 | 341467 | 341467 | 100.0% | 100% | 100% |
-| pare | 8 | 341467 | 7882 | 2.3% | 100% | 100% |
+| pare | 8 | 341467 | 7614 | 2.2% | 100% | 100% |
 | sqz | 8 | 341467 | 187634 | 54.9% | 55% | 14% |
 | tidyout | 8 | 341467 | 205556 | 60.2% | 89% | 11% |
 
@@ -291,7 +282,7 @@ CI log, almost all of it in drain3.
 | tool | cases | in tok | out tok | ratio | recall | min recall |
 |---|---:|---:|---:|---:|---:|---:|
 | raw | 8 | 341467 | 341467 | 100.0% | 100% | 100% |
-| pare | 8 | 341467 | 4416 | 1.3% | 97% | 87% |
+| pare | 8 | 341467 | 4269 | 1.3% | 97% | 87% |
 | sqz | 8 | 341467 | 187639 | 55.0% | 55% | 14% |
 | tidyout | 8 | 341467 | 205556 | 60.2% | 89% | 11% |
 
@@ -304,9 +295,9 @@ lines alone are about 1,300 bytes of a 2,400-byte budget whose skeleton
 `at file:line` locations of two of the four Jest failures; the rollout
 failure, the webpack error and warning, the four Jest failure messages,
 the totals, the npm summary and the exit code all survive. Shifting the
-weights to fit those two frames pushes out the `TypeError` message
-instead, so the budget there is saturated rather than misallocated. At
-2000 all fifteen survive in 1.1 % of the input.
+weights to fit those two frames pushes out a failure message instead, so
+the budget there is saturated rather than misallocated. At 2000 all
+fifteen survive in 1.1 % of the input.
 
 Notes on reading this:
 
@@ -341,10 +332,42 @@ Notes on reading this:
 
   | `--max-templates` | out tok | recall | min recall |
   |---|---:|---:|---:|
-  | 0 (all that fit) | 4,416 | 97% | 87% |
-  | 6 | 4,354 | 90% | 71% |
+  | 0 (all that fit) | 4,269 | 97% | 87% |
+  | 6 | 4,186 | 93% | 73% |
 - The cargo log (945 tokens) fits the budget, so pare passes it through with
   a two-line header; it never makes small inputs bigger than a fixed overhead.
+
+### Ablation
+
+```
+.venv/bin/python bench/ablate.py [--budgets 600,2000]
+```
+
+Runs the pipeline in-process on every corpus file with each scoring
+heuristic switched off in turn and prints recall and output size per
+budget. The scoring model above is what survived: nine earlier heuristics
+(a bonus for template entries over lines, position bonuses for the start
+and end of the output, a bonus for multi-line templates, a bonus for a
+body with error vocabulary, a bonus for continuing a record already on
+screen, decaying returns within one record, a gentler repeat penalty for
+error lines, line-level template rarity, and a first-occurrence bonus)
+changed recall at neither budget and were removed one or two at a time,
+re-measuring after each. What remains and why (recall at 600 / at 2000,
+and output tokens at 2000 where that is the reason):
+
+| heuristic | without it |
+|---|---|
+| (the full model) | 97.3% / 100%, 7,614 |
+| template rarity | 93.2% / 100% |
+| inheritance from the record head | 87.7% / 97.3% |
+| depth penalty | 95.9% / 100% |
+| error-location bonus | 94.5% / 97.3% |
+| value-per-byte factor | 94.5% / 100% |
+| repeat penalty | 94.5% / 100%, 9,368 |
+| salience floor | 97.3% / 100%, 14,564 |
+| near-duplicate suppression | 97.3% / 100%, 7,972 |
+| window skipping of frequent templates | 94.5% / 100% |
+| compact mode below 1,000 tokens | 89.0% / 100% |
 
 ## Tests
 
@@ -365,6 +388,7 @@ proto/pare.py          the prototype (drain3 is its only dependency)
 proto/test_pare.py     pytest suite
 proto/vocab.example    example vocabulary extension (German)
 bench/run.py           benchmark runner
+bench/ablate.py        ablation study of the scoring heuristics
 bench/gen_synthetic.py generator for the seeded synthetic corpus files
 corpus/*.log|.keep|.cmd
 ```

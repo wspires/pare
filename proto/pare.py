@@ -582,7 +582,6 @@ def rarity_of(tpl: Template) -> float:
 
 
 def score_templates(lines: list[Line], records: list[Record], templates: list[Template]) -> None:
-    n = max(1, len(records))
     for tpl in templates:
         # Structural levels of the member records. The exemplar is the first
         # record at the highest severity, so a template of 4,000 INFO lines
@@ -611,24 +610,11 @@ def score_templates(lines: list[Line], records: list[Record], templates: list[Te
             if VOCAB.has("strong-error", ln.text):
                 body_err = 1.0
                 break
-        vocab = head_vocab + body_err
-        count = len(tpl.records)
-        rarity = rarity_of(tpl)
-        # Position: the end zone holds the final verdicts, the start zone the
-        # command and environment. Both are bounded in lines, since "the last
-        # 10%" of a 17,000-line CI log is 1,700 lines of nothing special.
-        end_zone = n - zone_len(n, END_ZONE_FRACTION, END_ZONE_MAX)
-        start_zone = zone_len(n, START_ZONE_FRACTION, START_ZONE_MAX)
-        first, last = tpl.records[0], tpl.records[-1]
-        position = 0.0
-        if last >= end_zone:
-            position += 1.0 if first >= end_zone else 0.5
-        if first < start_zone:
-            position += 0.4
-        avg_cont = tpl.lines / count - 1.0
-        block = 0.75 if avg_cont >= 2 else 0.0
-        tpl.vocab = vocab
-        tpl.salience = vocab + 2.0 * rarity + position + block
+        # Salience: what the head line says, plus how unusual the shape is.
+        # (Position, block-size and body-error bonuses were ablated away:
+        # they changed nothing at any budget. See bench/ablate.py.)
+        tpl.vocab = head_vocab
+        tpl.salience = head_vocab + RARITY_WEIGHT * rarity_of(tpl)
         if tpl_level is not None and tpl_level <= 1 and not body_err:
             tpl.marker = "S" if VOCAB.has("summary", tpl.text) else "."  # info/debug: structure wins
         elif (tpl_level is not None and tpl_level >= 3) or body_err or (
@@ -643,25 +629,15 @@ def score_templates(lines: list[Line], records: list[Record], templates: list[Te
             tpl.marker = "."
 
 
-def line_score(ln: Line, tpl: Template, head: Line, total: int) -> float:
-    """Salience of one raw line for the fill phase: its own vocabulary, a share
-    of its record head's vocabulary, the rarity of its template, and a bonus
-    for sitting at the end of the output."""
+def line_score(ln: Line, head: Line) -> float:
+    """Salience of one raw line: its own vocabulary plus a share of its
+    record head's vocabulary, less a little per level of depth."""
     s = vocab_score(ln.text, head=ln.depth == 0)
     if ln.depth > 0:
-        s -= 0.25 * min(ln.depth, 4)
+        s -= DEPTH_PENALTY * min(ln.depth, 4)
         if not (VOCAB.has("pass", ln.text) and not VOCAB.has("error", ln.text)):
-            s += 0.6 * max(0.0, vocab_score(head.text))
-    s += rarity_of(tpl)
-    if total and ln.no > total - zone_len(total, END_ZONE_FRACTION, END_ZONE_MAX):
-        s += 0.5
+            s += INHERIT * max(0.0, vocab_score(head.text))
     return s
-
-
-def zone_len(n: int, fraction: float, cap: int) -> int:
-    """Length of a start or end zone: a fraction of the input, capped in lines
-    so it stays a window on a large file, and at least ZONE_MIN lines."""
-    return max(min(n, ZONE_MIN), min(int(n * fraction), cap))
 
 
 def error_locations(lines: list[Line], records: list[Record]) -> set[int]:
@@ -684,26 +660,6 @@ def error_locations(lines: list[Line], records: list[Record]) -> set[int]:
             elif (sev is not None and sev >= 3) or (VOCAB.has("error", t) and not is_loc):
                 armed = True
     return out
-
-
-def first_occurrences(lines: list[Line], records: list[Record]) -> set[int]:
-    """Line numbers that are the first of their kind: for a record head, the
-    first record of its template; for a continuation line, the first line of
-    its shape at its depth within its template. The first instance of a
-    warning is where it matters, so it gets the same bonus as a line near the
-    end of the output; otherwise a later copy in the last 10% would always
-    win."""
-    seen: set[tuple] = set()
-    first: set[int] = set()
-    for ln in lines:
-        if ln.record < 0 or not ln.text.strip():
-            continue
-        tpl = records[ln.record].template
-        key = (tpl, 0) if ln.depth == 0 else (tpl, ln.depth, shape_key(ln.text))
-        if key not in seen:
-            seen.add(key)
-            first.add(ln.no)
-    return first
 
 
 TOKEN_RE = re.compile(r"[A-Za-z0-9_]+")
@@ -740,21 +696,18 @@ def shape_key(text: str) -> str:
 WINDOW_SKIP_COUNT = 5  # head/tail windows skip lines of templates this common
 WINDOW_SCAN_FACTOR = 3  # ...looking at most this many window-lengths into the file
 NEAR_DUP_MAX_COUNT = 5  # templates this small are skipped when their exemplar restates a shown line
-TABLE_BONUS = 1.0  # a template entry's priority over a raw line of equal salience
-COHERENCE_BONUS = 0.5  # for a continuation line whose record head is already on screen
-LOCATION_BONUS = 1.5  # for the first source location after an error line in a record
-END_ZONE_FRACTION, END_ZONE_MAX = 0.1, 60  # the 'end of output' zone for position bonuses
-START_ZONE_FRACTION, START_ZONE_MAX = 0.05, 30  # the 'start of output' zone
-ZONE_MIN = 10  # lines; a zone is never shorter than this on a small input
+# Scoring weights. Each one survived bench/ablate.py: switching it off lowers
+# recall at some budget or grows the output at the same recall.
+RARITY_WEIGHT = 2.0  # template salience: weight of 1/(1+log2 count)
+INHERIT = 0.6  # share of the record head's vocabulary a continuation line inherits
+DEPTH_PENALTY = 0.25  # per level of indentation depth, up to 4
+LOCATION_BONUS = 1.5  # the first source location after an error line in a record
 DENSITY_REF = 120  # bytes; a raw line's priority is scaled by (REF / (REF + len))^POWER
 DENSITY_POWER = 0.35
-RECORD_FREE_LINES = 8  # continuation lines one record may show before its returns decay
-RECORD_DECAY = 0.25  # divisor growth per further continuation line from that record
+FILL_PENALTY = 1.5  # divisor growth per already-shown line of the same repeat key
+FILL_FLOOR = 1.0  # lines scoring below this never pad the output
 COMPACT_BUDGET = 1000  # below this many tokens, multi-record entries are one line
 HINT_BUDGET = 1000  # below this, the usage hint at the end is dropped
-FILL_PENALTY = 1.5  # divisor growth per already-shown line of the same masked shape
-FILL_PENALTY_ERROR = 0.75  # ...for error-level lines, whose copies are distinct facts
-FILL_FLOOR = 1.0  # lines scoring below this never pad the output
 
 
 def tokens(nbytes: int) -> int:
@@ -881,8 +834,8 @@ def summarize(
 
     # One priority queue for template entries and raw lines, on the same
     # salience scale. A template entry (its count, marker and exemplar head
-    # line) competes at tpl.salience + TABLE_BONUS; a raw line at its line
-    # score with diminishing returns for repeated shapes and for long records.
+    # line) competes at tpl.salience; a raw line at its line score with
+    # diminishing returns for repeated shapes.
     # So at any budget a high-salience exception line beats a low-salience
     # singleton template, and a warning template beats the sixth frame of a
     # stack trace. Lines that land in a placed template's exemplar record are
@@ -890,8 +843,7 @@ def summarize(
     # At small budgets a multi-record entry is one line (count + exemplar)
     # instead of template text plus exemplar.
     placed: dict[int, list[str]] = {}  # template idx -> head entry lines
-    taken: dict[str, int] = {}  # masked shape -> lines already shown with it
-    taken_rec: dict[int, int] = {}  # record idx -> continuation lines already shown
+    taken: dict[str, int] = {}  # repeat key -> lines already shown with it
     compact = budget < COMPACT_BUDGET
     window_nos = set(head_nos) | set(tail_nos)
 
@@ -911,8 +863,6 @@ def summarize(
             return [f"{tpl.tid:<4} ×{fmt_int(count)}{extra} {tpl.marker} {ref}"]
         return [f"{tpl.tid:<4} ×{fmt_int(count)}{extra} {tpl.marker} {clip(tpl.text, width)}", f"     e.g. {ref}"]
 
-    taken_text: set[str] = set()  # exact (stripped) texts already shown
-
     def repeat_key(ln: Line) -> str:
         """What counts as 'another one of these' for diminishing returns: for a
         record head, its drain template plus severity (drain already decided
@@ -928,53 +878,32 @@ def summarize(
         shown.add(no)
         key = repeat_key(ln)
         taken[key] = taken.get(key, 0) + 1
-        taken_text.add(ln.text.strip())
-        if ln.depth > 0:
-            taken_rec[ln.record] = taken_rec.get(ln.record, 0) + 1
         shown_tokens.append(token_set(ln.text))
-
-    for no in sorted(shown):
-        taken_text.add(lines[no - 1].text.strip())
 
     shown_tokens = [token_set(lines[no - 1].text) for no in sorted(shown)]
     exemplar_nos = {lines[records[t.exemplar].start].no for t in templates}
 
-    # Raw-line candidates: everything not in a window and not a template's
-    # exemplar head (the template entry stands for that line).
-    base: dict[int, tuple[float, Line, str, float]] = {}
-    firsts = first_occurrences(lines, records)
+    # Raw-line candidates: everything not in a window. A template's exemplar
+    # head is a candidate too, so it can still appear when the template entry
+    # itself does not make the cut; if the entry is placed later it takes
+    # over that line.
+    base: dict[int, tuple[float, Line, str]] = {}
     locations = error_locations(lines, records)
     for ln in lines:
-        if ln.no in shown or ln.no in exemplar_nos or ln.record < 0 or not ln.text.strip():
+        if ln.no in shown or ln.record < 0 or not ln.text.strip():
             continue
         rec = records[ln.record]
         tpl = templates[rec.template]
-        s = line_score(ln, tpl, lines[rec.start], total)
-        if ln.no in firsts:
-            s += 0.5
+        s = line_score(ln, lines[rec.start])
         if ln.no in locations:
             s += LOCATION_BONUS
         key = repeat_key(ln)
-        # Error-level record heads of one shape (which package failed, which
-        # request errored) and source locations (where this diagnostic points)
-        # are each a distinct fact, so their returns diminish more gently than
-        # those of repeated chatter. An exact repeat of a shown line (the same
-        # exception text under every copy of a record) always gets the full
-        # penalty.
-        sev = VOCAB.severity(ln.text)
-        is_err = ln.depth == 0 and ((sev is not None and sev >= 3) or VOCAB.has("error", ln.text))
-        penalty = FILL_PENALTY_ERROR if is_err or VOCAB.has("frame", ln.text) else FILL_PENALTY
-        base[ln.no] = (s, ln, key, penalty)
+        base[ln.no] = (s, ln, key)
 
     def effective(no: int) -> float:
-        s, ln, key, penalty = base[no]
-        if ln.depth > 0 and lines[records[ln.record].start].no in shown:
-            s += COHERENCE_BONUS  # continue a record whose head is on screen
-        if ln.text.strip() in taken_text:
-            penalty = FILL_PENALTY
-        e = s / (1.0 + penalty * taken.get(key, 0))
-        if ln.depth > 0:  # a very long record yields its lines with decaying returns
-            e /= 1.0 + RECORD_DECAY * max(0, taken_rec.get(ln.record, 0) - RECORD_FREE_LINES)
+        s, ln, key = base[no]
+        # Each repeat of a shape already on screen is worth less.
+        e = s / (1.0 + FILL_PENALTY * taken.get(key, 0))
         # Value per byte: a 180-byte advice line with a URL is worth less than
         # a 50-byte exception line of the same salience.
         e *= (DENSITY_REF / (DENSITY_REF + len(ln.text.strip()))) ** DENSITY_POWER
@@ -984,11 +913,12 @@ def summarize(
     # so a template wins a tie and ordering is deterministic.
     heap: list[tuple[float, int, int]] = []
     for tpl in templates:
-        heapq.heappush(heap, (-(tpl.salience + TABLE_BONUS), 0, tpl.idx))
+        heapq.heappush(heap, (-tpl.salience, 0, tpl.idx))
     for no in base:
         heapq.heappush(heap, (-effective(no), 1, no))
 
     picked: list[tuple[float, Line]] = []
+    picked_nos: set[int] = set()
     deferred: list[tuple[float, int, int]] = []  # items that did not fit; retried against measured slack
 
     def place(avail: int) -> int:
@@ -1024,6 +954,10 @@ def summarize(
                     print(f"place tpl {tpl.tid:<4} prio={-negp:6.2f} cost={cost:4d} left={avail:5d} {ex_line.text.strip()[:60]!r}", file=sys.stderr)
                 if ex_line.no not in shown:
                     note_shown(ex_line.no)
+                elif ex_line.no in picked_nos:  # the entry now shows this line
+                    picked[:] = [(p, l) for p, l in picked if l.no != ex_line.no]
+                    picked_nos.discard(ex_line.no)
+                    avail += len(fmt_line(ex_line, width).encode()) + 1 + 20
                 continue
             no = ident
             cur = effective(no)
@@ -1032,7 +966,9 @@ def summarize(
                 continue
             if cur < FILL_FLOOR or no in shown:
                 continue  # below the floor a line never pads the output
-            s, ln, key, penalty = base[no]
+            if no in exemplar_nos and records[lines[no - 1].record].template in placed:
+                continue  # its template entry already shows it
+            s, ln, key = base[no]
             cost = len(fmt_line(ln, width).encode()) + 1 + 20  # + gap marker allowance
             if cost > avail:
                 deferred.append((negp, kind, ident))
@@ -1045,6 +981,7 @@ def summarize(
             if ln.depth > 0 and len(toks) >= NEAR_DUP_MIN_TOKENS and any(toks <= t for t in shown_tokens):
                 continue  # a continuation line that is a pure restatement of a shown line
             picked.append((cur, ln))
+            picked_nos.add(no)
             note_shown(no)
             avail -= cost
             if DEBUG:
