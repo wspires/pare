@@ -6,14 +6,14 @@ input is saved to a run file, and the summary ends with what was omitted and
 how to get it back.
 
 ```
-pytest -v 2>&1 | pare --budget 1000
+pytest -v 2>&1 | pare --budget 2000
 ```
 
-A 308-line, 6,803-token pytest run becomes this (982 tokens), exactly as
-printed; the last lines name the run file on the machine it ran on:
+A 308-line, 6,803-token pytest run becomes this (1,762 tokens), exactly
+as printed; the last lines name the run file on the machine it ran on:
 
 ```
-# pare: 308 lines, 19,046 B (~6,803 tok) → ~982 tok (budget 1,000) · 35 templates
+# pare: 308 lines, 19,046 B (~6,803 tok) → ~1,762 tok (budget 2,000) · 35 templates
 ## head (L1–L5)
      1│ ============================= test session starts ==============================
      2│ platform linux -- Python 3.13.16, pytest-9.1.1, pluggy-1.6.0 -- /home/dev/proj/.venv/bin/python
@@ -21,11 +21,7 @@ printed; the last lines name the run file on the machine it ran on:
      4│ collecting ... collected 170 items
      5│ 
 ## templates (by salience)
-T10  ×1 E L166: tests/test_cart.py::test_parse_bad FAILED                                [ 94%]
-T11  ×1 E L167: tests/test_cart.py::test_total_wrong FAILED                              [ 95%]
 T17  ×1 E L177: =================================== FAILURES ===================================
-T30  ×1 E L303: FAILED tests/test_cart.py::test_parse_bad - json.decoder.JSONDecodeError: Exp...
-T31  ×1 E L304: FAILED tests/test_cart.py::test_total_wrong - assert 0.9000000000000001 == 0.9
 T24  ×5 E <PATH>:<NUM>: <*>
      e.g. L214: /usr/lib/python3.13/json/decoder.py:363: JSONDecodeError
 T13  ×1 W L171: tests/test_cart.py::test_skipped SKIPPED (flaky on CI)                   [ 97%]
@@ -33,27 +29,70 @@ T14  ×1 W L172: tests/test_cart.py::test_xfail XFAIL (known bug #42)           
 T19  ×4 S <PATH>:<NUM>:
      e.g. L183: tests/test_cart.py:14:
 T27  ×1 . L218: INFO     app.core:core.py:5 parsing 6 bytes
-## selected lines
+T26  ×5 S INFO app.core:conftest.py:<NUM> fixture setup for test
+     e.g. L216: INFO     app.core:conftest.py:5 fixture setup for test
+T22  ×1 . L196: self = <json.decoder.JSONDecoder object at 0x7f7e97664590>, s = '{"a": '
+T23  ×1 (16 lines) E L197: idx = 0
    210│         except StopIteration as err:
-      ┆ (1 line)
+   211│ >           raise JSONDecodeError("Expecting value", s, err.value) from None
    212│ E           json.decoder.JSONDecodeError: Expecting value: line 1 column 7 (char 6)
-      ┆ (10 lines)
+      ┆ (+9 more lines)
+T18  ×5 (21 lines) S ___ <*> ___
+     e.g. L178: ________________________________ test_parse_bad ________________________________
+      ┆ (+2 more lines)
+T21  ×5 (15 lines) . <PATH>:<NUM>: in <*>
+     e.g. L185: app/core.py:6: in parse
+      ┆ (+2 more lines)
+T25  ×6 S --- Captured log <*> ---
+     e.g. L215: ------------------------------ Captured log setup ------------------------------
+T12  ×3 S <PATH>::test_add_rejects[<NUM>] PASSED [ <NUM>]
+     e.g. L168: tests/test_cart.py::test_add_rejects[0] PASSED                           [ 95%]
+T28  ×4 (26 lines) . host = '<IP>'
+     e.g. L233: host = '127.0.0.1'
+      ┆ (+3 more lines)
+T20  ×6 (10 lines) . _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+     e.g. L184: _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+T6   ×10 S <PATH>::test_parse_ok[{"a": <NUM>}<NUM>] PASSED [ <NUM>]
+     e.g. L126: tests/test_cart.py::test_parse_ok[{"a": 1}0] PASSED                      [ 71%]
+T7   ×10 S <PATH>::test_parse_ok[[<NUM>]<NUM>] PASSED [ <NUM>]
+     e.g. L127: tests/test_cart.py::test_parse_ok[[1,2,3]0] PASSED                       [ 71%]
+T8   ×10 S <PATH>::test_parse_ok["s"<NUM>] PASSED [ <NUM>]
+     e.g. L128: tests/test_cart.py::test_parse_ok["s"0] PASSED                           [ 72%]
+T9   ×10 S <PATH>::test_parse_ok[{"nested": {"b": [<NUM>]}}<NUM>] PASSED [ <NUM>]
+     e.g. L129: tests/test_cart.py::test_parse_ok[{"nested": {"b": [1,2]}}0] PASSED      [ 72%]
+T5   ×120 S <PATH>::test_add_many[<NUM>] PASSED [ <NUM>]
+     e.g. L6: tests/test_cart.py::test_add_many[0] PASSED                              [  0%]
+## selected lines
    223│ >       assert c.total() == 0.9
    224│ E       assert 0.9000000000000001 == 0.9
    225│ E        +  where 0.9000000000000001 = total()
    226│ E        +    where total = <app.core.Cart object at 0x7f7e97197d40>.total
-      ┆ (22 lines)
+      ┆ (1 line)
+   228│ tests/test_cart.py:18: AssertionError
+      ┆ (20 lines)
    249│ E       ConnectionRefusedError: [Errno 111] Connection refused
       ┆ (22 lines)
    272│ E       TimeoutError: timed out
-      ┆ (24 lines)
+      ┆ (14 lines)
+   287│ tests/test_net.py:9: in a
+      ┆ (7 lines)
+   295│ >   def c(): raise RuntimeError("deep failure at level 3")
+      ┆ (1 line)
    297│ E   RuntimeError: deep failure at level 3
-## tail (L305–L308)
+## tail (L284–L308)
+   284│ 
+   285│ tests/test_net.py:12:
+      ┆ (12 lines)
+   298│ 
+      ┆ (3 lines)
+   302│ =========================== short test summary info ============================
+   303│ FAILED tests/test_cart.py::test_parse_bad - json.decoder.JSONDecodeError: Exp...
+   304│ FAILED tests/test_cart.py::test_total_wrong - assert 0.9000000000000001 == 0.9
    305│ FAILED tests/test_net.py::test_connect[127.0.0.1] - ConnectionRefusedError: [...
    306│ FAILED tests/test_net.py::test_connect[10.255.255.1] - TimeoutError: timed out
    307│ FAILED tests/test_net.py::test_deep - RuntimeError: deep failure at level 3
    308│ ============= 5 failed, 163 passed, 1 skipped, 1 xfailed in 0.51s ==============
-## omitted 280/308 lines (90.9%): T5 ×120, T28 ×24, T18 ×17, T21 ×15, T23 ×14, T6 ×10, T7 ×10, T8 ×10, T9 ×10, T20 ×9, T25 ×6, T26 ×5, T24 ×4, T12 ×3, T19 ×3, T15 ×2, T16 ×1, T22 ×1, T29 ×1 · 25 templates not listed; 26 blank
+## omitted 260/308 lines (84.4%): T5 ×119, T28 ×23, T18 ×16, T21 ×13, T23 ×12, T6 ×9, T7 ×9, T8 ×9, T9 ×9, T20 ×7, T25 ×5, T26 ×4, T24 ×3, T12 ×2, T15 ×2, T19 ×2, T10 ×1, T11 ×1, T16 ×1 · 15 templates not listed; 24 blank
 ## raw: /root/.cache/pare/runs/d0ec7c06b92d.log
    expand with: pare --only T<n> < raw   ·   drop noise: pare --except T<n>,T<m> < raw
 ```
