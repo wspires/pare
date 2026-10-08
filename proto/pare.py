@@ -793,13 +793,13 @@ COMPACT_BUDGET = 1000  # below this many tokens, multi-record entries are one li
 HINT_BUDGET = 1000  # below this, the usage hint at the end is dropped
 
 
-CHARS_PER_TOKEN = 4.0  # bytes per token for the estimate; --chars-per-token calibrates it
+CHARS_PER_TOKEN = 2.8  # bytes per token, measured on cl100k/o200k (bench/tokens.py); --chars-per-token overrides
 
 
 def tokens(nbytes: int) -> int:
-    """Token estimate: bytes / CHARS_PER_TOKEN. A proxy, not a tokenizer; pare
-    output measures about 2.85 bytes per token on cl100k/o200k (bench/tokens.py),
-    so pass --chars-per-token 2.8 to budget in real units."""
+    """Token estimate: bytes / CHARS_PER_TOKEN. A proxy, not a tokenizer; the
+    default 2.8 is what pare output measures on cl100k/o200k (bench/tokens.py).
+    --chars-per-token 4 gives the classic bytes/4 rule of thumb."""
     return math.ceil(nbytes / CHARS_PER_TOKEN)
 
 
@@ -1386,13 +1386,13 @@ def tee(data: bytes, run_dir: str | None, run_file: str | None) -> str | None:
 def main(argv: list[str] | None = None) -> int:
     global VOCAB, CHARS_PER_TOKEN
     ap = argparse.ArgumentParser(prog="pare", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--budget", type=int, default=2000, help="output budget in tokens (~bytes/4); default 2000")
+    ap.add_argument("--budget", type=int, default=2000, help="output budget in tokens (bytes/2.8 by default); default 2000")
     ap.add_argument("--head", type=int, default=5, help="lines to keep from the start; default 5")
     ap.add_argument("--tail", type=int, default=10, help="lines to keep from the end; default 10")
     ap.add_argument("--width", type=int, default=200, help="clip lines longer than this; default 200")
     ap.add_argument("--chars-per-token", type=float, default=CHARS_PER_TOKEN, metavar="N",
-                    help="bytes per token for the budget and the token estimate (default 4; measured "
-                         "2.8 on common tokenizers, see docs)")
+                    help="bytes per token for the budget and the token estimate (default 2.8, measured "
+                         "on common tokenizers; 4 is the prose rule of thumb)")
     ap.add_argument("--max-templates", type=int, default=0, metavar="N",
                     help="list at most N templates (highest salience first); 0 = all that fit. "
                          "Unlisted templates still appear in the omitted ledger")

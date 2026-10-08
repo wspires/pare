@@ -115,12 +115,13 @@ that fuses masking and clustering in a single pass.
 
 ## Tokens and the budget
 
-**What a token is here.** pare counts tokens as `ceil(bytes / 4)` of
+**What a token is here.** pare counts tokens as `ceil(bytes / 2.8)` of
 UTF-8 text, for its own output and for the budget, and the benchmark uses
-the same rule for every tool. This is a proxy, not a tokenizer. Four bytes
-per token is the usual rule of thumb for English prose; log text is denser
-in tokens because paths, hashes, hex, punctuation and digits split into
-many short pieces.
+the same rule for every tool. This is a proxy, not a tokenizer; 2.8 is the
+measured rate below, and `--chars-per-token` changes it. Four bytes per
+token is the usual rule of thumb for English prose, and the default while
+the heuristics were developed; log text is denser in tokens because
+paths, hashes, hex, punctuation and digits split into many short pieces.
 
 **Measured.** `bench/tokens.py` counts the corpus and pare's output with
 real tokenizers: OpenAI's cl100k_base and o200k_base through tiktoken, and
@@ -145,17 +146,15 @@ conservative: in cl100k tokens pare's budget-2000 output is 2.0 % of the
 input (10,665 of 527,288) against 2.2 % by bytes/4, and the budget-600
 output 1.1 % against 1.3 %.
 
-`--chars-per-token` calibrates the estimate; 2.8 is the measured value
-for these tokenizers on this corpus. `--chars-per-token 2.8 --budget 2000`
-produced at most 1,982 cl100k tokens per file (9,794 in total) and kept
-72 of 73 must-survive lines (98.6 %, min 93 %). At 600 the same
-calibration is a real 600-token ceiling, which is 30 % less text than
-the bytes/4 setting, and recall drops to 75 % (min 53 %): the tight
-setting in the bytes/4 tables below is really about 850 tokens, and that
-is the number to use when budgeting in real units. One file (go test, 2.6 bytes
-per token) still exceeded 600 by 7 %; set `--chars-per-token 2.5` for a
-strict ceiling on dense logs. The bench has the same flag so the tables
-can be regenerated in calibrated units.
+So the default is `--chars-per-token 2.8`, the measured value for these
+tokenizers on this corpus, and the budget is a real-token ceiling. At
+`--budget 2000` that produced at most 1,982 cl100k tokens per file (9,794
+in total) and kept 72 of 73 must-survive lines (98.6 %, min 93 %). At 600
+it is 30 % less text than the bytes/4 setting and recall drops to 75 %
+(min 53 %): the tight setting in the bytes/4 tables below is really about
+850 tokens. One file (go test, 2.6 bytes per token) still exceeded 600 by
+7 %; set `--chars-per-token 2.5` for a strict ceiling on dense logs, or
+`4` to reproduce the bytes/4 tables. The bench has the same flag.
 
 **How to set the budget.** The budget is a hard ceiling on what reaches
 the agent's context, and the ledger plus run file make everything above it
@@ -163,14 +162,13 @@ recoverable on demand, so the question is how much context one tool
 result should cost by default:
 
 - For an agent loop, 1,000 to 2,000 tokens per tool call is a good
-  default. At 2,000 (bytes/4, about 2,850 real tokens) pare kept every
-  must-survive line on all eight corpus files, including the 750 KB CI
-  log, at 2.2 % of the input; calibrated to real tokens
-  (`--chars-per-token 2.8`) it kept 72 of 73.
-- 600 (about 850 real tokens) is the tight setting: the eight files held
-  97 %, and the misses were two stack-frame locations in the largest log.
-  Below about 400 the fixed skeleton (header, windows, ledger) is most of
-  the output.
+  default. At 2,000 pare kept 72 of 73 must-survive lines on the eight
+  corpus files, including the 750 KB CI log, at 2.0 % of the input (in
+  bytes/4 units, about 2,850 real tokens, it kept all 73).
+- Below about 1,000 the budget gets tight. At a real 600 the corpus held
+  75 %; the bytes/4 600 setting, about 850 real tokens, held 97 % with
+  two stack-frame misses in the largest log. Below about 400 the fixed
+  skeleton (header, windows, ledger) is most of the output.
 - Small outputs are passed through untouched when they fit, so a high
   budget costs nothing on a 50-line command; the budget only bites on
   output that needs it.
@@ -330,7 +328,8 @@ coherence bonus were superseded by the repeat penalty and exemplar bodies.
 
 ## Allocation
 
-The budget is `--budget` tokens at `bytes / 4`, and it is a hard limit.
+The budget is `--budget` tokens at `bytes / 2.8` (`--chars-per-token`),
+and it is a hard limit.
 
 - A head and a tail window (`--head 5`, `--tail 10`, at most 30 % of the
   budget; the head shrinks to 3 below 1,000 tokens). Lines of templates
@@ -404,7 +403,7 @@ Methodology is in the README. Versions: pare 0.1.0 with drain3 0.9.11, sqz
 not exercised; tidyout `<cmd>` with a fake `<cmd>` on PATH that replays the
 log, so its per-command rules apply.
 
-### budget 2000, per case
+### budget 2000, per case (bytes/4 units, `--chars-per-token 4`)
 
 | case | tool | in tok | out tok | ratio | recall |
 |---|---|---:|---:|---:|---:|
@@ -433,7 +432,7 @@ log, so its per-command rules apply.
 | server-outage | sqz | 133851 | 63390 | 47.4% | 5/9 |
 | server-outage | tidyout | 133851 | 1388 | 1.0% | 1/9 |
 
-### budget 600
+### budget 600 (bytes/4 units)
 
 At 600 the seven smaller files keep every must-survive line, and each
 output lands within a few tokens of the budget rather than leaving slack

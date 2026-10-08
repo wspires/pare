@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Measure pare's bytes/4 token proxy against real tokenizers.
+"""Measure pare's bytes-per-token proxy against real tokenizers.
 
 For every corpus/<name>.log, counts the raw file and pare's output at each
 budget with tiktoken's cl100k_base and o200k_base (and any Hugging Face
-tokenizer JSON given with --hf), and prints bytes per token for each.
-With --chars-per-token it also runs pare calibrated to that value and
-reports the real token count and must-survive recall per case.
+tokenizer JSON given with --hf), and prints bytes per token for each, next to the bytes/4 rule of thumb.
+The pare runs use --chars-per-token 4 so the proxy error is visible; with
+--chars-per-token it also runs pare calibrated to that value (pare's
+default is 2.8) and reports the real token count and recall per case.
 
 Usage
     python bench/tokens.py [--budgets 600,2000] [--chars-per-token 2.8] [--hf tokenizer.json]
@@ -82,7 +83,7 @@ def main() -> int:
 
     table("raw corpus", encs, [(name(p), open(p, "rb").read()) for p in logs])
     for b in budgets:
-        table(f"pare --budget {b} (bytes/4)", encs, [(name(p), pare(p, b, 4.0)) for p in logs])
+        table(f"pare --budget {b} --chars-per-token 4", encs, [(name(p), pare(p, b, 4.0)) for p in logs])
 
     if args.chars_per_token:
         cpt = args.chars_per_token

@@ -12,8 +12,8 @@ For every corpus/<name>.log:
 Usage
     python bench/run.py [--budget 2000] [--corpus corpus] [--tools pare,sqz,tidyout] [--json out.json]
 
-Tokens are approximated as ceil(bytes / 4) everywhere, matching pare's own
-budget accounting. Tools that are not installed are reported as "n/a".
+Tokens are approximated as ceil(bytes / 2.8) everywhere (--chars-per-token),
+matching pare's own budget accounting. Tools that are not installed are reported as "n/a".
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ import tempfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-CHARS_PER_TOKEN = 4.0  # set from --chars-per-token
+CHARS_PER_TOKEN = 2.8  # set from --chars-per-token
 
 
 def tokens(data: bytes) -> int:
@@ -195,8 +195,8 @@ def main() -> int:
     ap.add_argument("--json", help="also write results as JSON to this path")
     ap.add_argument("--show-misses", action="store_true", help="list must-survive lines each tool dropped")
     ap.add_argument("--pare-args", default="", help='extra flags for pare, e.g. "--max-templates 8"')
-    ap.add_argument("--chars-per-token", type=float, default=4.0,
-                    help="bytes per token for every tool's count and pare's budget (default 4)")
+    ap.add_argument("--chars-per-token", type=float, default=2.8,
+                    help="bytes per token for every tool's count and pare's budget (default 2.8, pare's default)")
     args = ap.parse_args()
     global CHARS_PER_TOKEN
     CHARS_PER_TOKEN = args.chars_per_token

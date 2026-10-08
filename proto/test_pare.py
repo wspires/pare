@@ -352,11 +352,11 @@ def test_min_severity_rejects_unknown_level():
 
 def test_chars_per_token_calibrates_the_budget():
     data = open(os.path.join(CORPUS, "server-outage.log"), "rb").read()
-    out4 = run(["--budget", "600"], data)
-    out3 = run(["--budget", "600", "--chars-per-token", "3.3"], data)
-    assert len(out4) <= 600 * 4 and len(out3) <= 600 * 3.3
-    assert len(out3) < len(out4)
-    assert b"(budget 600)" in out3  # the header still speaks in tokens
+    out_default = run(["--budget", "600"], data)
+    out4 = run(["--budget", "600", "--chars-per-token", "4"], data)
+    assert len(out_default) <= 600 * pare.CHARS_PER_TOKEN and len(out4) <= 600 * 4
+    assert pare.CHARS_PER_TOKEN == 2.8 and len(out_default) < len(out4)
+    assert b"(budget 600)" in out_default  # the header speaks in tokens, not bytes
 
 
 def test_run_file_is_content_addressed(tmp_path):
