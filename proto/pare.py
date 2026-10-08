@@ -68,6 +68,7 @@ CONT_RE = re.compile(
     r"|^Caused by:"  # Java/Rust cause chain
     r"|^\s*\.\.\. \d+ more"  # Java elided frames
     r"|^\s*(?:Expected|Received|Actual|Got|Want|Diff):"  # assertion detail
+    r"|^E\s{2,}|^>\s{2,}"  # pytest failure detail and source marker lines
     r"|^\s*[+-]{3}\s"  # diff headers
     r"|^\s*@@ "  # diff hunk
 )
@@ -184,6 +185,9 @@ def segment(lines: list[Line]) -> list[Record]:
 # --------------------------------------------------------------------------
 
 MASKS = [
+    # Rule runs (=====, _____, -----) shrink to three characters so banners of
+    # different widths share a template. Applied as a plain substitution.
+    ("RULE", re.compile(r"([=_\-*#~.])\1{2,}")),
     ("TS", re.compile(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?(?:Z|[+-]\d{2}:?\d{2})?")),
     ("DATE", re.compile(
         r"\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}/\d{1,2}/\d{2,4}\b"
@@ -211,6 +215,8 @@ def mask(text: str) -> str:
     for name, rx in MASKS:
         if name == "WORDNUM":
             t = rx.sub(lambda m: re.sub(r"\d+", "<N>", m.group(0)), t)
+        elif name == "RULE":
+            t = rx.sub(lambda m: m.group(1) * 3, t)
         else:
             t = rx.sub(f"<{name}>", t)
     return t
@@ -345,7 +351,7 @@ DEFAULT_VOCAB: dict[str, list[str]] = {
         "exited with", "non-zero", "conflict", "corrupt", "corrupted", "broken", "mismatch",
         "does not match", "not ok", "errno", "exc_info", "stacktrace", "stack trace",
         r"/[A-Z]\w*(?:Error|Exception|Fault|Panic)\b/",  # CamelCase exception names
-        "/✗|✘|❌/", r"/^\s*E\s{2,}/", r"/FAIL(?:ED|URE|S)?\b/",
+        "/✗|✘|❌/", r"/(?<![A-Za-z])FAIL(?:ED|URE|S)?\b/",  # not XFAIL; pytest's E marker is structural
     ],
     "warn": [
         "warn", "warning", "warnings", "deprecated", "deprecation", "retry", "retrying", "retried",
@@ -357,7 +363,7 @@ DEFAULT_VOCAB: dict[str, list[str]] = {
         "passed", "test", "tests", "total", "summary", "finished", "completed", "done", "built",
         "compiled", "elapsed", "duration", "exit status", "result", "results", "success", "succeeded",
         "complete", "coverage", "report", r"/(?i)(?<![a-z])ran \d+/",
-        r"/^\s*={3,}/", r"/^\s*-{3,}/", r"/^\s*#{1,3}\s/", r"/^\s*\*{3,}/",
+        r"/^\s*={3,}/", r"/^\s*-{3,}/", r"/^\s*_{3,}/", r"/^\s*#{1,3}\s/", r"/^\s*\*{3,}/",
     ],
     "frame": [
         r"/^\s*at\s/", r'/^\s*File "/', r"/^\s*-->/", r"/^\s*>\s*\d+\s*\|/",
@@ -429,7 +435,9 @@ class Vocab:
             r"(?i)(?:^|[\s\[(<|{\"':,=/-])(" + alt + r")(?=$|[\s\])>|:,\"'/\[(.-])"
         )
         # single-letter forms: logcat E/Tag, glog E0921 10:11:12, [E]
-        self.level_letter_rx = re.compile(r"(?:^|\s)([EWIDVTF])(?:/\w|\d{4}\s)|\[([EWIDVTF])\]")
+        # ...and pytest's failure-detail marker: a bare E at column 0 followed
+        # by at least two spaces.
+        self.level_letter_rx = re.compile(r"(?:^|\s)([EWIDVTF])(?:/\w|\d{4}\s)|\[([EWIDVTF])\]|^(E)\s{2,}")
 
     def has(self, cls: str, text: str) -> bool:
         rx = self.rx[cls]
@@ -456,7 +464,7 @@ class Vocab:
                 return self.level_of[tok.upper()]
         m = self.level_letter_rx.search(text[:48])
         if m:
-            return LETTER_LEVEL[m.group(1) or m.group(2)]
+            return LETTER_LEVEL[m.group(1) or m.group(2) or m.group(3)]
         return None
 
     def severity(self, text: str) -> int | None:
@@ -527,11 +535,12 @@ def dump_vocab(entries: dict[str, list[str]]) -> str:
 VOCAB = Vocab(DEFAULT_VOCAB)
 
 
-def vocab_score(text: str) -> float:
+def vocab_score(text: str, head: bool = True) -> float:
     """Salience of one line's text. A structural log level, when present,
     sets the base score and decides whether error/warn words count: an INFO
     line that mentions 'error' is still info, and an ERROR line is an error
-    whatever language its message is in."""
+    whatever language its message is in. Summary vocabulary (totals, final
+    verdicts) only counts on a record head, not inside a block."""
     s = 0.0
     err = VOCAB.has("error", text)
     warn = VOCAB.has("warn", text)
@@ -552,7 +561,7 @@ def vocab_score(text: str) -> float:
                 s += 0.5 * VOCAB_CLASSES["error"][0]
             if warn:
                 s += 0.5 * VOCAB_CLASSES["warn"][0]
-    if VOCAB.has("summary", text):
+    if head and VOCAB.has("summary", text):
         s += VOCAB_CLASSES["summary"][0]
     if VOCAB.has("frame", text):
         s += VOCAB_CLASSES["frame"][0]
@@ -627,7 +636,7 @@ def line_score(ln: Line, tpl: Template, head: Line, total: int) -> float:
     """Salience of one raw line for the fill phase: its own vocabulary, a share
     of its record head's vocabulary, the rarity of its template, and a bonus
     for sitting at the end of the output."""
-    s = vocab_score(ln.text)
+    s = vocab_score(ln.text, head=ln.depth == 0)
     if ln.depth > 0:
         s -= 0.25 * min(ln.depth, 4)
         if not (VOCAB.has("pass", ln.text) and not VOCAB.has("error", ln.text)):
@@ -636,6 +645,24 @@ def line_score(ln: Line, tpl: Template, head: Line, total: int) -> float:
     if total and ln.no / total >= 0.9:
         s += 0.5
     return s
+
+
+TOKEN_RE = re.compile(r"[A-Za-z0-9_]+")
+NEAR_DUP_MIN_TOKENS = 4
+NEAR_DUP_CONTAINMENT = 0.8
+
+
+def token_set(text: str) -> frozenset[str]:
+    return frozenset(TOKEN_RE.findall(text))
+
+
+def is_near_duplicate(toks: frozenset[str], shown: list[frozenset[str]]) -> bool:
+    """True when at least NEAR_DUP_CONTAINMENT of the line's tokens already
+    appear in one line on screen. Short lines are exempt: too easy to contain."""
+    if len(toks) < NEAR_DUP_MIN_TOKENS:
+        return False
+    need = NEAR_DUP_CONTAINMENT * len(toks)
+    return any(len(toks & s) >= need for s in shown)
 
 
 def shape_key(text: str) -> str:
@@ -649,7 +676,7 @@ def shape_key(text: str) -> str:
 def exemplar_body(lines: list[Line], rec: Record, limit: int) -> list[Line]:
     """The most salient continuation lines of a record, in original order."""
     body = [b for b in lines[rec.start + 1 : rec.end] if b.text.strip()]
-    ranked = sorted(body, key=lambda b: (-vocab_score(b.text), b.no))[:limit]
+    ranked = sorted(body, key=lambda b: (-vocab_score(b.text, head=False), b.no))[:limit]
     return sorted(ranked, key=lambda b: b.no)
 
 
@@ -658,7 +685,15 @@ def exemplar_body(lines: list[Line], rec: Record, limit: int) -> list[Line]:
 # --------------------------------------------------------------------------
 
 
-EXEMPLAR_BODY = 10  # continuation lines shown for an error/warning exemplar
+WINDOW_SKIP_COUNT = 20  # head/tail windows skip lines of templates this common
+WINDOW_SCAN_FACTOR = 3  # ...looking at most this many window-lengths into the file
+NEAR_DUP_MAX_COUNT = 5  # templates this small are skipped when their exemplar restates a shown line
+EXEMPLAR_BODY = 10  # most continuation lines shown for an error/warning exemplar
+EXEMPLAR_BODY_MIN = 3  # ...and the fewest; the cap scales with the budget between them
+
+
+def exemplar_body_limit(budget: int) -> int:
+    return max(EXEMPLAR_BODY_MIN, min(EXEMPLAR_BODY, budget // 200))
 FILL_PENALTY = 1.5  # divisor growth per already-shown line of the same masked shape
 FILL_FLOOR = 1.0  # lines scoring below this never pad the output
 
@@ -738,7 +773,7 @@ def summarize(
         return "\n".join([head_v] + verbatim) + "\n"
 
     # Fixed overhead: header + run lines + section titles + ledger reserve.
-    ledger_reserve = min(400, max(120, budget_bytes // 8))
+    ledger_reserve = min(400, max(120, budget_bytes // 12))
     fixed = nbytes([header(budget_bytes), run_line, run_hint, "## head", "## templates (by salience)",
                     "## selected lines", "## tail"]) + ledger_reserve
     avail = max(0, budget_bytes - fixed)
@@ -746,8 +781,22 @@ def summarize(
     shown: set[int] = set()  # line numbers already displayed
 
     # Head / tail windows: at most 30% of the budget together.
-    head_nos = [ln.no for ln in lines[:head_n]]
-    tail_nos = [ln.no for ln in lines[max(head_n, total - tail_n):]]
+    # Head and tail windows skip lines that belong to a high-frequency
+    # template (the template table already stands for those), except the
+    # very first and last lines of the input. The scan is bounded so the
+    # window stays a window and does not wander into the middle of the file.
+    def windowed(seq: list[Line], n: int, keep_no: int) -> list[int]:
+        out: list[int] = []
+        for ln in seq[: max(n, WINDOW_SCAN_FACTOR * n)]:
+            if len(out) >= n:
+                break
+            if ln.no == keep_no or ln.record < 0 or len(templates[records[ln.record].template].records) < WINDOW_SKIP_COUNT:
+                out.append(ln.no)
+        return out
+
+    head_nos = windowed(lines, head_n, 1)
+    tail_nos = sorted(windowed(list(reversed(lines)), tail_n, total))
+    tail_nos = [no for no in tail_nos if no not in head_nos]
     while head_nos or tail_nos:
         cost = nbytes(render_ranges(lines, head_nos, width)) + nbytes(render_ranges(lines, tail_nos, width))
         if cost <= avail * 0.3:
@@ -778,13 +827,20 @@ def summarize(
         if len(tpl.levels) > 1:  # mixed levels inside one template: say so
             hist = " ".join(f"{LEVEL_NAME[s]}×{fmt_int(c)}" for s, c in sorted(tpl.levels.items(), reverse=True))
             extra += f" [{hist}]"
+        # An exemplar that the head or tail window already prints is referenced,
+        # not repeated.
+        where = "head" if ex.no in head_nos else "tail" if ex.no in tail_nos else None
         if count == 1:
-            entry = [f"{tpl.tid:<4} ×{count}{extra} {tpl.marker} L{ex.no}: {clip(ex.text.strip(), width)}"]
+            if where:
+                entry = [f"{tpl.tid:<4} ×{count}{extra} {tpl.marker} L{ex.no} (in {where})"]
+            else:
+                entry = [f"{tpl.tid:<4} ×{count}{extra} {tpl.marker} L{ex.no}: {clip(ex.text.strip(), width)}"]
         else:
-            entry = [
-                f"{tpl.tid:<4} ×{fmt_int(count)}{extra} {tpl.marker} {clip(tpl.text, width)}",
-                f"     e.g. L{ex.no}: {clip(ex.text.strip(), width)}",
-            ]
+            entry = [f"{tpl.tid:<4} ×{fmt_int(count)}{extra} {tpl.marker} {clip(tpl.text, width)}"]
+            if where:
+                entry.append(f"     e.g. L{ex.no} (in {where})")
+            else:
+                entry.append(f"     e.g. L{ex.no}: {clip(ex.text.strip(), width)}")
         body_nos: list[int] = []
         if tpl.marker in ("E", "W") and rec.end - rec.start > 1 and body_limit > 0:
             body = exemplar_body(lines, rec, body_limit)
@@ -795,10 +851,19 @@ def summarize(
                 entry.append(f"      ┆ (+{fmt_int(rest)} more lines in this record)")
         return entry, body_nos
 
+    shown_tokens = [token_set(lines[no - 1].text) for no in sorted(shown)]
     for tpl in by_sal:
         if max_templates and len(tpl_entries) >= max_templates:
             break
-        entry, body_nos = tpl_entry(tpl, EXEMPLAR_BODY)
+        ex_line = lines[records[tpl.exemplar].start]
+        if len(tpl.records) == 1 and ex_line.no in shown and records[tpl.exemplar].end - records[tpl.exemplar].start == 1:
+            continue  # a one-line template already printed by the head or tail window
+        if len(tpl.records) <= NEAR_DUP_MAX_COUNT and ex_line.no not in shown:
+            # A rare line that restates something already on screen (a
+            # progress line repeating the summary line) stays in the ledger only.
+            if is_near_duplicate(token_set(ex_line.text), shown_tokens):
+                continue
+        entry, body_nos = tpl_entry(tpl, exemplar_body_limit(budget))
         cost = nbytes(entry)
         if cost > tpl_budget:
             if tpl_entries:
@@ -817,6 +882,7 @@ def summarize(
         for no in [ex_no] + body_nos:
             key = shape_key(lines[no - 1].text)
             taken[key] = taken.get(key, 0) + 1
+            shown_tokens.append(token_set(lines[no - 1].text))
     avail -= sum(nbytes(e) for _, e, _ in tpl_entries)
 
     # Fill with the highest-salience raw lines not yet shown. Lines with the
@@ -837,6 +903,10 @@ def summarize(
         key = shape_key(ln.text)
         base[ln.no] = (s, ln, key)
         heapq.heappush(heap, (-effective(s, key), ln.no))
+    # shown_tokens holds the token sets of everything on screen so far, for
+    # near-duplicate suppression: a record head whose tokens are mostly
+    # contained in a line already shown (a progress line restating a summary
+    # line) adds nothing.
     picked: list[tuple[float, Line]] = []
     fill_avail = avail
     while heap and fill_avail >= 40:
@@ -851,8 +921,12 @@ def summarize(
         cost = len(fmt_line(ln, width).encode()) + 1 + 20  # + gap marker allowance
         if cost > fill_avail:
             continue
+        toks = token_set(ln.text)
+        if ln.depth == 0 and is_near_duplicate(toks, shown_tokens):
+            continue
         picked.append((cur, ln))
         shown.add(ln.no)
+        shown_tokens.append(toks)
         taken[key] = taken.get(key, 0) + 1
         fill_avail -= cost
 

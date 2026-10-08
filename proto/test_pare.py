@@ -45,6 +45,7 @@ def run(args, data: bytes) -> bytes:
     ("Error: could not compile `inventory`", 3),
     ("panic: runtime error: slice bounds out of range", 4),
     ("[I] 09:00:00 health ok", 1),
+    ("E       assert None is not None", 3),  # pytest failure-detail marker
 ])
 def test_detect_level_forms(line, sev):
     assert pare.VOCAB.detect_level(line) == sev
@@ -52,7 +53,7 @@ def test_detect_level_forms(line, sev):
 
 @pytest.mark.parametrize("line", [
     "FAILED tests/test_net.py::test_connect - TimeoutError: timed out",  # word, not a level
-    "E       assert None is not None",  # pytest E prefix is vocabulary, not a level
+    "    E       indented E is not the pytest marker",
     "connection error occurred while reading",  # lowercase mid-line word
     "tests/test_cart.py::test_add PASSED [ 10%]",
     "   Compiling serde v1.0.1",

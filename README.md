@@ -41,8 +41,9 @@ What it does, in order:
    and the same input always maps to the same path.
 2. **Segment.** Lines become records: a line indented deeper than the
    previous record's head, or shaped like a stack frame / compiler gutter /
-   diff hunk, joins that record. A single blank line inside an indented block
-   does not break it (Jest, pytest). Blank lines belong to no record.
+   diff hunk, or pytest's `E` / `>` marker, joins that record. A single
+   blank line inside an indented block does not break it (Jest, pytest).
+   Blank lines belong to no record.
 3. **Mask.** Timestamps, dates, UUIDs, IPs, URLs, hex and hashes, versions,
    paths, numbers with units, and digits inside identifiers are replaced by
    `<TS>`, `<IP>`, `<PATH>`, `<NUM>` and so on.
@@ -55,15 +56,24 @@ What it does, in order:
    sitting in the last 10 % or first 5 % of the output, and a bonus for
    multi-line records (tracebacks).
 6. **Allocate** `--budget` tokens (`bytes / 4`):
-   - a head and a tail window (`--head 5`, `--tail 10`, at most 30 % of the budget);
+   - a head and a tail window (`--head 5`, `--tail 10`, at most 30 % of the
+     budget). Lines of templates with 20 or more records are skipped inside
+     the windows, since the table already stands for them; the first and
+     last lines always stay;
    - every template once, highest salience first, with its count and an
-     exemplar; error and warning exemplars also show up to 10 of their most
-     salient body lines (the traceback, the compiler snippet);
+     exemplar. Error and warning exemplars also show their most salient body
+     lines (the traceback, the compiler snippet): up to 10 at budget 2000,
+     scaling down to 3 at small budgets. An exemplar the head or tail window
+     already prints is referenced, not repeated, and a rare line that merely
+     restates one already on screen (a progress line repeating the summary
+     line) is left to the ledger;
    - the remaining budget is filled with the highest-salience raw lines.
      Each line scores on its own vocabulary, a share of its record head's
      vocabulary, template rarity, and position. Lines with the same masked
-     shape as something already shown are worth less each time, and lines
-     under a salience floor are never used just to fill the budget;
+     shape and severity as something already shown are worth less each time,
+     a record head whose tokens are mostly contained in a shown line is
+     skipped, and lines under a salience floor are never used just to fill
+     the budget;
    - an input that already fits the budget is passed through verbatim.
 7. **Ledger.** The output ends with how many lines were omitted and from
    which templates, plus the run file path.
@@ -214,30 +224,30 @@ failing suites and a 535 KB service log with a database outage.
 | cargo-build | pare | 945 | 973 | 103.0% | 8/8 |
 | cargo-build | sqz | 945 | 763 | 80.7% | 4/8 |
 | cargo-build | tidyout | 945 | 697 | 73.8% | 8/8 |
-| go-test | pare | 2212 | 833 | 37.7% | 11/11 |
+| go-test | pare | 2212 | 752 | 34.0% | 11/11 |
 | go-test | sqz | 2212 | 2212 | 100.0% | 11/11 |
 | go-test | tidyout | 2212 | 2230 | 100.8% | 11/11 |
-| jest-fail | pare | 4396 | 1099 | 25.0% | 10/10 |
+| jest-fail | pare | 4396 | 929 | 21.1% | 10/10 |
 | jest-fail | sqz | 4396 | 2099 | 47.7% | 2/10 |
 | jest-fail | tidyout | 4396 | 4402 | 100.1% | 10/10 |
-| make-build | pare | 2318 | 1046 | 45.1% | 7/7 |
-| make-build | sqz | 2318 | 988 | 42.6% | 1/7 |
+| make-build | pare | 2318 | 954 | 41.2% | 7/7 |
+| make-build | sqz | 2318 | 990 | 42.7% | 1/7 |
 | make-build | tidyout | 2318 | 2336 | 100.8% | 7/7 |
-| npm-install | pare | 5459 | 671 | 12.3% | 2/2 |
+| npm-install | pare | 5459 | 459 | 8.4% | 2/2 |
 | npm-install | sqz | 5459 | 4902 | 89.8% | 2/2 |
 | npm-install | tidyout | 5459 | 5477 | 100.3% | 2/2 |
-| pytest-fail | pare | 4762 | 1602 | 33.6% | 11/11 |
+| pytest-fail | pare | 4762 | 1576 | 33.1% | 11/11 |
 | pytest-fail | sqz | 4762 | 401 | 8.4% | 8/11 |
 | pytest-fail | tidyout | 4762 | 1483 | 31.1% | 11/11 |
-| server-outage | pare | 133851 | 1527 | 1.1% | 9/9 |
+| server-outage | pare | 133851 | 1056 | 0.8% | 9/9 |
 | server-outage | sqz | 133851 | 63390 | 47.4% | 5/9 |
 | server-outage | tidyout | 133851 | 1388 | 1.0% | 1/9 |
 
 | tool | cases | in tok | out tok | ratio | recall | min recall |
 |---|---:|---:|---:|---:|---:|---:|
 | raw | 7 | 153943 | 153943 | 100.0% | 100% | 100% |
-| pare | 7 | 153943 | 7751 | 5.0% | 100% | 100% |
-| sqz | 7 | 153943 | 74755 | 48.6% | 57% | 14% |
+| pare | 7 | 153943 | 6699 | 4.4% | 100% | 100% |
+| sqz | 7 | 153943 | 74757 | 48.6% | 57% | 14% |
 | tidyout | 7 | 153943 | 18013 | 11.7% | 86% | 11% |
 
 ### budget 600
@@ -245,15 +255,15 @@ failing suites and a 535 KB service log with a database outage.
 | tool | cases | in tok | out tok | ratio | recall | min recall |
 |---|---:|---:|---:|---:|---:|---:|
 | raw | 7 | 153943 | 153943 | 100.0% | 100% | 100% |
-| pare | 7 | 153943 | 3852 | 2.5% | 79% | 55% |
+| pare | 7 | 153943 | 3866 | 2.5% | 93% | 78% |
 | sqz | 7 | 153943 | 74755 | 48.6% | 57% | 14% |
 | tidyout | 7 | 153943 | 18013 | 11.7% | 86% | 11% |
 
-At 600, pare's misses are the five per-failure `E` lines of pytest, two
-deep Jest stack frames, one of fourteen identical gcc warnings, a go panic
-location and package verdict, and two non-error lines of the service log
-(the slow-cache warning and the reconnect notice). Every error line of the
-service log survives at both budgets.
+At 600, pare's misses are one go package verdict line, one of fourteen
+identical gcc warnings, and two non-error lines of the service log (the
+slow-cache warning and the reconnect notice). pytest and Jest keep every
+must-survive line, and every error line of the service log survives at
+both budgets.
 
 Notes on reading this:
 
@@ -263,21 +273,22 @@ Notes on reading this:
   (pytest, cargo); sqz is a general compressor that drops error lines as
   readily as noise.
 - pare keeps every must-survive line at budget 2000. At 600 (2,400 bytes)
-  it drops the per-failure `E` lines of pytest and the deeper stack frames of
-  Jest. `--max-templates N` caps the template table, but at 600 the table is
-  already held to 60 % of the remaining budget, so the cap does not bind:
+  it used to drop the per-failure `E` lines of pytest; four things fixed
+  that without touching the keep lists. The tail window was repeating lines
+  the template table had already listed; pytest's `E` lines began at column
+  0 and so were treated as records of their own instead of part of the
+  failure block, and their marker was counted as both a structural level
+  and an error word; progress lines (`test_x FAILED [ 95%]`) that restate
+  the summary lines were listed as templates of their own; and the
+  `total()` in `E + where … = total()` earned a summary bonus inside a
+  block. The 600 recall went from 79 % to 93 %.
+  `--max-templates N` now does bind at 600, since the table share is no
+  longer spent on references and restatements:
 
   | `--max-templates` | out tok | recall | min recall |
   |---|---:|---:|---:|
-  | 0 (all that fit), 16, 10 | 3,852 | 79% | 55% |
-  | 6 | 3,826 | 79% | 55% |
-
-  What actually costs recall at 600 is elsewhere: the fill phase ranks the
-  pytest progress lines (`test_x FAILED [ 95%]`) level with the `E` lines
-  because both carry error vocabulary and a unique template, and the ledger
-  reserve (300 bytes) is 12 % of the budget. An earlier experiment with a
-  smaller reserve gained two points of recall but let one case overrun the
-  budget by a token, so the reserve stays and the budget stays a hard limit.
+  | 0 (all that fit) | 3,866 | 93% | 78% |
+  | 6 | 3,855 | 95% | 78% |
 - The cargo log (945 tokens) fits the budget, so pare passes it through with
   a two-line header; it never makes small inputs bigger than a fixed overhead.
 
