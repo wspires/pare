@@ -89,21 +89,31 @@ drain3 stops with these options rather than a traceback.
 
 `bench/run.py` runs pare, [sqz](https://github.com/ojuschugh1/sqz) and
 [tidyout](https://github.com/sathish-2000/tidyout) over `corpus/` and
-reports output tokens (`bytes / 4`; real tokenizers count about 40 % more,
-see `bench/tokens.py`) and the share of must-survive lines (`<name>.keep`,
-substring match) that each tool keeps. Eight logs, 341k
-input tokens: real pytest, go test, cargo, make and npm runs, plus three
-seeded synthetic logs (a Jest run, a 535 KB service outage, a 750 KB CI
-job). Versions: pare 0.1.0 / drain3 0.9.11, sqz 1.9.0, tidyout-cli 0.2.0;
-sqz runs one-shot (`compress --no-cache`), tidyout with a fake command on
-PATH that replays the log.
+reports output tokens and the share of must-survive lines (`<name>.keep`,
+substring match) that each tool keeps. Tokens here are bytes / 2.8, the
+measured cl100k/o200k rate for this text (`bench/tokens.py`), and pare's
+budget is in the same units (`--chars-per-token 2.8`), so a budget of 2000
+is 2,000 real tokens. Eight logs, 488k input tokens: real pytest, go test,
+cargo, make and npm runs, plus three seeded synthetic logs (a Jest run, a
+535 KB service outage, a 750 KB CI job). Versions: pare 0.1.0 / drain3
+0.9.11, sqz 1.9.0, tidyout-cli 0.2.0; sqz runs one-shot
+(`compress --no-cache`), tidyout with a fake command on PATH that replays
+the log.
 
 | tool | budget 2000: out tok, ratio, recall (min per case) | budget 600 |
 |---|---|---|
-| raw | 341,467, 100%, 100% | same |
-| pare | 7,567, 2.2%, 100% (100%) | 4,295, 1.3%, 97% (87%) |
-| sqz | 187,634, 55%, 55% (14%) | no budget knob |
-| tidyout | 205,556, 60%, 89% (11%) | no budget knob |
+| raw | 487,810, 100%, 100% | same |
+| pare | 9,961, 2.0%, 99% (93%) | 4,549, 0.9%, 75% (53%) |
+| sqz | 268,048, 55%, 55% (14%) | no budget knob |
+| tidyout | 293,653, 60%, 89% (11%) | no budget knob |
+
+At 2000 the one miss is a stack-frame location in the CI log. A real
+600-token ceiling is tight: 2,000 is the budget to use for an agent loop,
+and 600 is the floor at which the skeleton (header, windows, ledger) starts
+to crowd out content. In the uncalibrated bytes/4 units used while the
+heuristics were developed, pare scores 100% at 2000 (7,567 tok, 2.2%) and
+97% (min 87%) at 600 (4,295 tok, 1.3%), about 850 real tokens;
+`docs/DESIGN.md` has the per-case tables in both units.
 
 **Read this as a training score.** The misses were fixed by looking at
 these same eight cases, three of which are synthetic. The heuristics are
@@ -111,11 +121,12 @@ now frozen; the next numbers should come from a held-out corpus of real
 logs with keep lists written before pare sees them
 (`corpus-heldout/README.md` has the protocol) and from an agent-success
 evaluation. With all tool-specific rules off, pare still reaches 88% at 600
-and 94.5% at 2000 on this corpus; the generic signals do most of the work.
+and 94.5% at 2000 (bytes/4 units) on this corpus; the generic signals do
+most of the work.
 
 ```
 python3 -m venv .venv && .venv/bin/pip install -r proto/requirements.txt -r bench/requirements.txt
-.venv/bin/python bench/run.py [--budget 2000] [--corpus DIR] [--show-misses] [--json out.json]
+.venv/bin/python bench/run.py --chars-per-token 2.8 [--budget 2000] [--corpus DIR] [--show-misses] [--json out.json]
 .venv/bin/python bench/ablate.py        # recall with each heuristic switched off
 .venv/bin/python bench/tokens.py        # bytes/4 vs tiktoken counts (needs tiktoken)
 ```

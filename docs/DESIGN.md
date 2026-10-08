@@ -151,8 +151,8 @@ produced at most 1,982 cl100k tokens per file (9,794 in total) and kept
 72 of 73 must-survive lines (98.6 %, min 93 %). At 600 the same
 calibration is a real 600-token ceiling, which is 30 % less text than
 the bytes/4 setting, and recall drops to 75 % (min 53 %): the tight
-setting in the tables below is really about 850 tokens, and that is the
-number to use when budgeting in real units. One file (go test, 2.6 bytes
+setting in the bytes/4 tables below is really about 850 tokens, and that
+is the number to use when budgeting in real units. One file (go test, 2.6 bytes
 per token) still exceeded 600 by 7 %; set `--chars-per-token 2.5` for a
 strict ceiling on dense logs. The bench has the same flag so the tables
 can be regenerated in calibrated units.
@@ -447,6 +447,42 @@ npm summary and the exit code all survive. Shifting the weights to fit
 those two frames pushes out a failure message instead, so the budget there
 is saturated rather than misallocated. `--max-templates 6` lowers the 600
 recall to 93 %.
+
+### Calibrated to real tokens (bytes/2.8)
+
+The same runs with `--chars-per-token 2.8`, so every count is within a
+few percent of a cl100k/o200k count and pare's budget is a real-token
+ceiling. sqz and tidyout have no budget, so only their counts change.
+
+| tool | budget 2000: out tok, ratio, recall (min) | budget 600 |
+|---|---|---|
+| raw | 487,810, 100%, 100% | same |
+| pare | 9,961, 2.0%, 99% (93%) | 4,549, 0.9%, 75% (53%) |
+| sqz | 268,048, 55%, 55% (14%) | no budget knob |
+| tidyout | 293,653, 60%, 89% (11%) | no budget knob |
+
+Per case, pare at budget 2000:
+
+| case | in tok | out tok | ratio | recall |
+|---|---:|---:|---:|---:|
+| cargo-build | 1350 | 1350 | 100.0% | 8/8 |
+| ci-pipeline | 267891 | 1974 | 0.7% | 14/15 |
+| go-test | 3160 | 809 | 25.6% | 11/11 |
+| jest-fail | 6280 | 1205 | 19.2% | 10/10 |
+| make-build | 3311 | 1144 | 34.6% | 7/7 |
+| npm-install | 7799 | 495 | 6.3% | 2/2 |
+| pytest-fail | 6803 | 1752 | 25.8% | 11/11 |
+| server-outage | 191216 | 1232 | 0.6% | 9/9 |
+
+The 2000 miss is one Jest frame location in the CI log
+(`at src/hooks/useFetch24.test.tsx:40:3`), the same saturation as the
+bytes/4 600 case. At a real 600 the output is 30 % shorter than the
+bytes/4 600 output and the losses are spread over six files: two cargo
+lines (an expected/found note and its location), seven of fifteen in the
+CI log, two go frames and a FAIL line, one make warning, two pytest
+exception lines, and three server-outage lines (the slow-cache warning,
+a handler frame, the reconnect). Nothing was tuned at this setting; the
+heuristics are frozen.
 
 ### How the misses were fixed (history)
 
