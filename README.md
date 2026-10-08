@@ -97,7 +97,7 @@ T5   ×120 S <PATH>::test_add_many[<NUM>] PASSED [ <NUM>]
    expand with: pare --only T<n> < raw   ·   drop noise: pare --except T<n>,T<m> < raw
 ```
 
-`pare --only T5 < runfile` then prints the 120 omitted lines of one
+`pare --only T5 < runfile` then prints the 119 omitted lines of one
 template; `--except`, `--min-severity error` and `--since L200` narrow it
 further. Template ids are stable because the pipeline is deterministic.
 
