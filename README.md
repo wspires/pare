@@ -57,10 +57,11 @@ T19  ×4 S L183: tests/test_cart.py:14:
 template; `--except`, `--min-severity error` and `--since L200` narrow it
 further. Template ids are stable because the pipeline is deterministic.
 
-Tokens are estimated as bytes / 4, a proxy; log text runs nearer 3.3 bytes
-per token on common tokenizers, and `--chars-per-token 3.3` budgets in
-those units. The budget is a hard ceiling; 1,000 to 2,000 is a good default
-for an agent loop, and small outputs pass through untouched. See
+Tokens are estimated as bytes / 4, a proxy. Measured with tiktoken, pare's
+output runs 2.85 bytes per token (cl100k and o200k), so a budget of 600 is
+about 850 real tokens and 2000 about 2,850; `--chars-per-token 2.8` budgets
+in real units. The budget is a hard ceiling; 1,000 to 2,000 is a good
+default for an agent loop, and small outputs pass through untouched. See
 [docs/DESIGN.md](docs/DESIGN.md#tokens-and-the-budget).
 
 ## Install
@@ -88,8 +89,9 @@ drain3 stops with these options rather than a traceback.
 
 `bench/run.py` runs pare, [sqz](https://github.com/ojuschugh1/sqz) and
 [tidyout](https://github.com/sathish-2000/tidyout) over `corpus/` and
-reports output tokens (`bytes / 4`) and the share of must-survive lines
-(`<name>.keep`, substring match) that each tool keeps. Eight logs, 341k
+reports output tokens (`bytes / 4`; real tokenizers count about 40 % more,
+see `bench/tokens.py`) and the share of must-survive lines (`<name>.keep`,
+substring match) that each tool keeps. Eight logs, 341k
 input tokens: real pytest, go test, cargo, make and npm runs, plus three
 seeded synthetic logs (a Jest run, a 535 KB service outage, a 750 KB CI
 job). Versions: pare 0.1.0 / drain3 0.9.11, sqz 1.9.0, tidyout-cli 0.2.0;
@@ -115,6 +117,7 @@ and 94.5% at 2000 on this corpus; the generic signals do most of the work.
 python3 -m venv .venv && .venv/bin/pip install -r proto/requirements.txt -r bench/requirements.txt
 .venv/bin/python bench/run.py [--budget 2000] [--corpus DIR] [--show-misses] [--json out.json]
 .venv/bin/python bench/ablate.py        # recall with each heuristic switched off
+.venv/bin/python bench/tokens.py        # bytes/4 vs tiktoken counts (needs tiktoken)
 ```
 
 On macOS: `uv tool install tidyout-cli` puts `tidyout` on PATH; for sqz,
@@ -146,7 +149,7 @@ for a native port are in [docs/DESIGN.md](docs/DESIGN.md).
 .venv/bin/pip install pytest && .venv/bin/python -m pytest proto/
 ```
 
-132 tests: severity forms and their false positives, vocabulary files, the
+133 tests: severity forms and their false positives, vocabulary files, the
 hard budget limit on every corpus file at several sizes, determinism,
 pass-through, and the selection flags.
 
@@ -158,6 +161,7 @@ proto/test_pare.py     pytest suite
 proto/vocab.example    example vocabulary extension (German)
 bench/run.py           benchmark runner
 bench/ablate.py        ablation study of the scoring heuristics
+bench/tokens.py        bytes/4 proxy vs real tokenizer counts
 bench/gen_synthetic.py generator for the seeded synthetic corpus files
 corpus/                dev corpus: *.log, *.keep, *.cmd
 corpus-heldout/        protocol for the held-out corpus (empty until collected)

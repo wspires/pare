@@ -797,9 +797,9 @@ CHARS_PER_TOKEN = 4.0  # bytes per token for the estimate; --chars-per-token cal
 
 
 def tokens(nbytes: int) -> int:
-    """Token estimate: bytes / CHARS_PER_TOKEN. A proxy, not a tokenizer; log
-    text runs about 3 to 3.5 bytes per token on common BPE tokenizers, so
-    pass --chars-per-token 3.3 to budget in units closer to the real count."""
+    """Token estimate: bytes / CHARS_PER_TOKEN. A proxy, not a tokenizer; pare
+    output measures about 2.85 bytes per token on cl100k/o200k (bench/tokens.py),
+    so pass --chars-per-token 2.8 to budget in real units."""
     return math.ceil(nbytes / CHARS_PER_TOKEN)
 
 
@@ -1391,8 +1391,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--tail", type=int, default=10, help="lines to keep from the end; default 10")
     ap.add_argument("--width", type=int, default=200, help="clip lines longer than this; default 200")
     ap.add_argument("--chars-per-token", type=float, default=CHARS_PER_TOKEN, metavar="N",
-                    help="bytes per token for the budget and the token estimate (default 4; log text is "
-                         "nearer 3.3 on common tokenizers)")
+                    help="bytes per token for the budget and the token estimate (default 4; measured "
+                         "2.8 on common tokenizers, see docs)")
     ap.add_argument("--max-templates", type=int, default=0, metavar="N",
                     help="list at most N templates (highest salience first); 0 = all that fit. "
                          "Unlisted templates still appear in the omitted ledger")

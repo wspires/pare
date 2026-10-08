@@ -120,20 +120,42 @@ UTF-8 text, for its own output and for the budget, and the benchmark uses
 the same rule for every tool. This is a proxy, not a tokenizer. Four bytes
 per token is the usual rule of thumb for English prose; log text is denser
 in tokens because paths, hashes, hex, punctuation and digits split into
-many short pieces. With the common BPE tokenizers (OpenAI's cl100k and
-o200k, and Claude's), log-like text typically runs 3 to 3.5 bytes per
-token, so a pare output that measures 600 "tokens" by bytes/4 is more like
-700 to 800 real tokens. The ratio is roughly the same for the raw input,
-so the *compression ratios* in the benchmark hold; the *absolute* counts
-are optimistic by that factor. (This could not be measured inside the
-development container, which cannot fetch tokenizer vocabularies; the
-figures above are from the tokenizers' published behaviour on code-like
-text. Measuring it is on the held-out list.)
+many short pieces.
 
-`--chars-per-token` (default 4) calibrates the estimate. If your agent's
-tokenizer averages 3.3 bytes per token on tool output, `--chars-per-token
-3.3 --budget 600` keeps the output under 600 real tokens. The bench has the
-same flag so the tables can be regenerated in calibrated units.
+**Measured.** `bench/tokens.py` counts the corpus and pare's output with
+real tokenizers: OpenAI's cl100k_base and o200k_base through tiktoken, and
+the Claude tokenizer JSON that litellm ships (the older public one with a
+65k vocabulary; the tokenizer behind current Claude models is not
+published, and Anthropic's `count_tokens` API is the exact source).
+Bytes per token, totals over the eight corpus files:
+
+| text | cl100k | o200k | Claude (legacy) |
+|---|---|---|---|
+| raw corpus, 1.37 MB | 2.59 | 2.59 | 2.43 |
+| pare output at budget 600 | 2.86 | 2.85 | 2.80 |
+| pare output at budget 2000 | 2.84 | 2.83 | 2.74 |
+
+Per file the raw logs range from 2.1 bytes per token (the synthetic
+service log: timestamps, IPs and hex on every line) to 3.8 (the pytest
+run); pare's output sits in a narrower band of 2.6 to 3.2. So bytes/4
+undercounts pare's output by about 40 %: a budget of 600 produces
+roughly 850 real tokens and 2000 roughly 2,850. The raw input is denser
+still, so the benchmark's compression ratios are, if anything,
+conservative: in cl100k tokens pare's budget-2000 output is 2.0 % of the
+input (10,665 of 527,288) against 2.2 % by bytes/4, and the budget-600
+output 1.1 % against 1.3 %.
+
+`--chars-per-token` calibrates the estimate; 2.8 is the measured value
+for these tokenizers on this corpus. `--chars-per-token 2.8 --budget 2000`
+produced at most 1,982 cl100k tokens per file (9,794 in total) and kept
+72 of 73 must-survive lines (98.6 %, min 93 %). At 600 the same
+calibration is a real 600-token ceiling, which is 30 % less text than
+the bytes/4 setting, and recall drops to 75 % (min 53 %): the tight
+setting in the tables below is really about 850 tokens, and that is the
+number to use when budgeting in real units. One file (go test, 2.6 bytes
+per token) still exceeded 600 by 7 %; set `--chars-per-token 2.5` for a
+strict ceiling on dense logs. The bench has the same flag so the tables
+can be regenerated in calibrated units.
 
 **How to set the budget.** The budget is a hard ceiling on what reaches
 the agent's context, and the ledger plus run file make everything above it
@@ -141,11 +163,14 @@ recoverable on demand, so the question is how much context one tool
 result should cost by default:
 
 - For an agent loop, 1,000 to 2,000 tokens per tool call is a good
-  default. At 2,000 (bytes/4) pare kept every must-survive line on all
-  eight corpus files, including the 750 KB CI log, at 2.2 % of the input.
-- 600 is the tight setting: the eight files held 97 %, and the misses were
-  two stack-frame locations in the largest log. Below about 400 the fixed
-  skeleton (header, windows, ledger) is most of the output.
+  default. At 2,000 (bytes/4, about 2,850 real tokens) pare kept every
+  must-survive line on all eight corpus files, including the 750 KB CI
+  log, at 2.2 % of the input; calibrated to real tokens
+  (`--chars-per-token 2.8`) it kept 72 of 73.
+- 600 (about 850 real tokens) is the tight setting: the eight files held
+  97 %, and the misses were two stack-frame locations in the largest log.
+  Below about 400 the fixed skeleton (header, windows, ledger) is most of
+  the output.
 - Small outputs are passed through untouched when they fit, so a high
   budget costs nothing on a 50-line command; the budget only bites on
   output that needs it.
