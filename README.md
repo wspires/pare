@@ -85,7 +85,17 @@ forms of logcat (`E/Tag`), glog (`E0921 10:11:12`) and `[I]`. A level word
 in the middle of a message (`connection error occurred`) is vocabulary, not
 structure, and is not matched here.
 
-When a level is found it sets the line's base score (fatal +4, error +3,
+Two more structural signals use the same scale. HTTP status codes are read
+from request lines (`GET /path 503`, `"GET /path HTTP/1.1" 503`), key-value
+pairs (`status=502`, `"status_code": 404`) and phrases (`responded with
+504`, `HTTP/1.1 302`): 5xx is error, 4xx is warn, 1xx–3xx is info. Exit
+codes are read from `exit code 1`, `exit status 2`, `exited with code 137`,
+`exit=0`, `rc=1`, `returncode=-9`: 0 is info, 1–127 is error, 128 and up or
+negative (signals, OOM kills) is fatal. A line's severity is the strongest
+signal on it, so an access log with no level field still ranks its 5xx
+lines first and its 200s last.
+
+When a severity is found it sets the line's base score (fatal +4, error +3,
 warn +1.5, info −0.5, debug −1) and decides whether error words count: an
 INFO line saying `0 errors` stays info, and an ERROR line is an error in
 any language. Per template, the levels of all member records are tallied;

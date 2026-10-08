@@ -62,6 +62,54 @@ def test_detect_level_rejects_words(line):
     assert pare.VOCAB.detect_level(line) is None
 
 
+@pytest.mark.parametrize("line,sev", [
+    ("10.0.0.1 - - [08/Oct/2026:10:00:00 +0000] \"GET /api/cart HTTP/1.1\" 503 512", 3),
+    ("INFO  [worker-1] http: GET /api/v1/orders?page=9 500 92ms rid=1386766b", 3),
+    ("INFO  [worker-1] http: GET /api/v1/orders?page=9 200 92ms rid=1386766b", 1),
+    ("POST /login 401 12ms", 2),
+    ("request finished status=502 duration=1.2s", 3),
+    ('{"msg":"done","status_code":404,"path":"/x"}', 2),
+    ("upstream responded with 504", 3),
+    ("HTTP/1.1 302 Found", 1),
+    ("Process completed with exit code 1.", 3),
+    ("shutdown complete exit=0", 1),
+    ("container exited with code 137", 4),
+    ("go build failed: exit status 2", 3),
+    ("command returncode=-9", 4),
+])
+def test_http_and_exit_code_forms(line, sev):
+    assert pare.VOCAB.severity(line) == sev
+
+
+@pytest.mark.parametrize("line", [
+    "fetched 500 items in 2s",  # a count, not a status
+    "listening on port 5000",
+    "zip code 90210",  # out of status range
+    "the script exits 3 times a day",
+    "copyright 2026 example",
+])
+def test_http_and_exit_code_rejections(line):
+    assert pare.VOCAB.severity(line) is None
+
+
+def test_access_log_needle():
+    """4,000 CLF lines without a log level; the twelve 5xx responses must be
+    the template's exemplar and surface as a histogram."""
+    lines = []
+    for i in range(4000):
+        code = 503 if i % 333 == 7 else 200
+        lines.append(f'10.0.{i % 7}.{i % 251} - - [08/Oct/2026:10:{(i // 60) % 60:02d}:{i % 60:02d} +0000] '
+                     f'"GET /api/items/{i} HTTP/1.1" {code} {100 + i % 900}')
+    data = "\n".join(lines).encode() + b"\n"
+    out = run(["--budget", "600"], data).decode()
+    tpl = next(l for l in out.splitlines() if l.startswith("T1 "))
+    assert "ERROR×12 INFO×3,988" in tpl and " E " in tpl
+    assert "e.g. L8:" in out  # first 503 (i=7) is the exemplar
+    # Identical-shape lines get diminishing returns, so the exemplar plus one
+    # more 503 is expected at this budget; the histogram carries the count.
+    assert out.count('" 503 ') >= 2
+
+
 def test_info_level_suppresses_error_words():
     info = "2026-10-08 INFO  scan complete: 0 errors, 3 warnings"
     error = "2026-10-08 ERROR scan complete"

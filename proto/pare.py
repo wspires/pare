@@ -292,6 +292,47 @@ LEVEL_SCORE = {sev: VOCAB_CLASSES[cls][0] for cls, sev in LEVEL_CLASSES.items()}
 LEVEL_NAME = {4: "FATAL", 3: "ERROR", 2: "WARN", 1: "INFO", 0: "DEBUG"}
 LETTER_LEVEL = {"F": 4, "E": 3, "W": 2, "I": 1, "D": 0, "V": 0, "T": 0}
 
+# HTTP status codes in request or key-value forms. 5xx -> error, 4xx -> warn,
+# 1xx-3xx -> info (a successful request line is demoted like an INFO line).
+HTTP_STATUS_RX = re.compile(
+    r'\b(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+\S+(?:\s+HTTP/\d(?:\.\d)?"?)?\s+(\d{3})\b'  # GET /p 500, "GET /p HTTP/1.1" 500
+    r"|(?i:\b(?:status(?:_?code)?|http_?status|statuscode|response_?code|code)\b\s*[\"']?\s*[=:]\s*[\"']?(\d{3})\b)"  # status=503
+    r"|\bHTTP/\d(?:\.\d)?\s+(\d{3})\b"  # HTTP/1.1 502
+    r"|(?i:\b(?:returned|responded(?: with)?|status code|http)\s+(\d{3})\b)"  # returned 503, HTTP 500
+)
+# Process exit codes. 0 -> info, 1-127 -> error, 128+ or negative (signals,
+# OOM kills) -> fatal.
+EXIT_CODE_RX = re.compile(
+    r"(?i)\b(?:exit(?:ed)?(?:\s+with)?(?:\s+(?:code|status))?|exit[_ ]?code|exit[_ ]?status|return\s*code|returncode|rc)"
+    r"\s*[=:]?\s*(-?\d{1,3})\b"
+)
+
+
+def http_severity(text: str) -> int | None:
+    m = HTTP_STATUS_RX.search(text)
+    if not m:
+        return None
+    code = int(next(g for g in m.groups() if g))
+    if code >= 500:
+        return 3
+    if code >= 400:
+        return 2
+    if code >= 100:
+        return 1
+    return None
+
+
+def exit_severity(text: str) -> int | None:
+    m = EXIT_CODE_RX.search(text)
+    if not m:
+        return None
+    code = int(m.group(1))
+    if code == 0:
+        return 1
+    if code < 0 or code >= 128:
+        return 4
+    return 3
+
 DEFAULT_VOCAB: dict[str, list[str]] = {
     "error": [
         "error", "errors", "err", "fatal", "panic", "panicked", "exception", "traceback", "assert",
@@ -417,6 +458,12 @@ class Vocab:
             return LETTER_LEVEL[m.group(1) or m.group(2)]
         return None
 
+    def severity(self, text: str) -> int | None:
+        """Strongest structural signal on the line: log level, HTTP status
+        code, or exit code. None when the line carries none of them."""
+        found = [s for s in (self.detect_level(text), http_severity(text), exit_severity(text)) if s is not None]
+        return max(found) if found else None
+
 
 LEVEL_SCAN_CHARS = 120
 
@@ -487,7 +534,7 @@ def vocab_score(text: str) -> float:
     s = 0.0
     err = VOCAB.has("error", text)
     warn = VOCAB.has("warn", text)
-    sev = VOCAB.detect_level(text)
+    sev = VOCAB.severity(text)
     if sev is None:
         if err:
             s += VOCAB_CLASSES["error"][0]
@@ -526,20 +573,20 @@ def score_templates(lines: list[Line], records: list[Record], templates: list[Te
         tpl.levels = {}
         best_sev, best_rec = -1, tpl.records[0]
         for ri in tpl.records:
-            sev = VOCAB.detect_level(lines[records[ri].start].text)
+            sev = VOCAB.severity(lines[records[ri].start].text)
             if sev is not None:
                 tpl.levels[sev] = tpl.levels.get(sev, 0) + 1
             if (sev if sev is not None else -1) > best_sev:
                 best_sev, best_rec = (sev if sev is not None else -1), ri
         tpl.exemplar = best_rec
-        tpl_level = VOCAB.detect_level(tpl.text)
+        tpl_level = VOCAB.severity(tpl.text)
         if tpl_level is None and tpl.levels:
             tpl_level = max(tpl.levels)  # level varies across records: judge by the worst
 
         # Vocabulary: the template text, plus one point if the exemplar's body
         # carries a strong error signal (a traceback under a bland head line).
         head_vocab = vocab_score(tpl.text)
-        if VOCAB.detect_level(tpl.text) is None and tpl_level is not None:
+        if VOCAB.severity(tpl.text) is None and tpl_level is not None:
             head_vocab = max(head_vocab, LEVEL_SCORE[tpl_level])
         body_err = 0.0
         rec = records[tpl.exemplar]
@@ -588,6 +635,14 @@ def line_score(ln: Line, tpl: Template, head: Line, total: int) -> float:
     if total and ln.no / total >= 0.9:
         s += 0.5
     return s
+
+
+def shape_key(text: str) -> str:
+    """Dedup key for the fill phase: the masked shape plus the structural
+    severity, so a 503 request line is not a duplicate of a 200 one even
+    though masking turns both status codes into <NUM>."""
+    sev = VOCAB.severity(text)
+    return mask(text) + (f" ·sev{sev}" if sev is not None else "")
 
 
 def exemplar_body(lines: list[Line], rec: Record, limit: int) -> list[Line]:
@@ -759,7 +814,7 @@ def summarize(
         shown.add(ex_no)
         shown.update(body_nos)
         for no in [ex_no] + body_nos:
-            key = mask(lines[no - 1].text)
+            key = shape_key(lines[no - 1].text)
             taken[key] = taken.get(key, 0) + 1
     avail -= sum(nbytes(e) for _, e, _ in tpl_entries)
 
@@ -778,7 +833,7 @@ def summarize(
         rec = records[ln.record]
         tpl = templates[rec.template]
         s = line_score(ln, tpl, lines[rec.start], total)
-        key = mask(ln.text)
+        key = shape_key(ln.text)
         base[ln.no] = (s, ln, key)
         heapq.heappush(heap, (-effective(s, key), ln.no))
     picked: list[tuple[float, Line]] = []
