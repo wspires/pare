@@ -1,0 +1,4 @@
+error validating "k8s/api-deployment.yaml": error validating data: failed to download openapi
+dial tcp 10.255.255.1:6443: i/o timeout; if you choose to ignore these errors, turn validation off with --validate=false
+E1008 19:43:51.314273     933 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list
+Unable to connect to the server: dial tcp 10.255.255.1:6443: i/o timeout

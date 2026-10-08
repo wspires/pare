@@ -546,6 +546,7 @@ held-out set. Nothing was tuned on it. Pare, frozen, scores:
 | terraform-init (20 lines) | 287 | pass-through, 4/4 | pass-through, 4/4 |
 | terraform-validate (37 lines) | 473 | pass-through, 8/8 | pass-through, 8/8 |
 | terraform-apply (plan + apply, 462 lines) | 5,922 | 1,401, 9/9 | 596, 2/9 |
+| kubectl-apply (unreachable API server, 18 lines) | 1,388 | pass-through, 4/4 | 318, 3/4 |
 
 Observations, recorded rather than fixed:
 
@@ -566,6 +567,11 @@ Observations, recorded rather than fixed:
   failed` template but loses the three assertion messages and the plan and
   apply summary lines; the plan diff supplies 20 near-identical resource
   blocks that the template table spends the budget on.
+- **kubectl-apply at 600** keeps the three error shapes (validation
+  failure, glog `E1008 …` retries, `Unable to connect`) but the one keep
+  line it loses is the second half of a 230-character validation error,
+  cut by the default `--width 200`; wide single-line errors are the case
+  where clipping costs content.
 - Surefire's `[ERROR] Tests run: … <<< FAILURE!` lines, glog-style
   `E1008 19:43:51 …` lines from kubectl, Terraform's `Error:` /
   `Warning:` blocks with `on main.tf line N` context, and tsc's indented
