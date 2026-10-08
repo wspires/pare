@@ -224,9 +224,13 @@ with that name on `PATH` that replays the log; sqz runs as
 tool. `raw` is the unfiltered input.
 
 Corpus: real `pytest -v`, `go test -v`, `cargo build`, `make -k` (gcc) and
-`npm install --loglevel verbose` runs captured in a container, plus two
+`npm install --loglevel verbose` runs captured in a container, plus three
 seeded synthetic logs (`bench/gen_synthetic.py`): a Jest run with three
-failing suites and a 535 KB service log with a database outage.
+failing suites, a 535 KB service log with a database outage, and a 750 KB
+/ 17,832-line CI job log (verbose `npm ci`, a webpack build with one type
+error, a 600-suite Jest run with four failures, a docker build, and a
+Kubernetes rollout that never becomes ready). pare takes about 5 s on the
+CI log, almost all of it in drain3.
 
 ### budget 2000
 
@@ -235,6 +239,9 @@ failing suites and a 535 KB service log with a database outage.
 | cargo-build | pare | 945 | 973 | 103.0% | 8/8 |
 | cargo-build | sqz | 945 | 763 | 80.7% | 4/8 |
 | cargo-build | tidyout | 945 | 697 | 73.8% | 8/8 |
+| ci-pipeline | pare | 187524 | 1998 | 1.1% | 15/15 |
+| ci-pipeline | sqz | 187524 | 112882 | 60.2% | 7/15 |
+| ci-pipeline | tidyout | 187524 | 187543 | 100.0% | 15/15 |
 | go-test | pare | 2212 | 731 | 33.0% | 11/11 |
 | go-test | sqz | 2212 | 2212 | 100.0% | 11/11 |
 | go-test | tidyout | 2212 | 2230 | 100.8% | 11/11 |
@@ -256,23 +263,29 @@ failing suites and a 535 KB service log with a database outage.
 
 | tool | cases | in tok | out tok | ratio | recall | min recall |
 |---|---:|---:|---:|---:|---:|---:|
-| raw | 7 | 153943 | 153943 | 100.0% | 100% | 100% |
-| pare | 7 | 153943 | 6765 | 4.4% | 100% | 100% |
-| sqz | 7 | 153943 | 74755 | 48.6% | 57% | 14% |
-| tidyout | 7 | 153943 | 18013 | 11.7% | 86% | 11% |
+| raw | 8 | 341467 | 341467 | 100.0% | 100% | 100% |
+| pare | 8 | 341467 | 8763 | 2.6% | 100% | 100% |
+| sqz | 8 | 341467 | 187637 | 55.0% | 55% | 14% |
+| tidyout | 8 | 341467 | 205556 | 60.2% | 89% | 11% |
 
 ### budget 600
 
 | tool | cases | in tok | out tok | ratio | recall | min recall |
 |---|---:|---:|---:|---:|---:|---:|
-| raw | 7 | 153943 | 153943 | 100.0% | 100% | 100% |
-| pare | 7 | 153943 | 4027 | 2.6% | 100% | 100% |
-| sqz | 7 | 153943 | 74755 | 48.6% | 57% | 14% |
-| tidyout | 7 | 153943 | 18013 | 11.7% | 86% | 11% |
+| raw | 8 | 341467 | 341467 | 100.0% | 100% | 100% |
+| pare | 8 | 341467 | 4619 | 1.4% | 90% | 53% |
+| sqz | 8 | 341467 | 187637 | 55.0% | 55% | 14% |
+| tidyout | 8 | 341467 | 205556 | 60.2% | 89% | 11% |
 
-At 600 every corpus file keeps every must-survive line, and each output
-lands within a few tokens of the budget (591 to 600) rather than leaving
-slack unused.
+At 600 the seven smaller files keep every must-survive line, and each
+output lands within a few tokens of the budget (591 to 600) rather than
+leaving slack unused. The CI log keeps 8 of 15: its keep list spans four
+failing sections (webpack, Jest, docker, the rollout), and the fifteen
+lines alone are about 1,300 bytes of a 2,400-byte budget whose skeleton
+(header, windows, ledger, run path) takes 900. What survives there is the
+rollout failure, the webpack error, the Jest totals and the exit code;
+what goes is the per-test Jest detail. At 2000 all fifteen survive in
+1.1 % of the input.
 
 Notes on reading this:
 
@@ -307,8 +320,8 @@ Notes on reading this:
 
   | `--max-templates` | out tok | recall | min recall |
   |---|---:|---:|---:|
-  | 0 (all that fit) | 4,027 | 100% | 100% |
-  | 6 | 4,025 | 97% | 86% |
+  | 0 (all that fit) | 4,619 | 90% | 53% |
+  | 6 | 4,615 | 84% | 33% |
 - The cargo log (945 tokens) fits the budget, so pare passes it through with
   a two-line header; it never makes small inputs bigger than a fixed overhead.
 

@@ -193,11 +193,159 @@ def jest_log(out_dir):
     write(out_dir, "jest-fail", lines, keep, "jest")
 
 
+def ci_pipeline(out_dir):
+    """A CI job log, ~20k lines / ~2 MB: npm ci chatter, a webpack build with
+    one type error, a 600-suite Jest run with four failures, a docker build,
+    and a Kubernetes rollout that never becomes ready."""
+    rng = random.Random(7)
+    lines, keep = [], []
+    pkgs = [f"@scope/{w}" if i % 5 == 0 else w for i, w in enumerate(
+        ["react", "lodash", "axios", "chalk", "debug", "ms", "semver", "glob", "minimatch", "yargs", "commander",
+         "express", "body-parser", "cors", "uuid", "dayjs", "zod", "rxjs", "tslib", "typescript", "esbuild",
+         "vite", "jest", "ts-jest", "babel-core", "eslint", "prettier", "husky", "lint-staged", "dotenv"])]
+
+    def ts(sec):
+        return f"2026-10-08T11:{sec // 60:02d}:{sec % 60:02d}.{rng.randint(0, 999):03d}Z"
+
+    # 1. checkout + npm ci (verbose)
+    lines += ["##[group]Run actions/checkout@v4", "Syncing repository: acme/storefront", "HEAD is now at 3e1f9a2 Merge pull request #4821",
+              "##[endgroup]", "##[group]Run npm ci --loglevel verbose", "npm verb cli /opt/hostedtoolcache/node/22.11.0/x64/bin/node",
+              "npm info using npm@10.9.0", "npm info using node@v22.11.0"]
+    t = 0
+    for i in range(3000):
+        p = pkgs[i % len(pkgs)]
+        ver = f"{rng.randint(0, 9)}.{rng.randint(0, 20)}.{rng.randint(0, 30)}"
+        kind = i % 4
+        if kind == 0:
+            lines.append(f"npm http fetch GET 200 https://registry.npmjs.org/{p} {rng.randint(20, 400)}ms (cache miss)")
+        elif kind == 1:
+            lines.append(f"npm http fetch GET 200 https://registry.npmjs.org/{p}/-/{p.split('/')[-1]}-{ver}.tgz {rng.randint(10, 900)}ms")
+        elif kind == 2:
+            lines.append(f"npm timing reifyNode:node_modules/{p} Completed in {rng.randint(5, 600)}ms")
+        else:
+            lines.append(f"npm verb reify extracting {p}@{ver} to node_modules/{p}")
+        t += 1
+    lines += ["npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory.",
+              "npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported",
+              "", "added 1412 packages in 48s", "", "211 packages are looking for funding", "  run `npm fund` for details",
+              "npm verb exit 0", "npm info ok", "##[endgroup]"]
+    keep.append("added 1412 packages in 48s")
+
+    # 2. webpack build
+    lines += ["##[group]Run npm run build", "", "> storefront@3.8.1 build", "> webpack --mode production --progress", ""]
+    for i in range(2200):
+        mod = rng.choice(["src/components", "src/pages", "src/hooks", "src/api", "node_modules/react-dom/cjs",
+                          "node_modules/lodash", "src/store", "src/utils"]) + f"/{rng.choice(['index', 'Button', 'Cart', 'Checkout', 'useFetch', 'format', 'slice', 'client'])}{rng.randint(0, 400)}.{rng.choice(['ts', 'tsx', 'js'])}"
+        lines.append(f"[{i + 1}/2200] {int(100 * (i + 1) / 2200)}% building ./{mod}")
+        if i == 1700:
+            lines += ["WARNING in ./src/pages/Checkout.tsx 212:14-38",
+                      "export 'applyCoupon' (imported as 'applyCoupon') was not found in '../api/client' (possible exports: createOrder, fetchCart)",
+                      ""]
+            keep.append("export 'applyCoupon' (imported as 'applyCoupon') was not found in '../api/client'")
+    for i in range(60):
+        lines.append(f"asset {rng.choice(['main', 'vendor', 'checkout', 'cart'])}.{'%08x' % rng.getrandbits(32)}.js {rng.randint(10, 2200)} KiB [emitted] [immutable] (name: {rng.choice(['main', 'vendor', 'checkout'])})")
+    lines += ["", "ERROR in ./src/store/cartSlice.ts 88:31",
+              "TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.",
+              "  Type 'undefined' is not assignable to type 'string'.",
+              "    86 |   const id = action.payload.id;",
+              "    87 |   const line = state.lines.find(l => l.id === id);",
+              "  > 88 |   state.selected = normalize(action.payload.sku);",
+              "       |                               ^^^^^^^^^^^^^^^^^^",
+              "    89 |   if (line) line.qty += 1;", "",
+              "webpack 5.95.0 compiled with 1 error and 1 warning in 94213 ms",
+              "##[endgroup]"]
+    keep.append("TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.")
+    keep.append("webpack 5.95.0 compiled with 1 error and 1 warning in 94213 ms")
+
+    # 3. jest: 600 suites
+    lines += ["##[group]Run npm test -- --ci", "", "> storefront@3.8.1 test", "> jest --ci", ""]
+    suites = [f"src/{d}/{n}{i}.test.tsx" for i in range(30) for d in ["components", "pages", "hooks", "api", "store"]
+              for n in ["Button", "Cart", "Checkout", "useFetch"]][:600]
+    fails = {"src/pages/Checkout7.test.tsx", "src/store/Cart19.test.tsx", "src/api/useFetch3.test.tsx", "src/hooks/useFetch24.test.tsx"}
+    passed = failed = 0
+    for s in suites:
+        lines.append(f"FAIL {s}" if s in fails else f"PASS {s} ({rng.randint(80, 3900) / 1000:.3f} s)")
+        n = rng.randint(6, 30)
+        for i in range(n):
+            name = rng.choice(["renders", "handles click", "validates input", "formats total", "retries on 500",
+                               "updates state", "memoizes", "throws on invalid", "supports dark mode", "hydrates"]) + f" #{i}"
+            if s in fails and i == n - 1:
+                lines.append(f"  ✕ {name} ({rng.randint(1, 90)} ms)")
+                failed += 1
+            else:
+                lines.append(f"  ✓ {name} ({rng.randint(1, 90)} ms)")
+                passed += 1
+        lines.append("")
+        if s in fails:
+            short = s.split("/")[-1].replace(".test.tsx", "")
+            lines.append(f"  ● {short} › {name}")
+            lines.append("")
+            if "Checkout" in s:
+                lines += ["    expect(received).toBe(expected) // Object.is equality", "",
+                          "    Expected: \"$1,250.00\"", "    Received: \"$1250\"", "",
+                          "      54 |     render(<Checkout cart={cart} />);",
+                          "    > 55 |     expect(screen.getByTestId('total').textContent).toBe('$1,250.00');",
+                          "         |                                                      ^",
+                          "      56 |   });", "",
+                          f"      at Object.<anonymous> ({s}:55:54)"]
+                keep.append('Received: "$1250"')
+                keep.append(f"at Object.<anonymous> ({s}:55:54)")
+            elif "Cart19" in s:
+                lines += ["    TypeError: Cannot read properties of undefined (reading 'sku')", "",
+                          "      86 |   const id = action.payload.id;",
+                          "    > 88 |   state.selected = normalize(action.payload.sku);",
+                          "         |                                           ^", "",
+                          "      at normalize (src/store/cartSlice.ts:88:43)",
+                          f"      at Object.<anonymous> ({s}:31:12)"]
+                keep.append("TypeError: Cannot read properties of undefined (reading 'sku')")
+                keep.append("at normalize (src/store/cartSlice.ts:88:43)")
+            else:
+                lines += ["    thrown: \"Exceeded timeout of 5000 ms for a test.",
+                          "    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout.\"", "",
+                          f"      at {s}:40:3"]
+                keep.append(f"at {s}:40:3")
+            lines.append("")
+    lines += ["Summary of all failing tests"] + [f" FAIL  {s}" for s in sorted(fails)] + [
+        "", f"Test Suites: {len(fails)} failed, {len(suites) - len(fails)} passed, {len(suites)} total",
+        f"Tests:       {failed} failed, {passed} passed, {failed + passed} total", "Snapshots:   0 total",
+        "Time:        412.8 s", "Ran all test suites.", "##[endgroup]"]
+    keep.append(f"Tests:       {failed} failed, {passed} passed, {failed + passed} total")
+
+    # 4. docker build + rollout
+    lines += ["##[group]Run docker build -t registry.acme.io/storefront:3e1f9a2 .", "#0 building with \"default\" instance using docker driver", ""]
+    step = 1
+    for stage, cmd in enumerate(["FROM node:22-alpine AS build", "WORKDIR /app", "COPY package*.json ./", "RUN npm ci --omit=dev",
+                                 "COPY . .", "RUN npm run build", "FROM nginx:1.27-alpine", "COPY --from=build /app/dist /usr/share/nginx/html"]):
+        lines.append(f"#{step} [stage-{stage // 6} {stage % 6 + 1}/6] {cmd}")
+        for j in range(rng.randint(2, 40)):
+            lines.append(f"#{step} sha256:{'%064x' % rng.getrandbits(256)} {rng.randint(1, 90)}.{rng.randint(0, 99):02d}MB / {rng.randint(90, 200)}MB {rng.randint(1, 9)}.{rng.randint(0, 9)}s")
+        lines.append(f"#{step} DONE {rng.randint(1, 120)}.{rng.randint(0, 9)}s")
+        step += 1
+    lines += ["#9 exporting to image", "#9 exporting layers done", "#9 writing image sha256:" + "%064x" % rng.getrandbits(256) + " done",
+              "#9 naming to registry.acme.io/storefront:3e1f9a2 done", "#9 DONE 2.1s", "##[endgroup]",
+              "##[group]Run kubectl set image deployment/storefront web=registry.acme.io/storefront:3e1f9a2 && kubectl rollout status deployment/storefront --timeout=300s",
+              "deployment.apps/storefront image updated",
+              "Waiting for deployment \"storefront\" rollout to finish: 1 out of 6 new replicas have been updated..."]
+    for i in range(280):
+        lines.append(f"Waiting for deployment \"storefront\" rollout to finish: {min(6, 1 + i // 60)} out of 6 new replicas have been updated...")
+        if i % 35 == 10:
+            lines += [f"{ts(1800 + i)}  Warning  Unhealthy  pod/storefront-7c9d4f5b8-{rng.choice(['x2k9p', 'q7m2z', 'b4nn1'])}  Readiness probe failed: HTTP probe failed with statuscode: 503",
+                      f"{ts(1801 + i)}  Warning  BackOff    pod/storefront-7c9d4f5b8-{rng.choice(['x2k9p', 'q7m2z', 'b4nn1'])}  Back-off restarting failed container web in pod storefront-7c9d4f5b8"]
+    lines += ["error: timed out waiting for the condition", "##[error]Process completed with exit code 1.", "##[endgroup]",
+              "Post job cleanup.", "##[error]Deploy job failed after 31m 12s"]
+    keep.append("Readiness probe failed: HTTP probe failed with statuscode: 503")
+    keep.append("Back-off restarting failed container web in pod storefront-7c9d4f5b8")
+    keep.append("error: timed out waiting for the condition")
+    keep.append("##[error]Process completed with exit code 1.")
+    write(out_dir, "ci-pipeline", lines, keep, "bash ci.sh")
+
+
 def main():
     out_dir = sys.argv[1] if len(sys.argv) > 1 else "corpus"
     os.makedirs(out_dir, exist_ok=True)
     server_log(out_dir)
     jest_log(out_dir)
+    ci_pipeline(out_dir)
 
 
 if __name__ == "__main__":

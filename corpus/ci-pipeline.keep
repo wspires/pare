@@ -1,0 +1,15 @@
+added 1412 packages in 48s
+export 'applyCoupon' (imported as 'applyCoupon') was not found in '../api/client'
+TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+webpack 5.95.0 compiled with 1 error and 1 warning in 94213 ms
+at src/api/useFetch3.test.tsx:40:3
+Received: "$1250"
+at Object.<anonymous> (src/pages/Checkout7.test.tsx:55:54)
+TypeError: Cannot read properties of undefined (reading 'sku')
+at normalize (src/store/cartSlice.ts:88:43)
+at src/hooks/useFetch24.test.tsx:40:3
+Tests:       4 failed, 10753 passed, 10757 total
+Readiness probe failed: HTTP probe failed with statuscode: 503
+Back-off restarting failed container web in pod storefront-7c9d4f5b8
+error: timed out waiting for the condition
+##[error]Process completed with exit code 1.
