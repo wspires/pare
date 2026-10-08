@@ -237,6 +237,49 @@ def test_min_severity_on_server_log_excludes_info():
     assert "FATAL [db] giving up" in out
 
 
+def body_lines(out: str) -> list[str]:
+    return [l for l in out.splitlines() if "│" in l]
+
+
+def test_since_until_restrict_a_selection():
+    data = access_log()
+    out = run(["--only", "T1", "--since", "L100", "--until", "L109", "--budget", "100000"], data).decode()
+    body = body_lines(out)
+    assert [int(l.split("│")[0]) for l in body] == list(range(100, 110))
+    assert out.splitlines()[0].startswith("# pare --only T1 --since L100 --until L109: 10 of 4,000 lines")
+
+
+def test_since_alone_and_bare_number():
+    data = access_log()
+    out = run(["--since", "3990", "--budget", "100000"], data).decode()
+    assert [int(l.split("│")[0]) for l in body_lines(out)] == list(range(3990, 4001))
+
+
+def test_since_negative_counts_from_end():
+    data = access_log()
+    out = run(["--since", "-5", "--budget", "100000"], data).decode()
+    assert [int(l.split("│")[0]) for l in body_lines(out)] == list(range(3996, 4001))
+
+
+def test_since_combines_with_min_severity():
+    data = access_log()
+    out = run(["--min-severity", "error", "--since", "L2000", "--budget", "100000"], data).decode()
+    nos = [int(l.split("│")[0]) for l in body_lines(out)]
+    assert nos and all(n >= 2000 for n in nos) and all('" 503 ' in l for l in body_lines(out))
+    assert len(nos) == sum(1 for i in range(1999, 4000) if i % 333 == 7)
+
+
+@pytest.mark.parametrize("args,msg", [
+    (["--since", "abc"], b"expects a line number"),
+    (["--since", "0"], b"numbered from 1"),
+    (["--since", "50", "--until", "10"], b"is after"),
+])
+def test_since_until_errors(args, msg):
+    p = subprocess.run([sys.executable, os.path.join(HERE, "pare.py"), "--no-tee", *args],
+                       input=b"x\n" * 100, capture_output=True)
+    assert p.returncode == 1 and msg in p.stderr
+
+
 def test_min_severity_rejects_unknown_level():
     p = subprocess.run([sys.executable, os.path.join(HERE, "pare.py"), "--no-tee", "--min-severity", "loud"],
                        input=b"x\n", capture_output=True)

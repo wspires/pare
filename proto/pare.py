@@ -985,6 +985,25 @@ def summarize(
 # --------------------------------------------------------------------------
 
 
+def parse_lineno(spec: str | None, total: int, flag: str) -> int | None:
+    """A line reference as the summary prints it: L3001 or 3001. A negative
+    value counts from the end (-200 is the 200th-from-last line)."""
+    if spec is None:
+        return None
+    s = spec.strip().upper()
+    if s.startswith("L"):
+        s = s[1:]
+    try:
+        n = int(s)
+    except ValueError:
+        sys.exit(f"pare: {flag} expects a line number like L3001, 3001 or -200; got {spec!r}")
+    if n == 0:
+        sys.exit(f"pare: {flag}: lines are numbered from 1")
+    if n < 0:
+        n = max(1, total + n + 1)
+    return n
+
+
 def parse_tids(spec: str | None, ntpl: int) -> set[int]:
     ids: set[int] = set()
     if not spec:
@@ -1009,6 +1028,8 @@ def select(
     only: set[int],
     exclude: set[int],
     min_severity: int | None = None,
+    since: int | None = None,
+    until: int | None = None,
     budget: int,
     width: int,
     run_path: str | None,
@@ -1026,6 +1047,11 @@ def select(
             if sev is None or sev < min_severity:
                 continue
         want.extend(ln.no for ln in lines[rec.start:rec.end])
+    lo = since if since is not None else 1
+    hi = until if until is not None else len(lines)
+    if lo > hi:
+        sys.exit(f"pare: --since L{lo} is after --until L{hi}")
+    want = [no for no in want if lo <= no <= hi]
     label = (
         f"--only {','.join(templates[i].tid for i in sorted(only))}" if only else "all"
     )
@@ -1033,6 +1059,10 @@ def select(
         label += f" --except {','.join(templates[i].tid for i in sorted(exclude))}"
     if min_severity is not None:
         label += f" --min-severity {LEVEL_NAME[min_severity].lower()}"
+    if since is not None:
+        label += f" --since L{since}"
+    if until is not None:
+        label += f" --until L{until}"
     budget_bytes = budget * 4
     head = f"# pare {label}: {fmt_int(len(want))} of {fmt_int(len(lines))} lines"
     rows = render_ranges(lines, want, width)
@@ -1110,6 +1140,10 @@ def main(argv: list[str] | None = None) -> int:
                          "Unlisted templates still appear in the omitted ledger")
     ap.add_argument("--only", metavar="T<n>[,T<m>]", help="print raw lines of these templates only")
     ap.add_argument("--except", dest="exclude", metavar="T<n>[,T<m>]", help="print raw lines except these templates")
+    ap.add_argument("--since", metavar="L<n>",
+                    help="with --only/--except (or alone): print raw lines from this line on; L3001, 3001, "
+                         "or -200 for the last 200 lines")
+    ap.add_argument("--until", metavar="L<n>", help="print raw lines up to and including this line (same forms)")
     ap.add_argument("--min-severity", choices=list(SEVERITY_BY_NAME), metavar="LEVEL",
                     help="with --only/--except (or alone, for all templates): print only records whose head "
                          "line carries a structural severity (log level, HTTP status, exit code) at or above "
@@ -1150,12 +1184,14 @@ def main(argv: list[str] | None = None) -> int:
     templates = cluster(lines, records)
     score_templates(lines, records, templates)
 
-    if args.only or args.exclude or args.min_severity:
+    if args.only or args.exclude or args.min_severity or args.since or args.until:
         out = select(
             lines, records, templates,
             only=parse_tids(args.only, len(templates)),
             exclude=parse_tids(args.exclude, len(templates)),
             min_severity=SEVERITY_BY_NAME[args.min_severity] if args.min_severity else None,
+            since=parse_lineno(args.since, len(lines), "--since"),
+            until=parse_lineno(args.until, len(lines), "--until"),
             budget=args.budget, width=args.width, run_path=run_path,
         )
     else:

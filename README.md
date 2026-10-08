@@ -83,6 +83,14 @@ the warnings and worse". Records with no structural signal at all (a
 pytest `E` line, a bare traceback) are left out, since there is nothing to
 compare against the threshold; use `--only` for those.
 
+`--since L<n>` and `--until L<n>` restrict a selection to a line range,
+using the numbers the summary prints (the `L` is optional; a negative
+value counts from the end, so `--since -200` is the last 200 lines). They
+apply after the template and severity filters and work alone too:
+`pare --since L3000 --until L3100 < runfile` is that slice of the raw file
+with line numbers, and `pare --only T9 --since L3001 --min-severity error`
+is the 5xx lines of one template after the outage began.
+
 ### Log levels (structural severity)
 
 Before any words are weighed, pare looks for an explicit log level in a
