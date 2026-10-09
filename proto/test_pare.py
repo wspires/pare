@@ -6,6 +6,7 @@
 import hashlib
 import io
 import os
+import re
 import subprocess
 import sys
 
@@ -394,3 +395,99 @@ def test_run_file_is_content_addressed(tmp_path):
     digest = hashlib.sha256(data).hexdigest()[:12]
     assert (tmp_path / f"{digest}.log").read_bytes() == data
     assert str(tmp_path / f"{digest}.log") in p.stdout.decode()
+
+
+# --- follow mode ---------------------------------------------------------------
+
+def follow_blocks(out: str) -> list[list[str]]:
+    """Split follow output into its blocks (each ends with a blank line)."""
+    blocks, cur = [], []
+    for line in out.split("\n"):
+        if line == "" and cur:
+            blocks.append(cur)
+            cur = []
+        elif line != "":
+            cur.append(line)
+    if cur:
+        blocks.append(cur)
+    return blocks
+
+
+def test_follow_windows_cover_the_input_and_keep_the_budget():
+    data = open(os.path.join(CORPUS, "ci-pipeline.log"), "rb").read()
+    out = run(["--follow", "--every", "3000", "--budget", "600"], data).decode()
+    blocks = follow_blocks(out)
+    windows = [b for b in blocks if b[0].startswith("# pare #")]
+    assert windows and blocks[-1][0].startswith("# pare: end of input · 17,832 lines")
+    ranges = [re.match(r"# pare #(\d+): L([\d,]+)–L([\d,]+)", b[0]) for b in windows]
+    assert all(ranges)
+    nums = [(int(m.group(1)), int(m.group(2).replace(",", "")), int(m.group(3).replace(",", ""))) for m in ranges]
+    assert [k for k, _, _ in nums] == list(range(1, len(nums) + 1))
+    assert nums[0][1] == 1 and nums[-1][2] == 17832
+    assert all(nums[i][2] + 1 == nums[i + 1][1] for i in range(len(nums) - 1))  # contiguous
+    for b in windows:
+        assert pare.tokens(len(("\n".join(b) + "\n").encode())) <= 600, b[0]
+    # a window boundary never splits a record, so it may run past --every by one record
+    assert all(3000 <= hi - lo + 1 <= 3000 + pare.MAX_RECORD_LINES for _, lo, hi in nums[:-1])
+    assert "## head" in "\n".join(windows[0]) and not any("## head" in "\n".join(b) for b in windows[1:])
+
+
+def test_follow_template_ids_match_the_batch_pass(tmp_path):
+    """Windows end at record boundaries, so segmentation and drain see the
+    same head lines in the same order as one batch pass: same T ids."""
+    import io
+    data = open(os.path.join(CORPUS, "ci-pipeline.log"), "rb").read()
+
+    def gids(every):
+        spool = tmp_path / f"spool-{every}"
+        with open(spool, "wb") as f:
+            p = pare.Pass(200, f, str(spool))
+            out = []
+            def cut():
+                st = p.cut()
+                out.extend(st.templates[st.rtpl[st.rec[i]]].gid if st.rec[i] >= 0 else -1 for i in range(len(st)))
+            p.every, p.on_full = every, cut
+            p.feed(data)
+            p.finish()
+            cut()
+        return out, len(p.globals)
+
+    batch, nb = gids(0)
+    windowed, nw = gids(500)
+    assert len(batch) == len(windowed) == 17832
+    assert batch == windowed and nb == nw
+
+
+def test_follow_quiet_window_is_a_heartbeat():
+    data = open(os.path.join(CORPUS, "server-outage.log"), "rb").read()
+    out = run(["--follow", "--every", "1000", "--budget", "400"], data).decode()
+    beats = [l for l in out.splitlines() if l.startswith("# pare #") and "nothing new" in l]
+    assert beats, "a long stretch of INFO lines should be a one-line window"
+    assert not [l for l in run(["--follow", "--every", "1000", "--budget", "400", "--quiet"], data).decode().splitlines()
+                if "nothing new" in l]
+    assert "new" in out  # the outage introduces shapes the earlier windows had not seen
+
+
+def test_follow_marks_new_templates_only_after_the_first_window():
+    data = open(os.path.join(CORPUS, "ci-pipeline.log"), "rb").read()
+    out = run(["--follow", "--every", "4000", "--budget", "600"], data).decode()
+    blocks = [b for b in follow_blocks(out) if b[0].startswith("# pare #")]
+    assert " new " not in "\n".join(blocks[0]) and "new" not in blocks[0][0]
+    assert any(" new " in line for line in blocks[1])
+
+
+def test_follow_rejects_run_file_flags():
+    p = subprocess.run([sys.executable, os.path.join(HERE, "pare.py"), "--no-tee", "--follow", "--only", "T1"],
+                       input=b"x\n", capture_output=True)
+    assert p.returncode != 0 and b"--follow" in p.stderr
+
+
+def test_follow_run_file_keeps_every_byte(tmp_path):
+    data = open(os.path.join(CORPUS, "go-test.log"), "rb").read()
+    run_file = tmp_path / "run.log"
+    p = subprocess.run([sys.executable, os.path.join(HERE, "pare.py"), "--follow", "--every", "50",
+                        "--run-file", str(run_file), "--budget", "300"], input=data, capture_output=True, check=True)
+    assert run_file.read_bytes() == data
+    out = p.stdout.decode()
+    assert f"## raw: {run_file} --since L1 --until L" in out
+    assert out.rstrip().splitlines()[-1].endswith(f"raw: {run_file}")

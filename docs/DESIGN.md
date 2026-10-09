@@ -613,87 +613,92 @@ template counts, the tail window and the rarity term all depend on the
 whole input. A long-running producer sees the summary when it exits; an
 endless stream never gets one. That is a different mode, sketched below.
 
-## Follow mode (design, not built)
+## Follow mode
 
 Batch pare answers "what happened" once the command has exited. A
 `tail -f`, a long server log or a two-hour build needs a different
 question answered on a schedule: "what has happened since I last looked".
-This section is the design for that mode; nothing of it is implemented.
+`pare --follow` is that mode.
 
-**Shape.** `pare --follow` reads stdin as it arrives and writes a *delta
-summary* each time a flush condition is met, then clears its per-window
-state. Each delta is a self-contained block in the batch format, budgeted
-by `--budget` on its own, ending with a blank line so a consumer can split
-the stream:
+**Shape.** The pass is an object (`Pass`) that is fed chunks and cut into
+windows. Follow mode reads stdin with `select` and `os.read`, feeds each
+chunk, and at each flush cuts the current window into a `Store` and
+summarises it with the batch summariser, which knows the window's line
+offset. Each block is in the batch format, budgeted on its own, and ends
+with a blank line so a consumer can split the stream:
 
 ```
-# pare follow #3: L4,201–L6,730 (2,530 new, 6,730 total) · 2 new templates
-## templates (in this window, by salience)
-T19  ×1 E new L5,912: ERROR [db] connection to db-primary.internal:5432 lost: ...
-T7   ×340 W L4,310: WARN  [cache] redis GET slow key=<*> took <NUM>ms      (0.2/s before, 11/s now)
-T3   ×2,180 . L4,201: INFO  [http] GET <PATH> <NUM> <NUM>ms
-## selected lines
-  5913│     psycopg.OperationalError: connection failed: server closed the connection unexpectedly
-## tail (L6,728–L6,730)
+# pare #2: L4,001–L8,023 · 4,023 lines, 152,938 B (~54,621 tok) → ~591 tok (budget 600) · 13 templates, 10 new
+## templates (by salience)
+T26  ×1 new E L5297: webpack 5.95.0 compiled with 1 error and 1 warning in 94213 ms
+T24  ×1 new E L5288: ERROR in ./src/store/cartSlice.ts 88:31
+T30  ×1 (34 lines) new E L6888: FAIL src/api/useFetch3.test.tsx
+  6914│   ✕ formats total #25 (22 ms)
   ...
-## omitted 2,514/2,530 lines in this window · raw: /path/run.log --since L4201 --until L6730
+## tail (L7994–L8023)
+  ...
+## omitted 4,007/4,023 lines (99.6%): T29 ×2,557, T20 ×1,223, T23 ×60, T30 ×29 · +2 more templates; 4 templates not listed; 135 blank
+## raw: /tmp/claude-0/-home-user-pare/851c91f1-3f2c-5677-9ebd-8a9b07052856/scratchpad/runs/follow-20261009-005020-1315.log --since L4001 --until L8023
 ```
 
-**Flush conditions.** Any of: `--every N` lines, `--interval S` seconds
-(checked while waiting for input, so an idle stream still flushes on
-time), end of input, and, with `--flush-on error` (default) a line at
-error severity or above, debounced to at most one flush per
-`--min-interval` so an error storm does not become a flush storm. A
-window with nothing above the salience floor and no new template emits a
-one-line heartbeat (`# pare follow #4: L6,731–L8,002, nothing new (T3
-×1,270)`) unless `--quiet`; a heartbeat is how a reader knows the stream
-is alive.
+**Flush conditions.** Any of: `--every N` lines (default 20,000, which
+is also the window cap when another trigger is in force), `--interval S`
+seconds (the read loop's `select` timeout, so an idle stream still
+flushes on time), end of input, and a line at `--flush-on` severity
+(default `error`; `fatal` or `none`), which schedules a flush `--settle`
+seconds later (default 0.5, so the rest of the record can arrive on a
+live pipe that delivers a line at a time) and no sooner than
+`--min-interval` after the previous flush (default 2 s), so an error
+storm is not a flush storm.
 
-**What carries across windows.** The drain3 miner and its cumulative
-per-template counts, the line counter, and the run file (the spool is
-appended to as in batch mode, so every window's raw lines stay
-recoverable with `--since/--until`). Template ids are assigned at first
-appearance and never renumbered, so `T7` means the same thing in every
-flush and in a later `pare --only T7 < run.log`, because drain is online
-and deterministic in arrival order: a batch pass over the finished run
-file assigns the same ids.
+**Windows end at record boundaries.** The cap is checked when a line
+arrives that starts a record; a continuation line never closes a window,
+which may therefore run past `--every` by one record (at most
+`MAX_RECORD_LINES`). Because of this the segmentation, and so the head
+lines drain sees and the order it sees them in, are the same as in one
+batch pass over the finished run file: the template ids match, which a
+test checks line by line on the CI log at a 500-line window.
 
-**What changes in scoring.** Rarity uses the cumulative count, not the
-window's: a template seen 100,000 times before the window is a known
-quantity even if it appears once more. Two signals that batch mode does
-not have become the point of follow mode: *novelty* (a template first
-seen in this window is marked `new` and gets a bonus) and *rate change*
-(a template whose per-second rate in the window is well above its running
-average is marked with both rates, which is what an outage looks like
-before the first ERROR line). Head window only on the first flush; the
-tail window is the last lines of each window, since verdicts tend to be
-at the end of a run.
+**What carries across windows.** The drain3 miner, one small record per
+template (`GlobalTemplate`: id, cluster, cumulative count, first window),
+the line counter, the spool position, and the run file. The run file is
+named up front (`follow-<date>-<pid>.log` under the run directory, or
+`--run-file`), since the content hash is not known while the stream
+runs, and appended as chunks arrive; every block names its
+`--since/--until` range for it.
 
-**Memory.** Per-window arrays are the ones the single pass already keeps,
-cleared at each flush, so memory is bounded by the window size. Window
-size is capped at `--every` lines (default 20,000) even when
-`--interval` is the trigger. Cumulative state is one small record per
-template, which grows only with new shapes.
+**What changes in scoring.** Rarity uses the cumulative count
+(`Template.total`), not the window's. From the second window on, a
+template first seen in the window is marked `new` and its salience gets
+`NOVELTY_BONUS` (1.0); the head window is dropped (the input's head was
+in the first block) and so is the usage hint. A template with at least
+`RATE_MIN_COUNT` (20) records in the window arriving at `RATE_FACTOR` (3)
+times its running rate gets a rate note (`(rate 0.2/s → 11/s)`); rates
+need at least a second on each side, so a replayed file gets none and
+tests stay deterministic.
 
-**Rolling mode.** A delta stream suits a human terminal or a harness that
-streams tool output. An agent that runs a long command in the background
-and polls a file is better served by `--follow --rolling --out
-digest.md`: a budgeted summary of the *whole* run so far, rewritten in
-place at each flush. That needs a bounded reservoir of candidate lines
-instead of the window arrays: for each repeat key keep the K highest
-scoring lines (K a little above the number that could ever be shown at
-the budget), and evict whole keys by their best score when the key count
-passes a cap. The rolling summary approximates the batch summary rather
-than matching it; batch mode on the run file afterwards is still the
-exact one.
+**Heartbeats.** From the second window on, a window with no new template
+and no line at or above the salience floor is one line: `# pare #4:
+L6,731–L8,002 · 1,272 lines, nothing new · T3 ×1,270, T5 ×2`. `--quiet`
+drops it. A window that fits the budget is passed through verbatim under
+its header line, as in batch mode.
 
-**Implementation path.** `ingest` already works line by line; it becomes
-an object with `feed(chunk)` and `flush()` that owns the miner and the
-cumulative counts and hands a window `Store` (with a line-number offset)
-to `summarize`. The read loop uses non-blocking reads with a poll timeout
-so `--interval` fires on an idle pipe. With `--every` as the only trigger
-the output is deterministic, which is how tests should drive it; with
-`--interval` it depends on timing, by design.
+**Memory.** The per-window arrays are the single pass's arrays, dropped
+at each cut, so memory is bounded by the window size; cumulative state
+grows only with new shapes. The 30 MB input from the table above runs in
+34 MB of peak memory in follow mode with 20,000-line windows (36 blocks,
+60 KB of output in total at budget 600), against 65 MB in batch mode.
+
+**Not built: rolling mode.** A delta stream suits a terminal or a harness
+that streams tool output. An agent that runs a long command in the
+background and polls a file would be better served by a budgeted summary
+of the *whole* run so far, rewritten in place at each flush
+(`--rolling --out digest.md`). That needs a bounded reservoir of
+candidate lines instead of the window arrays: for each repeat key the K
+highest-scoring lines, with whole keys evicted by their best score when
+the key count passes a cap. The rolling summary would approximate the
+batch summary rather than match it; batch mode on the run file afterwards
+is still the exact one.
 
 ## Notes for a native port
 

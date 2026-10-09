@@ -108,6 +108,31 @@ to 2,000 is a good default for an agent loop, and small outputs pass
 through untouched. See
 [docs/DESIGN.md](docs/DESIGN.md#tokens-and-the-budget).
 
+## Following a stream
+
+`pare --follow` (or `-f`) summarises input as it arrives instead of at end
+of input: a long build, a server log, a `tail -f`. Each window becomes one
+block in the usual format, budgeted on its own, and the blocks are
+separated by a blank line:
+
+```
+kubectl logs -f deploy/api | pare -f --interval 30 --budget 600
+```
+
+A window closes after `--every` lines (default 20,000, also the window
+cap), after `--interval` seconds even while the stream is idle, half a
+second after a line at `--flush-on` severity arrives (default `error`,
+at most one such flush per `--min-interval` seconds), and at end of
+input. Windows end at record boundaries, so a stack trace is never split
+and the template ids are the ones a batch run over the finished run file
+would assign. A window with no new shape and nothing above the salience
+floor is one heartbeat line (`--quiet` drops it); a template first seen
+in a window is marked `new`, and one arriving much faster than its
+running rate gets a rate note. The run file is named up front and
+appended as the stream runs, so every block's `--since/--until` range can
+be expanded with the usual flags afterwards. Unix only: the loop waits
+on stdin with `select`.
+
 ## Install
 
 The only dependency is [drain3](https://github.com/logpai/Drain3) (pinned).

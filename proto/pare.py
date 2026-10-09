@@ -36,8 +36,10 @@ import logging
 import math
 import os
 import re
+import select as selectmod
 import sys
 import tempfile
+import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
 
@@ -122,10 +124,14 @@ class Record:
 
 @dataclass
 class Template:
-    idx: int  # 0-based; shown as T{idx+1}
+    idx: int  # 0-based index in its store
     text: str
     cluster_id: int = -1  # drain3's id for the cluster
-    count: int = 0  # records
+    gid: int = -1  # global id, shown as T{gid+1}; equals idx except in a follow window
+    count: int = 0  # records (in this store: the whole input, or one follow window)
+    total: int = 0  # records seen so far in the whole input (rarity uses this)
+    new: bool = False  # first seen in this follow window
+    rate_note: str = ""  # follow mode: " (rate 0.2/s → 11/s)" when a template bursts
     lines: int = 0
     salience: float = 0.0
     vocab: float = 0.0
@@ -136,7 +142,7 @@ class Template:
 
     @property
     def tid(self) -> str:
-        return f"T{self.idx + 1}"
+        return f"T{(self.gid if self.gid >= 0 else self.idx) + 1}"
 
 
 def clean_line(raw: str) -> str:
@@ -608,7 +614,7 @@ def line_mask(ln: Line) -> str:
 
 
 def rarity_of(tpl: Template) -> float:
-    return 1.0 / (1.0 + math.log2(tpl.count))
+    return 1.0 / (1.0 + math.log2(tpl.total))
 
 
 def score_templates(store: Store) -> None:
@@ -734,7 +740,7 @@ def render_ranges(store: Store, nos: list[int], width: int) -> list[str]:
     for no in nos:
         if prev is not None and no != prev + 1:
             out.append(gap_marker(no - prev - 1))
-        out.append(fmt_line(store.line(no - 1), width))
+        out.append(fmt_line(store.line(store.index(no)), width))
         prev = no
     return out
 
@@ -761,9 +767,10 @@ LINE_CACHE = 4096  # Line objects kept materialised at once
 
 
 class Store:
-    def __init__(self, spool_path: str, width: int):
+    def __init__(self, spool_path: str, width: int, base: int = 0):
         self.spool_path = spool_path
         self.width = width
+        self.base = base  # index of this store's first line in the input (a follow window)
         # per line
         self.off = array.array("q")  # byte offset of the raw line in the spool
         self.raw_len = array.array("i")  # its length, without the newline
@@ -794,11 +801,23 @@ class Store:
 
     def open(self) -> None:
         self._fh = open(self.spool_path, "rb")
+        self._own_fh = True
+
+    def use(self, fh) -> None:
+        """Read through a handle someone else owns (follow mode shares one)."""
+        self._fh = fh
+        self._own_fh = False
 
     def close(self) -> None:
-        if self._fh is not None:
+        if self._fh is not None and getattr(self, "_own_fh", False):
             self._fh.close()
-            self._fh = None
+        self._fh = None
+
+    def no_of(self, i: int) -> int:
+        return self.base + i + 1
+
+    def index(self, no: int) -> int:
+        return no - self.base - 1
 
     def record(self, ri: int) -> Record:
         return Record(ri, self.rstart[ri], self.rend[ri], self.rtpl[ri])
@@ -824,7 +843,7 @@ class Store:
 
     def _make(self, i: int, raw: bytes) -> Line:
         text = clean_line(raw.decode("utf-8", errors="replace"))
-        ln = Line(no=i + 1, text=text, indent=indent_of(text), record=self.rec[i], depth=self.depth[i])
+        ln = Line(no=self.base + i + 1, text=text, indent=indent_of(text), record=self.rec[i], depth=self.depth[i])
         ln.memo["sev"] = self.sev_of(i)
         self._cache[i] = ln
         if len(self._cache) > LINE_CACHE:
@@ -851,98 +870,193 @@ class Store:
         return out
 
 
-def ingest(stream, store: Store, spool, hasher) -> None:
-    """The pass: tee, split, segment, cluster and score, line by line."""
-    width = store.width
-    miner = new_miner()
-    by_cluster: dict[int, Template] = {}
-    templates = store.templates
-    off, raw_len, rec, depth, sev_a, blank_a = store.off, store.raw_len, store.rec, store.depth, store.sev, store.blank
-    rlen, slen, score = store.rlen, store.slen, store.score
-    rstart, rend, rtpl = store.rstart, store.rend, store.rtpl
-    cont_rx = CONT_RE if TOOL_SPECIFIC else CONT_GENERIC_RE
-    vocab_has = VOCAB.has
-    cur = -1  # current record, or -1
-    head_indent = 0
-    head_vocab = 0.0
-    armed = False  # inside a record: an error line seen, its first source location still to come
-    pending_blank = -1  # a single blank line that may turn out to sit inside a block
-    n = 0
-    pos = 0
+class Pass:
+    """The single pass as an object: feed it chunks, cut windows off it.
 
-    def add(raw: bytes) -> None:
-        nonlocal cur, head_indent, head_vocab, armed, pending_blank, n, pos
-        i = n
-        n += 1
+    Batch mode feeds the whole input and cuts one window at the end. Follow
+    mode cuts a window at each flush. The drain3 miner, the cumulative
+    per-template counts, the line counter and the spool position carry
+    across windows; the per-line arrays live in the current window's Store.
+    """
+
+    def __init__(self, width: int, spool, spool_path: str, hasher=None):
+        self.width = width
+        self.spool = spool
+        self.spool_path = spool_path
+        self.hasher = hasher
+        self.miner = new_miner()
+        self.by_cluster: dict[int, GlobalTemplate] = {}
+        self.globals: list[GlobalTemplate] = []
+        self.total_bytes = 0
+        self.nlines = 0
+        self.pos = 0  # spool offset of the next line
+        self.rest = b""  # bytes after the last newline, not yet a line
+        self.window_no = 0
+        self.started = time.monotonic()
+        self.worst_sev = -1  # highest severity seen in the current window (follow triggers)
+        self.cont_rx = CONT_RE if TOOL_SPECIFIC else CONT_GENERIC_RE
+        self.every = 0  # follow: window cap in lines; on_full is called when it is reached
+        self.on_full = None
+        self._new_window()
+
+    def _new_window(self) -> None:
+        self.store = Store(self.spool_path, self.width, base=self.nlines)
+        self.window_tpl: dict[int, Template] = {}  # gid -> this window's Template
+        self.window_started = time.monotonic()
+        self.worst_sev = -1
+        # Segmentation state. A window boundary ends the open record.
+        self.cur = -1
+        self.head_indent = 0
+        self.head_vocab = 0.0
+        self.armed = False  # an error line seen in the record, its first source location still to come
+        self.pending_blank = -1  # a single blank line that may turn out to sit inside a block
+
+    def feed(self, chunk: bytes) -> None:
+        self.spool.write(chunk)
+        if self.hasher is not None:
+            self.hasher.update(chunk)
+        self.total_bytes += len(chunk)
+        parts = (self.rest + chunk).split(b"\n")
+        self.rest = parts.pop()
+        for part in parts:
+            self._add(part)
+
+    def finish(self) -> None:
+        """End of input: the trailing partial line, if any, is a line."""
+        if self.rest:
+            self._add(self.rest)
+            self.rest = b""
+
+    def cut(self) -> Store:
+        """Close the current window and return it, ready to summarise."""
+        self.spool.flush()
+        store = self.store
+        store.total_bytes = (self.pos - store.off[0]) if len(store) else 0
+        for tpl in store.templates:
+            g = self.globals[tpl.gid]
+            c = self.miner.drain.id_to_cluster.get(tpl.cluster_id)
+            if c is not None:
+                tpl.text = c.get_template()
+            tpl.total = g.total
+            g.windows += 1
+        self.window_no += 1
+        self._rate_notes(store)
+        self._new_window()
+        return store
+
+    def _rate_notes(self, store: Store) -> None:
+        """A template arriving much faster than its running average is what
+        an outage looks like before the first ERROR line. Needs real time on
+        both sides (a replayed file gets no notes), so this is deterministic
+        for tests and informative on a live stream."""
+        now = time.monotonic()
+        window_s = now - self.window_started
+        before_s = self.window_started - self.started
+        if window_s < 1.0 or before_s < 1.0:
+            return
+        for tpl in store.templates:
+            before = tpl.total - tpl.count
+            if tpl.count < RATE_MIN_COUNT or before < 1:
+                continue
+            now_r, before_r = tpl.count / window_s, before / before_s
+            if now_r >= RATE_FACTOR * before_r:
+                tpl.rate_note = f" (rate {before_r:.2g}/s → {now_r:.2g}/s)"
+
+    def _add(self, raw: bytes) -> None:
         text = clean_line(raw.decode("utf-8", errors="replace"))
         indent = indent_of(text)
         stripped = text.strip()
-        off.append(pos)
-        raw_len.append(len(raw))
-        pos += len(raw) + 1
+        if self.every and self.on_full is not None and stripped and len(self.store) >= self.every and not (
+            self.cur != -1
+            and (self.store.rend[self.cur] - self.store.rstart[self.cur]) < MAX_RECORD_LINES
+            and (indent > self.head_indent or self.cont_rx.match(text))
+        ):
+            # The window is full and this line starts a record: cut here, so
+            # a window boundary never splits a record and the segmentation,
+            # and with it the template ids, match a batch pass over the run
+            # file. A window can exceed --every by one record.
+            self.on_full()
+        store = self.store
+        i = len(store)
+        store.off.append(self.pos)
+        store.raw_len.append(len(raw))
+        self.pos += len(raw) + 1
+        self.nlines += 1
         store.verbatim_bytes += len(text.encode("utf-8")) + 1
-        rlen.append(len(f"{i + 1:>6}│ {clip(text, width)}".encode("utf-8")) + 1)
-        slen.append(len(stripped))
+        store.rlen.append(len(f"{store.base + i + 1:>6}│ {clip(text, self.width)}".encode("utf-8")) + 1)
+        store.slen.append(len(stripped))
         sev = VOCAB.severity(text)
-        sev_a.append(-1 if sev is None else sev)
+        store.sev.append(-1 if sev is None else sev)
+        if sev is not None and sev > self.worst_sev:
+            self.worst_sev = sev
         if not stripped:
             # Blank lines end a record and belong to none, except that a
             # single blank line may sit inside an indented block.
             store.blank_total += 1
-            blank_a.append(1)
-            rec.append(-1)
-            depth.append(0)
-            score.append(0.0)
-            if pending_blank != -1 or cur == -1 or not TOOL_SPECIFIC:
-                cur = -1
-            pending_blank = i if cur != -1 else -1
+            store.blank.append(1)
+            store.rec.append(-1)
+            store.depth.append(0)
+            store.score.append(0.0)
+            if self.pending_blank != -1 or self.cur == -1 or not TOOL_SPECIFIC:
+                self.cur = -1
+            self.pending_blank = i if self.cur != -1 else -1
             return
-        blank_a.append(0)
+        store.blank.append(0)
         memo: dict[str, bool] = {}
+        vocab_has = VOCAB.has
 
-        def has(cls: str, _text: str = "") -> bool:  # same signature as Vocab.has, memoised for this line
+        def has(cls: str, _text: str = "") -> bool:  # Vocab.has, memoised for this line
             v = memo.get(cls)
             if v is None:
                 v = memo[cls] = vocab_has(cls, text)
             return v
 
+        cur = self.cur
+        rstart, rend, rtpl = store.rstart, store.rend, store.rtpl
         # Segmentation: a deeper indent or a known continuation shape joins
         # the line to the record above.
         is_cont = (
             cur != -1
             and (rend[cur] - rstart[cur]) < MAX_RECORD_LINES
-            and (indent > head_indent or cont_rx.match(text))
+            and (indent > self.head_indent or self.cont_rx.match(text))
         )
         if is_cont:
-            tpl = templates[rtpl[cur]]
-            if pending_blank != -1:
-                rec[pending_blank] = cur
-                depth[pending_blank] = 1
+            tpl = store.templates[rtpl[cur]]
+            if self.pending_blank != -1:
+                store.rec[self.pending_blank] = cur
+                store.depth[self.pending_blank] = 1
                 tpl.lines += 1
             rend[cur] = i + 1
-            d = max(1, (indent - head_indent + 1) // 2)
-            rec.append(cur)
-            depth.append(d)
+            d = max(1, (indent - self.head_indent + 1) // 2)
+            store.rec.append(cur)
+            store.depth.append(d)
             tpl.lines += 1
             # A continuation line: its own vocabulary plus a share of its
             # record head's, less a little per level of depth.
             s = vocab_score(text, head=False, sev=sev, has=has)
             s -= DEPTH_PENALTY * min(d, 4)
             if not (has("pass") and not has("error")):
-                s += INHERIT * max(0.0, head_vocab)
+                s += INHERIT * max(0.0, self.head_vocab)
         else:
-            cur = len(rstart)
+            cur = self.cur = len(rstart)
             rstart.append(i)
             rend.append(i + 1)
-            head_indent = indent
+            self.head_indent = indent
             # Cluster the masked head line.
-            res = miner.add_log_message(drain_message(text))
+            res = self.miner.add_log_message(drain_message(text))
             cid = res["cluster_id"]
-            tpl = by_cluster.get(cid)
+            g = self.by_cluster.get(cid)
+            if g is None:
+                g = GlobalTemplate(gid=len(self.globals), cluster_id=cid, first_window=self.window_no)
+                self.globals.append(g)
+                self.by_cluster[cid] = g
+            g.total += 1
+            tpl = self.window_tpl.get(g.gid)
             if tpl is None:
-                tpl = Template(idx=len(templates), text=res["template_mined"], cluster_id=cid, exemplar=cur)
-                templates.append(tpl)
-                by_cluster[cid] = tpl
+                tpl = Template(idx=len(store.templates), text=res["template_mined"], cluster_id=cid, gid=g.gid,
+                               exemplar=cur, new=g.first_window == self.window_no)
+                store.templates.append(tpl)
+                self.window_tpl[g.gid] = tpl
             rtpl.append(tpl.idx)
             tpl.count += 1
             tpl.lines += 1
@@ -951,57 +1065,67 @@ def ingest(stream, store: Store, spool, hasher) -> None:
             if (sev if sev is not None else -1) > tpl.best_sev:
                 tpl.best_sev = sev if sev is not None else -1
                 tpl.exemplar = cur
-            rec.append(cur)
-            depth.append(0)
-            armed = False
-            head_vocab = s = vocab_score(text, head=True, sev=sev, has=has)
-        pending_blank = -1
+            store.rec.append(cur)
+            store.depth.append(0)
+            self.armed = False
+            self.head_vocab = s = vocab_score(text, head=True, sev=sev, has=has)
+        self.pending_blank = -1
         # The first source location after an error line within a record (the
         # 'at file:line' under an exception, the '-->' under a rustc error,
         # the innermost frame) says where the failure is; the frames after it
         # say how it got there.
         is_loc = has("frame") and not text.lstrip().startswith(">")
-        if armed and is_loc:
+        if self.armed and is_loc:
             s += LOCATION_BONUS
-            armed = False
+            self.armed = False
         elif (sev is not None and sev >= 3) or (has("error") and not is_loc):
-            armed = True
-        score.append(s)
+            self.armed = True
+        store.score.append(s)
 
-    rest = b""
-    while True:
-        chunk = stream.read(CHUNK)
-        if not chunk:
-            break
-        spool.write(chunk)
-        hasher.update(chunk)
-        store.total_bytes += len(chunk)
-        parts = (rest + chunk).split(b"\n")
-        rest = parts.pop()
-        for part in parts:
-            add(part)
-    if rest:
-        add(rest)
-    # Templates evolve as members join; take the final form.
-    for tpl in templates:
-        c = miner.drain.id_to_cluster.get(tpl.cluster_id)
-        if c is not None:
-            tpl.text = c.get_template()
+
+@dataclass
+class GlobalTemplate:
+    """What a template is across follow windows: its id, its cluster and
+    how many records it has had in the whole input so far."""
+    gid: int
+    cluster_id: int
+    first_window: int
+    total: int = 0
+    windows: int = 0
+
+
+RATE_MIN_COUNT = 20  # a rate note needs this many records in the window
+RATE_FACTOR = 3.0  # ...arriving at least this many times the running rate
 
 
 def analyze(stream, *, width: int, spool_path: str) -> tuple[Store, str]:
     """Run the pass over a byte stream, spooling it to spool_path. Returns the
     store and the content hash that names the run file."""
-    store = Store(spool_path, width)
     hasher = hashlib.sha256()
     with open(spool_path, "wb") as spool:
-        ingest(stream, store, spool, hasher)
+        p = Pass(width, spool, spool_path, hasher)
+        while True:
+            chunk = stream.read(CHUNK)
+            if not chunk:
+                break
+            p.feed(chunk)
+        p.finish()
+        store = p.cut()
+    store.total_bytes = p.total_bytes
     return store, hasher.hexdigest()[:12]
 
 
 # --------------------------------------------------------------------------
 # Summary
 # --------------------------------------------------------------------------
+
+NOVELTY_BONUS = 1.0  # follow mode: salience added to a template first seen in this window
+
+
+@dataclass
+class FollowInfo:
+    k: int  # window number, from 1
+    quiet: bool = False  # drop heartbeat lines for windows with nothing new
 
 
 def summarize(
@@ -1014,27 +1138,62 @@ def summarize(
     max_templates: int = 0,
     run_path: str | None,
     in_bytes: int,
+    follow: FollowInfo | None = None,
 ) -> str:
     templates = store.templates
     budget_bytes = budget_bytes_for(budget)
     total = len(store)
+    b1 = store.base + 1  # line number of index 0
     rec, rtpl, rstart, rend, blank = store.rec, store.rtpl, store.rstart, store.rend, store.blank
     scores, slen, rlen = store.score, store.slen, store.rlen
+    later_window = follow is not None and follow.k > 1
+    if later_window:
+        # A shape first seen in this window is news; the batch summary has
+        # no "before" to be new against, so this is follow-only.
+        for tpl in templates:
+            if tpl.new:
+                tpl.salience += NOVELTY_BONUS
     by_sal = sorted(templates, key=lambda t: (-t.salience, t.idx))
+    new_count = sum(1 for t in templates if t.new)
 
     def header(out_bytes: int) -> str:
+        if follow is not None:
+            news = f", {new_count} new" if later_window and new_count else ""
+            return (
+                f"# pare #{follow.k}: L{fmt_int(b1)}–L{fmt_int(store.base + total)} · {fmt_int(total)} line{'s' if total != 1 else ''},"
+                f" {fmt_int(in_bytes)} B (~{fmt_int(tokens(in_bytes))} tok) → ~{fmt_int(tokens(out_bytes))} tok"
+                f" (budget {fmt_int(budget)}) · {len(templates)} templates{news}"
+            )
         return (
-            f"# pare: {fmt_int(total)} lines, {fmt_int(in_bytes)} B (~{fmt_int(tokens(in_bytes))} tok)"
+            f"# pare: {fmt_int(total)} line{'s' if total != 1 else ''}, {fmt_int(in_bytes)} B (~{fmt_int(tokens(in_bytes))} tok)"
             f" → ~{fmt_int(tokens(out_bytes))} tok (budget {fmt_int(budget)}) · {len(templates)} templates"
         )
 
-    run_line = f"## raw: {run_path}" if run_path else "## raw: (not saved)"
+    if follow is not None and run_path:
+        run_line = f"## raw: {run_path} --since L{b1} --until L{store.base + total}"
+    else:
+        run_line = f"## raw: {run_path}" if run_path else "## raw: (not saved)"
     run_hint = "   expand with: pare --only T<n> < raw   ·   drop noise: pare --except T<n>,T<m> < raw"
+
+    # Follow mode: a window with nothing above the salience floor and no new
+    # shape is one line, so a quiet stream costs almost nothing to watch.
+    if later_window and not new_count and not any(
+        scores[i] >= FILL_FLOOR for i in range(total) if rec[i] >= 0 and not blank[i]
+    ):
+        if follow.quiet:
+            return ""
+        top = sorted(templates, key=lambda t: (-t.count, t.idx))[:5]
+        counts = ", ".join(f"{t.tid} ×{fmt_int(t.count)}" for t in top)
+        more = f" · +{len(templates) - len(top)} more" if len(templates) > len(top) else ""
+        return (f"# pare #{follow.k}: L{fmt_int(b1)}–L{fmt_int(store.base + total)} · {fmt_int(total)} line{'s' if total != 1 else ''},"
+                f" nothing new · {counts}{more}\n")
 
     # Small input: never make it bigger. Pass it through verbatim if it fits,
     # with no header; the only addition is the run-file line when one exists.
-    if store.verbatim_bytes + (len(run_line.encode("utf-8")) + 1 if run_path else 0) <= budget_bytes:
-        verbatim = []
+    # (A follow window keeps its header line so blocks stay delimited.)
+    verbatim_head = [f"# pare #{follow.k}: L{fmt_int(b1)}–L{fmt_int(store.base + total)} · {fmt_int(total)} line{'s' if total != 1 else ''}, verbatim"] if follow else []
+    if store.verbatim_bytes + nbytes(verbatim_head) + (len(run_line.encode("utf-8")) + 1 if run_path else 0) <= budget_bytes:
+        verbatim = list(verbatim_head)
         for start in range(0, total, 4096):
             verbatim.extend(clean_line(r.decode("utf-8", errors="replace")) for r in store.raw(start, min(total, start + 4096)))
         if run_path:
@@ -1043,7 +1202,7 @@ def summarize(
 
     # Fixed overhead: header + run lines + section titles + ledger reserve.
     ledger_reserve = min(400, max(120, budget_bytes // (16 if budget < COMPACT_BUDGET else 12)))
-    show_hint = budget >= HINT_BUDGET
+    show_hint = budget >= HINT_BUDGET and not later_window
     fixed = nbytes([header(budget_bytes), run_line, run_hint if show_hint else "", "## head", "## templates (by salience)",
                     "## selected lines", "## tail"]) + ledger_reserve
     avail = max(0, budget_bytes - fixed)
@@ -1061,21 +1220,23 @@ def summarize(
             if len(out) >= n:
                 break
             ri = rec[i]
-            if i + 1 == keep_no or ri < 0:
-                out.append(i + 1)
+            if i + b1 == keep_no or ri < 0:
+                out.append(i + b1)
                 continue
             frequent = templates[rtpl[ri]].count >= WINDOW_SKIP_COUNT
             long_body = store.depth[i] > 0 and rend[ri] - rstart[ri] >= WINDOW_SKIP_COUNT
             if not frequent and not long_body:
-                out.append(i + 1)
+                out.append(i + b1)
         return out
 
     if budget < COMPACT_BUDGET:
         head_n = min(head_n, 3)  # a small budget gets a smaller head window (the tail keeps the verdicts)
+    if later_window:
+        head_n = 0  # the head of the input was shown in the first window
     head_span = max(head_n, WINDOW_SCAN_FACTOR * head_n)
     tail_span = max(tail_n, WINDOW_SCAN_FACTOR * tail_n)
-    head_nos = windowed(range(0, min(total, head_span)), head_n, 1)
-    tail_nos = sorted(windowed(range(total - 1, max(-1, total - 1 - tail_span), -1), tail_n, total))
+    head_nos = windowed(range(0, min(total, head_span)), head_n, b1)
+    tail_nos = sorted(windowed(range(total - 1, max(-1, total - 1 - tail_span), -1), tail_n, store.base + total))
     tail_nos = [no for no in tail_nos if no not in head_nos]
     while head_nos or tail_nos:
         cost = nbytes(render_ranges(store, head_nos, width)) + nbytes(render_ranges(store, tail_nos, width))
@@ -1113,6 +1274,9 @@ def summarize(
         if len(tpl.levels) > 1:  # mixed levels inside one template: say so
             hist = " ".join(f"{LEVEL_NAME[s]}×{fmt_int(c)}" for s, c in sorted(tpl.levels.items(), reverse=True))
             extra += f" [{hist}]"
+        if later_window and tpl.new:
+            extra += " new"
+        extra += tpl.rate_note
         # An exemplar that the head or tail window already prints is referenced,
         # not repeated.
         where = "head" if ex.no in head_nos else "tail" if ex.no in tail_nos else None
@@ -1126,7 +1290,7 @@ def summarize(
         record head, its drain template plus severity (drain already decided
         that pod/storefront-x2k9p and pod/storefront-q7m2z are one shape);
         for a continuation line, its masked shape plus severity."""
-        i = no - 1
+        i = no - b1
         if store.depth[i] == 0 and rec[i] >= 0:
             return f"tpl{rtpl[rec[i]]}·sev{store.sev_of(i)}"
         return shape_key(store.line(i))
@@ -1145,10 +1309,10 @@ def summarize(
         shown.add(no)
         key = key_of(no)
         taken[key] = taken.get(key, 0) + 1
-        shown_tokens.append(token_set(store.line(no - 1).text))
+        shown_tokens.append(token_set(store.line(no - b1).text))
 
-    shown_tokens.extend(token_set(store.line(no - 1).text) for no in sorted(shown))
-    exemplar_nos = {rstart[t.exemplar] + 1 for t in templates}
+    shown_tokens.extend(token_set(store.line(no - b1).text) for no in sorted(shown))
+    exemplar_nos = {rstart[t.exemplar] + b1 for t in templates}
 
     # Raw-line candidates: everything not in a window that scores at least
     # the floor (below it a line never pads the output, so it is not queued).
@@ -1161,11 +1325,11 @@ def summarize(
         return scores[i] * (DENSITY_REF / (DENSITY_REF + slen[i])) ** DENSITY_POWER
 
     order = [i for i in range(total)
-             if (i + 1) not in shown and rec[i] >= 0 and not blank[i] and scores[i] >= FILL_FLOOR]
+             if (i + b1) not in shown and rec[i] >= 0 and not blank[i] and scores[i] >= FILL_FLOOR]
     order.sort(key=lambda i: -initial(i))  # stable: ties stay in line order
 
     def effective(no: int) -> float:
-        i = no - 1
+        i = no - b1
         # Each repeat of a shape already on screen is worth less.
         e = scores[i] / (1.0 + FILL_PENALTY * taken.get(key_of(no), 0))
         e *= (DENSITY_REF / (DENSITY_REF + slen[i])) ** DENSITY_POWER
@@ -1189,7 +1353,7 @@ def summarize(
         nxt = None
         if stream_pos < len(order):
             i = order[stream_pos]
-            nxt = (-initial(i), 1, i + 1)
+            nxt = (-initial(i), 1, i + b1)
         if heap and (nxt is None or heap[0] < nxt):
             return heapq.heappop(heap)
         stream_pos += 1
@@ -1209,7 +1373,7 @@ def summarize(
                     continue
                 ex_start, ex_end = rstart[tpl.exemplar], rend[tpl.exemplar]
                 ex_line = store.line(ex_start)
-                if tpl.count == 1 and all((j + 1) in window_nos for j in range(ex_start, ex_end) if not blank[j]):
+                if tpl.count == 1 and all((j + b1) in window_nos for j in range(ex_start, ex_end) if not blank[j]):
                     continue  # a singleton whose whole record the head or tail window already prints
                 if tpl.count <= NEAR_DUP_MAX_COUNT and ex_line.no not in shown and ex_end - ex_start == 1:
                     # A rare one-line record that restates something already on
@@ -1244,15 +1408,15 @@ def summarize(
                 continue
             if cur < FILL_FLOOR or no in shown:
                 continue  # below the floor a line never pads the output
-            if no in exemplar_nos and rtpl[rec[no - 1]] in placed:
+            if no in exemplar_nos and rtpl[rec[no - b1]] in placed:
                 continue  # its template entry already shows it
-            cost = rlen[no - 1] + 20  # + gap marker allowance
+            cost = rlen[no - b1] + 20  # + gap marker allowance
             if cost > avail:
                 deferred.append((negp, kind, ident))
                 if DEBUG:
-                    print(f"defer L{no:<7} prio={cur:6.2f} cost={cost:4d} left={avail:5d} {store.text(no - 1).strip()[:60]!r}", file=sys.stderr)
+                    print(f"defer L{no:<7} prio={cur:6.2f} cost={cost:4d} left={avail:5d} {store.text(no - b1).strip()[:60]!r}", file=sys.stderr)
                 continue
-            ln = store.line(no - 1)
+            ln = store.line(no - b1)
             toks = token_set(ln.text)
             if ln.depth == 0 and is_near_duplicate(toks, shown_tokens):
                 continue
@@ -1272,9 +1436,9 @@ def summarize(
         """Rendered body of a placed template: the picked lines inside its
         exemplar record, plus a marker for what is left unseen."""
         start, end = rstart[templates[ti].exemplar], rend[templates[ti].exemplar]
-        nos = sorted(ln.no for _, ln in picked_lines if start < ln.no - 1 < end)
+        nos = sorted(ln.no for _, ln in picked_lines if start < ln.no - b1 < end)
         out = render_ranges(store, nos, width) if nos else []
-        rest = sum(1 for j in range(start + 1, end) if not blank[j] and (j + 1) not in window_nos) - len(nos)
+        rest = sum(1 for j in range(start + 1, end) if not blank[j] and (j + b1) not in window_nos) - len(nos)
         if rest > 0:
             out.append(f"      ┆ (+{fmt_int(rest)} more lines)")
         return out, set(nos)
@@ -1287,7 +1451,7 @@ def summarize(
         shown_in: dict[int, int] = {}
         blank_shown = 0
         for no in shown_set:
-            j = no - 1
+            j = no - b1
             if blank[j]:
                 blank_shown += 1
             ri = rec[j]
@@ -1350,7 +1514,7 @@ def summarize(
             out.extend(render_ranges(store, tail_nos, width))
         shown_set = set(head_nos) | set(tail_nos) | {ln.no for _, ln in picked_lines}
         for ti in placed:
-            shown_set.add(rstart[templates[ti].exemplar] + 1)
+            shown_set.add(rstart[templates[ti].exemplar] + b1)
         out.extend(ledger(shown_set))
         out.append(run_line)
         if show_hint:
@@ -1608,6 +1772,20 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--run-dir", default=None, help="directory for the raw run file (default $PARE_RUN_DIR or ~/.cache/pare/runs)")
     ap.add_argument("--run-file", default=None, help="explicit path for the raw run file")
     ap.add_argument("--no-tee", action="store_true", help="do not save the raw input")
+    ap.add_argument("--follow", "-f", action="store_true",
+                    help="summarise a stream as it arrives: one block per window instead of one summary at "
+                         "end of input (see --every, --interval, --flush-on)")
+    ap.add_argument("--every", type=int, default=20000, metavar="N",
+                    help="follow: flush a window after N lines (default 20000); also the window cap")
+    ap.add_argument("--interval", type=float, default=0.0, metavar="S",
+                    help="follow: flush a non-empty window every S seconds, even while the stream is idle (default off)")
+    ap.add_argument("--flush-on", choices=["error", "fatal", "none"], default="error",
+                    help="follow: flush soon after a line at this severity arrives (default error)")
+    ap.add_argument("--settle", type=float, default=0.5, metavar="S",
+                    help="follow: wait S seconds after a --flush-on line so its record can finish arriving (default 0.5)")
+    ap.add_argument("--min-interval", type=float, default=2.0, metavar="S",
+                    help="follow: at most one --flush-on flush per S seconds (default 2)")
+    ap.add_argument("--quiet", action="store_true", help="follow: no heartbeat line for a window with nothing new")
     ap.add_argument("--vocab", metavar="FILE", default=os.environ.get("PARE_VOCAB"),
                     help="vocabulary file that extends or replaces the built-in error/warn/... word "
                          "lists (default: $PARE_VOCAB); see --dump-vocab for the format")
@@ -1632,7 +1810,8 @@ def main(argv: list[str] | None = None) -> int:
 
     # The spool receives the input as it is read. With tee it becomes the run
     # file, renamed to its content hash once the hash is known; without, it
-    # is a temporary file removed on exit.
+    # is a temporary file removed on exit. Follow mode names the run file up
+    # front (the hash is not known while the stream runs) and never renames.
     tee = not args.no_tee
     if not tee:
         fd, spool_path = tempfile.mkstemp(prefix="pare-", suffix=".spool")
@@ -1641,11 +1820,27 @@ def main(argv: list[str] | None = None) -> int:
         d = os.path.dirname(args.run_file)
         if d:
             os.makedirs(d, exist_ok=True)
-        spool_path = args.run_file + ".tmp"
+        spool_path = args.run_file if args.follow else args.run_file + ".tmp"
     else:
         run_dir = args.run_dir or default_run_dir()
         os.makedirs(run_dir, exist_ok=True)
-        spool_path = os.path.join(run_dir, f".pare-{os.getpid()}.tmp")
+        if args.follow:
+            spool_path = os.path.join(run_dir, time.strftime("follow-%Y%m%d-%H%M%S-") + f"{os.getpid()}.log")
+        else:
+            spool_path = os.path.join(run_dir, f".pare-{os.getpid()}.tmp")
+    if args.follow:
+        if args.only or args.exclude or args.min_severity or args.since or args.until:
+            sys.exit("pare: --follow summarises a stream; --only/--except/--since/--until/--min-severity read a run file")
+        if args.every < 1:
+            sys.exit("pare: --every must be at least 1")
+        try:
+            return follow(args, spool_path, os.path.abspath(spool_path) if tee else None)
+        finally:
+            if not tee:
+                try:
+                    os.unlink(spool_path)
+                except OSError:
+                    pass
     store = None
     run_path = None
     try:
@@ -1688,6 +1883,73 @@ def main(argv: list[str] | None = None) -> int:
                 os.unlink(spool_path)
             except OSError:
                 pass
+
+
+def follow(args, spool_path: str, run_path: str | None) -> int:
+    """Follow mode: feed stdin to the pass as it arrives and write one block
+    per window. A window closes after --every lines, after --interval
+    seconds, --settle seconds after a --flush-on line (at most one such
+    flush per --min-interval), and at end of input."""
+    flush_sev = {"error": 3, "fatal": 4, "none": 99}[args.flush_on]
+    fd = sys.stdin.fileno()
+    out = sys.stdout
+    k = 0
+    with open(spool_path, "wb") as spool, open(spool_path, "rb") as reader:
+        p = Pass(args.width, spool, spool_path)
+        last_flush = time.monotonic()
+        due: float | None = None  # a --flush-on flush is scheduled for this time
+        p.every = args.every
+
+        def flush() -> None:
+            nonlocal k, last_flush, due
+            if not len(p.store):
+                return
+            k += 1
+            store = p.cut()
+            store.use(reader)
+            score_templates(store)
+            block = summarize(
+                store, budget=args.budget, head_n=args.head, tail_n=args.tail, width=args.width,
+                max_templates=args.max_templates, run_path=run_path, in_bytes=store.total_bytes,
+                follow=FollowInfo(k=k, quiet=args.quiet),
+            )
+            if block:
+                out.write(block + "\n")
+                out.flush()
+            last_flush = time.monotonic()
+            due = None
+
+        p.on_full = flush
+        while True:
+            now = time.monotonic()
+            timeout = None
+            if due is not None:
+                timeout = max(0.0, due - now)
+            elif args.interval > 0 and len(p.store):
+                timeout = max(0.0, last_flush + args.interval - now)
+            try:
+                ready, _, _ = selectmod.select([fd], [], [], timeout)
+            except InterruptedError:
+                continue
+            if ready:
+                chunk = os.read(fd, CHUNK)
+                if not chunk:
+                    break
+                p.feed(chunk)  # cuts and flushes on its own when the window cap is reached
+                if p.worst_sev >= flush_sev and due is None:
+                    due = max(time.monotonic() + args.settle, last_flush + args.min_interval)
+            now = time.monotonic()
+            if due is not None and now >= due:
+                flush()
+            elif args.interval > 0 and len(p.store) and now >= last_flush + args.interval:
+                flush()
+        p.finish()
+        flush()
+        out.write(f"# pare: end of input · {fmt_int(p.nlines)} lines, {fmt_int(p.total_bytes)} B"
+                  f" (~{fmt_int(tokens(p.total_bytes))} tok) · {len(p.globals)} templates · "
+                  + (f"raw: {run_path}" if run_path else "raw: (not saved)") + "\n")
+        out.flush()
+    return 0
 
 
 if __name__ == "__main__":
