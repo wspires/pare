@@ -11,6 +11,7 @@ inputs (see Store).
 
 Usage
     noisy-command 2>&1 | pare [--budget 2000]
+    pare [--budget 2000] -- noisy-command args   # runs it; keeps its exit code
     pare --only T3,T7 < run-file        # raw lines of those templates
     pare --except T4 < run-file         # raw lines of everything but T4
 
@@ -32,11 +33,14 @@ import argparse
 import array
 import hashlib
 import heapq
+import json
 import logging
 import math
 import os
 import re
 import select as selectmod
+import signal
+import subprocess
 import sys
 import tempfile
 import time
@@ -1239,6 +1243,7 @@ def summarize(
     run_path: str | None,
     in_bytes: int,
     follow: FollowInfo | None = None,
+    note: str | None = None,
 ) -> str:
     templates = store.templates
     budget_bytes = budget_bytes_for(budget)
@@ -1273,6 +1278,11 @@ def summarize(
         run_line = f"## raw: {run_path} --since L{b1} --until L{store.base + total}"
     else:
         run_line = f"## raw: {run_path}" if run_path else "## raw: (not saved)"
+    if note:
+        run_line += f" · {note}"  # command mode: the exit status
+    # The line a verbatim pass-through ends with: the run file and the note,
+    # or the note alone when nothing was saved.
+    verbatim_end = run_line if run_path else (f"## {note}" if note else None)
     run_hint = "   expand with: pare --only T<n> < raw   ·   drop noise: pare --except T<n>,T<m> < raw"
 
     # Follow mode: a window with nothing above the salience floor and no new
@@ -1295,12 +1305,12 @@ def summarize(
     if follow and store.carry is not None:
         # The window starts inside a record: say what its first lines belong to.
         verbatim_head.append(f"  ↳ continues L{store.carry.no}: {clip(store.carry.text.strip(), width)}")
-    if store.verbatim_bytes + nbytes(verbatim_head) + (len(run_line.encode("utf-8")) + 1 if run_path else 0) <= budget_bytes:
+    if store.verbatim_bytes + nbytes(verbatim_head) + (len(verbatim_end.encode("utf-8")) + 1 if verbatim_end else 0) <= budget_bytes:
         verbatim = list(verbatim_head)
         for start in range(0, total, 4096):
             verbatim.extend(clean_line(r.decode("utf-8", errors="replace")) for r in store.raw(start, min(total, start + 4096)))
-        if run_path:
-            verbatim.append(run_line)
+        if verbatim_end:
+            verbatim.append(verbatim_end)
         return "\n".join(verbatim) + "\n"
 
     # Fixed overhead: header + run lines + section titles + ledger reserve.
@@ -1910,6 +1920,16 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--dump-vocab", action="store_true",
                     help="print the built-in vocabulary (after applying --vocab) in file format and exit")
     ap.add_argument("--version", action="version", version=f"pare {__version__}")
+    ap.epilog = ("command mode: pare [options] -- CMD [ARGS...] runs CMD with stdout and stderr merged, "
+                 "summarises the output, ends the summary with its exit status, records the command "
+                 "next to the run file (<hash>.json), and exits with CMD's exit code")
+    argv = list(sys.argv[1:] if argv is None else argv)
+    command: list[str] | None = None
+    if "--" in argv:
+        cut_at = argv.index("--")
+        command, argv = argv[cut_at + 1:], argv[:cut_at]
+        if not command:
+            sys.exit("pare: -- must be followed by a command to run")
     args = ap.parse_args(argv)
 
     if args.chars_per_token <= 0:
@@ -1925,6 +1945,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.dump_vocab:
         sys.stdout.write(dump_vocab(VOCAB.entries))
         return 0
+
+    selecting = bool(args.only or args.exclude or args.min_severity or args.since or args.until)
+    if command and selecting:
+        sys.exit("pare: -- runs a command to summarise; --only/--except/--since/--until/--min-severity read a run file")
+    run = None
+    if command:
+        run = CommandRun.start(command)
+        if run.proc is None:
+            return run.exit_code  # could not start it; the reason is on stderr
 
     # The spool receives the input as it is read. With tee it becomes the run
     # file, renamed to its content hash once the hash is known; without, it
@@ -1952,7 +1981,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.every < 1:
             sys.exit("pare: --every must be at least 1")
         try:
-            return follow(args, spool_path, os.path.abspath(spool_path) if tee else None)
+            return follow(args, spool_path, os.path.abspath(spool_path) if tee else None, run)
         finally:
             if not tee:
                 try:
@@ -1962,19 +1991,23 @@ def main(argv: list[str] | None = None) -> int:
     store = None
     run_path = None
     try:
-        store, digest = analyze(sys.stdin.buffer, width=args.width, spool_path=spool_path)
+        store, digest = analyze(run.output() if run else sys.stdin.buffer, width=args.width, spool_path=spool_path)
+        exit_code = run.wait() if run else 0
+        note = f"exit {exit_code}" if run else None
         if store.total_bytes == 0:
-            sys.stdout.write("# pare: empty input\n")
-            return 0
+            sys.stdout.write(f"# pare: no output · {note}\n" if run else "# pare: empty input\n")
+            return exit_code
         if tee:
             final = args.run_file or os.path.join(run_dir, f"{digest}.log")
             os.replace(spool_path, final)
             spool_path = store.spool_path = final
             run_path = os.path.abspath(final)
+            if run:
+                run.write_meta(run_path, lines=len(store), nbytes=store.total_bytes)
         store.open()
         score_templates(store)
 
-        if args.only or args.exclude or args.min_severity or args.since or args.until:
+        if selecting:
             out = select(
                 store,
                 only=parse_tids(args.only, len(store.templates)),
@@ -1989,10 +2022,11 @@ def main(argv: list[str] | None = None) -> int:
                 store,
                 budget=args.budget, head_n=args.head, tail_n=args.tail, width=args.width,
                 max_templates=args.max_templates, run_path=run_path, in_bytes=store.total_bytes,
+                note=note,
             )
         sys.stdout.write(out)
         sys.stdout.flush()
-        return 0
+        return exit_code
     finally:
         if store is not None:
             store.close()
@@ -2003,13 +2037,130 @@ def main(argv: list[str] | None = None) -> int:
                 pass
 
 
-def follow(args, spool_path: str, run_path: str | None) -> int:
+class CommandRun:
+    """Command mode: pare runs the command itself, so its exit code and its
+    command line survive (a pipe keeps neither). stdout and stderr are
+    merged into one pipe, in the order the command wrote them; stdin is
+    inherited. While the command runs, pare ignores SIGINT: a Ctrl-C reaches
+    the command (same process group), the command exits, and pare still
+    summarises what it printed and exits with its status."""
+
+    def __init__(self, command: list[str]):
+        self.command = command
+        self.proc: subprocess.Popen | None = None
+        self.exit_code = 0
+        self.started = time.time()
+        self.cwd = os.getcwd()
+        self._old_handlers: dict = {}
+
+    @classmethod
+    def start(cls, command: list[str]) -> "CommandRun":
+        run = cls(command)
+        try:
+            run.proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        except FileNotFoundError:
+            sys.stderr.write(f"pare: {command[0]}: command not found\n")
+            run.exit_code = 127
+            return run
+        except PermissionError:
+            sys.stderr.write(f"pare: {command[0]}: permission denied\n")
+            run.exit_code = 126
+            return run
+        # After the spawn, so the command does not inherit these handlers.
+        # SIGINT from a terminal reaches the whole process group, so pare
+        # only ignores it. SIGTERM and SIGHUP (a tool's timeout, a closed
+        # terminal) may be aimed at pare alone, so pare passes them on and
+        # keeps reading: the command exits, and its output is still
+        # summarised instead of lost.
+        def forward(signum, _frame, _pid=run.proc.pid):
+            try:
+                os.kill(_pid, signum)
+            except OSError:
+                pass
+
+        try:
+            run._old_handlers = {
+                signal.SIGINT: signal.signal(signal.SIGINT, signal.SIG_IGN),
+                signal.SIGTERM: signal.signal(signal.SIGTERM, forward),
+                signal.SIGHUP: signal.signal(signal.SIGHUP, forward),
+            }
+        except ValueError:  # not the main thread (pare used as a library)
+            run._old_handlers = {}
+        return run
+
+    def exited(self) -> bool:
+        return self.proc.poll() is not None
+
+    def output(self) -> "CommandOutput":
+        return CommandOutput(self)
+
+    def wait(self) -> int:
+        rc = self.proc.wait()
+        for sig, handler in self._old_handlers.items():
+            signal.signal(sig, handler)
+        self._old_handlers = {}
+        # A command killed by a signal exits 128 + n, as a shell reports it.
+        self.exit_code = 128 - rc if rc < 0 else rc
+        return self.exit_code
+
+    def write_meta(self, run_path: str, *, lines: int, nbytes: int) -> None:
+        """<run file>.json next to the run file: what produced it. Read by
+        bench/collect.py to fill in a held-out case's .cmd."""
+        meta = {
+            "command": self.command,
+            "cwd": self.cwd,
+            "exit": self.exit_code,
+            "started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(self.started)),
+            "seconds": round(time.time() - self.started, 2),
+            "lines": lines,
+            "bytes": nbytes,
+            "pare": __version__,
+        }
+        try:
+            with open(os.path.splitext(run_path)[0] + ".json", "w", encoding="utf-8") as f:
+                json.dump(meta, f, indent=2)
+                f.write("\n")
+        except OSError:
+            pass  # the summary matters more than the metadata
+
+
+# Once the command has exited, stop reading after this long without output,
+# even if the pipe is still open: a process it left behind (a daemon started
+# with &, a grandchild that outlived a killed parent) can hold the pipe open
+# indefinitely, and the summary of what the command printed should not wait
+# for it.
+EXIT_GRACE = 1.0
+
+
+class CommandOutput:
+    """The command's merged output as a stream for analyze(): read(n)
+    returns what is available, and b"" at end of file or once the command
+    has exited and the pipe has been quiet for EXIT_GRACE seconds."""
+
+    def __init__(self, run: CommandRun):
+        self.run = run
+        self.fd = run.proc.stdout.fileno()
+
+    def read(self, n: int) -> bytes:
+        quiet_since = None
+        while True:
+            ready, _, _ = selectmod.select([self.fd], [], [], 0.2)
+            if ready:
+                return os.read(self.fd, n)
+            if self.run.exited():
+                now = time.monotonic()
+                quiet_since = quiet_since or now
+                if now - quiet_since >= EXIT_GRACE:
+                    return b""
+
+
+def follow(args, spool_path: str, run_path: str | None, run: CommandRun | None = None) -> int:
     """Follow mode: feed stdin to the pass as it arrives and write one block
     per window. A window closes after --every lines, after --interval
     seconds, --settle seconds after a --flush-on line (at most one such
     flush per --min-interval), and at end of input."""
     flush_sev = {"error": 3, "fatal": 4, "none": 99}[args.flush_on]
-    fd = sys.stdin.fileno()
+    fd = run.proc.stdout.fileno() if run else sys.stdin.fileno()
     out = sys.stdout
     k = 0
     with open(spool_path, "wb") as spool, open(spool_path, "rb") as reader:
@@ -2044,6 +2195,7 @@ def follow(args, spool_path: str, run_path: str | None) -> int:
             due = None
 
         p.on_full = flush
+        quiet_since: float | None = None
         while True:
             now = time.monotonic()
             deadlines = []
@@ -2052,11 +2204,18 @@ def follow(args, spool_path: str, run_path: str | None) -> int:
             if args.interval > 0 and len(p.store):
                 deadlines.append(last_flush + args.interval)
             timeout = max(0.0, min(deadlines) - now) if deadlines else None
+            if run is not None:
+                timeout = 0.2 if timeout is None else min(timeout, 0.2)
             try:
                 ready, _, _ = selectmod.select([fd], [], [], timeout)
             except InterruptedError:
                 continue
+            if not ready and run is not None and run.exited():
+                quiet_since = quiet_since or time.monotonic()
+                if time.monotonic() - quiet_since >= EXIT_GRACE:
+                    break  # the command is gone; whatever still holds the pipe is not its output
             if ready:
+                quiet_since = None
                 chunk = os.read(fd, CHUNK)
                 if not chunk:
                     break
@@ -2070,11 +2229,15 @@ def follow(args, spool_path: str, run_path: str | None) -> int:
                 flush()
         p.finish()
         flush(final=True)
+        exit_code = run.wait() if run else 0
+        if run and run_path:
+            run.write_meta(run_path, lines=p.nlines, nbytes=p.total_bytes)
         out.write(f"# pare: end of input · {fmt_int(p.nlines)} lines, {fmt_int(p.total_bytes)} B"
                   f" (~{fmt_int(tokens(p.total_bytes))} tok) · {len(p.globals)} templates · "
-                  + (f"raw: {run_path}" if run_path else "raw: (not saved)") + "\n")
+                  + (f"raw: {run_path}" if run_path else "raw: (not saved)")
+                  + (f" · exit {exit_code}" if run else "") + "\n")
         out.flush()
-    return 0
+    return exit_code
 
 
 if __name__ == "__main__":

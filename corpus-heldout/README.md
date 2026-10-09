@@ -7,10 +7,18 @@ the directory.
 
 ## Protocol
 
-1. **Collect real logs from actual agent sessions.** Save the raw output of
-   the command the agent ran (`cmd 2>&1 > name.log`, or the tool-result text
-   from the session transcript), untouched: no trimming, no scrubbing beyond
-   secrets. Prefer tools the dev corpus does not cover: Maven, Gradle,
+1. **Collect real logs from actual agent sessions.** The easy way: have
+   the agent run its noisy commands as `pare -- CMD` (by instruction or
+   with the hook in `integrations/`); each run leaves a raw run file and a
+   record of the command. Then `python bench/collect.py list` shows recent
+   runs and `python bench/collect.py add N` copies one here with its
+   `.cmd`, an empty `.keep` and a `MANIFEST.tsv` line (pare version and
+   commit at collection). It replaces your home and working directories
+   with `/home/dev` and `/home/dev/proj` and points at credential-shaped
+   lines; nothing else is changed. Without pare in the loop, save the raw
+   output of the command the agent ran (`cmd > name.log 2>&1`, or the
+   tool-result text from the session transcript), untouched: no trimming,
+   no scrubbing beyond secrets and paths. Prefer tools the dev corpus does not cover: Maven, Gradle,
    Terraform, kubectl, Bazel, Next.js build, tsc, eslint, docker compose,
    pip install -v, GitHub Actions runs. Aim for 15 to 20 files.
 2. **Write `name.keep` before running pare on the log.** One line per
@@ -18,6 +26,8 @@ the directory.
    error messages, the failing test names, the location, the final
    verdict). Copy them verbatim from the log; the check is a substring
    match on the stripped text. Record `name.cmd` with the command.
+   `python bench/collect.py check` confirms every case has a command and a
+   keep list whose lines are in its log.
 3. **Do not look at pare's output while writing the keep list.** If a keep
    line turns out to be unreasonable after the fact, note it in this file
    rather than editing the list.

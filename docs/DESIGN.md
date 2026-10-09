@@ -385,6 +385,44 @@ and it is a hard limit.
 
 `PARE_DEBUG=1` traces every placement and deferral to stderr.
 
+## Command mode
+
+`pare [options] -- CMD ARGS` runs the command instead of reading stdin.
+A pipe loses two things an agent needs: the command's exit code (the
+shell reports pare's) and the command line itself. In command mode:
+
+- **Output.** stdout and stderr share one pipe, so they interleave in the
+  order the command wrote them; stdin is inherited.
+- **Exit status.** pare exits with the command's code (128 + n when a
+  signal killed it, 127 when it could not be found) and appends it to the
+  run line, `## raw: … · exit 1`, or `## exit 1` when nothing was saved.
+  The note is part of the budgeted output.
+- **Metadata.** `<hash>.json` next to the run file records the command,
+  working directory, exit code, start time, duration, line and byte counts
+  and pare version. `bench/collect.py` reads it to fill in a held-out
+  case's `.cmd`. The file is content-addressed like the run file, so two
+  runs with identical output share one record, the later one.
+- **Signals.** Ctrl-C reaches the whole process group from the terminal,
+  so pare ignores SIGINT and lets the command exit. SIGTERM and SIGHUP may
+  be aimed at pare alone (a tool's timeout), so pare forwards them to the
+  command and keeps reading. Either way the output so far is summarised.
+- **Leftover processes.** Once the command has exited, pare stops reading
+  after one second without output (`EXIT_GRACE`), even if the pipe is
+  still open: a background job the command started, or a grandchild of a
+  killed shell, can hold the pipe open indefinitely. The same rule applies
+  in follow mode.
+- **Not combined** with `--only/--except/--since/--until/--min-severity`,
+  which read a run file.
+
+`integrations/` builds on it: an instruction for agents' instruction files,
+and a Claude Code PreToolUse hook (`integrations/claude-code/pare-hook.py`)
+that rewrites a single, simple test, build or install command to
+`pare --budget 2000 -- CMD`. The hook skips compound commands (a subshell
+would change what persists, such as `cd`), watch modes and dev servers
+(which never exit), and anything whose exact output an agent needs. It
+fails open: an error or a missing pare means no rewrite. Its permission
+behaviour is described in `integrations/README.md`.
+
 ## Selection modes
 
 `pare --only T3,T7 < runfile` prints the raw lines of those templates;

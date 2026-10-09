@@ -635,3 +635,176 @@ def test_follow_random_cuts_match_the_batch_pass(tmp_path):
         for i in range(n):
             if lines[i].strip():
                 assert windowed[i] == batch[i], (trial, i, lines[i], batch[i], windowed[i], sorted(cuts))
+
+
+# --- command mode ---------------------------------------------------------------
+
+def pare_cmd(args, tmp_path=None, **kw):
+    base = [sys.executable, os.path.join(HERE, "pare.py")]
+    base += ["--run-dir", str(tmp_path)] if tmp_path else ["--no-tee"]
+    return subprocess.run(base + args, capture_output=True, **kw)
+
+
+def test_command_mode_keeps_the_exit_code_and_records_the_command(tmp_path):
+    p = pare_cmd(["--", "sh", "-c", "echo hello; echo oops >&2; exit 3"], tmp_path)
+    assert p.returncode == 3
+    out = p.stdout.decode().splitlines()
+    assert out[:2] == ["hello", "oops"]  # stdout and stderr merged, in order
+    assert out[-1].startswith("## raw: ") and out[-1].endswith(" · exit 3")
+    meta_files = [f for f in os.listdir(tmp_path) if f.endswith(".json")]
+    assert len(meta_files) == 1
+    meta = json.load(open(tmp_path / meta_files[0]))
+    assert meta["command"] == ["sh", "-c", "echo hello; echo oops >&2; exit 3"] and meta["exit"] == 3
+    assert meta["lines"] == 2 and os.path.exists(tmp_path / meta_files[0].replace(".json", ".log"))
+
+
+def test_command_mode_summary_ends_with_the_exit_status():
+    log = os.path.join(CORPUS, "pytest-fail.log")
+    p = pare_cmd(["--budget", "300", "--", "sh", "-c", f"cat {log}; exit 1"])
+    assert p.returncode == 1
+    text = p.stdout.decode()
+    assert text.startswith("# pare: 308 lines")
+    assert text.rstrip().splitlines()[-1] == "## raw: (not saved) · exit 1"
+    assert pare.tokens(len(p.stdout)) <= 300
+
+
+def test_command_mode_errors_and_signals():
+    p = pare_cmd(["--", "no-such-command-for-pare-tests"])
+    assert p.returncode == 127 and b"command not found" in p.stderr
+    p = pare_cmd(["--", "true"])
+    assert p.returncode == 0 and p.stdout == b"# pare: no output \xc2\xb7 exit 0\n"
+    p = pare_cmd(["--", "sh", "-c", "echo before; kill -9 $$"])
+    assert p.returncode == 137 and p.stdout.decode().splitlines() == ["before", "## exit 137"]
+    p = pare_cmd(["--only", "T1", "--", "true"])
+    assert p.returncode != 0 and b"read a run file" in p.stderr
+
+
+def test_command_mode_survives_a_timeout_and_a_leftover_background_job():
+    import signal
+    import time
+    p = subprocess.Popen([sys.executable, os.path.join(HERE, "pare.py"), "--no-tee", "--", "sh", "-c",
+                          "echo started; echo ERROR stuck; sleep 30"],
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
+    time.sleep(1.0)
+    os.kill(p.pid, signal.SIGTERM)  # aimed at pare alone, as a tool timeout might be
+    out, _ = p.communicate(timeout=15)
+    assert p.returncode == 143 and out.decode().splitlines() == ["started", "ERROR stuck", "## exit 143"]
+    t = time.time()
+    p = pare_cmd(["--", "sh", "-c", "echo up; sleep 30 & echo done"], timeout=15)
+    assert p.returncode == 0 and time.time() - t < 10  # the background sleep holds the pipe; pare does not wait for it
+    assert p.stdout.decode().splitlines() == ["up", "done", "## exit 0"]
+
+
+def test_command_mode_with_follow():
+    p = pare_cmd(["-f", "--every", "100", "--budget", "200", "--", "sh", "-c",
+                  "for i in $(seq 1 250); do echo \"INFO step $i\"; done; echo ERROR boom; exit 2"])
+    assert p.returncode == 2
+    last = p.stdout.decode().rstrip().splitlines()[-1]
+    assert last.startswith("# pare: end of input · 251 lines") and last.endswith(" · exit 2")
+
+
+# --- bench/collect.py -------------------------------------------------------------
+
+def collect(args, **kw):
+    return subprocess.run([sys.executable, os.path.join(ROOT, "bench", "collect.py")] + args,
+                          capture_output=True, text=True, **kw)
+
+
+def test_collect_turns_a_run_file_into_a_held_out_case(tmp_path):
+    runs, corpus = tmp_path / "runs", tmp_path / "heldout"
+    secret = tmp_path / "out.txt"
+    cwd_marker = os.getcwd()
+    secret.write_text(f"ERROR in {cwd_marker}/src/x.py\napi_key=abcdef123456\n")
+    p = pare_cmd(["--", "sh", "-c", f"cat {secret}; exit 1"], runs)
+    assert p.returncode == 1
+    listing = collect(["--runs", str(runs), "list"])
+    assert "sh -c" in listing.stdout and "   1" in listing.stdout
+    added = collect(["--runs", str(runs), "--corpus", str(corpus), "add", "1", "--name", "case-a"])
+    assert added.returncode == 0, added.stderr
+    assert "possible credentials on 1 line(s): L2" in added.stdout
+    log = (corpus / "case-a.log").read_text()
+    assert "ERROR in /home/dev/proj/src/x.py" in log and cwd_marker not in log  # working directory scrubbed
+    assert (corpus / "case-a.cmd").read_text().startswith("sh -c ")
+    assert (corpus / "case-a.keep").read_text() == ""
+    manifest = (corpus / "MANIFEST.tsv").read_text().splitlines()
+    assert manifest[0].startswith("name\tcollected\tpare") and manifest[1].startswith("case-a\t")
+    # never shows pare's summary: no template ids, no section headers
+    assert "## " not in added.stdout and not re.search(r"\bT\d+\b", added.stdout)
+    assert collect(["--corpus", str(corpus), "check"]).returncode == 1  # empty keep list
+    (corpus / "case-a.keep").write_text("ERROR in /home/dev/proj/src/x.py\n")
+    assert collect(["--corpus", str(corpus), "check"]).returncode == 0
+    (corpus / "case-a.keep").write_text("a line that is not in the log\n")
+    bad = collect(["--corpus", str(corpus), "check"])
+    assert bad.returncode == 1 and "keep line not in log" in bad.stdout
+    again = collect(["--runs", str(runs), "--corpus", str(corpus), "add", "1", "--name", "case-a"])
+    assert again.returncode != 0 and "exists" in again.stderr
+
+
+def test_collect_needs_the_command_for_a_piped_run(tmp_path):
+    runs = tmp_path / "runs"
+    subprocess.run([sys.executable, os.path.join(HERE, "pare.py"), "--run-dir", str(runs)],
+                   input=b"ERROR x\n", capture_output=True, check=True)
+    p = collect(["--runs", str(runs), "--corpus", str(tmp_path / "c"), "add", "1"], stdin=subprocess.DEVNULL)
+    assert p.returncode != 0 and "--cmd" in p.stderr
+    p = collect(["--runs", str(runs), "--corpus", str(tmp_path / "c"), "add", "1", "--cmd", "make"],
+                stdin=subprocess.DEVNULL)
+    assert p.returncode == 0 and (tmp_path / "c" / "make-{}.cmd".format(__import__("datetime").date.today().strftime("%Y%m%d"))).exists()
+
+
+# --- integrations/claude-code/pare-hook.py ----------------------------------------
+
+HOOK = os.path.join(ROOT, "integrations", "claude-code", "pare-hook.py")
+
+
+def load_hook():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("pare_hook", HOOK)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+@pytest.mark.parametrize("command,expected", [
+    ("pytest -x tests/", "{pare} --budget 2000 -- pytest -x tests/"),
+    ("pytest 2>&1", "{pare} --budget 2000 -- pytest"),
+    ("CI=1 npx jest --runInBand", "CI=1 {pare} --budget 2000 -- npx jest --runInBand"),
+    ("npm run test:unit", "{pare} --budget 2000 -- npm run test:unit"),
+    ("pytest -k 'a or b'", "{pare} --budget 2000 -- pytest -k 'a or b'"),
+    ("./gradlew build", "{pare} --budget 2000 -- ./gradlew build"),
+    ("terraform apply -auto-approve", "{pare} --budget 2000 -- terraform apply -auto-approve"),
+    ("npm run dev", None), ("make dev", None), ("tsc --watch", None), ("kubectl logs -f deploy/api", None),
+    ("./gradlew build --continuous", None), ("terraform apply", None),
+    ("npm test 2>&1 | tail -50", None), ("cd app && pytest", None), ("pytest > out.txt", None),
+    ("pytest $(ls tests)", None), ("cat big.log", None), ("git diff", None), ("pare -- pytest", None),
+    ("pytest 'unbalanced", None),
+])
+def test_hook_wraps_only_simple_noisy_commands(command, expected, monkeypatch):
+    hook = load_hook()
+    monkeypatch.setenv("PARE_BIN", sys.executable)
+    monkeypatch.delenv("PARE_HOOK_DISABLE", raising=False)
+    monkeypatch.delenv("PARE_HOOK_EXTRA", raising=False)
+    new, why = hook.plan(command)
+    assert new == (expected.format(pare=__import__("shlex").quote(sys.executable)) if expected else None), why
+
+
+def test_hook_event_io(monkeypatch):
+    env = dict(os.environ, PARE_BIN=sys.executable)
+    env.pop("PARE_HOOK_DECISION", None)
+    event = {"hook_event_name": "PreToolUse", "tool_name": "Bash",
+             "tool_input": {"command": "cargo test", "description": "Run tests", "timeout": 120000}}
+    p = subprocess.run([sys.executable, HOOK], input=json.dumps(event), capture_output=True, text=True, env=env)
+    out = json.loads(p.stdout)["hookSpecificOutput"]
+    assert out["hookEventName"] == "PreToolUse" and "permissionDecision" not in out
+    assert out["updatedInput"] == {**event["tool_input"], "command": f"{sys.executable} --budget 2000 -- cargo test"}
+    env["PARE_HOOK_DECISION"] = "ask"
+    p = subprocess.run([sys.executable, HOOK], input=json.dumps(event), capture_output=True, text=True, env=env)
+    assert json.loads(p.stdout)["hookSpecificOutput"]["permissionDecision"] == "ask"
+    for other in ({**event, "tool_name": "Read"}, {**event, "tool_input": {"command": "ls -la"}},
+                  {**event, "tool_input": {"command": "cargo test", "run_in_background": True}}):
+        p = subprocess.run([sys.executable, HOOK], input=json.dumps(other), capture_output=True, text=True, env=env)
+        assert p.returncode == 0 and p.stdout == ""
+    p = subprocess.run([sys.executable, HOOK], input="not json", capture_output=True, text=True, env=env)
+    assert p.returncode == 0 and p.stdout == ""  # never breaks the tool call
+    env["PARE_BIN"] = "no-such-pare-binary"
+    p = subprocess.run([sys.executable, HOOK], input=json.dumps(event), capture_output=True, text=True, env=env)
+    assert p.stdout == ""  # pare missing: leave the command alone

@@ -89,6 +89,28 @@ to 2,000 is a good default for an agent loop, and small outputs pass
 through untouched. See
 [docs/DESIGN.md](docs/DESIGN.md#tokens-and-the-budget).
 
+## Command mode and agents
+
+`pare -- CMD ARGS` runs the command itself instead of reading a pipe:
+
+```
+pare --budget 2000 -- ./gradlew build
+```
+
+The exit code survives (a pipe reports pare's), the summary ends with the
+exit status (`## raw: … · exit 1`), and the command is recorded next to
+the run file. stdout and stderr are merged in the order the command wrote
+them. A SIGTERM from a tool's timeout is passed to the command, and pare
+still summarises what it printed; once the command has exited, pare does
+not wait for a background process it left holding the pipe.
+
+[integrations/README.md](integrations/README.md) has two ways to route an
+agent's noisy commands through it: an instruction for `CLAUDE.md` or
+`AGENTS.md`, and a Claude Code hook that rewrites test, build and install
+commands automatically. Every such run leaves a run file, and
+`bench/collect.py` turns run files into held-out cases (see
+[ROADMAP.md](ROADMAP.md)).
+
 ## Following a stream
 
 `pare --follow` (or `-f`) summarises input as it arrives instead of at end
@@ -226,9 +248,11 @@ for a native port are in [docs/DESIGN.md](docs/DESIGN.md).
 .venv/bin/pip install pytest && .venv/bin/python -m pytest proto/
 ```
 
-133 tests: severity forms and their false positives, vocabulary files, the
+186 tests: severity forms and their false positives, vocabulary files, the
 hard budget limit on every corpus file at several sizes, determinism,
-pass-through, and the selection flags.
+pass-through, the selection flags, memory on a large input, follow mode
+(including a randomized differential test against the batch pass),
+command mode, the collection helper and the Claude Code hook.
 
 ## Layout
 
@@ -240,8 +264,11 @@ bench/run.py           benchmark runner
 bench/ablate.py        ablation study of the scoring heuristics
 bench/tokens.py        byte proxy vs real tokenizer counts
 bench/gen_synthetic.py generator for the seeded synthetic corpus files
+bench/collect.py       turn run files into held-out cases (never shows pare's output)
+integrations/          agent instructions and a Claude Code hook (integrations/README.md)
 corpus/                dev corpus: *.log, *.keep, *.cmd
 corpus-generated/      real Maven, tsc, Terraform and kubectl output from small projects in src/ (a second dev corpus, not held-out)
 corpus-heldout/        protocol for the held-out corpus (empty until collected)
 docs/DESIGN.md         design notes, full results, port notes
+ROADMAP.md             what comes next, in order, and who can do it
 ```

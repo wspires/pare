@@ -1,0 +1,114 @@
+# Using pare from an agent
+
+Two ways to route an agent's noisy commands through pare. Both use command
+mode, `pare -- CMD ARGS`, which runs the command itself: the exit code
+survives (a pipe would report pare's), the summary ends with the exit
+status, and the command is recorded next to the run file so
+`bench/collect.py` can turn it into a held-out case later.
+
+Either way, every summarised run leaves a run file in `~/.cache/pare/runs`.
+That is the point for this stage of the roadmap: normal agent work becomes
+the held-out corpus (see `corpus-heldout/README.md` and
+`python bench/collect.py list`).
+
+## 1. An instruction (any agent)
+
+Add this to the agent's instructions file (`CLAUDE.md`, `AGENTS.md`, or the
+equivalent):
+
+```markdown
+## Long command output
+
+For commands whose output can be long (test suites, builds, linters,
+package installs, `terraform plan`, `kubectl logs`), run them as
+`pare -- <command>`, for example `pare -- pytest -x` or
+`pare --budget 1000 -- ./gradlew build`. pare prints a summary that fits a
+token budget, ends with the exit status, and exits with the command's exit
+code. The full output is in the run file named on its `## raw:` line;
+expand it with `pare --only T<n> < <run file>` (a template from the
+summary) or `pare --since L<a> --until L<b> < <run file>` (a line range).
+
+Do not use pare for output you need exactly: reading files, `git diff`,
+`grep`, or anything you will edit from.
+```
+
+This works with any agent and changes nothing about permissions. The
+agent decides when to use it.
+
+## 2. A Claude Code hook (automatic)
+
+`claude-code/pare-hook.py` is a PreToolUse hook for the Bash tool. When the
+command is a single simple command from its list (pytest, npm/pnpm/yarn
+test and build, cargo, go test, make, Maven, Gradle, dotnet, terraform
+plan, docker build, kubectl logs, and others), it rewrites it to
+`pare --budget 2000 -- <command>`. It leaves alone:
+
+- compound commands: `&&`, `||`, `;`, pipes, redirections, `$(...)`, `cd`.
+  Wrapping them would run them in a subshell. A trailing `2>&1` is the one
+  exception; it is dropped, since pare merges stderr itself;
+- watch modes, followed logs and dev servers, which never exit;
+- everything not on the list, including `cat`, `git diff` and `grep`;
+- commands started with `run_in_background`.
+
+Check what it would do with a command:
+
+```
+integrations/claude-code/pare-hook.py --explain "npm test -- --runInBand"
+```
+
+Register it in `.claude/settings.json` (project) or
+`~/.claude/settings.json` (user), with an absolute path:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "/path/to/pare/integrations/claude-code/pare-hook.py", "timeout": 10 }
+        ]
+      }
+    ]
+  }
+}
+```
+
+`pare` must be on the PATH that Claude Code's hooks and Bash tool see
+(`uv tool install .` from this repository puts it there). If it is not,
+the hook does nothing.
+
+### Permissions: read this before choosing a mode
+
+The hook returns the rewritten command in `updatedInput`. Per Claude
+Code's hooks reference, permission rules are then evaluated against the
+rewritten command, not the one the agent wrote, and the hook may also
+return a permission decision. `PARE_HOOK_DECISION` picks what it sends:
+
+| `PARE_HOOK_DECISION` | effect |
+|---|---|
+| unset (default) | No decision is sent; the normal permission flow applies to `pare --budget 2000 -- npm test`. An allow rule written for `npm test` will not match it, so add rules for the wrapped form, for example `Bash(pare --budget 2000 -- npm test:*)`. |
+| `ask` | Every rewritten command prompts, showing the rewritten form. |
+| `allow` | Every rewritten command runs without a prompt. Your allow and ask rules no longer gate the commands on the hook's list; deny rules still apply. Use it only if you would allow everything on that list anyway. |
+
+Not verified here: the development container could not run Claude Code
+hooks, so whether a rewrite with no decision is applied (rather than
+ignored) is unconfirmed; the hooks reference shows `updatedInput` together
+with `allow` or `ask`. If it is ignored, nothing breaks: the command runs
+unwrapped. To check, run a listed command in a session and look for a
+`## raw:` line at the end of its output.
+
+Other notes from the hooks reference: a hook that times out does not block
+the call (the command then runs unwrapped); the Bash tool's own timeout
+still applies to the wrapped command, and when it fires pare forwards the
+signal to the command and still prints a summary of what it saw.
+
+### Settings
+
+| variable | default | |
+|---|---|---|
+| `PARE_BIN` | `pare` | the pare executable |
+| `PARE_HOOK_BUDGET` | `2000` | `--budget` for rewritten commands |
+| `PARE_HOOK_DECISION` | unset | `ask` or `allow`; see above |
+| `PARE_HOOK_EXTRA` | unset | an extra regex of commands to wrap, matched against the command without its path, e.g. `^(just|nx) ` |
+| `PARE_HOOK_DISABLE` | unset | any value turns the hook off |
