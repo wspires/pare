@@ -1292,6 +1292,9 @@ def summarize(
     # with no header; the only addition is the run-file line when one exists.
     # (A follow window keeps its header line so blocks stay delimited.)
     verbatim_head = [f"# pare #{follow.k}: L{fmt_int(b1)}–L{fmt_int(store.base + total)} · {fmt_int(total)} line{'s' if total != 1 else ''}, verbatim"] if follow else []
+    if follow and store.carry is not None:
+        # The window starts inside a record: say what its first lines belong to.
+        verbatim_head.append(f"  ↳ continues L{store.carry.no}: {clip(store.carry.text.strip(), width)}")
     if store.verbatim_bytes + nbytes(verbatim_head) + (len(run_line.encode("utf-8")) + 1 if run_path else 0) <= budget_bytes:
         verbatim = list(verbatim_head)
         for start in range(0, total, 4096):

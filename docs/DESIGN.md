@@ -735,7 +735,12 @@ tests stay deterministic.
 and no line at or above the salience floor is one line: `# pare #4:
 L6,731–L8,002 · 1,272 lines, nothing new · T3 ×1,270, T5 ×2`. `--quiet`
 drops it. A window that fits the budget is passed through verbatim under
-its header line, as in batch mode.
+its header line, as in batch mode; when it starts inside a carried
+record, a second line `↳ continues L1: ERROR worker crashed: …` names
+the head its first lines belong to, so a reader or an agent is not
+handed bare stack frames. Since a verbatim block can contain the input's
+own blank lines, a consumer should split the stream on the `# pare #`
+header lines rather than on blank lines.
 
 **Memory.** The per-window arrays are the single pass's arrays, dropped
 at each cut, so memory is bounded by the window size; cumulative state

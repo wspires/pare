@@ -113,7 +113,10 @@ the finished run file would assign (a randomized differential test
 against the batch pass checks this). A window with no new shape and nothing above the salience
 floor is one heartbeat line (`--quiet` drops it); a template first seen
 in a window is marked `new`, and one arriving much faster than its
-running rate gets a rate note. The run file is named up front and
+running rate gets a rate note. A block that starts inside a record opens
+with `↳ continues L1: ERROR …`, naming the head its first lines belong
+to. Blocks start with a `# pare #` line; split the stream on that, since
+a verbatim block can contain the input's own blank lines. The run file is named up front and
 appended as the stream runs, so every block's `--since/--until` range can
 be expanded with the usual flags afterwards. Unix only: the loop waits
 on stdin with `select`.
