@@ -15,7 +15,23 @@ The gate for everything after it.
 
 - [ ] **Held-out corpus.** 15 to 20 logs from real agent sessions, keep
   lists written before pare sees them, reported separately from the dev
-  corpus. Protocol: `corpus-heldout/README.md`. *Maintainer.*
+  corpus. Protocol: `corpus-heldout/README.md`. Fastest source: run
+  `bench/harvest.py scan` over your existing Claude Code transcripts,
+  review the candidates, promote the good ones. *Maintainer.*
+- [ ] **Bug-dataset cases.** Failing test runs reproduced from datasets
+  that record which tests fail at a buggy commit: SWE-bench (Python),
+  Defects4J (Java, Maven and Ant), BugsInPy (Python). The keep list comes
+  from the dataset: the failing test ids and the exception they raise, so
+  no one's judgement is involved and the labels are blind to pare by
+  construction. Reported as its own source (`dataset` in the manifest),
+  never merged with transcript cases. The same checkouts are the task set
+  for the agent-success eval below. Needs Docker (SWE-bench publishes an
+  image per task) and a few GB per task; not runnable in the development
+  container. Plan: a `bench/datasets.py` that, per task, starts the image,
+  runs the failing tests at the buggy commit with `pare -- ...` so the run
+  file and command are recorded, and writes the case with its keep list.
+  Start with 20 SWE-bench Verified tasks across different repositories,
+  then Defects4J for Maven coverage. *Repo, run on a machine with Docker.*
 - [ ] **Claude token rate.** `bench/tokens.py --anthropic claude-opus-5-5`
   on a machine with credentials. If the rate differs much from the 2.8
   bytes per token measured on cl100k and o200k, change the default.
@@ -41,6 +57,14 @@ The blocker for stage 1 is friction, so this comes first in practice.
 - [x] **Agent integration recipe.** `integrations/README.md`: an
   instruction for the agent's instructions file, and a Claude Code
   PreToolUse hook that rewrites test, build and install commands. *Repo.*
+- [x] **`bench/harvest.py`.** Mines existing Claude Code transcripts
+  (`~/.claude/projects`) for long test, build and install outputs,
+  including the full text of outputs Claude Code saved because they were
+  too large for context. Scrubs home paths, emails, your login and git
+  identity and credential-shaped strings; proposes keep lines only from
+  what the agent did next (never from pare's scoring); stages candidates
+  in a git-ignored inbox; `promote` refuses a case without a reviewed keep
+  list or with credentials left in it. *Repo.*
 - [ ] **Try the hook in a real Claude Code session.** Unverified here:
   whether a rewrite sent without a permission decision is applied, and
   how it interacts with your permission rules. *Maintainer.*

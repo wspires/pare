@@ -35,7 +35,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_CORPUS = os.path.join(ROOT, "corpus-heldout")
 MANIFEST = "MANIFEST.tsv"
-MANIFEST_HEADER = "name\tcollected\tpare\tcommit\tsha256\tlines\tbytes\texit\tcommand\n"
+MANIFEST_HEADER = "name\tcollected\tpare\tcommit\tsha256\tlines\tbytes\texit\tcommand\tsource\tlabels\n"
 
 # Shapes that are usually credentials. Matches are reported by line number
 # only; the person collecting decides what to redact.
@@ -140,6 +140,18 @@ def scrub(data: bytes, cwd: str | None) -> bytes:
     return data
 
 
+def append_manifest(corpus: str, row: list[str]) -> None:
+    """One line per case: where it came from and how its keep list was made
+    (source: run-file or transcript; labels: manual or reviewed proposals),
+    so results can be reported by origin."""
+    manifest = os.path.join(corpus, MANIFEST)
+    new = not os.path.exists(manifest)
+    with open(manifest, "a", encoding="utf-8") as f:
+        if new:
+            f.write(MANIFEST_HEADER)
+        f.write("\t".join(c.replace("\t", " ").replace("\n", " ") for c in row) + "\n")
+
+
 def pare_version() -> str:
     try:
         with open(os.path.join(ROOT, "proto", "pare.py"), encoding="utf-8") as f:
@@ -206,15 +218,10 @@ def cmd_add(args) -> int:
     if not os.path.exists(keep_path):
         open(keep_path, "w").close()
 
-    manifest = os.path.join(args.corpus, MANIFEST)
-    new = not os.path.exists(manifest)
-    with open(manifest, "a", encoding="utf-8") as f:
-        if new:
-            f.write(MANIFEST_HEADER)
-        row = [name, dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), pare_version(), git_commit(),
-               hashlib.sha256(raw).hexdigest()[:16], str(data.count(b"\n")), str(len(data)),
-               str(meta.get("exit", "")), cmd_text.replace("\t", " ")]
-        f.write("\t".join(row) + "\n")
+    append_manifest(args.corpus, [
+        name, dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), pare_version(), git_commit(),
+        hashlib.sha256(raw).hexdigest()[:16], str(data.count(b"\n")), str(len(data)),
+        str(meta.get("exit", "")), cmd_text, "run-file", "manual"])
 
     suspicious = [i for i, line in enumerate(data.decode("utf-8", "replace").splitlines(), 1) if SECRET_RX.search(line)]
     print(f"added {name}")

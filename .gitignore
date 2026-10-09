@@ -13,3 +13,5 @@ node_modules/
 .terraform/
 .terraform.lock.hcl
 terraform.tfstate*
+# harvested candidates awaiting review; may hold unreviewed personal data
+corpus-heldout/inbox/

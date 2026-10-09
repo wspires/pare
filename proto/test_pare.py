@@ -808,3 +808,106 @@ def test_hook_event_io(monkeypatch):
     env["PARE_BIN"] = "no-such-pare-binary"
     p = subprocess.run([sys.executable, HOOK], input=json.dumps(event), capture_output=True, text=True, env=env)
     assert p.stdout == ""  # pare missing: leave the command alone
+
+
+# --- bench/harvest.py -------------------------------------------------------------
+
+def harvest(args, **kw):
+    return subprocess.run([sys.executable, os.path.join(ROOT, "bench", "harvest.py")] + args,
+                          capture_output=True, text=True, **kw)
+
+
+def test_harvest_builds_scrubbed_candidates_from_a_transcript(tmp_path):
+    """A synthetic Claude Code transcript with one of each case the harvester
+    handles: a failing test run, a saved large output, a pare-wrapped run
+    with its run file, a file read, a dev-corpus replay, a duplicate."""
+    saved = tmp_path / "tool-results" / "big.txt"
+    saved.parent.mkdir()
+    saved.write_text("".join(f"Compiling module {i} at /Users/alice/work/app/src/m{i}.rs\n" for i in range(150))
+                     + "error[E0308]: mismatched types\n --> src/m7.rs:12:5\n")
+    run_file = tmp_path / "runs" / "abc123.log"
+    run_file.parent.mkdir()
+    run_file.write_text("".join(f"INFO step {i}\n" for i in range(120)) + "FAILED tests/test_api.py::test_login - KeyError\n")
+    pytest_out = ("".join(f"tests/test_m.py::test_case_{i} PASSED\n" for i in range(100))
+                  + "tests/test_m.py::test_total FAILED\n"
+                  + "E       assert 0.9000000000000001 == 0.9\n"
+                  + "tests/test_m.py:18: AssertionError\n"
+                  + "author alice.smith@corp.example.org pushed from /home/alice/proj\n"
+                  + "token=ghp_abcdefghijklmnopqrstuvwxyz0123456789\n"
+                  + "== 1 failed, 100 passed ==\n")
+    dev_replay = open(os.path.join(CORPUS, "go-test.log")).read()
+    events = []
+
+    def call(i, command, *, result, is_error=False, tur=None, follow=()):
+        tid = f"toolu_{i:024d}"
+        events.append({"type": "assistant", "message": {"role": "assistant", "content": [
+            {"type": "tool_use", "id": tid, "name": "Bash", "input": {"command": command}}]}})
+        events.append({"type": "user", "sessionId": "s1", "timestamp": "2026-10-01T10:00:00Z",
+                       "cwd": "/Users/alice/work/app",
+                       "message": {"role": "user", "content": [
+                           {"type": "tool_result", "tool_use_id": tid, "content": result, "is_error": is_error}]},
+                       "toolUseResult": tur if tur is not None else result})
+        for f in follow:
+            events.append({"type": "assistant", "message": {"role": "assistant", "content": [f]}})
+        events.append({"type": "user", "message": {"role": "user", "content": "next please"}})
+
+    call(1, "cd /Users/alice/work/app && pytest -q 2>&1", result="Exit code 1\n" + pytest_out, is_error=True,
+         follow=[{"type": "text", "text": "The failure is `E       assert 0.9000000000000001 == 0.9` in tests/test_m.py:18."},
+                 {"type": "tool_use", "id": "x1", "name": "Read", "input": {"file_path": "/Users/alice/work/app/tests/test_m.py"}}])
+    call(2, "cargo build", result="<persisted-output>\nOutput too large. Full output saved to: " + str(saved),
+         tur={"stdout": "Compiling...", "stderr": "", "persistedOutputPath": str(saved)},
+         follow=[{"type": "tool_use", "id": "x2", "name": "Read", "input": {"file_path": "/Users/alice/work/app/src/m7.rs"}}])
+    call(3, "pare --budget 600 -- npm test", result=f"# pare: 121 lines ...\n## raw: {run_file} · exit 1",
+         tur={"stdout": f"# pare: 121 lines ...\n## raw: {run_file} · exit 1", "stderr": ""},
+         follow=[{"type": "tool_use", "id": "x3", "name": "Bash", "input": {"command": "pytest tests/test_api.py::test_login"}}])
+    call(4, "cat src/lib.rs", result="".join(f"line {i}\n" for i in range(200)))
+    call(5, "go test ./...", result=dev_replay, tur={"stdout": dev_replay, "stderr": ""})
+    call(6, "pytest -q", result="Exit code 1\n" + pytest_out, is_error=True)  # same output again
+    transcript = tmp_path / "projects" / "-Users-alice-work-app" / "s1.jsonl"
+    transcript.parent.mkdir(parents=True)
+    transcript.write_text("\n".join(json.dumps(e) for e in events) + "\n")
+    corpus = tmp_path / "heldout"
+
+    p = harvest(["--corpus", str(corpus), "scan", "--projects", str(tmp_path / "projects"),
+                 "--no-identity", "--redact", "alice"])
+    assert p.returncode == 0, p.stderr
+    assert "3 candidate(s)" in p.stdout, p.stdout
+    assert "not a build/test-like command" in p.stdout and "mostly dev-corpus lines" in p.stdout
+    assert "already harvested" in p.stdout
+    inbox = corpus / "inbox"
+    names = sorted(f[:-4] for f in os.listdir(inbox) if f.endswith(".log"))
+    assert len(names) == 3
+    by_cmd = {(inbox / f"{n}.cmd").read_text().strip(): n for n in names}
+    assert set(by_cmd) == {"cd /Users/dev/work/app && pytest -q 2>&1", "cargo build", "npm test"}
+
+    py = by_cmd["cd /Users/dev/work/app && pytest -q 2>&1"]
+    log = (inbox / f"{py}.log").read_text()
+    assert "alice" not in log.lower() and "user@example.com" in log and "/home/dev/proj" in log
+    assert "ghp_" not in log and "<redacted>" in log
+    meta = json.loads((inbox / f"{py}.json").read_text())
+    assert meta["exit"] == 1 and meta["scrubbed"]["credentials"] == 1 and meta["scrubbed"]["emails"] == 1
+    proposed = (inbox / f"{py}.keep.proposed").read_text().splitlines()
+    assert "E       assert 0.9000000000000001 == 0.9" in proposed  # quoted by the agent
+    assert "tests/test_m.py:18: AssertionError" in proposed  # its location used next
+    assert not any("PASSED" in line for line in proposed)
+
+    cargo = by_cmd["cargo build"]
+    assert json.loads((inbox / f"{cargo}.json").read_text())["output_from"] == "saved"
+    assert "src/m7.rs:12:5" in (inbox / f"{cargo}.keep.proposed").read_text()  # the agent opened m7.rs next
+    assert "/Users/dev/work/app/src/m0.rs" in (inbox / f"{cargo}.log").read_text()
+
+    npm = by_cmd["npm test"]
+    assert (inbox / f"{npm}.log").read_text() == run_file.read_text()  # the raw run file, not pare's summary
+    assert (inbox / f"{npm}.keep.proposed").read_text().strip() == "FAILED tests/test_api.py::test_login - KeyError"
+
+    again = harvest(["--corpus", str(corpus), "scan", "--projects", str(tmp_path / "projects"), "--no-identity"])
+    assert "0 candidate(s)" in again.stdout  # idempotent
+
+    assert harvest(["--corpus", str(corpus), "promote", py]).returncode == 1  # no keep list yet
+    (inbox / f"{py}.keep").write_text("E       assert 0.9000000000000001 == 0.9\n== 1 failed, 100 passed ==\n")
+    p = harvest(["--corpus", str(corpus), "promote", py])
+    assert p.returncode == 0, p.stdout
+    assert (corpus / f"{py}.log").exists() and not (inbox / f"{py}.log").exists()
+    row = (corpus / "MANIFEST.tsv").read_text().splitlines()[-1].split("\t")
+    assert row[0] == py and row[-2:] == ["transcript", "reviewed proposals"]
+    assert collect(["--corpus", str(corpus), "check"]).returncode == 0

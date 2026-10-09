@@ -5,6 +5,32 @@ a training score. This directory is for logs pare has never been tuned on.
 It is empty until real logs are collected; the protocol matters more than
 the directory.
 
+## Harvesting from existing transcripts
+
+You probably have candidate logs already. Claude Code keeps every session
+under `~/.claude/projects/`, including the full text of outputs too large
+for the model's context.
+
+```
+python bench/harvest.py scan --redact <your-github-handle>   # candidates -> corpus-heldout/inbox/
+# for each candidate: read NAME.log, write NAME.keep (NAME.keep.proposed is a draft)
+python bench/harvest.py promote NAME [NAME ...]
+python bench/collect.py check
+```
+
+`inbox/` is ignored by git: it holds scrubbed but unreviewed text from
+your sessions. The scrub replaces home paths, email addresses, your login
+name and git identity, `--redact` words and credential-shaped strings, and
+prints the words it redacts; it cannot know a colleague's name in a commit
+message, a customer's data in a log, or an internal host name, so read
+each log before promoting it. The proposed keep lines come only from what
+the agent did next (lines it quoted, locations and files it opened, tests
+it re-ran), never from pare, so they are blind to pare; they do lean
+toward what the agent saw, which for a saved large output was a 2 KB
+preview. Promoted cases record `transcript` as their source and whether
+the keep list started from the proposals, and results should be reported
+by source.
+
 ## Protocol
 
 1. **Collect real logs from actual agent sessions.** The easy way: have
