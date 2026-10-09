@@ -625,12 +625,11 @@ def score_templates(store: Store) -> None:
     the masked template text (where "0 errors" has already become "<NUM>
     errors"), so its severity is the worst the template has seen."""
     for tpl in store.templates:
-        start, end = store.rstart[tpl.exemplar], store.rend[tpl.exemplar]
-        head = store.line(start)
+        head = store.head_of(tpl.exemplar)
         tpl_level = line_sev(head)
         head_vocab = line_vocab(head, head=True)
         body_err = 0.0
-        for ln in store.lines(start + 1, end):
+        for ln in store.lines(*store.body_range(tpl.exemplar)):
             if line_has(ln, "strong-error"):
                 body_err = 1.0
                 break
@@ -697,6 +696,7 @@ DENSITY_REF = 120  # bytes; a raw line's priority is scaled by (REF / (REF + len
 DENSITY_POWER = 0.35
 FILL_PENALTY = 1.5  # divisor growth per already-shown line of the same repeat key
 FILL_FLOOR = 1.0  # lines scoring below this never pad the output
+TEMPLATE_FLOOR = 1.5  # template entries below this salience stay in the ledger (the first entry is exempt)
 COMPACT_BUDGET = 1000  # below this many tokens, multi-record entries are one line
 HINT_BUDGET = 1000  # below this, the usage hint at the end is dropped
 
@@ -726,11 +726,13 @@ def clip(text: str, width: int) -> str:
 
 
 def fmt_line(ln: Line, width: int) -> str:
-    return f"{ln.no:>6}│ {clip(ln.text, width)}"
+    # "223: " rather than a padded "   223│ ": the gutter is on every shown
+    # line, and this form is 4 % fewer tokens over the corpus (bench/tokens.py).
+    return f"{ln.no}: {clip(ln.text, width)}"
 
 
 def gap_marker(gap: int) -> str:
-    return f"      ┆ ({fmt_int(gap)} line{'s' if gap != 1 else ''})"
+    return f"  ┆ ({fmt_int(gap)} line{'s' if gap != 1 else ''})"
 
 
 def render_ranges(store: Store, nos: list[int], width: int) -> list[str]:
@@ -786,6 +788,7 @@ class Store:
         self.rend = array.array("i")
         self.rtpl = array.array("i")
         self.templates: list[Template] = []
+        self.carry: CarriedHead | None = None  # record 0 continues a record cut by the previous follow window
         self.total_bytes = 0
         self.verbatim_bytes = 0  # the cleaned text with one newline per line
         self.blank_total = 0
@@ -815,6 +818,21 @@ class Store:
 
     def no_of(self, i: int) -> int:
         return self.base + i + 1
+
+    def head_of(self, ri: int) -> Line:
+        """The head line of a record; for a record continued from the previous
+        window, the head it had there."""
+        if ri == 0 and self.carry is not None:
+            c = self.carry
+            ln = Line(no=c.no, text=c.text, indent=indent_of(c.text), record=0, depth=0)
+            ln.memo["sev"] = c.sev
+            return ln
+        return self.line(self.rstart[ri])
+
+    def body_range(self, ri: int) -> tuple[int, int]:
+        """Indices of a record's continuation lines in this store."""
+        start = self.rstart[ri]
+        return (start if ri == 0 and self.carry is not None else start + 1), self.rend[ri]
 
     def index(self, no: int) -> int:
         return no - self.base - 1
@@ -897,6 +915,17 @@ class Pass:
         self.cont_rx = CONT_RE if TOOL_SPECIFIC else CONT_GENERIC_RE
         self.every = 0  # follow: window cap in lines; on_full is called when it is reached
         self.on_full = None
+        self.carry: CarriedHead | None = None  # the record open at the last cut, until a line ends it
+        self.carry_len = 0  # lines it already had
+        self.head_text = ""
+        self.head_no = 0
+        self.head_sev: int | None = None
+        self.cur = -1
+        self.head_indent = 0
+        self.head_vocab = 0.0
+        self.armed = False
+        self.pending_blank = -1
+        self.pending_blank_at_cut = False
         self._new_window()
 
     def _new_window(self) -> None:
@@ -904,12 +933,23 @@ class Pass:
         self.window_tpl: dict[int, Template] = {}  # gid -> this window's Template
         self.window_started = time.monotonic()
         self.worst_sev = -1
-        # Segmentation state. A window boundary ends the open record.
+        # Segmentation state. A record open at a cut is carried: head_indent,
+        # head_vocab and armed keep their values, and the first lines of the
+        # new window may continue it (see _add); only cur is reset, since the
+        # record's lines so far belong to the previous store.
+        if self.cur != -1:
+            self.carry = CarriedHead(no=self.head_no, text=self.head_text, sev=self.head_sev,
+                                     tpl_idx=-1, gid=self.carry_gid, cluster_id=self.carry_cid)
+            self.carry_len = self.store_prev_len
+        else:
+            self.carry = None
+            self.carry_len = 0
+            self.head_indent = 0
+            self.head_vocab = 0.0
+            self.armed = False
         self.cur = -1
-        self.head_indent = 0
-        self.head_vocab = 0.0
-        self.armed = False  # an error line seen in the record, its first source location still to come
         self.pending_blank = -1  # a single blank line that may turn out to sit inside a block
+        self.pending_carried = self.carry is not None and self.pending_blank_at_cut
 
     def feed(self, chunk: bytes) -> None:
         self.spool.write(chunk)
@@ -931,6 +971,11 @@ class Pass:
         """Close the current window and return it, ready to summarise."""
         self.spool.flush()
         store = self.store
+        if self.cur != -1:
+            self.store_prev_len = store.rend[self.cur] - store.rstart[self.cur] + self.carry_len
+            self.carry_gid = store.templates[store.rtpl[self.cur]].gid
+            self.carry_cid = store.templates[store.rtpl[self.cur]].cluster_id
+        self.pending_blank_at_cut = self.pending_blank != -1
         store.total_bytes = (self.pos - store.off[0]) if len(store) else 0
         for tpl in store.templates:
             g = self.globals[tpl.gid]
@@ -983,7 +1028,7 @@ class Pass:
         self.pos += len(raw) + 1
         self.nlines += 1
         store.verbatim_bytes += len(text.encode("utf-8")) + 1
-        store.rlen.append(len(f"{store.base + i + 1:>6}│ {clip(text, self.width)}".encode("utf-8")) + 1)
+        store.rlen.append(len(f"{store.base + i + 1}: {clip(text, self.width)}".encode("utf-8")) + 1)
         store.slen.append(len(stripped))
         sev = VOCAB.severity(text)
         store.sev.append(-1 if sev is None else sev)
@@ -997,6 +1042,13 @@ class Pass:
             store.rec.append(-1)
             store.depth.append(0)
             store.score.append(0.0)
+            if self.carry is not None and self.cur == -1:
+                # Same rule for the carried record: one blank keeps it open.
+                if self.pending_carried or not TOOL_SPECIFIC:
+                    self.carry = None
+                else:
+                    self.pending_carried = True
+                return
             if self.pending_blank != -1 or self.cur == -1 or not TOOL_SPECIFIC:
                 self.cur = -1
             self.pending_blank = i if self.cur != -1 else -1
@@ -1013,11 +1065,34 @@ class Pass:
 
         cur = self.cur
         rstart, rend, rtpl = store.rstart, store.rend, store.rtpl
+        if self.carry is not None and cur == -1:
+            # First non-blank line of a window after a cut that left a record
+            # open: does it continue that record? Same test as below, against
+            # the carried head and the record's length so far.
+            if self.carry_len < MAX_RECORD_LINES and (indent > self.head_indent or self.cont_rx.match(text)):
+                g = self.globals[self.carry.gid]
+                tpl = self.window_tpl.get(g.gid)
+                if tpl is None:
+                    tpl = Template(idx=len(store.templates), text="", cluster_id=self.carry.cluster_id, gid=g.gid,
+                                   exemplar=0, new=False)
+                    store.templates.append(tpl)
+                    self.window_tpl[g.gid] = tpl
+                self.carry.tpl_idx = tpl.idx
+                store.carry = self.carry
+                cur = self.cur = len(rstart)  # record 0 of this store
+                rstart.append(i)
+                rend.append(i)  # the continuation below extends it
+                rtpl.append(tpl.idx)
+                tpl.count += 1  # a record this window touches; the cumulative total is unchanged
+                if self.carry.sev is not None:
+                    tpl.levels[self.carry.sev] = tpl.levels.get(self.carry.sev, 0) + 1
+                tpl.best_sev = self.carry.sev if self.carry.sev is not None else -1
+            self.carry = None
         # Segmentation: a deeper indent or a known continuation shape joins
         # the line to the record above.
         is_cont = (
             cur != -1
-            and (rend[cur] - rstart[cur]) < MAX_RECORD_LINES
+            and (rend[cur] - rstart[cur] + (self.carry_len if cur == 0 and store.carry is not None else 0)) < MAX_RECORD_LINES
             and (indent > self.head_indent or self.cont_rx.match(text))
         )
         if is_cont:
@@ -1042,6 +1117,7 @@ class Pass:
             rstart.append(i)
             rend.append(i + 1)
             self.head_indent = indent
+            self.head_text, self.head_no, self.head_sev = text, store.base + i + 1, sev
             # Cluster the masked head line.
             res = self.miner.add_log_message(drain_message(text))
             cid = res["cluster_id"]
@@ -1081,6 +1157,18 @@ class Pass:
         elif (sev is not None and sev >= 3) or (has("error") and not is_loc):
             self.armed = True
         store.score.append(s)
+
+
+@dataclass
+class CarriedHead:
+    """The head of a record that a follow cut left open: what the next
+    window needs to attribute its continuation lines and to show the entry."""
+    no: int
+    text: str
+    sev: int | None
+    tpl_idx: int  # index in the new window's templates
+    gid: int
+    cluster_id: int
 
 
 @dataclass
@@ -1268,9 +1356,11 @@ def summarize(
     window_nos = set(head_nos) | set(tail_nos)
 
     def tpl_head(tpl: Template) -> list[str]:
-        ex = store.line(rstart[tpl.exemplar])
+        ex = store.head_of(tpl.exemplar)
         count = tpl.count
         extra = f" ({fmt_int(tpl.lines)} lines)" if tpl.lines != count else ""
+        if ex.no < b1:
+            extra += " (cont.)"  # the record began in the previous window
         if len(tpl.levels) > 1:  # mixed levels inside one template: say so
             hist = " ".join(f"{LEVEL_NAME[s]}×{fmt_int(c)}" for s, c in sorted(tpl.levels.items(), reverse=True))
             extra += f" [{hist}]"
@@ -1281,7 +1371,9 @@ def summarize(
         # not repeated.
         where = "head" if ex.no in head_nos else "tail" if ex.no in tail_nos else None
         ref = f"L{ex.no} (in {where})" if where else f"L{ex.no}: {clip(ex.text.strip(), width)}"
-        if count == 1 or compact:
+        if count == 1 or compact or tpl.text == drain_message(ex.text):
+            # One line: a singleton, a small budget, or a template with no
+            # variables, whose text would only repeat the exemplar.
             return [f"{tpl.tid:<4} ×{fmt_int(count)}{extra} {tpl.marker} {ref}"]
         return [f"{tpl.tid:<4} ×{fmt_int(count)}{extra} {tpl.marker} {clip(tpl.text, width)}", f"     e.g. {ref}"]
 
@@ -1300,19 +1392,26 @@ def summarize(
     def key_of(no: int) -> str:
         k = keys.get(no)
         if k is None:
-            k = keys[no] = repeat_key(no)
+            if no < b1:  # the carried head: its line is in the previous window
+                k = f"tpl{store.carry.tpl_idx}·sev{store.carry.sev}"
+            else:
+                k = repeat_key(no)
+            keys[no] = k
         return k
 
     shown_tokens: list[frozenset[str]] = []
+
+    def text_of(no: int) -> str:
+        return store.carry.text if no < b1 else store.line(no - b1).text
 
     def note_shown(no: int) -> None:
         shown.add(no)
         key = key_of(no)
         taken[key] = taken.get(key, 0) + 1
-        shown_tokens.append(token_set(store.line(no - b1).text))
+        shown_tokens.append(token_set(text_of(no)))
 
     shown_tokens.extend(token_set(store.line(no - b1).text) for no in sorted(shown))
-    exemplar_nos = {rstart[t.exemplar] + b1 for t in templates}
+    exemplar_nos = {store.head_of(t.exemplar).no for t in templates}
 
     # Raw-line candidates: everything not in a window that scores at least
     # the floor (below it a line never pads the output, so it is not queued).
@@ -1371,8 +1470,10 @@ def summarize(
                 tpl = templates[ident]
                 if max_templates and len(placed) >= max_templates:
                     continue
+                if tpl.salience < TEMPLATE_FLOOR and placed:
+                    continue  # low-salience shape: the ledger's count is enough
                 ex_start, ex_end = rstart[tpl.exemplar], rend[tpl.exemplar]
-                ex_line = store.line(ex_start)
+                ex_line = store.head_of(tpl.exemplar)
                 if tpl.count == 1 and all((j + b1) in window_nos for j in range(ex_start, ex_end) if not blank[j]):
                     continue  # a singleton whose whole record the head or tail window already prints
                 if tpl.count <= NEAR_DUP_MAX_COUNT and ex_line.no not in shown and ex_end - ex_start == 1:
@@ -1435,23 +1536,25 @@ def summarize(
     def body_of(ti: int, picked_lines: list[tuple[float, Line]]) -> tuple[list[str], set[int]]:
         """Rendered body of a placed template: the picked lines inside its
         exemplar record, plus a marker for what is left unseen."""
-        start, end = rstart[templates[ti].exemplar], rend[templates[ti].exemplar]
-        nos = sorted(ln.no for _, ln in picked_lines if start < ln.no - b1 < end)
+        lo, end = store.body_range(templates[ti].exemplar)
+        nos = sorted(ln.no for _, ln in picked_lines if lo <= ln.no - b1 < end)
         out = render_ranges(store, nos, width) if nos else []
-        rest = sum(1 for j in range(start + 1, end) if not blank[j] and (j + b1) not in window_nos) - len(nos)
+        rest = sum(1 for j in range(lo, end) if not blank[j] and (j + b1) not in window_nos) - len(nos)
         if rest > 0:
-            out.append(f"      ┆ (+{fmt_int(rest)} more lines)")
+            out.append(f"  ┆ (+{fmt_int(rest)} more lines)")
         return out, set(nos)
 
     ledger_detail = True  # per-template list; dropped only as a last resort
 
     def ledger(shown_set: set[int]) -> list[str]:
         tpl_omitted = len(templates) - len(placed)
-        omitted_total = total - len(shown_set)
+        omitted_total = total - sum(1 for no in shown_set if no >= b1)
         shown_in: dict[int, int] = {}
         blank_shown = 0
         for no in shown_set:
             j = no - b1
+            if j < 0:
+                continue  # a carried head is the previous window's line
             if blank[j]:
                 blank_shown += 1
             ri = rec[j]
@@ -1514,7 +1617,7 @@ def summarize(
             out.extend(render_ranges(store, tail_nos, width))
         shown_set = set(head_nos) | set(tail_nos) | {ln.no for _, ln in picked_lines}
         for ti in placed:
-            shown_set.add(rstart[templates[ti].exemplar] + b1)
+            shown_set.add(store.head_of(templates[ti].exemplar).no)
         out.extend(ledger(shown_set))
         out.append(run_line)
         if show_hint:
@@ -1922,11 +2025,12 @@ def follow(args, spool_path: str, run_path: str | None) -> int:
         p.on_full = flush
         while True:
             now = time.monotonic()
-            timeout = None
+            deadlines = []
             if due is not None:
-                timeout = max(0.0, due - now)
-            elif args.interval > 0 and len(p.store):
-                timeout = max(0.0, last_flush + args.interval - now)
+                deadlines.append(due)
+            if args.interval > 0 and len(p.store):
+                deadlines.append(last_flush + args.interval)
+            timeout = max(0.0, min(deadlines) - now) if deadlines else None
             try:
                 ready, _, _ = selectmod.select([fd], [], [], timeout)
             except InterruptedError:

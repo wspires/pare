@@ -9,7 +9,7 @@ The pare runs use --chars-per-token 4 so the proxy error is visible; with
 default is 2.8) and reports the real token count and recall per case.
 
 Usage
-    python bench/tokens.py [--budgets 600,2000] [--chars-per-token 2.8] [--hf tokenizer.json]
+    python bench/tokens.py [--budgets 600,2000] [--chars-per-token 2.8] [--hf tokenizer.json] [--anthropic MODEL]
 
 Needs `pip install tiktoken` (and `tokenizers` for --hf). tiktoken fetches
 its vocabularies on first use; behind a proxy, point TIKTOKEN_CACHE_DIR at
@@ -30,7 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from run import pare_cmd  # noqa: E402
 
 
-def load_encoders(hf: str | None) -> dict:
+def load_encoders(hf: str | None, anthropic_model: str | None) -> dict:
     import tiktoken
 
     encs = {n: tiktoken.get_encoding(f"{n}_base").encode for n in ("cl100k", "o200k")}
@@ -39,6 +39,19 @@ def load_encoders(hf: str | None) -> dict:
 
         tok = Tokenizer.from_file(hf)
         encs[os.path.basename(hf)[:12]] = lambda s: tok.encode(s).ids
+    if anthropic_model:
+        # The tokenizer behind current Claude models is not published; the
+        # count_tokens endpoint is the exact source. Needs `pip install
+        # anthropic` and credentials (ANTHROPIC_API_KEY or `ant auth login`).
+        import anthropic
+
+        client = anthropic.Anthropic()
+
+        def count(text: str, _m=anthropic_model) -> list:
+            n = client.messages.count_tokens(model=_m, messages=[{"role": "user", "content": text}]).input_tokens
+            return [0] * n  # callers take len()
+
+        encs[anthropic_model[:12]] = count
     return encs
 
 
@@ -75,8 +88,11 @@ def main() -> int:
     ap.add_argument("--budgets", default="600,2000")
     ap.add_argument("--chars-per-token", type=float, help="also run pare calibrated to this value")
     ap.add_argument("--hf", help="a Hugging Face tokenizer.json to count with as well")
+    ap.add_argument("--anthropic", metavar="MODEL",
+                    help="also count with Anthropic's count_tokens API for this model (e.g. claude-opus-5-5); "
+                         "needs the anthropic package and credentials")
     args = ap.parse_args()
-    encs = load_encoders(args.hf)
+    encs = load_encoders(args.hf, args.anthropic)
     budgets = [int(b) for b in args.budgets.split(",")]
     logs = sorted(glob.glob(os.path.join(args.corpus, "*.log")))
     name = lambda p: os.path.basename(p)[:-4]  # noqa: E731

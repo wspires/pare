@@ -5,6 +5,7 @@
 
 import hashlib
 import io
+import json
 import os
 import re
 import subprocess
@@ -21,6 +22,7 @@ import pare  # noqa: E402
 CORPUS = os.path.join(ROOT, "corpus")
 LOGS = sorted(f for f in os.listdir(CORPUS) if f.endswith(".log"))
 GENERATED = os.path.join(ROOT, "corpus-generated")
+GUTTER = re.compile(r"^\d+: ")  # a rendered input line
 GENERATED_LOGS = sorted(f for f in os.listdir(GENERATED) if f.endswith(".log"))
 
 
@@ -292,14 +294,14 @@ def access_log() -> bytes:
 
 def test_min_severity_isolates_errors_inside_a_template():
     out = run(["--only", "T1", "--min-severity", "error", "--budget", "100000"], access_log()).decode()
-    body = [l for l in out.splitlines() if "│" in l]
+    body = [l for l in out.splitlines() if GUTTER.match(l)]
     assert len(body) == 12 and all('" 503 ' in l for l in body)
     assert out.splitlines()[0].startswith("# pare --only T1 --min-severity error: 12 of 4,000 lines")
 
 
 def test_min_severity_alone_and_warn_threshold():
     out = run(["--min-severity", "warn", "--budget", "100000"], access_log()).decode()
-    body = [l for l in out.splitlines() if "│" in l]
+    body = [l for l in out.splitlines() if GUTTER.match(l)]
     assert len(body) == 12 + 40  # 503s and 404s, no 200s
     assert not any('" 200 ' in l for l in body)
 
@@ -307,39 +309,39 @@ def test_min_severity_alone_and_warn_threshold():
 def test_min_severity_on_server_log_excludes_info():
     data = open(os.path.join(CORPUS, "server-outage.log"), "rb").read()
     out = run(["--min-severity", "warn", "--budget", "100000"], data).decode()
-    body = [l for l in out.splitlines() if "│" in l]
-    assert body and all((" WARN " in l or " ERROR " in l or " FATAL " in l) for l in body if "│ 20" in l)
+    body = [l for l in out.splitlines() if GUTTER.match(l)]
+    assert body and all((" WARN " in l or " ERROR " in l or " FATAL " in l) for l in body if ": 20" in l)
     assert "FATAL [db] giving up" in out
 
 
 def body_lines(out: str) -> list[str]:
-    return [l for l in out.splitlines() if "│" in l]
+    return [l for l in out.splitlines() if GUTTER.match(l)]
 
 
 def test_since_until_restrict_a_selection():
     data = access_log()
     out = run(["--only", "T1", "--since", "L100", "--until", "L109", "--budget", "100000"], data).decode()
     body = body_lines(out)
-    assert [int(l.split("│")[0]) for l in body] == list(range(100, 110))
+    assert [int(l.split(":")[0]) for l in body] == list(range(100, 110))
     assert out.splitlines()[0].startswith("# pare --only T1 --since L100 --until L109: 10 of 4,000 lines")
 
 
 def test_since_alone_and_bare_number():
     data = access_log()
     out = run(["--since", "3990", "--budget", "100000"], data).decode()
-    assert [int(l.split("│")[0]) for l in body_lines(out)] == list(range(3990, 4001))
+    assert [int(l.split(":")[0]) for l in body_lines(out)] == list(range(3990, 4001))
 
 
 def test_since_negative_counts_from_end():
     data = access_log()
     out = run(["--since", "-5", "--budget", "100000"], data).decode()
-    assert [int(l.split("│")[0]) for l in body_lines(out)] == list(range(3996, 4001))
+    assert [int(l.split(":")[0]) for l in body_lines(out)] == list(range(3996, 4001))
 
 
 def test_since_combines_with_min_severity():
     data = access_log()
     out = run(["--min-severity", "error", "--since", "L2000", "--budget", "100000"], data).decode()
-    nos = [int(l.split("│")[0]) for l in body_lines(out)]
+    nos = [int(l.split(":")[0]) for l in body_lines(out)]
     assert nos and all(n >= 2000 for n in nos) and all('" 503 ' in l for l in body_lines(out))
     assert len(nos) == sum(1 for i in range(1999, 4000) if i % 333 == 7)
 
@@ -491,3 +493,61 @@ def test_follow_run_file_keeps_every_byte(tmp_path):
     out = p.stdout.decode()
     assert f"## raw: {run_file} --since L1 --until L" in out
     assert out.rstrip().splitlines()[-1].endswith(f"raw: {run_file}")
+
+
+def test_follow_timed_cut_does_not_split_a_record(tmp_path):
+    """A cut that lands inside a record (an --interval or --flush-on flush
+    while a trace is still arriving) carries the record into the next
+    window: its frames inherit the error head's salience and are attributed
+    to the same template, so the template ids match a batch pass."""
+    head = b"2026-10-08T10:00:00Z ERROR worker crashed: ValueError: bad input\n    at handler (app/x.py:10)\n"
+    rest = b"    at main (app/main.py:3)\n    at run (app/run.py:99)\nINFO recovered\n"
+
+    def gids(cut_between):
+        spool = tmp_path / f"spool-{int(cut_between)}"
+        out, stores = [], []
+        with open(spool, "wb") as f:
+            p = pare.Pass(200, f, str(spool))
+            def cut():
+                st = p.cut()
+                stores.append(st)
+                out.extend(st.templates[st.rtpl[st.rec[i]]].gid if st.rec[i] >= 0 else -1 for i in range(len(st)))
+            p.feed(head)
+            if cut_between:
+                cut()
+            p.feed(rest)
+            p.finish()
+            cut()
+        return out, len(p.globals), stores
+
+    batch, nb, _ = gids(False)
+    split, ns, stores = gids(True)
+    assert batch == split == [0, 0, 0, 0, 1] and nb == ns == 2
+    # the second window's record 0 continues the trace: scored from the carried ERROR head
+    w2 = stores[1]
+    assert w2.carry is not None and w2.carry.text.startswith("2026-10-08T10:00:00Z ERROR")
+    assert w2.depth[0] > 0 and w2.score[0] > 0  # a frame, not a new head; inherits the error's vocabulary
+    w2.open()
+    pare.score_templates(w2)
+    assert w2.templates[0].marker == "E"
+    w2.close()
+
+
+def test_follow_interval_cut_mid_trace_end_to_end(tmp_path):
+    producer = (
+        "import sys, time\n"
+        "w = sys.stdout.buffer\n"
+        "w.write(b'ERROR worker crashed: ValueError: bad input\\n    at handler (app/x.py:10)\\n'); w.flush()\n"
+        "time.sleep(1.2)\n"
+        "w.write(b''.join(b'    at frame%d (app/f%d.py:%d)\\n' % (i, i, i) for i in range(30))); w.flush()\n"
+    )
+    script = tmp_path / "producer.py"
+    script.write_text(producer)
+    cmd = (f"{sys.executable} {script} | {sys.executable} {os.path.join(HERE, 'pare.py')}"
+           " -f --interval 0.4 --flush-on none --no-tee --budget 300")
+    out = subprocess.run(cmd, shell=True, capture_output=True, check=True).stdout.decode()
+    blocks = [b for b in follow_blocks(out) if b[0].startswith("# pare #")]
+    assert len(blocks) == 2, out
+    second = "\n".join(blocks[1])
+    assert "(cont.)" in second and "ERROR worker crashed" in second, second  # the entry shows the carried head
+    assert out.rstrip().splitlines()[-1].split("·")[2].strip() == "1 templates"
