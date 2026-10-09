@@ -926,6 +926,7 @@ class Pass:
         self.armed = False
         self.pending_blank = -1
         self.pending_blank_at_cut = False
+        self.pending_carried = False
         self._new_window()
 
     def _new_window(self) -> None:
@@ -941,15 +942,21 @@ class Pass:
             self.carry = CarriedHead(no=self.head_no, text=self.head_text, sev=self.head_sev,
                                      tpl_idx=-1, gid=self.carry_gid, cluster_id=self.carry_cid)
             self.carry_len = self.store_prev_len
+            self.pending_carried = self.pending_blank_at_cut
+        elif self.carry is not None:
+            # No line of the window ended the carried record (the window held
+            # only the blank line that keeps it open): carry on unchanged,
+            # length and pending-blank state included.
+            pass
         else:
             self.carry = None
             self.carry_len = 0
             self.head_indent = 0
             self.head_vocab = 0.0
             self.armed = False
+            self.pending_carried = False
         self.cur = -1
         self.pending_blank = -1  # a single blank line that may turn out to sit inside a block
-        self.pending_carried = self.carry is not None and self.pending_blank_at_cut
 
     def feed(self, chunk: bytes) -> None:
         self.spool.write(chunk)
@@ -966,6 +973,11 @@ class Pass:
         if self.rest:
             self._add(self.rest)
             self.rest = b""
+
+    @property
+    def has_content(self) -> bool:
+        """Whether the current window holds a non-blank line."""
+        return len(self.store) > self.store.blank_total
 
     def cut(self) -> Store:
         """Close the current window and return it, ready to summarise."""
@@ -2003,9 +2015,15 @@ def follow(args, spool_path: str, run_path: str | None) -> int:
         due: float | None = None  # a --flush-on flush is scheduled for this time
         p.every = args.every
 
-        def flush() -> None:
+        def flush(final: bool = False) -> None:
             nonlocal k, last_flush, due
-            if not len(p.store):
+            # A window with nothing in it but blank lines prints nothing and
+            # is not cut: the blank line stays in the open window (and, if it
+            # sits inside a carried record, is adopted into it as in a batch
+            # pass). The last window is cut whatever it holds.
+            if not len(p.store) or (not p.has_content and not final):
+                last_flush = time.monotonic()
+                due = None
                 return
             k += 1
             store = p.cut()
@@ -2048,7 +2066,7 @@ def follow(args, spool_path: str, run_path: str | None) -> int:
             elif args.interval > 0 and len(p.store) and now >= last_flush + args.interval:
                 flush()
         p.finish()
-        flush()
+        flush(final=True)
         out.write(f"# pare: end of input · {fmt_int(p.nlines)} lines, {fmt_int(p.total_bytes)} B"
                   f" (~{fmt_int(tokens(p.total_bytes))} tok) · {len(p.globals)} templates · "
                   + (f"raw: {run_path}" if run_path else "raw: (not saved)") + "\n")

@@ -104,11 +104,13 @@ A window closes after `--every` lines (default 20,000, also the window
 cap), after `--interval` seconds even while the stream is idle, half a
 second after a line at `--flush-on` severity arrives (default `error`,
 at most one such flush per `--min-interval` seconds), and at end of
-input. A line-count cut waits for the next record head, and a timed cut
+input. A line-count cut waits for the next record head, a timed cut
 carries the open record into the next window (its frames keep inheriting
-the error head's salience and are attributed to the same template), so a
-stack trace is never split and the template ids are the ones a batch run
-over the finished run file would assign. A window with no new shape and nothing above the salience
+the error head's salience and are attributed to the same template), and
+a window holding only blank lines is neither printed nor cut, so a stack
+trace is never split and the template ids are the ones a batch run over
+the finished run file would assign (a randomized differential test
+against the batch pass checks this). A window with no new shape and nothing above the salience
 floor is one heartbeat line (`--quiet` drops it); a template first seen
 in a window is marked `new`, and one arriving much faster than its
 running rate gets a rate note. The run file is named up front and

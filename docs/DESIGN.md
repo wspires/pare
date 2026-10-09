@@ -690,13 +690,28 @@ same template without another drain call. Those frames inherit the error
 head's salience as they would have in one pass, the entry shows the
 carried head (`T2 ×1 (34 lines) (cont.) E L2: ERROR worker crashed …`),
 and the segmentation, so the head lines drain sees and their order, is
-the same as in one batch pass over the finished run file. The template
-ids match: one test checks it line by line on the CI log at a 500-line
-window, another cuts inside a trace and compares with the batch pass,
-and an end-to-end test streams a trace through `--interval` with a
-pause in the middle. A single blank line keeps a carried record open,
-as inside a window; only its attribution of that blank line differs from
-the batch pass (the blank stays in the earlier window's ledger).
+the same as in one batch pass over the finished run file. A carried
+record that no line of the next window has ended yet (the window held
+only the blank line that keeps it open) is handed on again unchanged,
+length and pending-blank state included; and follow mode neither prints
+nor cuts a window that holds only blank lines, so the blank stays in the
+open window and is adopted into the record as in a batch pass. The
+template ids match: one test checks it line by line on the CI log at a
+500-line window, another cuts inside a trace and compares with the batch
+pass, an end-to-end test streams a trace through `--interval` with a
+pause in the middle, and a randomized differential test (a generated log
+with traces, blank lines inside blocks, nested indentation and pytest
+`E`/`>` lines; a cut after every line, then a dozen seeded trials of
+random cuts plus cut pairs around in-block blanks) asserts that every
+non-blank line has the same record head and global template id as one
+batch pass. That test found the blank-only-window case that the
+hand-written ones had not, and it carries over to a native port as is.
+
+The one documented difference: a single blank line pending at the moment
+of a cut is adopted into the record by the batch pass but stays
+unattributed in the window already printed, since that block is out. It
+moves that line between the ledger's record count and its blank count,
+nothing else.
 
 **What carries across windows.** The drain3 miner, one small record per
 template (`GlobalTemplate`: id, cluster, cumulative count, first window),

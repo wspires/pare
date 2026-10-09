@@ -551,3 +551,87 @@ def test_follow_interval_cut_mid_trace_end_to_end(tmp_path):
     second = "\n".join(blocks[1])
     assert "(cont.)" in second and "ERROR worker crashed" in second, second  # the entry shows the carried head
     assert out.rstrip().splitlines()[-1].split("·")[2].strip() == "1 templates"
+
+
+def test_follow_random_cuts_match_the_batch_pass(tmp_path):
+    """Differential test: a log with traces, blank lines inside blocks, nested
+    indentation and pytest E/> lines, cut into windows at random positions
+    (timed cuts can land anywhere, a blank line included). Every non-blank
+    line must have the same record head and global template id as one
+    batch pass. Blank lines are excluded: a single blank pending at a cut is
+    adopted into the record by the batch pass but stays unattributed in the
+    window already printed, which only moves it between ledger counts."""
+    import random
+    rng = random.Random(7)
+    lines = []
+    for i in range(400):
+        kind = rng.choice(["info", "info", "trace", "pytest", "nested"])
+        if kind == "info":
+            lines.append(f"2026-10-08T10:{i % 60:02d}:00Z INFO worker{i % 5} handled job {i}")
+        elif kind == "trace":
+            lines.append(f"2026-10-08T10:{i % 60:02d}:00Z ERROR worker{i % 5} crashed: ValueError: bad input {i}")
+            for f in range(rng.randint(1, 6)):
+                if f == 2 and rng.random() < 0.5:
+                    lines.append("")  # a single blank line inside the block
+                lines.append(f"    at f{f} (app/m{f}.py:{i + f})")
+        elif kind == "pytest":
+            lines.append(f"tests/test_x.py::test_{i} FAILED")
+            lines.append(f">       assert total({i}) == {i + 1}")
+            lines.append(f"E       assert {i} == {i + 1}")
+            lines.append(f"E        +  where {i} = total({i})")
+        else:
+            lines.append(f"build step {i}:")
+            lines.append(f"  compiling unit {i}")
+            lines.append(f"    warning: unused variable v{i}")
+            lines.append("")
+            lines.append(f"    note: see unit {i}")
+        if rng.random() < 0.15:
+            lines.append("")
+            if rng.random() < 0.3:
+                lines.append("")
+    data = ("\n".join(lines) + "\n").encode()
+    n = len(lines)
+
+    def heads(cuts):
+        spool = tmp_path / f"spool-{len(cuts)}"
+        out = []
+        with open(spool, "wb") as f:
+            p = pare.Pass(200, f, str(spool))
+
+            def take():
+                st = p.cut()
+                for i in range(len(st)):
+                    ri = st.rec[i]
+                    if ri < 0:
+                        out.append(None)
+                        continue
+                    head_no = st.carry.no if (ri == 0 and st.carry is not None) else st.base + st.rstart[ri] + 1
+                    out.append((head_no, st.templates[st.rtpl[ri]].gid))
+
+            for i, line in enumerate(lines):
+                p.feed(line.encode() + b"\n")
+                if i in cuts:
+                    take()
+            p.finish()
+            take()
+        return out, len(p.globals)
+
+    batch, nb = heads(set())
+    assert len(batch) == n
+    # Blank lines inside blocks: a cut right before and right after one
+    # leaves a window holding only that blank line, which must still hand
+    # the open record on.
+    in_block_blanks = [j for j in range(1, n - 1) if lines[j] == "" and lines[j + 1].startswith("    ")]
+    assert len(in_block_blanks) >= 10
+    trials = [set(range(n - 1))]  # a cut after every line
+    for _ in range(12):
+        cuts = set(rng.sample(range(n - 1), rng.randint(5, 40)))
+        for j in rng.sample(in_block_blanks, 3):
+            cuts.update((j - 1, j))
+        trials.append(cuts)
+    for trial, cuts in enumerate(trials):
+        windowed, nw = heads(cuts)
+        assert nw == nb, (trial, sorted(cuts))
+        for i in range(n):
+            if lines[i].strip():
+                assert windowed[i] == batch[i], (trial, i, lines[i], batch[i], windowed[i], sorted(cuts))
