@@ -248,11 +248,11 @@ for a native port are in [docs/DESIGN.md](docs/DESIGN.md).
 .venv/bin/pip install pytest && .venv/bin/python -m pytest proto/
 ```
 
-187 tests: severity forms and their false positives, vocabulary files, the
+190 tests: severity forms and their false positives, vocabulary files, the
 hard budget limit on every corpus file at several sizes, determinism,
 pass-through, the selection flags, memory on a large input, follow mode
 (including a randomized differential test against the batch pass),
-command mode, the collection and harvest helpers and the Claude Code hook.
+command mode, the collection, harvest and SWE-bench helpers, and the Claude Code hook.
 
 ## Layout
 
@@ -266,6 +266,7 @@ bench/tokens.py        byte proxy vs real tokenizer counts
 bench/gen_synthetic.py generator for the seeded synthetic corpus files
 bench/collect.py       turn run files into held-out cases (never shows pare's output)
 bench/harvest.py       harvest held-out candidates from Claude Code transcripts (scrubbed, staged for review)
+bench/swebench_cases.py held-out cases from SWE-bench tasks, labelled by their failing tests (needs Docker)
 integrations/          agent instructions and a Claude Code hook (integrations/README.md)
 corpus/                dev corpus: *.log, *.keep, *.cmd
 corpus-generated/      real Maven, tsc, Terraform and kubectl output from small projects in src/ (a second dev corpus, not held-out)

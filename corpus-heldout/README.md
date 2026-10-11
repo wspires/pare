@@ -31,6 +31,37 @@ preview. Promoted cases record `transcript` as their source and whether
 the keep list started from the proposals, and results should be reported
 by source.
 
+## SWE-bench cases
+
+`bench/swebench_cases.py` produces held-out cases with labels nobody
+wrote: each SWE-bench task records which tests fail at its buggy commit
+(FAIL_TO_PASS), and the harness reruns them in the task's published
+Docker image.
+
+```
+pip install -e '.[datasets]'          # the swebench package
+python bench/swebench_cases.py run --sample 20 --dry-run   # which tasks, which images
+python bench/swebench_cases.py run --sample 20             # writes corpus-heldout/swebench/
+python bench/run.py --corpus corpus-heldout/swebench --budget 2000 --show-misses
+```
+
+The sample is seeded and spread across repositories, among tasks with at
+most 10 failing tests. For each task: pull the image (1 to 4 GB), run the
+task's eval script without the fix, confirm with SWE-bench's log parser
+that the FAIL_TO_PASS tests failed, and write the case: the test command's
+output, the command, and a keep list of the failing test ids as they
+appear in the output. A task whose tests did not fail, whose eval did not
+run cleanly, or whose output is under 40 lines (pare passes those through
+unchanged) is skipped and reported; full logs of failed runs go to
+`swebench/_failed/`, which git ignores. Images this run pulled are removed
+afterwards unless `--keep-images`. `--dataset` takes a local
+`.jsonl`/`.json`/`.parquet` with SWE-bench's fields when Hugging Face is out
+of reach.
+
+These are a different kind of keep list from the transcript cases: they
+only ask whether the summary names every failing test, not whether it
+keeps the assertion or the location. Report them as their own source.
+
 ## Protocol
 
 1. **Collect real logs from actual agent sessions.** The easy way: have

@@ -15,3 +15,5 @@ node_modules/
 terraform.tfstate*
 # harvested candidates awaiting review; may hold unreviewed personal data
 corpus-heldout/inbox/
+# full eval logs of SWE-bench tasks that did not produce a case (debugging only)
+corpus-heldout/swebench/_failed/

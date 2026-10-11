@@ -21,6 +21,7 @@ classifiers = [
 [project.optional-dependencies]
 dev = ["pytest"]
 bench = ["tidyout-cli"]
+datasets = ["swebench>=5"]
 
 [project.scripts]
 pare = "pare:main"

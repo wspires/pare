@@ -18,20 +18,22 @@ The gate for everything after it.
   corpus. Protocol: `corpus-heldout/README.md`. Fastest source: run
   `bench/harvest.py scan` over your existing Claude Code transcripts,
   review the candidates, promote the good ones. *Maintainer.*
-- [ ] **Bug-dataset cases.** Failing test runs reproduced from datasets
-  that record which tests fail at a buggy commit: SWE-bench (Python),
-  Defects4J (Java, Maven and Ant), BugsInPy (Python). The keep list comes
-  from the dataset: the failing test ids and the exception they raise, so
-  no one's judgement is involved and the labels are blind to pare by
-  construction. Reported as its own source (`dataset` in the manifest),
-  never merged with transcript cases. The same checkouts are the task set
-  for the agent-success eval below. Needs Docker (SWE-bench publishes an
-  image per task) and a few GB per task; not runnable in the development
-  container. Plan: a `bench/datasets.py` that, per task, starts the image,
-  runs the failing tests at the buggy commit with `pare -- ...` so the run
-  file and command are recorded, and writes the case with its keep list.
-  Start with 20 SWE-bench Verified tasks across different repositories,
-  then Defects4J for Maven coverage. *Repo, run on a machine with Docker.*
+- [ ] **SWE-bench cases.** Failing test runs reproduced from SWE-bench
+  tasks, which record a repository at a buggy commit and the tests that
+  fail there (FAIL_TO_PASS). The keep list is those test ids as they appear
+  in the output, so no one's judgement is involved and the labels are
+  blind to pare by construction. Reported as its own source (`dataset` in
+  the manifest), never merged with transcript cases. The harness is built:
+  `bench/swebench_cases.py run --sample 20` pulls each task's published
+  image, runs its eval script without the fix, checks with SWE-bench's own
+  parser that the failing tests did fail, writes the case, and removes the
+  image. Verified end to end in the development container on one task
+  rebuilt from its upstream pull request (Hugging Face, where the dataset
+  lives, is blocked there). Running the 20-task sample needs Docker, the
+  dataset, and about 4 GB of disk per task at a time. *Maintainer, on a
+  machine with Docker and Hugging Face access.*
+- [ ] **Defects4J cases.** The same idea for Java (Maven and Ant), for
+  build-tool coverage SWE-bench lacks. *Repo, after the SWE-bench run.*
 - [ ] **Claude token rate.** `bench/tokens.py --anthropic claude-opus-5-5`
   on a machine with credentials. If the rate differs much from the 2.8
   bytes per token measured on cl100k and o200k, change the default.
@@ -82,6 +84,12 @@ held-out evidence asks for it.
   error lines. Candidate: cap the table when it alone would fill the budget.
 - [ ] **Wide single-line errors.** A 230-character kubectl error loses its
   tail to `--width 200`.
+- [ ] **Unused budget while same-shape failures are omitted.** On the
+  reconstructed SWE-bench task (pytest, 22 failures, network cut off),
+  pare listed the `FAILED ...` lines once as a template with a count and
+  never showed the one failing test the task is about, at 600 and at 2000,
+  where it used about half the budget. If the real SWE-bench cases show
+  the same, failing-test summary lines need to compete individually.
 - [ ] **Re-ablate removed terms.** The end-of-output position bonus and
   the first-occurrence bonus were removed by ablation on the dev corpus;
   re-test them on the held-out set.

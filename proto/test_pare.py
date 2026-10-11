@@ -911,3 +911,133 @@ def test_harvest_builds_scrubbed_candidates_from_a_transcript(tmp_path):
     row = (corpus / "MANIFEST.tsv").read_text().splitlines()[-1].split("\t")
     assert row[0] == py and row[-2:] == ["transcript", "reviewed proposals"]
     assert collect(["--corpus", str(corpus), "check"]).returncode == 0
+
+
+# --- bench/swebench_cases.py --------------------------------------------------------
+
+def load_swebench_cases():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("swebench_cases", os.path.join(ROOT, "bench", "swebench_cases.py"))
+    mod = importlib.util.module_from_spec(spec)
+    sys.path.insert(0, os.path.join(ROOT, "bench"))
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def fake_task(iid, repo="acme/widgets", f2p=("tests/test_w.py::test_new",)):
+    script = "\n".join([
+        "#!/bin/bash", "set -uxo pipefail", "cd /testbed", "git apply -v - <<'EOF_1'", "diff", "EOF_1",
+        ": '>>>>> Start Test Output'", "pytest -rA tests/test_w.py", ": '>>>>> End Test Output'",
+        "git checkout HEAD -- tests/test_w.py"]) + "\n"
+    return {"instance_id": iid, "repo": repo, "version": "1.0", "base_commit": "abc",
+            "image": f"example/{iid}:latest", "FAIL_TO_PASS": json.dumps(list(f2p)), "PASS_TO_PASS": "[]",
+            "log_parser": "parse_log_pytest", "eval_type": "pass_and_fail", "eval_script": script}
+
+
+def fake_log(failing, passing=(), filler=60):
+    body = ["============================= test session starts =============================="]
+    body += [f"tests/test_w.py::test_old_{i} PASSED" for i in range(filler)]
+    body += ["=========================== short test summary info ============================"]
+    body += [f"PASSED {t}" for t in passing] + [f"FAILED {t} - AssertionError: boom" for t in failing]
+    body += [f"========================= {len(failing)} failed, {filler} passed in 0.5s =========================="]
+    code = 1 if failing else 0
+    return "\n".join(["+ cd /testbed", "Applied patch tests/test_w.py cleanly.",
+                      "+ : '>>>>> Start Test Output'", "+ pytest -rA tests/test_w.py", *body,
+                      f"+ SWEBENCH_TEST_EXIT_CODE={code}", "+ : '>>>>> End Test Output'",
+                      f">>>>> Test Exit Code: {code}", "+ git checkout HEAD -- tests/test_w.py"]) + "\n"
+
+
+class FakeDocker:
+    def __init__(self, logs, present=(), fail_pull=()):
+        self.logs, self.present, self.fail_pull = logs, set(present), set(fail_pull)
+        self.pulled, self.removed, self.scripts = [], [], []
+
+    def has_image(self, image):
+        return image in self.present
+
+    def pull(self, image):
+        if image in self.fail_pull:
+            return False, "manifest unknown"
+        self.pulled.append(image)
+        return True, ""
+
+    def run(self, image, script, *, timeout, network):
+        self.scripts.append(script)
+        return self.logs[image], False
+
+    def remove_image(self, image):
+        self.removed.append(image)
+
+
+def test_swebench_selection_is_seeded_and_spread_across_repos():
+    pytest.importorskip("swebench")
+    sc = load_swebench_cases()
+    tasks = [fake_task(f"{r}__x-{i}", repo=r) for r in ("a/a", "b/b", "c/c") for i in range(5)]
+    tasks.append(fake_task("a/a__x-99", repo="a/a", f2p=[f"t{i}" for i in range(30)]))  # too many failing tests
+    one = sc.select(tasks, ids=None, sample=6, seed=3, max_fail=10)
+    assert [t["repo"] for t in one] == ["a/a", "b/b", "c/c"] * 2
+    assert [t["instance_id"] for t in one] == [t["instance_id"] for t in sc.select(tasks, ids=None, sample=6, seed=3, max_fail=10)]
+    assert "a/a__x-99" not in {t["instance_id"] for t in sc.select(tasks, ids=None, sample=99, seed=0, max_fail=10)}
+    assert [t["instance_id"] for t in sc.select(tasks, ids=["c/c__x-1", "a/a__x-2"], sample=0, seed=0, max_fail=10)] \
+        == ["c/c__x-1", "a/a__x-2"]
+
+
+def test_swebench_output_slicing_and_test_id_forms():
+    sc = load_swebench_cases()
+    task = fake_task("acme__widgets-1")
+    log = fake_log(["tests/test_w.py::test_new"])
+    out = sc.test_output(log)
+    assert out.startswith("=====") and "+ pytest" not in out and "SWEBENCH_TEST_EXIT_CODE" not in out
+    assert "Applied patch" not in out and ">>>>>" not in out
+    assert sc.test_command(task["eval_script"]) == "pytest -rA tests/test_w.py"
+    assert sc.locate("test_add (tests.math.Calc)", "test_add (tests.math.Calc.test_add) ... FAIL") \
+        == "test_add (tests.math.Calc.test_add)"  # newer Django spelling
+    assert sc.locate("test_add (tests.math.Calc)", "test_add (tests.math.Calc) ... FAIL") == "test_add (tests.math.Calc)"
+    assert sc.locate("missing", "nothing here") is None
+    assert sc.image_of({"instance_id": "django__django-11099"}) == \
+        "swebench/sweb.eval.x86_64.django_1776_django-11099:latest"
+
+
+def test_swebench_harness_writes_cases_and_skips_bad_runs(tmp_path):
+    pytest.importorskip("swebench")
+    sc = load_swebench_cases()
+    good = fake_task("acme__widgets-1")
+    passed = fake_task("acme__widgets-2", f2p=("tests/test_w.py::test_fixed",))
+    noimg = fake_task("acme__widgets-3")
+    short = fake_task("acme__widgets-4")
+    dataset = tmp_path / "tasks.jsonl"
+    dataset.write_text("".join(json.dumps(t) + "\n" for t in (good, passed, noimg, short)))
+    docker = FakeDocker({
+        good["image"]: fake_log(["tests/test_w.py::test_new"]),
+        passed["image"]: fake_log([], passing=["tests/test_w.py::test_fixed"]),
+        short["image"]: fake_log(["tests/test_w.py::test_new"], filler=2),
+    }, present=[good["image"]], fail_pull=[noimg["image"]])
+    out = tmp_path / "out"
+    argv = ["run", "--dataset", str(dataset), "--instances", "acme__widgets-1,acme__widgets-2,acme__widgets-3,acme__widgets-4",
+            "--out", str(out)]
+    import contextlib
+    import io
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc = sc.main(argv, docker=docker)
+    text = buf.getvalue()
+    assert rc == 0, text
+    assert "acme__widgets-1" in text and "written" in text
+    assert "FAIL_TO_PASS tests did not fail" in text and "image pull failed" in text and "under 40 lines" in text
+    assert (out / "acme__widgets-1.keep").read_text() == "tests/test_w.py::test_new\n"
+    assert (out / "acme__widgets-1.cmd").read_text() == "pytest -rA tests/test_w.py\n"
+    log = (out / "acme__widgets-1.log").read_text()
+    assert log.startswith("=====") and "FAILED tests/test_w.py::test_new" in log
+    meta = json.loads((out / "acme__widgets-1.json").read_text())
+    assert meta["failed"] == ["tests/test_w.py::test_new"] and meta["unlocated"] == []
+    row = (out / "MANIFEST.tsv").read_text().splitlines()[1].split("\t")
+    assert row[0] == "acme__widgets-1" and row[-2:] == ["dataset", "dataset FAIL_TO_PASS"]
+    assert not (out / "acme__widgets-2.log").exists() and (out / "_failed" / "acme__widgets-2.eval.log").exists()
+    # the script run is SWE-bench's wrapping, which records the test exit code for the grader
+    assert all("SWEBENCH_TEST_EXIT_CODE=$?" in s for s in docker.scripts)
+    # images it pulled are removed; the one that was already there is kept
+    assert set(docker.removed) == {passed["image"], short["image"]} and good["image"] not in docker.removed
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        sc.main(argv, docker=docker)
+    assert "acme__widgets-1" in buf.getvalue() and "already collected" in buf.getvalue()  # idempotent
