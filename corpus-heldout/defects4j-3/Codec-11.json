@@ -1,0 +1,88 @@
+{
+  "bug": "Codec-11",
+  "project": "Codec",
+  "bug_id": 11,
+  "fixed_revision": "7e8c20bd1b0593c3496a168be573aed40609a433",
+  "report": "https://issues.apache.org/jira/browse/CODEC-121",
+  "upstream": "https://github.com/apache/commons-codec",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=QuotedPrintableCodecTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.codec.net.QuotedPrintableCodecTest",
+      "method": "testSkipNotEncodedCRLF",
+      "exception": "org.apache.commons.codec.DecoderException: Invalid URL encoding: not a valid digit (radix 16): 13"
+    },
+    {
+      "class": "org.apache.commons.codec.net.QuotedPrintableCodecTest",
+      "method": "testSoftLineBreakDecode",
+      "exception": "org.apache.commons.codec.DecoderException: Invalid URL encoding: not a valid digit (radix 16): 13"
+    },
+    {
+      "class": "org.apache.commons.codec.net.QuotedPrintableCodecTest",
+      "method": "testSoftLineBreakEncode",
+      "exception": "junit.framework.AssertionFailedError: expected:<...matics is the most b[="
+    },
+    {
+      "class": "org.apache.commons.codec.net.QuotedPrintableCodecTest",
+      "method": "testUltimateSoftBreak",
+      "exception": "junit.framework.AssertionFailedError: expected:<...There is no end to i[="
+    },
+    {
+      "class": "org.apache.commons.codec.net.QuotedPrintableCodecTest",
+      "method": "testTrailingSpecial",
+      "exception": "junit.framework.AssertionFailedError: expected:<... might contain sp=3D[="
+    }
+  ],
+  "failed": [
+    "org.apache.commons.codec.net.QuotedPrintableCodecTest::testSkipNotEncodedCRLF",
+    "org.apache.commons.codec.net.QuotedPrintableCodecTest::testSoftLineBreakDecode",
+    "org.apache.commons.codec.net.QuotedPrintableCodecTest::testSoftLineBreakEncode",
+    "org.apache.commons.codec.net.QuotedPrintableCodecTest::testUltimateSoftBreak",
+    "org.apache.commons.codec.net.QuotedPrintableCodecTest::testTrailingSpecial"
+  ],
+  "keep": [
+    "testSkipNotEncodedCRLF(org.apache.commons.codec.net.QuotedPrintableCodecTest)",
+    "org.apache.commons.codec.DecoderException: Invalid URL encoding: not a valid digit (radix 16): 13",
+    "testSoftLineBreakDecode(org.apache.commons.codec.net.QuotedPrintableCodecTest)",
+    "testSoftLineBreakEncode(org.apache.commons.codec.net.QuotedPrintableCodecTest)",
+    "expected:<...matics is the most b[=",
+    "testUltimateSoftBreak(org.apache.commons.codec.net.QuotedPrintableCodecTest)",
+    "expected:<...There is no end to i[=",
+    "testTrailingSpecial(org.apache.commons.codec.net.QuotedPrintableCodecTest)",
+    "expected:<... might contain sp=3D[="
+  ],
+  "unlocated": [],
+  "lines": 265,
+  "seconds": 12.7,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T21:42:53Z",
+  "pare": "0.1.0",
+  "commit": "983bfa5"
+}

@@ -1,0 +1,2 @@
+com.google.gson.stream.JsonWriterTest.testNonFiniteDoublesWhenLenient
+java.lang.IllegalArgumentException: Numeric values must be finite, but was NaN

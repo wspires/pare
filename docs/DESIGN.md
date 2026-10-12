@@ -258,13 +258,14 @@ weights:
 
 | class | weight | holds |
 |---|---:|---|
-| `error` | +3 | error, failed, refused, panic, CamelCase `*Error`, `FAIL`, assertion-diff lines (`Expected:`, `Received:`), … |
+| `error` | +3 | error, failed, refused, panic, CamelCase `*Error`, `*Exception`, `*Failure` (JUnit's `ComparisonFailure`), `FAIL`, assertion-diff lines (`Expected:`, `Received:`), … |
 | `warn` | +1.5 | warning, deprecated, retry, skipped, flaky, … |
 | `summary` | +1 | passed, total, finished, `added N packages`, `====` rules, … (record heads only) |
 | `frame` | +1 | stack frames and `file.ext:line` locations |
 | `pass` | −1 | ✓, PASS, ok: structural, so words in a test name (`✓ throws on invalid`) do not count |
 | `noise` | −0.75 | downloading, compiling, debug, progress bars, … (ignored when the line also has an error word) |
-| `advice` | −3 | re-run, for more information, please refer to, `[Help 1]`, …: a build tool's closing advice, counted even on an error line |
+| (level only) | −1 | a line that is nothing but a level token (`[ERROR]`, `[WARNING]`, `ERROR:`) says nothing, whatever the level |
+| `advice` | −1 | re-run, for more information, please refer to, see dump files, `run with --`, `[Help 1]`, …: a build tool's closing advice. Its score replaces the line's, level included, so an `[ERROR]` advice line stays under the floor |
 | `strong-error` | — | decides whether a record *body* makes its template an error |
 | `level-fatal` … `level-debug` | +4 … −1 | plain level tokens for the structural detection above |
 
@@ -658,7 +659,8 @@ in "Allocation" and "Vocabulary" above:
    build with eight or so `[ERROR]` lines of advice (`re-run Maven with
    the -e switch`, `[Help 1]`), each a singleton template at error level,
    so each outranked the failing tests at 600. The `advice` class (−3)
-   counts even on an error line.
+   counts even on an error line. (Strengthened later: see "Maven
+   chatter".)
 
 Developed on a separate Defects4J sample (seed 1, 19 bugs, none in the
 held-out set: `corpus-dev/defects4j/`) and checked against both dev
@@ -736,6 +738,54 @@ other six wanted tests fail with the forty the missing network breaks,
 in the same ways, so no ranking can find them. The section search scans
 up to 200,000 record heads before the list; on a 300,000-line log it
 added 3 % to the run time.
+
+### Maven chatter
+
+On Maven runs at 600 tokens the template table filled with build
+chatter. Over the 30 Maven dev logs (the Defects4J dev sample and the
+seed-0 set) a bare `[ERROR]` was placed in every one, `[ERROR] -> [Help
+1]` in 24, `Please refer to … for the individual test results` in 21:
+the −3 advice weight still left a singleton advice line at salience 3.5
+(error level 3, rarity 2). Tracing the misses found two more causes:
+
+1. **Level-only lines.** `[ERROR]`, `[WARNING]` and `ERROR:` alone now
+   score −1.
+2. **Advice replaces the score.** An advice line scores −1 whatever its
+   level, so with the rarity term it stays under the template floor and
+   never pads the fill. The phrases were tightened so a real error that
+   mentions running is not advice (`run with --`, not `run with`), and
+   Maven 3.9's wordings added (`see dump files`, `for the individual test
+   results`, `after correcting the problems`).
+3. **A failing test is not a restatement of its class summary.**
+   `testEmpty1256(…TestJDKAtomicTypes) <<< FAILURE!` shares 85 % of its
+   tokens with `Tests run: … <<< FAILURE! - in …TestJDKAtomicTypes`, and
+   the template-entry guard dropped it. The guard now treats a new name
+   as news for template exemplars too, as it already did for raw lines
+   (an inconsistency left by the failing-test fix).
+4. **`ComparisonFailure` is an error.** The CamelCase exception names
+   covered `*Error` and `*Exception` but not `*Failure`, so JUnit's
+   `junit.framework.ComparisonFailure: expected:<…>` scored 0.
+
+Build warnings (`'build.plugins.plugin.version' … is missing`,
+`bootstrap class path not set`) stay: they are real warnings, and the dev
+corpus has warnings that matter (gcc's).
+
+| set | 600 | 1,000 | 2,000 |
+|---|---|---|---|
+| Defects4J dev, seed 1 (19) | 68 → 91 % | 91 → 95.5 % | 100 % |
+| Defects4J, seed 0 (11, dev now) | 48 → 65 % | 84 → 93.5 % | 97 → 100 % |
+| Defects4J, seed 2 (16, found the problem) | 51 → 72 % | 77 → 93 % | 98 % |
+| SWE-bench, seed 0 (16, dev now) | 57.5 → 62.5 % | 75 % | 90 % |
+| dev corpus (8) | 78 % | 96 % | 100 % |
+| generated corpus (7) | 60 → 58 % | 84 % | 96.5 % |
+| *fresh* Defects4J, seed 3 (18) | 47 → **67 %** | 71 → **94 %** | 94 → 98 % |
+| *fresh* SWE-bench, seed 2 (16) | 82 → 86 % | 86 → 91 % | 95 → 100 % |
+
+Two dev cases lost a line at 600, both to a failure line the change made
+visible: maven-test shows its failing test's name instead of the
+exception message, and Collections-7 shows a `ComparisonFailure` from a
+test Defects4J does not list instead of the `NoSuchElementException` it
+does.
 
 What the first held-out sets still show:
 

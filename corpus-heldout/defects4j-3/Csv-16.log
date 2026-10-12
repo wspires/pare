@@ -1,0 +1,93 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] -------------------< org.apache.commons:commons-csv >-------------------
+[INFO] Building Apache Commons CSV 1.6-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- enforcer:1.4.1:enforce (enforce-maven-3) @ commons-csv ---
+[INFO] Skipping Rule Enforcement.
+[INFO] 
+[INFO] --- build-helper:3.0.0:parse-version (parse-version) @ commons-csv ---
+[INFO] 
+[INFO] --- antrun:1.8:run (javadoc.resources) @ commons-csv ---
+[INFO] Executing tasks
+
+main:
+[INFO] Executed tasks
+[INFO] 
+[INFO] --- remote-resources:1.5:process (process-resource-bundles) @ commons-csv ---
+[INFO] 
+[INFO] --- buildnumber:1.4:create (default) @ commons-csv ---
+[INFO] Executing: /bin/sh -c cd '/work' && 'git' 'rev-parse' '--verify' 'HEAD'
+[INFO] Working directory: /work
+[INFO] Storing buildNumber: f368f64fa7f9acdcc01084f676e8b9c2b86f946e at timestamp: 1791841443482
+[WARNING] Cannot get the branch information from the git repository: 
+Detecting the current branch failed: fatal: ref HEAD is not a symbolic ref
+
+[INFO] Executing: /bin/sh -c cd '/work' && 'git' 'rev-parse' '--verify' 'HEAD'
+[INFO] Working directory: /work
+[INFO] Storing buildScmBranch: UNKNOWN
+[INFO] 
+[INFO] --- resources:2.7:resources (default-resources) @ commons-csv ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory /work/src/main/resources
+[INFO] Copying 2 resources to META-INF
+[INFO] 
+[INFO] --- compiler:3.7.0:compile (default-compile) @ commons-csv ---
+[INFO] Changes detected - recompiling the module!
+[INFO] Compiling 11 source files to /work/target/classes
+[INFO] 
+[INFO] --- bundle:3.4.0:manifest (bundle-manifest) @ commons-csv ---
+[INFO] 
+[INFO] --- animal-sniffer:1.16:check (checkAPIcompatibility) @ commons-csv ---
+[INFO] Signature checking is skipped.
+[INFO] 
+[INFO] --- resources:2.7:testResources (default-testResources) @ commons-csv ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 14 resources
+[INFO] Copying 2 resources to META-INF
+[INFO] 
+[INFO] --- compiler:3.7.0:testCompile (default-testCompile) @ commons-csv ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- jacoco:0.7.9:prepare-agent (prepare-agent) @ commons-csv ---
+[INFO] Skipping JaCoCo execution because property jacoco.skip is set.
+[INFO] argLine set to empty
+[INFO] 
+[INFO] --- surefire:2.20.1:test (default-test) @ commons-csv ---
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running org.apache.commons.csv.CSVParserTest
+[ERROR] Tests run: 73, Failures: 1, Errors: 0, Skipped: 3, Time elapsed: 0.107 s <<< FAILURE! - in org.apache.commons.csv.CSVParserTest
+[ERROR] testIteratorSequenceBreaking(org.apache.commons.csv.CSVParserTest)  Time elapsed: 0.006 s  <<< FAILURE!
+org.junit.ComparisonFailure: expected:<[3]> but was:<[4]>
+	at org.apache.commons.csv.CSVParserTest.testIteratorSequenceBreaking(CSVParserTest.java:1044)
+
+[INFO] 
+[INFO] Results:
+[INFO] 
+[ERROR] Failures: 
+[ERROR]   CSVParserTest.testIteratorSequenceBreaking:1044 expected:<[3]> but was:<[4]>
+[INFO] 
+[ERROR] Tests run: 73, Failures: 1, Errors: 0, Skipped: 3
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  4.823 s
+[INFO] Finished at: 2026-10-12T21:44:06Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.20.1:test (default-test) on project commons-csv: There are test failures.
+[ERROR] 
+[ERROR] Please refer to /work/target/surefire-reports for the individual test results.
+[ERROR] Please refer to dump files (if any exist) [date]-jvmRun[N].dump, [date].dumpstream and [date]-jvmRun[N].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

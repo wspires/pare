@@ -1,0 +1,2 @@
+testLargeSample(org.apache.commons.math3.fitting.PolynomialFitterTest)
+java.lang.OutOfMemoryError: Java heap space

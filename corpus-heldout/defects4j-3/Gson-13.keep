@@ -1,0 +1,2 @@
+com.google.gson.stream.JsonReaderTest.testNegativeZero
+junit.framework.ComparisonFailure: expected:<[-]0> but was:<[]0>

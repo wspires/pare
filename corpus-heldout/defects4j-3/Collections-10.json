@@ -1,0 +1,66 @@
+{
+  "bug": "Collections-10",
+  "project": "Collections",
+  "bug_id": 10,
+  "fixed_revision": "e6d4f465446e5645f1a68f3d90964a6ade82f59e",
+  "report": "https://issues.apache.org/jira/browse/COLLECTIONS-240",
+  "upstream": "https://github.com/apache/commons-collections",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=TestMultiValueMap",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.collections.map.TestMultiValueMap",
+      "method": "testEmptyMapCompatibility",
+      "exception": "java.io.InvalidClassException: org.apache.commons.collections.map.MultiValueMap; class invalid for deserialization"
+    },
+    {
+      "class": "org.apache.commons.collections.map.TestMultiValueMap",
+      "method": "testFullMapCompatibility",
+      "exception": "java.io.InvalidClassException: org.apache.commons.collections.map.MultiValueMap; class invalid for deserialization"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.collections.map.TestMultiValueMap::testEmptyMapCompatibility",
+    "org.apache.commons.collections.map.TestMultiValueMap::testFullMapCompatibility"
+  ],
+  "keep": [
+    "testEmptyMapCompatibility(org.apache.commons.collections.map.TestMultiValueMap)",
+    "java.io.InvalidClassException: org.apache.commons.collections.map.MultiValueMap; class invalid for deserialization",
+    "testFullMapCompatibility(org.apache.commons.collections.map.TestMultiValueMap)"
+  ],
+  "unlocated": [],
+  "lines": 93,
+  "seconds": 12.9,
+  "fixes_applied": [
+    "compile-10-16.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T21:43:09Z",
+  "pare": "0.1.0",
+  "commit": "983bfa5"
+}

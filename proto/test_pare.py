@@ -427,6 +427,55 @@ def test_repeated_error_events_still_diminish():
     assert len([l for l in body_lines(out) if "crashed" in l]) <= 2, out
 
 
+@pytest.mark.parametrize("line", [
+    "[ERROR]", "[WARNING] ", "ERROR:",
+    "[ERROR] Please refer to /work/target/surefire-reports for the individual test results.",
+    "[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.",
+    "[ERROR] After correcting the problems, you can resume the build with the command",
+    "> Run with --stacktrace option to get the stack trace.",
+])
+def test_build_chatter_scores_below_the_floor_whatever_its_level(line):
+    # A level with no message, or advice on how to get more output, says
+    # nothing about the failure; Maven prints a screenful of both at ERROR.
+    assert pare.vocab_score(line) < pare.FILL_FLOOR
+    assert pare.vocab_score(line) + pare.RARITY_WEIGHT < pare.TEMPLATE_FLOOR
+
+
+def test_an_error_that_mentions_running_is_not_advice():
+    assert pare.vocab_score("ERROR: failed to run with exit code 1") >= 3
+
+
+def test_junit_comparison_failure_is_an_error():
+    assert pare.VOCAB.has("error", "junit.framework.ComparisonFailure: expected:<c> but was:<b>")
+
+
+def test_failing_test_line_is_not_a_restatement_of_its_class_summary():
+    # Surefire prints the class summary, then the test: the test line shares
+    # most of its tokens with the summary, but its test name is the news.
+    lines = [f"[INFO] Downloaded from central: https://repo/x/artifact-{i}.jar ({i} kB at 1.{i} MB/s)" for i in range(120)]
+    lines += [
+        "Running com.example.FooTest",
+        "Tests run: 3, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.05 sec <<< FAILURE! - in com.example.FooTest",
+        "testBarHandlesEmpty(com.example.FooTest)  Time elapsed: 0.01 sec  <<< FAILURE!",
+        "junit.framework.ComparisonFailure: expected:<a> but was:<b>",
+        "\tat junit.framework.Assert.assertEquals(Assert.java:81)",
+        "\tat com.example.FooTest.testBarHandlesEmpty(FooTest.java:27)",
+        "", "Results :", "", "Failed tests: ", "  FooTest.testBarHandlesEmpty:27 expected:<a> but was:<b>", "",
+        "[INFO] BUILD FAILURE",
+        "[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.17:test (default-test) on project x: There are test failures.",
+        "[ERROR]", "[ERROR] Please refer to /work/target/surefire-reports for the individual test results.",
+        "[ERROR] -> [Help 1]", "[ERROR]",
+        "[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.",
+        "[ERROR] Re-run Maven using the -X switch to enable full debug logging.",
+        "[ERROR]", "[ERROR] For more information about the errors and possible solutions, please read the following articles:",
+        "[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException",
+    ]
+    out = run(["--budget", "600"], ("\n".join(lines) + "\n").encode()).decode()
+    assert "testBarHandlesEmpty(com.example.FooTest)" in out, out
+    assert "junit.framework.ComparisonFailure: expected:<a> but was:<b>" in out, out
+    assert "-X switch" not in out.split("## tail")[0], out  # advice stays out of the table
+
+
 @pytest.mark.parametrize("advice", [
     "[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.",
     "[ERROR] Re-run Maven using the -X switch to enable full debug logging.",

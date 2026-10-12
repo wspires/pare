@@ -1,0 +1,19 @@
+name	collected	pare	commit	sha256	lines	bytes	exit	command	source	labels
+Cli-19	2026-10-12T21:37:57Z	0.1.0	983bfa5		73	3788	1	mvn -B -Dtest=PosixParserTest test	dataset	dataset trigger tests
+Codec-9	2026-10-12T21:38:12Z	0.1.0	983bfa5		78	4017	1	mvn -B -Dtest=Base64Test test	dataset	dataset trigger tests
+Collections-8	2026-10-12T21:38:27Z	0.1.0	983bfa5		79	4270	1	mvn -B -Dtest=TestUnboundedFifoBuffer test	dataset	dataset trigger tests
+Compress-17	2026-10-12T21:38:44Z	0.1.0	983bfa5		109	6131	1	mvn -B -Dtest=TarArchiveInputStreamTest test	dataset	dataset trigger tests
+Csv-11	2026-10-12T21:39:01Z	0.1.0	983bfa5		86	3890	1	mvn -B -Dtest=CSVParserTest test	dataset	dataset trigger tests
+Gson-15	2026-10-12T21:39:16Z	0.1.0	983bfa5		124	7267	1	mvn -B -Dtest=JsonWriterTest test	dataset	dataset trigger tests
+JacksonCore-21	2026-10-12T21:39:42Z	0.1.0	983bfa5		89	5107	1	mvn -B -Dtest=TokenVerifyingParserFiltering330Test test	dataset	dataset trigger tests
+JacksonDatabind-81	2026-10-12T21:40:12Z	0.1.0	983bfa5		88	5847	1	mvn -B -Dtest=TypeCoercion1592Test test	dataset	dataset trigger tests
+Jsoup-60	2026-10-12T21:40:48Z	0.1.0	983bfa5		144	8644	1	mvn -B -Dtest=QueryParserTest test	dataset	dataset trigger tests
+Lang-38	2026-10-12T21:41:03Z	0.1.0	983bfa5		154	9671	1	mvn -B -Dtest=FastDateFormatTest test	dataset	dataset trigger tests
+Math-14	2026-10-12T21:42:08Z	0.1.0	983bfa5		113	6159	1	mvn -B -Dtest=PolynomialFitterTest test	dataset	dataset trigger tests
+Time-4	2026-10-12T21:42:29Z	0.1.0	983bfa5		71	3380	1	mvn -B -Dtest=TestPartial_Basics test	dataset	dataset trigger tests
+Cli-11	2026-10-12T21:42:40Z	0.1.0	983bfa5		74	3892	1	mvn -B -Dtest=HelpFormatterTest test	dataset	dataset trigger tests
+Codec-11	2026-10-12T21:42:53Z	0.1.0	983bfa5		265	18675	1	mvn -B -Dtest=QuotedPrintableCodecTest test	dataset	dataset trigger tests
+Collections-10	2026-10-12T21:43:09Z	0.1.0	983bfa5		93	5704	1	mvn -B -Dtest=TestMultiValueMap test	dataset	dataset trigger tests
+Compress-44	2026-10-12T21:43:34Z	0.1.0	983bfa5		98	5216	1	mvn -B -Dtest=ChecksumCalculatingInputStreamTest test	dataset	dataset trigger tests
+Csv-16	2026-10-12T21:44:07Z	0.1.0	983bfa5		93	4406	1	mvn -B -Dtest=CSVParserTest test	dataset	dataset trigger tests
+Gson-13	2026-10-12T21:44:23Z	0.1.0	983bfa5		126	7334	1	mvn -B -Dtest=JsonReaderTest test	dataset	dataset trigger tests

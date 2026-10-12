@@ -1,0 +1,59 @@
+{
+  "bug": "Lang-38",
+  "project": "Lang",
+  "bug_id": 38,
+  "fixed_revision": "825481f019e4482e5ea74d5b0b5e5c438535cb68",
+  "report": "https://issues.apache.org/jira/browse/LANG-538",
+  "upstream": "https://github.com/apache/commons-lang",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=FastDateFormatTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.lang3.time.FastDateFormatTest",
+      "method": "testLang538",
+      "exception": "junit.framework.ComparisonFailure: dateTime expected:<2009-10-16T[16]:42:16.000Z> but was:<2009-10-16T[08]:42:16.000Z>"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.lang3.time.FastDateFormatTest::testLang538"
+  ],
+  "keep": [
+    "testLang538(org.apache.commons.lang3.time.FastDateFormatTest)",
+    "junit.framework.ComparisonFailure: dateTime expected:<2009-10-16T[16]:42:16.000Z> but was:<2009-10-16T[08]:42:16.000Z>"
+  ],
+  "unlocated": [],
+  "lines": 154,
+  "seconds": 12.2,
+  "fixes_applied": [
+    "locale-36-39.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T21:41:03Z",
+  "pare": "0.1.0",
+  "commit": "983bfa5"
+}

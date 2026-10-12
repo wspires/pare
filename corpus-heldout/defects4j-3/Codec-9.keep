@@ -1,0 +1,2 @@
+testCodec112(org.apache.commons.codec.binary.Base64Test)
+java.lang.IllegalArgumentException: Input array too big, the output array would be bigger (6) than the specified maxium size of 4

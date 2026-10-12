@@ -48,6 +48,13 @@ The gate for everything after it.
   Defects4J 30 → 51 % at 600 and 63 → 74 % at 1,000 (98 % at 2,000,
   where 10 of 16 logs pass through). The fix holds on unseen data. Per
   case and the remaining misses: `corpus-heldout/README.md`. *Done.*
+- [x] **Third fresh samples.** SWE-bench seed 2 (16 cases,
+  `corpus-heldout/swebench-3/`) and Defects4J seed 3 (18 bugs,
+  `corpus-heldout/defects4j-3/`), drawn after every earlier set was
+  excluded. With all fixes so far: SWE-bench 86 / 91 / 100 % and
+  Defects4J 67 / 94 / 98 % at 600 / 1,000 / 2,000; before any held-out
+  fix, 77 / 86 / 95 % and 33 / 55 / 86 %. *Done; both are spent by the
+  next change measured on them.*
 - [ ] **Claude token rate.** `bench/tokens.py --anthropic claude-opus-5-5`
   on a machine with credentials. If the rate differs much from the 2.8
   bytes per token measured on cl100k and o200k, change the default.
@@ -141,10 +148,13 @@ held-out evidence asks for it.
   Their values are on screen in Surefire's summary line, and making a
   number in a message news would undo the repeat rule for every
   `timeout after 3012 ms`. *Done.*
-- [ ] **Maven chatter at 600.** Error- and warning-level lines that are
-  neither advice nor failures (`[ERROR] Errors:`, `See dump files`, the
-  effective-model warnings) still take budget; Defects4J-2 is 51 % at
-  600.
+- [x] **Maven chatter at 600.** Level-only lines (`[ERROR]`) and build
+  advice (`Please refer to …`, `[Help 1]`, `See dump files`) now score
+  under the floor whatever their level; a failing test's line is no
+  longer dropped as a restatement of its class summary; JUnit's
+  `ComparisonFailure` counts as an error. Fresh Defects4J seed 3: 47 →
+  67 % at 600, 71 → 94 % at 1,000, no case worse. Build warnings stay.
+  Details: `docs/DESIGN.md`, "Maven chatter". *Done.*
 - [ ] **Keep lines with alternative forms.** A test named in Maven's
   short form (`Test.testX » StackOverflow`) does not match a keep line
   written with the full class name, so the bench counts a named test as

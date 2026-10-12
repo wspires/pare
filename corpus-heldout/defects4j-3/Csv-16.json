@@ -1,0 +1,57 @@
+{
+  "bug": "Csv-16",
+  "project": "Csv",
+  "bug_id": 16,
+  "fixed_revision": "f368f64fa7f9acdcc01084f676e8b9c2b86f946e",
+  "report": "https://issues.apache.org/jira/browse/CSV-224",
+  "upstream": "https://github.com/apache/commons-csv",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=CSVParserTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.csv.CSVParserTest",
+      "method": "testIteratorSequenceBreaking",
+      "exception": "junit.framework.AssertionFailedError: expected:<[3]> but was:<[4]>"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.csv.CSVParserTest::testIteratorSequenceBreaking"
+  ],
+  "keep": [
+    "testIteratorSequenceBreaking(org.apache.commons.csv.CSVParserTest)",
+    "expected:<[3]> but was:<[4]>"
+  ],
+  "unlocated": [],
+  "lines": 93,
+  "seconds": 29.0,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T21:44:07Z",
+  "pare": "0.1.0",
+  "commit": "983bfa5"
+}

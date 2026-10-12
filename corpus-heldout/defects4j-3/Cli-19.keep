@@ -1,0 +1,2 @@
+testUnrecognizedOption2(org.apache.commons.cli.PosixParserTest)
+junit.framework.AssertionFailedError: UnrecognizedOptionException wasn't thrown

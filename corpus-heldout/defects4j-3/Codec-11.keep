@@ -1,0 +1,9 @@
+testSkipNotEncodedCRLF(org.apache.commons.codec.net.QuotedPrintableCodecTest)
+org.apache.commons.codec.DecoderException: Invalid URL encoding: not a valid digit (radix 16): 13
+testSoftLineBreakDecode(org.apache.commons.codec.net.QuotedPrintableCodecTest)
+testSoftLineBreakEncode(org.apache.commons.codec.net.QuotedPrintableCodecTest)
+expected:<...matics is the most b[=
+testUltimateSoftBreak(org.apache.commons.codec.net.QuotedPrintableCodecTest)
+expected:<...There is no end to i[=
+testTrailingSpecial(org.apache.commons.codec.net.QuotedPrintableCodecTest)
+expected:<... might contain sp=3D[=

@@ -1,0 +1,59 @@
+{
+  "bug": "Gson-13",
+  "project": "Gson",
+  "bug_id": 13,
+  "fixed_revision": "9a2421997e83ec803c88ea370a2d102052699d3b",
+  "report": "https://github.com/google/gson/issues/1053",
+  "upstream": "https://github.com/google/gson",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=JsonReaderTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "com.google.gson.stream.JsonReaderTest",
+      "method": "testNegativeZero",
+      "exception": "junit.framework.ComparisonFailure: expected:<[-]0> but was:<[]0>"
+    }
+  ],
+  "failed": [
+    "com.google.gson.stream.JsonReaderTest::testNegativeZero"
+  ],
+  "keep": [
+    "com.google.gson.stream.JsonReaderTest.testNegativeZero",
+    "junit.framework.ComparisonFailure: expected:<[-]0> but was:<[]0>"
+  ],
+  "unlocated": [],
+  "lines": 126,
+  "seconds": 15.2,
+  "fixes_applied": [
+    "locale-2-14.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T21:44:23Z",
+  "pare": "0.1.0",
+  "commit": "983bfa5"
+}

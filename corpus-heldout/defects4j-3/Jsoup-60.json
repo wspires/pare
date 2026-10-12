@@ -1,0 +1,65 @@
+{
+  "bug": "Jsoup-60",
+  "project": "Jsoup",
+  "bug_id": 60,
+  "fixed_revision": "8fecf72da0c9d1d6da7ec1aab0214ff68588da88",
+  "report": "https://github.com/jhy/jsoup/issues/803",
+  "upstream": "https://github.com/jhy/jsoup",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=QueryParserTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.jsoup.select.QueryParserTest",
+      "method": "testParsesSingleQuoteInContains",
+      "exception": "junit.framework.AssertionFailedError: Expected exception: org.jsoup.select.Selector$SelectorParseException"
+    },
+    {
+      "class": "org.jsoup.select.QueryParserTest",
+      "method": "exceptionOnUncloseAttribute",
+      "exception": "java.lang.Exception: Unexpected exception, expected<org.jsoup.select.Selector$SelectorParseException> but was<java.lang.IllegalArgumentException>"
+    }
+  ],
+  "failed": [
+    "org.jsoup.select.QueryParserTest::testParsesSingleQuoteInContains",
+    "org.jsoup.select.QueryParserTest::exceptionOnUncloseAttribute"
+  ],
+  "keep": [
+    "org.jsoup.select.QueryParserTest.testParsesSingleQuoteInContains",
+    "Expected exception: org.jsoup.select.Selector$SelectorParseException",
+    "org.jsoup.select.QueryParserTest.exceptionOnUncloseAttribute",
+    "java.lang.Exception: Unexpected exception, expected<org.jsoup.select.Selector$SelectorParseException> but was<java.lang.IllegalArgumentException>"
+  ],
+  "unlocated": [],
+  "lines": 144,
+  "seconds": 24.3,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T21:40:48Z",
+  "pare": "0.1.0",
+  "commit": "983bfa5"
+}

@@ -1,0 +1,57 @@
+{
+  "bug": "Math-14",
+  "project": "Math",
+  "bug_id": 14,
+  "fixed_revision": "b07ecae3d60c4f0233f1a1d97eb35d4a678f39aa",
+  "report": "https://issues.apache.org/jira/browse/MATH-924",
+  "upstream": "https://github.com/apache/commons-math",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=PolynomialFitterTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.math3.fitting.PolynomialFitterTest",
+      "method": "testLargeSample",
+      "exception": "java.lang.OutOfMemoryError: Java heap space"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.math3.fitting.PolynomialFitterTest::testLargeSample"
+  ],
+  "keep": [
+    "testLargeSample(org.apache.commons.math3.fitting.PolynomialFitterTest)",
+    "java.lang.OutOfMemoryError: Java heap space"
+  ],
+  "unlocated": [],
+  "lines": 113,
+  "seconds": 62.6,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T21:42:08Z",
+  "pare": "0.1.0",
+  "commit": "983bfa5"
+}

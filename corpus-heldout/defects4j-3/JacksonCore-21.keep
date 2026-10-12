@@ -1,0 +1,6 @@
+testTokensSingleMatchWithPath(com.fasterxml.jackson.core.filter.TokenVerifyingParserFiltering330Test)
+junit.framework.AssertionFailedError: Expected token END_OBJECT, current token null
+testBasicSingleMatchFilteringWithPath(com.fasterxml.jackson.core.filter.TokenVerifyingParserFiltering330Test)
+junit.framework.ComparisonFailure: expected:<{"ob":{"value":3}[}]> but was:<{"ob":{"value":3}[]>
+testSkippingForSingleWithPath(com.fasterxml.jackson.core.filter.TokenVerifyingParserFiltering330Test)
+junit.framework.AssertionFailedError: expected:<END_OBJECT> but was:<null>

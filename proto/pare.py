@@ -258,7 +258,7 @@ VOCAB_CLASSES = {
     "frame": (1.0, "source locations and stack frames"),
     "pass": (-1.0, "passing-test markers (ignored when an error word is also present)"),
     "noise": (-0.75, "progress and chatter (ignored when an error word is also present)"),
-    "advice": (-3.0, "how to get more output or help: re-run with -e, see the docs (counts even on an error line)"),
+    "advice": (-1.0, "how to get more output or help: re-run with -e, see the docs (the whole score, whatever the level)"),
     "strong-error": (0.0, "decides whether a record body counts as an error; no weight"),
     # Structural log levels: a token in a level position or form (bare
     # UPPERCASE, [bracketed], level=x, "level":"x", `error:` prefix). When one
@@ -330,7 +330,7 @@ DEFAULT_VOCAB: dict[str, list[str]] = {
         "unhandled", "uncaught", "undefined", "null pointer", "stack overflow", "overflow", "exit code",
         "exited with", "non-zero", "conflict", "corrupt", "corrupted", "broken", "mismatch",
         "does not match", "not ok", "errno", "exc_info", "stacktrace", "stack trace",
-        r"/[A-Z]\w*(?:Error|Exception|Fault|Panic)\b/",  # CamelCase exception names
+        r"/[A-Z]\w*(?:Error|Exception|Fault|Panic|Failure)\b/",  # CamelCase exception names (JUnit's ComparisonFailure)
         "/✗|✘|❌/", r"/(?<![A-Za-z])FAIL(?:ED|URE|S)?\b/",  # not XFAIL; pytest's E marker is structural
         r"/^\s*[-+]?\s*(?:Expected|Received|Actual|Got|Want)\b\s*[:+-]/",  # assertion diff lines
     ],
@@ -362,7 +362,8 @@ DEFAULT_VOCAB: dict[str, list[str]] = {
     ],
     "advice": [
         "re-run", "rerun", "for more information", "for more details", "please refer to",
-        "to see the full", "run with", "get more help", "resume the build", "a complete log of this run",
+        "to see the full", r"/(?i)\brun with --/", "get more help", "resume the build", "a complete log of this run",
+        "for the individual test results", "see dump files", "after correcting the problems",
         r"/\[Help \d+\]/",
     ],
     "strong-error": [
@@ -553,6 +554,10 @@ VOCAB = Vocab(DEFAULT_VOCAB)
 _UNSET = object()
 
 
+LEVEL_ONLY_RX = re.compile(r"^\W*(?:" + "|".join(sorted({t for c in LEVEL_CLASSES for t in DEFAULT_VOCAB[c]}, key=len, reverse=True))
+                           + r")\W*$", re.I)
+
+
 def vocab_score(text: str, head: bool = True, sev=_UNSET, has=None) -> float:
     """Salience of one line's text. A structural log level, when present,
     sets the base score and decides whether error/warn words count: an INFO
@@ -587,8 +592,11 @@ def vocab_score(text: str, head: bool = True, sev=_UNSET, has=None) -> float:
                 s += 0.5 * VOCAB_CLASSES["warn"][0]
     if has("advice", text):
         # A build tool's closing advice ("re-run Maven with the -e switch")
-        # is printed at error level on every failure; it is not the failure.
-        s += VOCAB_CLASSES["advice"][0]
+        # is printed at error level on every failure; it is not the failure,
+        # so its level does not count.
+        return VOCAB_CLASSES["advice"][0]
+    if sev is not None and LEVEL_ONLY_RX.match(text):
+        return -1.0  # "[ERROR]" alone: a level with no message says nothing
     if head and has("summary", text):
         s += VOCAB_CLASSES["summary"][0]
     if has("frame", text):
@@ -1734,7 +1742,8 @@ def summarize(
                     # A rare one-line record that restates something already on
                     # screen (a progress line repeating the summary line) stays in
                     # the ledger. A multi-line record carries more than its head.
-                    if is_near_duplicate(token_set(ex_line.text), shown_tokens):
+                    if is_near_duplicate(token_set(ex_line.text), shown_tokens, names=is_error_line(ex_line),
+                                         name_toks=frozenset(t for p in line_params(ex_line) for t in TOKEN_RE.findall(p))):
                         continue
                 entry = tpl_head(tpl)
                 cost = nbytes(entry)

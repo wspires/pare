@@ -1,0 +1,71 @@
+[INFO] Scanning for projects...
+[WARNING] The project joda-time:joda-time:jar:2.4-SNAPSHOT uses prerequisites which is only intended for maven-plugin projects but not for non maven-plugin projects. For such purposes you should use the maven-enforcer-plugin. See https://maven.apache.org/enforcer/enforcer-rules/requireMavenVersion.html
+[INFO] 
+[INFO] ------------------------< joda-time:joda-time >-------------------------
+[INFO] Building Joda-Time 2.4-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] Parameter 'verbose' is unknown for plugin 'exec-maven-plugin:1.2.1:java (default)'
+[INFO] 
+[INFO] --- resources:2.6:resources (default-resources) @ joda-time ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 2 resources to META-INF
+[INFO] Copying 9 resources
+[INFO] 
+[INFO] --- compiler:3.1:compile (default-compile) @ joda-time ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] >>> exec:1.2.1:java (default) > validate @ joda-time >>>
+[INFO] 
+[INFO] <<< exec:1.2.1:java (default) < validate @ joda-time <<<
+[INFO] 
+[INFO] 
+[INFO] --- exec:1.2.1:java (default) @ joda-time ---
+Writing zoneinfo files
+Writing ZoneInfoMap
+[INFO] 
+[INFO] --- resources:2.6:testResources (default-testResources) @ joda-time ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 32 resources
+[INFO] 
+[INFO] --- compiler:3.1:testCompile (default-testCompile) @ joda-time ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- surefire:2.15:test (default-test) @ joda-time ---
+[INFO] Surefire report directory: /work/target/surefire-reports
+
+-------------------------------------------------------
+ T E S T S
+-------------------------------------------------------
+Running org.joda.time.TestPartial_Basics
+Tests run: 69, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.185 sec <<< FAILURE! - in org.joda.time.TestPartial_Basics
+testWith3(org.joda.time.TestPartial_Basics)  Time elapsed: 0.008 sec  <<< FAILURE!
+junit.framework.AssertionFailedError
+	at junit.framework.Assert.fail(Assert.java:47)
+	at junit.framework.Assert.fail(Assert.java:53)
+	at org.joda.time.TestPartial_Basics.testWith3(TestPartial_Basics.java:364)
+
+
+Results :
+
+Failed tests: 
+  org.joda.time.TestPartial_Basics#testWith3 AssertionFailedError
+
+Tests run: 69, Failures: 1, Errors: 0, Skipped: 0
+
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  2.728 s
+[INFO] Finished at: 2026-10-12T21:42:29Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.15:test (default-test) on project joda-time: There are test failures.
+[ERROR] 
+[ERROR] Please refer to /work/target/surefire-reports for the individual test results.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

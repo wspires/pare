@@ -93,6 +93,37 @@ cases, as `bench/run.py` prints it); "full" counts the cases where pare
 kept every keep line. tidyout keeps everything on every source, at 96 to
 100 % of the input size.
 
+### Latest fresh samples: the current honest numbers
+
+Drawn after all the changes below, with `--exclude` every earlier set, and
+measured before anyone read them. Three versions of pare on the same
+cases: before any held-out fix (`d730e86`), before the Maven chatter fix
+(`2f13edb`: failing-test lists, parametrized names, compact lists, rare
+failures first), and with it.
+
+```
+python3 bench/swebench_cases.py run --seed 2 --exclude corpus-heldout/swebench --exclude corpus-heldout/swebench-2 --out corpus-heldout/swebench-3
+python3 bench/defects4j_cases.py run --sample 20 --seed 3 --exclude corpus-heldout/defects4j --exclude corpus-heldout/defects4j-2 --exclude corpus-dev/defects4j --out corpus-heldout/defects4j-3
+```
+
+| source | cases | version | 600 | 1,000 | 2,000 |
+|---|---:|---|---|---|---|
+| SWE-bench Verified, seed 2 (`swebench-3/`, 22 keep lines) | 16 | before any fix | 77 % | 86 % | 95 % |
+| | | before the chatter fix | 82 % | 86 % | 95 % |
+| | | with it | 86 % | 91 % | 100 % |
+| Defects4J, seed 3 (`defects4j-3/`, 51 keep lines) | 18 | before any fix | 33 % | 55 % | 86 % |
+| | | before the chatter fix | 47 % | 71 % | 94 % |
+| | | with it | **67 %** | **94 %** | 98 % |
+
+swebench-3 was measured with the second version before the chatter fix
+was written, and again after; it was never read. It is an easier sample
+than the first two (most tasks want one test). Strict matching (no
+expansion of compact lists) gives the same numbers on Defects4J and, on
+SWE-bench seed 2, 82 / 86 / 100 % with the chatter fix and 77 / 82 / 95 %
+before it. tidyout keeps everything at 99.6 % of the input. On
+Defects4J seed 3, 9 of 18 logs pass through at 2,000, so 600 and 1,000
+are the numbers that test the summary; no case got worse at any budget.
+
 ### Fresh samples: the honest measurement
 
 Drawn after the failing-test fix, with `--exclude` so no task overlaps a
@@ -148,7 +179,12 @@ What pare still misses, from reading the misses (no code changed on them):
 - **Maven at 600.** Error- and warning-level build chatter (`[ERROR]
   Errors:`, `See dump files`, `Some problems were encountered while
   building the effective model`) still takes budget, and Gson-16's
-  two 1,000-line `StackOverflowError` traces take more.
+  two 1,000-line `StackOverflowError` traces take more. *Fixed since*
+  (level-only lines and advice score below the floor; a failing test's
+  line is not a restatement of its class summary; `ComparisonFailure`
+  counts): this set goes from 51 to 72 % at 600 and 77 to 93 % at 1,000,
+  Gson-16 from 0 to 2 of 3 at 600. The effective-model warnings stay:
+  they are real warnings.
 - **Matching is stricter than reading.** Gson-16's keep lines ask for
   `com.google.gson…RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve1`;
   at 1,000 pare shows Maven's summary form

@@ -1,0 +1,71 @@
+{
+  "bug": "Compress-44",
+  "project": "Compress",
+  "bug_id": 44,
+  "fixed_revision": "6f379134ae1807cd404ed6c9579707e5dc6a6df0",
+  "report": "https://issues.apache.org/jira/browse/COMPRESS-412",
+  "upstream": "https://github.com/apache/commons-compress",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=ChecksumCalculatingInputStreamTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.compress.utils.ChecksumCalculatingInputStreamTest",
+      "method": "testClassInstantiationWithParameterBeingNullThrowsNullPointerExceptionOne",
+      "exception": "junit.framework.AssertionFailedError: Expected exception: java.lang.NullPointerException"
+    },
+    {
+      "class": "org.apache.commons.compress.utils.ChecksumCalculatingInputStreamTest",
+      "method": "testClassInstantiationWithParameterBeingNullThrowsNullPointerExceptionTwo",
+      "exception": "junit.framework.AssertionFailedError: Expected exception: java.lang.NullPointerException"
+    },
+    {
+      "class": "org.apache.commons.compress.utils.ChecksumCalculatingInputStreamTest",
+      "method": "testClassInstantiationWithParameterBeingNullThrowsNullPointerExceptionThree",
+      "exception": "junit.framework.AssertionFailedError: Expected exception: java.lang.NullPointerException"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.compress.utils.ChecksumCalculatingInputStreamTest::testClassInstantiationWithParameterBeingNullThrowsNullPointerExceptionOne",
+    "org.apache.commons.compress.utils.ChecksumCalculatingInputStreamTest::testClassInstantiationWithParameterBeingNullThrowsNullPointerExceptionTwo",
+    "org.apache.commons.compress.utils.ChecksumCalculatingInputStreamTest::testClassInstantiationWithParameterBeingNullThrowsNullPointerExceptionThree"
+  ],
+  "keep": [
+    "testClassInstantiationWithParameterBeingNullThrowsNullPointerExceptionOne(org.apache.commons.compress.utils.ChecksumCalculatingInputStreamTest)",
+    "Expected exception: java.lang.NullPointerException",
+    "testClassInstantiationWithParameterBeingNullThrowsNullPointerExceptionTwo(org.apache.commons.compress.utils.ChecksumCalculatingInputStreamTest)",
+    "testClassInstantiationWithParameterBeingNullThrowsNullPointerExceptionThree(org.apache.commons.compress.utils.ChecksumCalculatingInputStreamTest)"
+  ],
+  "unlocated": [],
+  "lines": 98,
+  "seconds": 23.6,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T21:43:34Z",
+  "pare": "0.1.0",
+  "commit": "983bfa5"
+}

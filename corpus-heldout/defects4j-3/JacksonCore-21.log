@@ -1,0 +1,89 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --------------< com.fasterxml.jackson.core:jackson-core >---------------
+[INFO] Building Jackson-core 2.9.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] -------------------------------[ bundle ]-------------------------------
+[INFO] 
+[INFO] --- enforcer:1.3.1:enforce (enforce-java) @ jackson-core ---
+[INFO] Skipping Rule Enforcement.
+[INFO] 
+[INFO] --- build-helper:1.7:add-source (add-generated-sources) @ jackson-core ---
+[INFO] Source directory: /work/target/generated-sources added.
+[INFO] 
+[INFO] --- replacer:1.5.2:replace (process-packageVersion) @ jackson-core ---
+[INFO] Replacement run on 1 file.
+[INFO] 
+[INFO] --- resources:2.6:resources (default-resources) @ jackson-core ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 3 resources
+[INFO] 
+[INFO] --- compiler:3.2:compile (default-compile) @ jackson-core ---
+[INFO] Changes detected - recompiling the module!
+[INFO] Compiling 98 source files to /work/target/classes
+[WARNING] bootstrap class path not set in conjunction with -source 1.6
+[INFO] 
+[INFO] --- resources:2.6:testResources (default-testResources) @ jackson-core ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 2 resources
+[INFO] 
+[INFO] --- compiler:3.2:testCompile (default-testCompile) @ jackson-core ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- surefire:2.17:test (default-test) @ jackson-core ---
+[INFO] Surefire report directory: /work/target/surefire-reports
+
+-------------------------------------------------------
+ T E S T S
+-------------------------------------------------------
+Running com.fasterxml.jackson.core.filter.TokenVerifyingParserFiltering330Test
+Tests run: 3, Failures: 3, Errors: 0, Skipped: 0, Time elapsed: 0.063 sec <<< FAILURE! - in com.fasterxml.jackson.core.filter.TokenVerifyingParserFiltering330Test
+testTokensSingleMatchWithPath(com.fasterxml.jackson.core.filter.TokenVerifyingParserFiltering330Test)  Time elapsed: 0.022 sec  <<< FAILURE!
+junit.framework.AssertionFailedError: Expected token END_OBJECT, current token null
+	at junit.framework.Assert.fail(Assert.java:57)
+	at junit.framework.TestCase.fail(TestCase.java:227)
+	at com.fasterxml.jackson.core.BaseTest.assertToken(BaseTest.java:448)
+	at com.fasterxml.jackson.core.filter.TokenVerifyingParserFiltering330Test.testTokensSingleMatchWithPath(TokenVerifyingParserFiltering330Test.java:111)
+
+testBasicSingleMatchFilteringWithPath(com.fasterxml.jackson.core.filter.TokenVerifyingParserFiltering330Test)  Time elapsed: 0.003 sec  <<< FAILURE!
+junit.framework.ComparisonFailure: expected:<{"ob":{"value":3}[}]> but was:<{"ob":{"value":3}[]>
+	at junit.framework.Assert.assertEquals(Assert.java:100)
+	at junit.framework.Assert.assertEquals(Assert.java:107)
+	at junit.framework.TestCase.assertEquals(TestCase.java:269)
+	at com.fasterxml.jackson.core.filter.TokenVerifyingParserFiltering330Test.testBasicSingleMatchFilteringWithPath(TokenVerifyingParserFiltering330Test.java:62)
+
+testSkippingForSingleWithPath(com.fasterxml.jackson.core.filter.TokenVerifyingParserFiltering330Test)  Time elapsed: 0.001 sec  <<< FAILURE!
+junit.framework.AssertionFailedError: expected:<END_OBJECT> but was:<null>
+	at junit.framework.Assert.fail(Assert.java:57)
+	at junit.framework.Assert.failNotEquals(Assert.java:329)
+	at junit.framework.Assert.assertEquals(Assert.java:78)
+	at junit.framework.Assert.assertEquals(Assert.java:86)
+	at junit.framework.TestCase.assertEquals(TestCase.java:253)
+	at com.fasterxml.jackson.core.filter.TokenVerifyingParserFiltering330Test.testSkippingForSingleWithPath(TokenVerifyingParserFiltering330Test.java:134)
+
+
+Results :
+
+Failed tests: 
+  TokenVerifyingParserFiltering330Test.testTokensSingleMatchWithPath:111->BaseTest.assertToken:448 Expected token END_OBJECT, current token null
+  TokenVerifyingParserFiltering330Test.testBasicSingleMatchFilteringWithPath:62 expected:<{"ob":{"value":3}[}]> but was:<{"ob":{"value":3}[]>
+  TokenVerifyingParserFiltering330Test.testSkippingForSingleWithPath:134 expected:<END_OBJECT> but was:<null>
+
+Tests run: 3, Failures: 3, Errors: 0, Skipped: 0
+
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  6.935 s
+[INFO] Finished at: 2026-10-12T21:39:40Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.17:test (default-test) on project jackson-core: There are test failures.
+[ERROR] 
+[ERROR] Please refer to /work/target/surefire-reports for the individual test results.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

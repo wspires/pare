@@ -1,0 +1,57 @@
+{
+  "bug": "JacksonDatabind-81",
+  "project": "JacksonDatabind",
+  "bug_id": 81,
+  "fixed_revision": "029413a6e381bb04b7b0a420730d3119e9cc0961",
+  "report": "https://github.com/FasterXML/jackson-databind/issues/1592",
+  "upstream": "https://github.com/FasterXML/jackson-databind",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=TypeCoercion1592Test",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "com.fasterxml.jackson.databind.introspect.TypeCoercion1592Test",
+      "method": "testTypeCoercion1592",
+      "exception": "com.fasterxml.jackson.databind.exc.InvalidDefinitionException: Invalid definition for property \"i\" (of type com.fasterxml.jackson.databind.introspect.TypeCoercion1592Test$Bean1592): Can not refine serialization type [simple type, class int] into java.lang.Integer; types not related"
+    }
+  ],
+  "failed": [
+    "com.fasterxml.jackson.databind.introspect.TypeCoercion1592Test::testTypeCoercion1592"
+  ],
+  "keep": [
+    "testTypeCoercion1592(com.fasterxml.jackson.databind.introspect.TypeCoercion1592Test)",
+    "com.fasterxml.jackson.databind.exc.InvalidDefinitionException: Invalid definition for property \"i\" (of type com.fasterxml.jackson.databind.introspect.TypeCoercion1592Test$Bean1592): Can not refine serialization type [simple type, class int] into java.lang.Integer; types not related"
+  ],
+  "unlocated": [],
+  "lines": 88,
+  "seconds": 27.4,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T21:40:12Z",
+  "pare": "0.1.0",
+  "commit": "983bfa5"
+}

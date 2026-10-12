@@ -1,0 +1,57 @@
+{
+  "bug": "Compress-17",
+  "project": "Compress",
+  "bug_id": 17,
+  "fixed_revision": "ab456436d20f386641e605c17de24cc8cd3c1770",
+  "report": "https://issues.apache.org/jira/browse/COMPRESS-197",
+  "upstream": "https://github.com/apache/commons-compress",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=TarArchiveInputStreamTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.compress.archivers.tar.TarArchiveInputStreamTest",
+      "method": "testCompress197",
+      "exception": "junit.framework.AssertionFailedError: COMPRESS-197: Error detected parsing the header"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.compress.archivers.tar.TarArchiveInputStreamTest::testCompress197"
+  ],
+  "keep": [
+    "testCompress197(org.apache.commons.compress.archivers.tar.TarArchiveInputStreamTest)",
+    "COMPRESS-197: Error detected parsing the header"
+  ],
+  "unlocated": [],
+  "lines": 109,
+  "seconds": 15.6,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T21:38:44Z",
+  "pare": "0.1.0",
+  "commit": "983bfa5"
+}

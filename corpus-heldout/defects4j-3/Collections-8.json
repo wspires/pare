@@ -1,0 +1,59 @@
+{
+  "bug": "Collections-8",
+  "project": "Collections",
+  "bug_id": 8,
+  "fixed_revision": "7cf943172b154019d7c6a66f4290272b2144e29a",
+  "report": "https://issues.apache.org/jira/browse/COLLECTIONS-220",
+  "upstream": "https://github.com/apache/commons-collections",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=TestUnboundedFifoBuffer",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.collections.buffer.TestUnboundedFifoBuffer",
+      "method": "testCollections220",
+      "exception": "junit.framework.AssertionFailedError: expected:<1> but was:<0>"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.collections.buffer.TestUnboundedFifoBuffer::testCollections220"
+  ],
+  "keep": [
+    "org.apache.commons.collections.buffer.TestUnboundedFifoBuffer.testCollections220",
+    "junit.framework.AssertionFailedError: expected:<1> but was:<0>"
+  ],
+  "unlocated": [],
+  "lines": 79,
+  "seconds": 13.6,
+  "fixes_applied": [
+    "compile-4-9.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T21:38:27Z",
+  "pare": "0.1.0",
+  "commit": "983bfa5"
+}

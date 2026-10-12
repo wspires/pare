@@ -1,0 +1,59 @@
+{
+  "bug": "Time-4",
+  "project": "Time",
+  "bug_id": 4,
+  "fixed_revision": "3ba9ba799b3261b7332a467a88be142c83b298fd",
+  "report": "https://github.com/JodaOrg/joda-time/issues/88",
+  "upstream": "https://github.com/JodaOrg/joda-time",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=TestPartial_Basics",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.joda.time.TestPartial_Basics",
+      "method": "testWith3",
+      "exception": "junit.framework.AssertionFailedError"
+    }
+  ],
+  "failed": [
+    "org.joda.time.TestPartial_Basics::testWith3"
+  ],
+  "keep": [
+    "testWith3(org.joda.time.TestPartial_Basics)",
+    "junit.framework.AssertionFailedError"
+  ],
+  "unlocated": [],
+  "lines": 71,
+  "seconds": 18.9,
+  "fixes_applied": [
+    "locale-1-27.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T21:42:29Z",
+  "pare": "0.1.0",
+  "commit": "983bfa5"
+}

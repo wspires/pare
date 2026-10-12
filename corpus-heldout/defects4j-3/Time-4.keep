@@ -1,0 +1,2 @@
+testWith3(org.joda.time.TestPartial_Basics)
+junit.framework.AssertionFailedError

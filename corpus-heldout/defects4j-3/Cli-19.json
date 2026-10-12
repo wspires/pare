@@ -1,0 +1,57 @@
+{
+  "bug": "Cli-19",
+  "project": "Cli",
+  "bug_id": 19,
+  "fixed_revision": "b1331806960001da95424315b6103d755107b519",
+  "report": "https://issues.apache.org/jira/browse/CLI-164",
+  "upstream": "https://github.com/apache/commons-cli",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=PosixParserTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.cli.PosixParserTest",
+      "method": "testUnrecognizedOption2",
+      "exception": "junit.framework.AssertionFailedError: UnrecognizedOptionException wasn't thrown"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.cli.PosixParserTest::testUnrecognizedOption2"
+  ],
+  "keep": [
+    "testUnrecognizedOption2(org.apache.commons.cli.PosixParserTest)",
+    "junit.framework.AssertionFailedError: UnrecognizedOptionException wasn't thrown"
+  ],
+  "unlocated": [],
+  "lines": 73,
+  "seconds": 24.7,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T21:37:57Z",
+  "pare": "0.1.0",
+  "commit": "983bfa5"
+}
