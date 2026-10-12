@@ -129,6 +129,30 @@ class Sqz(Tool):
         return p.stdout
 
 
+def fake_command(log_path: str, cmd: list[str], work: str) -> tuple[str, list[str], dict]:
+    """A fake program on PATH that replays the log, named like the command
+    that produced it so a wrapper's per-command rules apply. Returns the name,
+    its arguments and the environment to run it in."""
+    # The fake goes on PATH under the program's base name: a command given
+    # as a path (./tests/runtests.py) would otherwise name a directory that
+    # does not exist. A shell wrapper (`cd x && ...`) is not a program, and
+    # gets a neutral name that no tidyout rule matches.
+    name = os.path.basename(cmd[0]) if cmd else ""
+    if not re.fullmatch(r"[\w.+-]+", name) or name == "cat":
+        name, cmd = "replay-log", ["replay-log"]
+    fake_bin = os.path.join(work, "bin")
+    os.makedirs(fake_bin, exist_ok=True)
+    fake = os.path.join(fake_bin, name)
+    # The real cat by absolute path: a fake named like a tool the fake
+    # itself calls would find itself first on PATH and exec forever.
+    cat = shutil.which("cat") or "/bin/cat"
+    with open(fake, "w") as f:
+        f.write(f"#!/bin/sh\nexec {json.dumps(cat)} {json.dumps(log_path)}\n")
+    os.chmod(fake, os.stat(fake).st_mode | stat.S_IEXEC)
+    env = dict(os.environ, PATH=fake_bin + os.pathsep + os.environ.get("PATH", ""))
+    return name, cmd[1:], env
+
+
 class Tidyout(Tool):
     name = "tidyout"
 
@@ -151,22 +175,13 @@ class Tidyout(Tool):
     def run(self, log_path, cmd, budget, work):
         # tidyout wraps a command; give it a fake one that replays the log so
         # its per-command rules (pytest, cargo build, ...) apply.
-        if not cmd:
-            cmd = ["cat"]
-        # The fake goes on PATH under the program's base name: a command given
-        # as a path (./tests/runtests.py) would otherwise name a directory that
-        # does not exist. A shell wrapper (`cd x && ...`) is not a program.
-        name = os.path.basename(cmd[0]) or "cat"
-        if not re.fullmatch(r"[\w.+-]+", name):
-            name = "cat"
-        fake_bin = os.path.join(work, "bin")
-        os.makedirs(fake_bin, exist_ok=True)
-        fake = os.path.join(fake_bin, name)
-        with open(fake, "w") as f:
-            f.write(f"#!/bin/sh\nexec cat {json.dumps(log_path)}\n")
-        os.chmod(fake, os.stat(fake).st_mode | stat.S_IEXEC)
-        env = dict(os.environ, PATH=fake_bin + os.pathsep + os.environ.get("PATH", ""))
-        p = subprocess.run([which("tidyout"), name, *cmd[1:]], capture_output=True, env=env)
+        name, args, env = fake_command(log_path, cmd, work)
+        try:
+            p = subprocess.run([which("tidyout"), name, *args], capture_output=True, env=env,
+                               stdin=subprocess.DEVNULL, timeout=120)
+        except subprocess.TimeoutExpired:
+            print(f"tidyout: timed out on {log_path}", file=sys.stderr)
+            return b""
         return p.stdout
 
 

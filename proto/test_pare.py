@@ -1201,3 +1201,15 @@ def test_bench_tidyout_handles_a_command_given_as_a_path(tmp_path):
     log.write_text("hello from the log\n")
     out = bench_run.Tidyout().run(str(log), ["./tests/runtests.py", "--verbosity", "2"], 2000, str(tmp_path))
     assert b"hello from the log" in out
+
+
+@pytest.mark.parametrize("cmd", [[], ["cat", "x"], ["cd", "tests", "&&", "pytest"], ["./tests/runtests.py", "-v"], ["pytest", "-rA"]])
+def test_bench_fake_command_replays_the_log_and_terminates(tmp_path, cmd):
+    # A fake named "cat" that called cat found itself on PATH and exec'd forever.
+    sys.path.insert(0, os.path.join(ROOT, "bench"))
+    import run as bench_run
+    log = tmp_path / "x.log"
+    log.write_text("hello from the log\n")
+    name, args, env = bench_run.fake_command(str(log), cmd, str(tmp_path))
+    p = subprocess.run([name, *args], env=env, capture_output=True, stdin=subprocess.DEVNULL, timeout=10)
+    assert p.stdout == b"hello from the log\n"
