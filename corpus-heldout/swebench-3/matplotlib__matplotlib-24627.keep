@@ -1,0 +1,1 @@
+lib/matplotlib/tests/test_axes.py::test_cla_clears_children_axes_and_fig

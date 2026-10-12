@@ -1,0 +1,27 @@
+{
+  "instance_id": "sympy__sympy-16886",
+  "repo": "sympy/sympy",
+  "version": "1.5",
+  "base_commit": "c50643a49811e9fe2f4851adff4313ad46f7325e",
+  "image": "swebench/sweb.eval.x86_64.sympy_1776_sympy-16886:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "test_encode_morse"
+  ],
+  "failed": [
+    "test_encode_morse"
+  ],
+  "keep": [
+    "test_encode_morse"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 42,
+  "lines": 65,
+  "seconds": 4.7,
+  "network": "bridge",
+  "collected": "2026-10-12T20:55:39Z",
+  "pare": "0.1.0",
+  "commit": "2f13edb",
+  "swebench": "5.0.2"
+}

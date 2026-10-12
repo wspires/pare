@@ -1,0 +1,30 @@
+{
+  "instance_id": "pytest-dev__pytest-5840",
+  "repo": "pytest-dev/pytest",
+  "version": "5.1",
+  "base_commit": "73c5b7f4b11a81e971f7d1bb18072e06a87060f4",
+  "image": "swebench/sweb.eval.x86_64.pytest-dev_1776_pytest-5840:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "testing/test_conftest.py::test_setinitial_conftest_subdirs[test]",
+    "testing/test_conftest.py::test_setinitial_conftest_subdirs[tests]"
+  ],
+  "failed": [
+    "testing/test_conftest.py::test_setinitial_conftest_subdirs[test]",
+    "testing/test_conftest.py::test_setinitial_conftest_subdirs[tests]"
+  ],
+  "keep": [
+    "testing/test_conftest.py::test_setinitial_conftest_subdirs[test]",
+    "testing/test_conftest.py::test_setinitial_conftest_subdirs[tests]"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 51,
+  "lines": 2533,
+  "seconds": 7.0,
+  "network": "bridge",
+  "collected": "2026-10-12T20:52:43Z",
+  "pare": "0.1.0",
+  "commit": "2f13edb",
+  "swebench": "5.0.2"
+}

@@ -1,0 +1,17 @@
+name	collected	pare	commit	sha256	lines	bytes	exit	command	source	labels
+astropy__astropy-13033	2026-10-12T20:39:01Z	0.1.0	2f13edb		308	13855		pytest -rA astropy/timeseries/tests/test_sampled.py	dataset	dataset FAIL_TO_PASS
+django__django-16612	2026-10-12T20:39:45Z	0.1.0	2f13edb		743	62374		./tests/runtests.py --verbosity 2 --settings=test_sqlite --parallel 1 admin_views.tests	dataset	dataset FAIL_TO_PASS
+matplotlib__matplotlib-24627	2026-10-12T20:42:21Z	0.1.0	2f13edb		820	59974		pytest -rA lib/matplotlib/tests/test_axes.py	dataset	dataset FAIL_TO_PASS
+psf__requests-5414	2026-10-12T20:42:44Z	0.1.0	2f13edb		2256	149577		pytest -rA tests/test_requests.py	dataset	dataset FAIL_TO_PASS
+pydata__xarray-4687	2026-10-12T20:43:58Z	0.1.0	2f13edb		2078	195263		pytest -rA xarray/tests/test_computation.py xarray/tests/test_units.py	dataset	dataset FAIL_TO_PASS
+pylint-dev__pylint-6528	2026-10-12T20:44:34Z	0.1.0	2f13edb		1766	100557		pytest -rA tests/lint/unittest_lint.py tests/regrtest_data/directory/ignored_subdirectory/failing.py tests/test_self.py	dataset	dataset FAIL_TO_PASS
+pytest-dev__pytest-10051	2026-10-12T20:44:56Z	0.1.0	2f13edb		308	16721		pytest -rA testing/logging/test_fixture.py	dataset	dataset FAIL_TO_PASS
+scikit-learn__scikit-learn-11578	2026-10-12T20:45:27Z	0.1.0	2f13edb		151	11272		pytest -rA sklearn/linear_model/tests/test_logistic.py	dataset	dataset FAIL_TO_PASS
+sphinx-doc__sphinx-8621	2026-10-12T20:45:51Z	0.1.0	2f13edb		1723	167561		tox --current-env -epy39 -v -- tests/test_markup.py	dataset	dataset FAIL_TO_PASS
+sympy__sympy-24066	2026-10-12T20:46:14Z	0.1.0	2f13edb		56	1949		PYTHONWARNINGS='ignore::UserWarning,ignore::SyntaxWarning' bin/test -C --verbose sympy/physics/units/tests/test_quantities.py	dataset	dataset FAIL_TO_PASS
+astropy__astropy-13236	2026-10-12T20:48:03Z	0.1.0	2f13edb		923	65223		pytest -rA astropy/table/tests/test_mixin.py astropy/table/tests/test_table.py	dataset	dataset FAIL_TO_PASS
+matplotlib__matplotlib-25311	2026-10-12T20:50:41Z	0.1.0	2f13edb		304	17639		pytest -rA lib/matplotlib/tests/test_pickle.py	dataset	dataset FAIL_TO_PASS
+psf__requests-2931	2026-10-12T20:51:02Z	0.1.0	2f13edb		1209	76300		pytest -rA test_requests.py	dataset	dataset FAIL_TO_PASS
+pydata__xarray-2905	2026-10-12T20:51:56Z	0.1.0	2f13edb		616	47419		pytest -rA xarray/tests/test_variable.py	dataset	dataset FAIL_TO_PASS
+pytest-dev__pytest-5840	2026-10-12T20:52:43Z	0.1.0	2f13edb		2533	160427		pytest -rA testing/test_conftest.py	dataset	dataset FAIL_TO_PASS
+sympy__sympy-16886	2026-10-12T20:55:39Z	0.1.0	2f13edb		65	1952		PYTHONWARNINGS='ignore::UserWarning,ignore::SyntaxWarning' bin/test -C --verbose sympy/crypto/tests/test_crypto.py	dataset	dataset FAIL_TO_PASS

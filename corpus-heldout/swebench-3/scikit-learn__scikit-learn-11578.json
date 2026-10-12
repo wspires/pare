@@ -1,0 +1,27 @@
+{
+  "instance_id": "scikit-learn__scikit-learn-11578",
+  "repo": "scikit-learn/scikit-learn",
+  "version": "0.20",
+  "base_commit": "dd69361a0d9c6ccde0d2353b00b86e0e7541a3e3",
+  "image": "swebench/sweb.eval.x86_64.scikit-learn_1776_scikit-learn-11578:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "sklearn/linear_model/tests/test_logistic.py::test_logistic_cv_multinomial_score[neg_log_loss-multiclass_agg_list3]"
+  ],
+  "failed": [
+    "sklearn/linear_model/tests/test_logistic.py::test_logistic_cv_multinomial_score[neg_log_loss-multiclass_agg_list3]"
+  ],
+  "keep": [
+    "sklearn/linear_model/tests/test_logistic.py::test_logistic_cv_multinomial_score[neg_log_loss-multiclass_agg_list3]"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 93,
+  "lines": 151,
+  "seconds": 7.2,
+  "network": "bridge",
+  "collected": "2026-10-12T20:45:27Z",
+  "pare": "0.1.0",
+  "commit": "2f13edb",
+  "swebench": "5.0.2"
+}

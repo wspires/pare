@@ -1,0 +1,36 @@
+{
+  "instance_id": "pylint-dev__pylint-6528",
+  "repo": "pylint-dev/pylint",
+  "version": "2.14",
+  "base_commit": "273a8b25620467c1e5686aa8d2a1dbb8c02c78d0",
+  "image": "swebench/sweb.eval.x86_64.pylint-dev_1776_pylint-6528:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "tests/lint/unittest_lint.py::test_recursive_ignore[--ignore-ignored_subdirectory]",
+    "tests/lint/unittest_lint.py::test_recursive_ignore[--ignore-patterns-ignored_*]",
+    "tests/test_self.py::TestRunTC::test_ignore_recursive",
+    "tests/test_self.py::TestRunTC::test_ignore_pattern_recursive"
+  ],
+  "failed": [
+    "tests/lint/unittest_lint.py::test_recursive_ignore[--ignore-ignored_subdirectory]",
+    "tests/lint/unittest_lint.py::test_recursive_ignore[--ignore-patterns-ignored_*]",
+    "tests/test_self.py::TestRunTC::test_ignore_recursive",
+    "tests/test_self.py::TestRunTC::test_ignore_pattern_recursive"
+  ],
+  "keep": [
+    "tests/lint/unittest_lint.py::test_recursive_ignore[--ignore-ignored_subdirectory]",
+    "tests/lint/unittest_lint.py::test_recursive_ignore[--ignore-patterns-ignored_*]",
+    "tests/test_self.py::TestRunTC::test_ignore_recursive",
+    "tests/test_self.py::TestRunTC::test_ignore_pattern_recursive"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 171,
+  "lines": 1766,
+  "seconds": 17.3,
+  "network": "bridge",
+  "collected": "2026-10-12T20:44:34Z",
+  "pare": "0.1.0",
+  "commit": "2f13edb",
+  "swebench": "5.0.2"
+}

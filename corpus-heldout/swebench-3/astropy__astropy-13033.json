@@ -1,0 +1,27 @@
+{
+  "instance_id": "astropy__astropy-13033",
+  "repo": "astropy/astropy",
+  "version": "4.3",
+  "base_commit": "298ccb478e6bf092953bca67a3d29dc6c35f6752",
+  "image": "swebench/sweb.eval.x86_64.astropy_1776_astropy-13033:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "astropy/timeseries/tests/test_sampled.py::test_required_columns"
+  ],
+  "failed": [
+    "astropy/timeseries/tests/test_sampled.py::test_required_columns"
+  ],
+  "keep": [
+    "astropy/timeseries/tests/test_sampled.py::test_required_columns"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 20,
+  "lines": 308,
+  "seconds": 91.3,
+  "network": "bridge",
+  "collected": "2026-10-12T20:39:01Z",
+  "pare": "0.1.0",
+  "commit": "2f13edb",
+  "swebench": "5.0.2"
+}

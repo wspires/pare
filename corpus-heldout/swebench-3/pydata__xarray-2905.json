@@ -1,0 +1,27 @@
+{
+  "instance_id": "pydata__xarray-2905",
+  "repo": "pydata/xarray",
+  "version": "0.12",
+  "base_commit": "7c4e2ac83f7b4306296ff9b7b51aaf016e5ad614",
+  "image": "swebench/sweb.eval.x86_64.pydata_1776_xarray-2905:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "xarray/tests/test_variable.py::TestAsCompatibleData::test_unsupported_type"
+  ],
+  "failed": [
+    "xarray/tests/test_variable.py::TestAsCompatibleData::test_unsupported_type"
+  ],
+  "keep": [
+    "xarray/tests/test_variable.py::TestAsCompatibleData::test_unsupported_type"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 364,
+  "lines": 616,
+  "seconds": 17.0,
+  "network": "bridge",
+  "collected": "2026-10-12T20:51:56Z",
+  "pare": "0.1.0",
+  "commit": "2f13edb",
+  "swebench": "5.0.2"
+}

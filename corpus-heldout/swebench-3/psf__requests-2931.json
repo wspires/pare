@@ -1,0 +1,27 @@
+{
+  "instance_id": "psf__requests-2931",
+  "repo": "psf/requests",
+  "version": "2.9",
+  "base_commit": "5f7a3a74aab1625c2bb65f643197ee885e3da576",
+  "image": "swebench/sweb.eval.x86_64.psf_1776_requests-2931:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "test_requests.py::TestRequests::test_binary_put"
+  ],
+  "failed": [
+    "test_requests.py::TestRequests::test_binary_put"
+  ],
+  "keep": [
+    "test_requests.py::TestRequests::test_binary_put"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 84,
+  "lines": 1209,
+  "seconds": 4.0,
+  "network": "bridge",
+  "collected": "2026-10-12T20:51:02Z",
+  "pare": "0.1.0",
+  "commit": "2f13edb",
+  "swebench": "5.0.2"
+}

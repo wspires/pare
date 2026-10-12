@@ -1,0 +1,4 @@
+tests/lint/unittest_lint.py::test_recursive_ignore[--ignore-ignored_subdirectory]
+tests/lint/unittest_lint.py::test_recursive_ignore[--ignore-patterns-ignored_*]
+tests/test_self.py::TestRunTC::test_ignore_recursive
+tests/test_self.py::TestRunTC::test_ignore_pattern_recursive

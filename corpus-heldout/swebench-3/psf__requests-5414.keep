@@ -1,0 +1,1 @@
+tests/test_requests.py::TestRequests::test_invalid_url[InvalidURL-http://.example.com]

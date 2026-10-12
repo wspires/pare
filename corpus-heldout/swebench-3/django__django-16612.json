@@ -1,0 +1,30 @@
+{
+  "instance_id": "django__django-16612",
+  "repo": "django/django",
+  "version": "5.0",
+  "base_commit": "55bcbd8d172b689811fae17cde2f09218dd74e9c",
+  "image": "swebench/sweb.eval.x86_64.django_1776_django-16612:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "test_missing_slash_append_slash_true_query_string (admin_views.tests.AdminSiteFinalCatchAllPatternTests.test_missing_slash_append_slash_true_query_string)",
+    "test_missing_slash_append_slash_true_script_name_query_string (admin_views.tests.AdminSiteFinalCatchAllPatternTests.test_missing_slash_append_slash_true_script_name_query_string)"
+  ],
+  "failed": [
+    "test_missing_slash_append_slash_true_query_string (admin_views.tests.AdminSiteFinalCatchAllPatternTests.test_missing_slash_append_slash_true_query_string)",
+    "test_missing_slash_append_slash_true_script_name_query_string (admin_views.tests.AdminSiteFinalCatchAllPatternTests.test_missing_slash_append_slash_true_script_name_query_string)"
+  ],
+  "keep": [
+    "test_missing_slash_append_slash_true_query_string (admin_views.tests.AdminSiteFinalCatchAllPatternTests.test_missing_slash_append_slash_true_query_string)",
+    "test_missing_slash_append_slash_true_script_name_query_string (admin_views.tests.AdminSiteFinalCatchAllPatternTests.test_missing_slash_append_slash_true_script_name_query_string)"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 335,
+  "lines": 743,
+  "seconds": 22.3,
+  "network": "bridge",
+  "collected": "2026-10-12T20:39:45Z",
+  "pare": "0.1.0",
+  "commit": "2f13edb",
+  "swebench": "5.0.2"
+}
