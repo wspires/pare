@@ -27,7 +27,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from run import pare_cmd  # noqa: E402
+from run import pare_cmd, survivors  # noqa: E402
 
 
 def load_encoders(hf: str | None, anthropic_model: str | None) -> dict:
@@ -114,8 +114,7 @@ def main() -> int:
                 tot += n
                 keep_path = p[:-4] + ".keep"
                 keep = [ln.strip() for ln in open(keep_path, encoding="utf-8") if ln.strip()] if os.path.exists(keep_path) else []
-                text = out.decode("utf-8", "replace")
-                h = sum(1 for k in keep if k in text)
+                h = sum(survivors(out, keep))
                 hit += h
                 total_keep += len(keep)
                 if keep:

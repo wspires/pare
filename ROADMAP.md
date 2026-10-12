@@ -110,15 +110,18 @@ held-out evidence asks for it.
   at 600; dev corpus 79.5 → 78 % at 600 (one pytest line), unchanged at
   2,000. Details in `docs/DESIGN.md`, "First change from held-out
   evidence". *Done.*
-- [ ] **Which of many failures matter, and listing them compactly.**
-  When a run has more failing tests than the budget holds, pare cannot
-  show every name as a line. psf__requests-2317 has 40 failing tests and
-  the dataset wants 8 (0 at 600 and 1,000, 6 at 2,000); requests-1724 has
-  32 and wants 6; seaborn-3069 has 76, 74 failing the same way. Two
-  candidates, measured separately: render a list template compactly (the
-  shared prefix once, then only the parts that differ, about a third of
-  the size), and group failing tests by how they fail (the `E` line or
-  exception under each) so the small groups come first.
+- [x] **List many failing tests compactly.** A list of failures is one
+  header with the shared prefix (`FAILED test_requests.py::RequestsTestCase::{…}`)
+  and one short item per test, about half the size (requests-2317: 32
+  tests in about 540 tokens, about 1,000 as lines). No dev case got worse, four got better
+  (seaborn-3069 0 → 2 of 2 at 2,000); SWE-bench seed 1 went from 94 to
+  100 % at 2,000 (requests-2317 6 → 8 of 8). The bench expands the form
+  before matching; `--strict` matches literal text and counts compacted
+  names as missed (SWE-bench seed 1 at 2,000: 57 % strict). *Done.*
+- [ ] **Which of many failures matter.** At 600 and 1,000 the list form
+  does not help requests-2317 (0 of 8): the tracebacks of 40 failures
+  outrank the names. Candidate: group failing tests by how they fail (the
+  `E` line or exception under each) and show the small groups first.
 - [x] **Names that differ only in numbers.** Parametrized test ids
   (`test_rolling_iter[numpy-3-True-1]`, `[numpy-3-True-2]`) masked to one
   shape, so they were repeats, not a list. A name's bracketed parameters

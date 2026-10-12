@@ -371,6 +371,28 @@ and it is a hard limit.
   written in the masked text, so two parametrizations of one test are two
   shapes, and a number inside them is news to the restatement guard
   below.
+- Lists of failures are rendered compactly. A list template (as above,
+  error lines of mostly distinct shapes, at least 3 records) whose record
+  heads share a prefix of 16 bytes or more, cut after a separator, is one
+  header with the prefix and `{…}`, then one item line per shown record
+  with only the rest:
+
+  ```
+  T29  ×17 E FAILED test_requests.py::RequestsTestCase::{…}
+    …test_DIGESTAUTH_WRONG_HTTP_401_GET
+    …test_HTTP_200_OK_GET_ALTERNATIVE
+    ┆ (+15 more)
+  ```
+
+  Items still compete one by one in the queue, at their own score, but
+  cost (and are valued per byte at) only their rendered length, so about
+  twice as many names fit: psf__requests-2317 lists 32 failing tests,
+  with pytest's truncated reasons, in about 540 tokens, where as lines
+  they cost about 1,000. Judging a list, names are compared with
+  identifiers whole (`test_endpoint_get_0` and `test_endpoint_get_1` are
+  two tests, where clustering masks `worker3` to `worker<N>`).
+  `bench/run.py` expands the form before matching keep lines (`--strict`
+  matches the literal text).
 - Guards against restatement: a one-line record whose tokens are mostly
   (80 %) contained in a shown line, or a continuation line that is a pure
   token subset of one, is skipped (an error line only when what it adds is
@@ -673,13 +695,24 @@ output byte on any dev set (both corpora, the Defects4J dev sample, the
 two first held-out sets); on the fresh sets, xarray-6744 went from 1 to
 3 of 3 at 1,000 and 2,000 and nothing else moved. Assertion messages that
 differ only in numbers stay repeats: making a number in a message news
-would undo the repeat rule for every `timeout after 3012 ms`. What the first held-out sets still show:
+would undo the repeat rule for every `timeout after 3012 ms`.
+
+The other, more failing tests than the budget holds as lines, is fixed by
+listing them compactly ("Allocation", the list form). Developed on the
+first held-out sets (now dev data) and a synthetic log; no dev case got
+worse and four got better, and on the fresh sets SWE-bench seed 1 went
+from 94 to 100 % at 2,000 (psf__requests-2317, 6 → 8 of 8; every case
+complete) and Defects4J seed 2 from 74 to 77 % at 1,000. 600 and 1,000 on
+SWE-bench did not move: there the tracebacks outrank the names.
+
+What the first held-out sets still show:
 
 - **Which failures matter.** mwaskom__seaborn-3069 has 76 failing tests,
   74 failing the same way (a pandas option missing from the environment);
   the dataset cares about the other two. Their summary lines are cut by
-  pytest at `- as...`, so nothing on them says they fail differently, and
-  76 names do not fit in 2,000 tokens. Still 0 of 2.
+  pytest at `- as...`, so nothing on them says they fail differently.
+  With the list form, 2,000 tokens hold enough names to include both;
+  at 1,000 they still do not.
 - **600 on SWE-bench.** pytest's per-test sections and summary both name
   the test; at 600 the budget holds the first failure's traceback and a
   few names. django__django-11451 went from 2 of 6 to 1 of 6.

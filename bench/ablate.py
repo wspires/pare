@@ -17,6 +17,8 @@ import tempfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "proto"))
 import pare  # noqa: E402
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from run import survivors  # noqa: E402
 
 ABLATIONS = {
     "default": {},
@@ -48,7 +50,7 @@ def run_case(log_path, keep, budget):
         store.close()
     finally:
         os.unlink(spool)
-    hit = sum(1 for k in keep if k in out)
+    hit = sum(survivors(out.encode(), keep))
     return hit, len(keep), pare.tokens(len(out.encode()))
 
 

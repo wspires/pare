@@ -9,11 +9,11 @@ how to get it back.
 pytest -v 2>&1 | pare --budget 2000
 ```
 
-A 308-line, 6,803-token pytest run becomes this (1,212 tokens), exactly
+A 308-line, 6,803-token pytest run becomes this (1,250 tokens), exactly
 as printed; the last lines name the run file on the machine it ran on:
 
 ```
-# pare: 308 lines, 19,046 B (~6,803 tok) → ~1,212 tok (budget 2,000) · 35 templates
+# pare: 308 lines, 19,046 B (~6,803 tok) → ~1,250 tok (budget 2,000) · 35 templates
 ## head (L1–L5)
 1: ============================= test session starts ==============================
 2: platform linux -- Python 3.13.16, pytest-9.1.1, pluggy-1.6.0 -- /home/dev/proj/.venv/bin/python
@@ -52,9 +52,13 @@ T25  ×6 S --- Captured log <*> ---
 228: tests/test_cart.py:18: AssertionError
   ┆ (20 lines)
 249: E       ConnectionRefusedError: [Errno 111] Connection refused
-  ┆ (22 lines)
+  ┆ (1 line)
+251: app/core.py:15: ConnectionRefusedError
+  ┆ (20 lines)
 272: E       TimeoutError: timed out
-  ┆ (14 lines)
+  ┆ (1 line)
+274: app/core.py:15: TimeoutError
+  ┆ (12 lines)
 287: tests/test_net.py:9: in a
   ┆ (7 lines)
 295: >   def c(): raise RuntimeError("deep failure at level 3")
@@ -73,7 +77,7 @@ T25  ×6 S --- Captured log <*> ---
 306: FAILED tests/test_net.py::test_connect[10.255.255.1] - TimeoutError: timed out
 307: FAILED tests/test_net.py::test_deep - RuntimeError: deep failure at level 3
 308: ============= 5 failed, 163 passed, 1 skipped, 1 xfailed in 0.51s ==============
-## omitted 268/308 lines (87.0%): T5 ×120, T28 ×24, T18 ×16, T21 ×13, T23 ×12, T6 ×10, T7 ×10, T8 ×10, T9 ×10, T20 ×8, T25 ×5, T26 ×4, T12 ×3, T24 ×3, T15 ×2, T19 ×2, T10 ×1, T11 ×1, T16 ×1 · 23 templates not listed; 24 blank
+## omitted 266/308 lines (86.4%): T5 ×120, T28 ×24, T18 ×16, T21 ×13, T23 ×12, T6 ×10, T7 ×10, T8 ×10, T9 ×10, T20 ×8, T25 ×5, T26 ×4, T12 ×3, T15 ×2, T19 ×2, T10 ×1, T11 ×1, T16 ×1, T24 ×1 · 23 templates not listed; 24 blank
 ## raw: /root/.cache/pare/runs/d0ec7c06b92d.log
    expand with: pare --only T<n> < raw   ·   drop noise: pare --except T<n>,T<m> < raw
 ```
@@ -169,7 +173,8 @@ drain3 stops with these options rather than a traceback.
 `bench/run.py` runs pare, [sqz](https://github.com/ojuschugh1/sqz) and
 [tidyout](https://github.com/sathish-2000/tidyout) over `corpus/` and
 reports output tokens and the share of must-survive lines (`<name>.keep`,
-substring match) that each tool keeps. Tokens are bytes / 2.8, pare's
+substring match, after pare's compact lists of failing tests are written
+out in full; `--strict` matches the literal text) that each tool keeps. Tokens are bytes / 2.8, pare's
 default and the measured cl100k/o200k rate for this text
 (`bench/tokens.py`), so a budget of 2000 is 2,000 real tokens. Eight logs, 488k input tokens: real pytest, go test,
 cargo, make and npm runs, plus three seeded synthetic logs (a Jest run, a
@@ -213,9 +218,11 @@ fresh samples drawn after the fix and never tuned on, pare keeps 89% of
 17 SWE-bench tasks' failing tests at 2,000 tokens (63% before the fix,
 output 11% of the input) and 51% of 16 Defects4J bugs' tests and
 exceptions at 600 (30% before); tidyout keeps everything at 98 to 100% of
-the input size. The main remaining miss is a run with more failing
-tests than the budget holds; parametrized test names that differ only in
-numbers were another, and are fixed since (`corpus-heldout/README.md`). With all tool-specific rules off, pare still reaches 88% at 600
+the input size. Two misses those samples showed are fixed since: runs
+with more failing tests than lines fit (now listed compactly, the shared
+prefix once and one short item per test) and parametrized test names
+that differ only in numbers; with both, SWE-bench seed 1 is 100% at
+2,000 tokens (`corpus-heldout/README.md`). With all tool-specific rules off, pare still reaches 88% at 600
 and 94.5% at 2000 (bytes/4 units) on this corpus; the generic signals do
 most of the work.
 
@@ -257,7 +264,7 @@ for a native port are in [docs/DESIGN.md](docs/DESIGN.md).
 .venv/bin/pip install pytest && .venv/bin/python -m pytest proto/
 ```
 
-207 tests: severity forms and their false positives, vocabulary files, the
+209 tests: severity forms and their false positives, vocabulary files, the
 hard budget limit on every corpus file at several sizes, determinism,
 pass-through, the selection flags, memory on a large input, follow mode
 (including a randomized differential test against the batch pass),

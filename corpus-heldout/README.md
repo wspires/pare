@@ -124,8 +124,12 @@ What pare still misses, from reading the misses (no code changed on them):
   the container's reach); the dataset
   wants 8 of them. As lines, 40 names cost about 1,200 tokens: 0 of 8 at
   600 and 1,000, 6 of 8 at 2,000. psf__requests-1724 is the same: 32
-  failing, 6 wanted, 2 of 6 at 600 and 1,000, all 6 at 2,000. Which of
-  many failures matter is the open question from the first sample too.
+  failing, 6 wanted, 2 of 6 at 600 and 1,000, all 6 at 2,000. *Partly
+  fixed since* (failing tests listed compactly, about half the size):
+  requests-2317 8 of 8 at 2,000, taking SWE-bench seed 1 to 100 % there
+  with every case complete; still 0 of 8 at 600 and 1,000, where the
+  tracebacks of forty failures outrank the names. Which of many failures
+  matter is the open question from the first sample too.
 - **Test ids that differ only in numbers.** pydata__xarray-6744's
   parametrized `test_rolling_iter[numpy-3-True-1]`, `[numpy-3-True-2]`,
   `[numpy-7-True-1]` mask to one shape, so they are repeats, not a list:
@@ -153,10 +157,16 @@ What pare still misses, from reading the misses (no code changed on them):
 
 A fix that comes from these diagnoses spends these sets the same way as
 the first two, and the next sample (another seed, `--exclude` every
-directory above) measures it. The parametrized-name fix is the first
-such change: it was developed on a synthetic log and checked on every dev
-set before the one measurement here, but the next sample is still what
-counts.
+directory above) measures it. Two such changes so far, the
+parametrized-name fix and the compact list form, both developed on
+synthetic logs and dev sets before being measured here; the next sample
+is still what counts.
+
+Since the compact list form, `bench/run.py` expands pare's
+`prefix{…}` / `  …item` lists before matching keep lines, so a test named
+as a list item counts as kept. `--strict` matches the literal text
+instead; it counts every compacted name as missed (SWE-bench seed 1 at
+2,000: 100 % expanded, 57 % strict).
 
 ### First samples: found the problem, now dev data
 

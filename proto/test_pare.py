@@ -359,6 +359,34 @@ def test_parametrized_failures_that_differ_only_in_numbers_each_survive(form):
     assert all(f"[{p}]" in out for p in PARAMS), out
 
 
+def test_many_failing_tests_are_listed_compactly():
+    # Forty failing tests: as lines they cost ~1,200 tokens; as a list, the
+    # shared "FAILED tests/test_api.py::TestClient::" once and each name under it.
+    names = [f"test_endpoint_{w}_{k}" for w in ("get", "put", "post", "head", "patch") for k in range(8)]
+    lines = ["============================= test session starts =============================="]
+    lines += [f"PASSED tests/test_api.py::TestClient::test_ok_{i}" for i in range(300)]
+    lines += [f"FAILED tests/test_api.py::TestClient::{n}" for n in names]
+    lines.append("======================= 40 failed, 300 passed in 9.12s ========================")
+    out = run(["--budget", "1000"], ("\n".join(lines) + "\n").encode()).decode()
+    assert "FAILED tests/test_api.py::TestClient::{…}" in out
+    items = [l for l in out.splitlines() if l.startswith("  …")]
+    assert sorted(l[3:] for l in items) == sorted(names), out
+    sys.path.insert(0, os.path.join(ROOT, "bench"))
+    import run as bench_run
+    keep = [f"tests/test_api.py::TestClient::{n}" for n in names]
+    assert bench_run.recall(out.encode(), keep) == (40, 40)
+    assert bench_run.recall(out.encode(), keep, strict=True)[0] < 40
+
+
+def test_bench_expands_only_the_list_it_is_under():
+    sys.path.insert(0, os.path.join(ROOT, "bench"))
+    import run as bench_run
+    text = "T2   ×3 E FAILED t.py::{…}\n  …test_a\n  …test_b\n  ┆ (+1 more)\n## selected lines\n  …test_c\n"
+    out = bench_run.expand_lists(text)
+    assert "FAILED t.py::test_a" in out and "FAILED t.py::test_b" in out
+    assert "t.py::test_c" not in out  # outside the list: left as written
+
+
 def test_repeated_error_events_still_diminish():
     # Crashes of the same nineteen pods, over and over. Masking leaves the pod
     # names, so each pod is its own shape, but the template has few shapes per

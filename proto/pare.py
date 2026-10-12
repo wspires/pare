@@ -200,10 +200,15 @@ MASKS = [
 ]
 
 
-def mask(text: str) -> str:
+def mask(text: str, words: bool = True) -> str:
+    """Mask the variable parts of a line. words=False leaves identifiers
+    with digits whole (test_case_3, testIssue635): for telling names apart,
+    not for clustering."""
     t = text.strip()
     for name, rx in MASKS:
         if name == "WORDNUM":
+            if not words:
+                continue
             t = rx.sub(lambda m: re.sub(r"\d+", "<N>", m.group(0)), t)
         elif name == "RULE":
             t = rx.sub(lambda m: m.group(1) * 3, t)
@@ -718,6 +723,21 @@ def line_params(ln: Line) -> tuple[str, ...]:
     return m["params"]
 
 
+def name_key(ln: Line) -> str:
+    """shape_key with identifiers left whole: test_endpoint_get_0 and
+    test_endpoint_get_1 are two tests, where worker3 and worker7 masked to
+    one shape are one kind of line. Used only to judge and key lists of
+    failures, where the template's distinct-shape ratio keeps the same few
+    workers, repeated, from counting as a list."""
+    m = ln.memo
+    if "name" not in m:
+        sev = line_sev(ln)
+        params = line_params(ln)
+        m["name"] = (mask(ln.text, words=False) + (f" ·sev{sev}" if sev is not None else "")
+                     + (" ·[" + "][".join(params) + "]" if params else ""))
+    return m["name"]
+
+
 def shape_key(ln: Line) -> str:
     """Dedup key for the fill phase: the masked shape plus the structural
     severity, so a 503 request line is not a duplicate of a 200 one even
@@ -751,6 +771,10 @@ FILL_FLOOR = 1.0  # lines scoring below this never pad the output
 TEMPLATE_FLOOR = 1.5  # template entries below this salience stay in the ledger (the first entry is exempt)
 LIST_DISTINCT = 0.5  # a template whose records are at least this share distinct shapes is a list of different items
 LIST_SAMPLE = 200  # ...judged on its first this many records
+LIST_MIN_COUNT = 3  # a list of failures this long is rendered compactly: shared prefix once, one item per line
+LIST_MIN_SHARED = 16  # ...when the shared prefix and suffix save at least this many bytes per item
+LIST_ITEM = "  …"  # an item line: the list header's text before {…}, then this item
+LIST_CUT = " :/.#("  # the shared prefix ends after one of these
 COMPACT_BUDGET = 1000  # below this many tokens, multi-record entries are one line
 HINT_BUDGET = 1000  # below this, the usage hint at the end is dropped
 
@@ -1442,6 +1466,10 @@ def summarize(
         if later_window and tpl.new:
             extra += " new"
         extra += tpl.rate_note
+        form = list_affixes(tpl.idx)
+        if form:
+            # A list of failures: the shared text once, the items under it.
+            return [f"{tpl.tid:<4} ×{fmt_int(count)}{extra} {tpl.marker} {form[0]}{{…}}{form[1]}"]
         # An exemplar that the head or tail window already prints is referenced,
         # not repeated.
         where = "head" if ex.no in head_nos else "tail" if ex.no in tail_nos else None
@@ -1460,10 +1488,12 @@ def summarize(
         i = no - b1
         if store.depth[i] == 0 and rec[i] >= 0 and not (is_error_line(store.line(i)) and lists_items(rtpl[rec[i]])):
             return f"tpl{rtpl[rec[i]]}·sev{store.sev_of(i)}"
-        # A continuation line, or an error line of a template whose records
-        # each name something different, repeats only its masked shape: ten
-        # failing tests are one drain template, but each test name is news.
-        return shape_key(store.line(i))
+        if store.depth[i] == 0 and rec[i] >= 0:
+            # An error line of a template whose records each name something
+            # different repeats only its own name: ten failing tests are one
+            # drain template, but each test name is news.
+            return name_key(store.line(i))
+        return shape_key(store.line(i))  # a continuation line: its masked shape
 
     listing: dict[int, bool] = {}
     tpl_records: dict[int, list[int]] = {}
@@ -1479,9 +1509,59 @@ def summarize(
                     if len(rs) < LIST_SAMPLE:
                         rs.append(ri)
             heads = tpl_records.get(t, [])
-            shapes = {shape_key(store.head_of(ri)) for ri in heads}
+            shapes = {name_key(store.head_of(ri)) for ri in heads}
             listing[t] = len(shapes) >= LIST_DISTINCT * len(heads)
         return listing[t]
+
+    affixes: dict[int, tuple[str, str] | None] = {}
+
+    def list_affixes(t: int) -> tuple[str, str] | None:
+        """For a list of failures (an error template whose records are mostly
+        distinct shapes), the prefix every record head shares, cut after a
+        separator: "FAILED test_requests.py::RequestsTestCase::" for forty
+        failing tests. Returned as (prefix, suffix) with an empty suffix: a
+        shared ending is rarely more than a fragment of a value. None when
+        the template is not such a list or the shared text is too short to be
+        worth factoring out."""
+        if t not in affixes:
+            tpl = templates[t]
+            form = None
+            if (tpl.count >= LIST_MIN_COUNT and tpl.marker == "E" and lists_items(t)
+                    and is_error_line(store.head_of(tpl.exemplar))):
+                texts = [store.head_of(ri).text.strip() for ri in tpl_records[t]]
+                pre = os.path.commonprefix(texts)
+                while pre and pre[-1] not in LIST_CUT:
+                    pre = pre[:-1]  # cut after a separator, never inside a name or a value
+                if min(len(x) for x in texts) > len(pre) >= LIST_MIN_SHARED:
+                    form = (pre, "")
+            affixes[t] = form
+        return affixes[t]
+
+    def item_of(no: int) -> str | None:
+        """A list template's record head as an item: its text between the
+        shared prefix and suffix. None for any other line."""
+        if no < b1:
+            return None
+        i = no - b1
+        ri = rec[i]
+        if ri < 0 or rstart[ri] != i:
+            return None
+        form = list_affixes(rtpl[ri])
+        if form is None:
+            return None
+        pre, suf = form
+        text = store.line(i).text.strip()
+        if not (text.startswith(pre) and text.endswith(suf)) or len(text) <= len(pre) + len(suf):
+            return None
+        return clip(text[len(pre):len(text) - len(suf)], width)
+
+    def item_cost(no: int) -> int:
+        return nbytes([LIST_ITEM + item_of(no)])
+
+    def as_item(no: int) -> bool:
+        """Whether a line renders as an item of its placed list entry."""
+        i = no - b1
+        return no >= b1 and rec[i] >= 0 and rtpl[rec[i]] in placed and item_of(no) is not None
 
     keys: dict[int, str] = {}
 
@@ -1527,7 +1607,10 @@ def summarize(
         i = no - b1
         # Each repeat of a shape already on screen is worth less.
         e = scores[i] / (1.0 + FILL_PENALTY * taken.get(key_of(no), 0))
-        e *= (DENSITY_REF / (DENSITY_REF + slen[i])) ** DENSITY_POWER
+        # Value per rendered byte: an item of a placed list costs only its
+        # distinct part.
+        size = len(item_of(no).encode("utf-8")) if as_item(no) else slen[i]
+        e *= (DENSITY_REF / (DENSITY_REF + size)) ** DENSITY_POWER
         return e
 
     # Queue items: (-priority, kind, id); kind 0 = template entry, 1 = line,
@@ -1582,6 +1665,11 @@ def summarize(
                 cost = nbytes(entry)
                 if tpl.marker in ("E", "W") and ex_end - ex_start > 1:
                     cost += 30  # room for the "(+N more lines)" marker under it
+                is_list = list_affixes(tpl.idx) is not None
+                if is_list:
+                    cost += 30  # the "(+N more)" marker under the items
+                    if ex_line.no not in window_nos and item_of(ex_line.no) is not None:
+                        cost += item_cost(ex_line.no)  # the exemplar is the first item
                 if cost > avail and placed:
                     deferred.append((negp, kind, ident))
                     if DEBUG:
@@ -1597,6 +1685,10 @@ def summarize(
                     picked[:] = [(p, l) for p, l in picked if l.no != ex_line.no]
                     picked_nos.discard(ex_line.no)
                     avail += rlen[ex_start] + 20
+                if is_list:  # lines of the list picked before it: now items, and cheaper
+                    for _, l in picked:
+                        if as_item(l.no):
+                            avail += rlen[l.no - b1] + 20 - item_cost(l.no)
                 continue
             no = ident
             cur = effective(no)
@@ -1607,7 +1699,7 @@ def summarize(
                 continue  # below the floor a line never pads the output
             if no in exemplar_nos and rtpl[rec[no - b1]] in placed:
                 continue  # its template entry already shows it
-            cost = rlen[no - b1] + 20  # + gap marker allowance
+            cost = item_cost(no) if as_item(no) else rlen[no - b1] + 20  # + gap marker allowance
             if cost > avail:
                 deferred.append((negp, kind, ident))
                 if DEBUG:
@@ -1703,6 +1795,19 @@ def summarize(
                 if tpl.idx not in placed:
                     continue
                 out.extend(placed[tpl.idx])
+                if list_affixes(tpl.idx):
+                    items = sorted(ln.no for _, ln in picked_lines if as_item(ln.no) and rtpl[rec[ln.no - b1]] == tpl.idx)
+                    ex_no = store.head_of(tpl.exemplar).no
+                    if ex_no not in window_nos and item_of(ex_no) is not None:
+                        items = sorted(set(items) | {ex_no})
+                    out.extend(LIST_ITEM + item_of(no) for no in items)
+                    in_windows = sum(1 for no in window_nos
+                                     if no >= b1 and rec[no - b1] >= 0 and rtpl[rec[no - b1]] == tpl.idx
+                                     and rstart[rec[no - b1]] == no - b1)
+                    rest = tpl.count - len(items) - in_windows - (1 if ex_no not in items and ex_no not in window_nos else 0)
+                    if rest > 0:
+                        out.append(f"  ┆ (+{fmt_int(rest)} more)")
+                    in_bodies |= set(items)
                 body, nos = body_of(tpl.idx, picked_lines)
                 out.extend(body)
                 in_bodies |= nos

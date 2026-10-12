@@ -3,7 +3,10 @@
 
 For every corpus/<name>.log:
   * <name>.keep  lines that must survive (one per line; a line survives if
-                 its stripped text appears as a substring of the tool output)
+                 its stripped text appears as a substring of the tool output,
+                 after pare's compact lists are expanded: a header
+                 "T29 ×17 E FAILED t.py::{…}" followed by "  …test_a" stands
+                 for "FAILED t.py::test_a"; --strict matches the literal text)
   * <name>.cmd   the command that produced the log (optional). tidyout only
                  applies rules keyed on the command name, so the runner puts
                  a fake binary with that name on PATH that cats the log; sqz
@@ -188,10 +191,36 @@ class Tidyout(Tool):
 TOOLS = {t.name: t for t in (Raw(), Pare(), Sqz(), Tidyout())}
 
 
-def recall(output: bytes, keep: list[str]) -> tuple[int, int]:
+LIST_ITEM = "  …"
+
+
+def expand_lists(text: str) -> str:
+    """pare's compact list form written out in full: under a line containing
+    "{…}", each "  …item" line becomes the header's text before "{…}", the
+    item, and the header's text after it. Other tools' output never has the
+    form, so it is unchanged."""
+    out: list[str] = []
+    pre = suf = None
+    for line in text.splitlines():
+        if "{…}" in line:
+            pre, _, suf = line.partition("{…}")
+        elif pre is not None and line.startswith(LIST_ITEM):
+            line = pre + line[len(LIST_ITEM):] + suf
+        elif not line.startswith("  ┆"):
+            pre = suf = None
+        out.append(line)
+    return "\n".join(out)
+
+
+def survivors(output: bytes, keep: list[str], strict: bool = False) -> list[bool]:
     text = output.decode("utf-8", errors="replace")
-    hit = sum(1 for k in keep if k in text)
-    return hit, len(keep)
+    if not strict:
+        text = expand_lists(text)
+    return [k in text for k in keep]
+
+
+def recall(output: bytes, keep: list[str], strict: bool = False) -> tuple[int, int]:
+    return sum(survivors(output, keep, strict)), len(keep)
 
 
 def load_case(corpus: str, name: str):
@@ -216,6 +245,8 @@ def main() -> int:
     ap.add_argument("--tools", default="pare,sqz,tidyout", help="comma-separated subset of pare,sqz,tidyout")
     ap.add_argument("--json", help="also write results as JSON to this path")
     ap.add_argument("--show-misses", action="store_true", help="list must-survive lines each tool dropped")
+    ap.add_argument("--strict", action="store_true",
+                    help="match keep lines against the literal output, without expanding pare's compact lists")
     ap.add_argument("--pare-args", default="", help='extra flags for pare, e.g. "--max-templates 8"')
     ap.add_argument("--chars-per-token", type=float, default=2.8,
                     help="bytes per token for every tool's count and pare's budget (default 2.8, pare's default)")
@@ -253,10 +284,9 @@ def main() -> int:
                     row.update(out_tok=None, hit=None, err=str(e)[:80])
                     rows.append(row)
                     continue
-                hit, n = recall(out, keep)
-                row.update(out_tok=tokens(out), hit=hit)
-                text = out.decode("utf-8", errors="replace")
-                misses[(name, tool.name)] = [k for k in keep if k not in text]
+                found = survivors(out, keep, args.strict)
+                row.update(out_tok=tokens(out), hit=sum(found))
+                misses[(name, tool.name)] = [k for k, ok in zip(keep, found) if not ok]
                 rows.append(row)
 
     # Per-case table.
