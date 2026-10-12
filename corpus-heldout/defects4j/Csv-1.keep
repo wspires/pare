@@ -1,0 +1,2 @@
+testGetLineNumberWithCR(org.apache.commons.csv.CSVParserTest)
+expected:<1> but was:<0>

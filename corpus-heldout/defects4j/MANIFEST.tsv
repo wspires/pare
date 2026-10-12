@@ -1,0 +1,12 @@
+name	collected	pare	commit	sha256	lines	bytes	exit	command	source	labels
+Cli-27	2026-10-12T15:07:18Z	0.1.0	5ed938b		167	10422	1	mvn -B -Dtest=BasicParserTest,GnuParserTest,PosixParserTest test	dataset	dataset trigger tests
+Codec-16	2026-10-12T15:07:33Z	0.1.0	5ed938b		89	4264	1	mvn -B -Dtest=Base32Test test	dataset	dataset trigger tests
+Collections-7	2026-10-12T15:07:48Z	0.1.0	5ed938b		88	4692	1	mvn -B -Dtest=TestExtendedProperties test	dataset	dataset trigger tests
+Compress-41	2026-10-12T15:08:09Z	0.1.0	5ed938b		94	4704	1	mvn -B -Dtest=ZipArchiveInputStreamTest,ZipTestCase test	dataset	dataset trigger tests
+Csv-1	2026-10-12T15:08:21Z	0.1.0	5ed938b		117	6485	1	mvn -B -Dtest=CSVParserTest test	dataset	dataset trigger tests
+Gson-2	2026-10-12T15:08:36Z	0.1.0	5ed938b		266	18216	1	mvn -B -Dtest=DefaultTypeAdaptersTest test	dataset	dataset trigger tests
+JacksonCore-7	2026-10-12T15:08:50Z	0.1.0	5ed938b		79	4687	1	mvn -B -Dtest=GeneratorFailTest test	dataset	dataset trigger tests
+JacksonDatabind-92	2026-10-12T15:09:17Z	0.1.0	5ed938b		76	4232	1	mvn -B -Dtest=IllegalTypesCheckTest test	dataset	dataset trigger tests
+Jsoup-81	2026-10-12T15:09:43Z	0.1.0	5ed938b		113	6436	1	mvn -B -Dtest=DataUtilTest test	dataset	dataset trigger tests
+Math-20	2026-10-12T15:10:29Z	0.1.0	5ed938b		111	6121	1	mvn -B -Dtest=CMAESOptimizerTest test	dataset	dataset trigger tests
+Time-5	2026-10-12T15:10:48Z	0.1.0	5ed938b		88	4739	1	mvn -B -Dtest=TestPeriod_Basics test	dataset	dataset trigger tests

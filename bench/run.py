@@ -22,6 +22,7 @@ import argparse
 import json
 import math
 import os
+import re
 import shlex
 import shutil
 import stat
@@ -152,14 +153,20 @@ class Tidyout(Tool):
         # its per-command rules (pytest, cargo build, ...) apply.
         if not cmd:
             cmd = ["cat"]
+        # The fake goes on PATH under the program's base name: a command given
+        # as a path (./tests/runtests.py) would otherwise name a directory that
+        # does not exist. A shell wrapper (`cd x && ...`) is not a program.
+        name = os.path.basename(cmd[0]) or "cat"
+        if not re.fullmatch(r"[\w.+-]+", name):
+            name = "cat"
         fake_bin = os.path.join(work, "bin")
         os.makedirs(fake_bin, exist_ok=True)
-        fake = os.path.join(fake_bin, cmd[0])
+        fake = os.path.join(fake_bin, name)
         with open(fake, "w") as f:
             f.write(f"#!/bin/sh\nexec cat {json.dumps(log_path)}\n")
         os.chmod(fake, os.stat(fake).st_mode | stat.S_IEXEC)
         env = dict(os.environ, PATH=fake_bin + os.pathsep + os.environ.get("PATH", ""))
-        p = subprocess.run([which("tidyout")] + cmd, capture_output=True, env=env)
+        p = subprocess.run([which("tidyout"), name, *cmd[1:]], capture_output=True, env=env)
         return p.stdout
 
 

@@ -1,0 +1,2 @@
+com.google.gson.functional.DefaultTypeAdaptersTest.testJsonElementTypeMismatch
+java.lang.ClassCastException: Cannot cast com.google.gson.JsonPrimitive to com.google.gson.JsonObject

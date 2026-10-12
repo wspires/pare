@@ -344,6 +344,18 @@ def test_id_forms(cls: str, method: str) -> list[str]:
     return [f"{method}({cls})", f"{cls}.{method}", f"{simple}.{method}", f"{cls}::{method}"]
 
 
+def locate_exception(exc: str, output: str) -> str | None:
+    if exc in output:
+        return exc
+    if len(exc) > 80 and exc[:80] in output:
+        return exc[:80]
+    _cls, sep, message = exc.partition(": ")
+    message = message.strip()
+    if sep and len(message) >= 12 and message in output:
+        return message
+    return None
+
+
 FAILURES = re.compile(r"Tests run: \d+, Failures: (\d+), Errors: (\d+)")
 
 
@@ -351,7 +363,11 @@ def labels(bug: dict, output: str) -> tuple[list[str], list[dict], list[str]]:
     """(keep lines, trigger tests that failed, what could not be located).
     A trigger test counts as failed when its id is in the output: Surefire
     names methods only when they fail or error. Its exception line is kept
-    when it appears verbatim, or its first 80 characters do."""
+    when it appears verbatim, or its first 80 characters do, or else its
+    message alone: Defects4J recorded failures under a JUnit 3-style Ant
+    runner (junit.framework.AssertionFailedError), and Maven's JUnit 4
+    runner prints the same message under another class
+    (java.lang.AssertionError)."""
     keep, failed, unlocated = [], [], []
     for t in bug["triggers"]:
         form = next((f for f in test_id_forms(t["class"], t["method"]) if f in output), None)
@@ -363,7 +379,7 @@ def labels(bug: dict, output: str) -> tuple[list[str], list[dict], list[str]]:
             keep.append(form)
         exc = t["exception"]
         if exc:
-            located = exc if exc in output else (exc[:80] if len(exc) > 80 and exc[:80] in output else None)
+            located = locate_exception(exc, output)
             if located and located not in keep:
                 keep.append(located)
             elif not located:

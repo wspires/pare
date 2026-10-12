@@ -1,0 +1,58 @@
+{
+  "bug": "Math-20",
+  "project": "Math",
+  "bug_id": 20,
+  "fixed_revision": "abe53a537b4d19a878e8de3735393e0c4e85aa7e",
+  "report": "https://issues.apache.org/jira/browse/MATH-864",
+  "upstream": "https://github.com/apache/commons-math",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=CMAESOptimizerTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.math3.optimization.direct.CMAESOptimizerTest",
+      "method": "testMath864",
+      "exception": "junit.framework.AssertionFailedError: Out of bounds (0.5246031767455861 > 0.5)"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.math3.optimization.direct.CMAESOptimizerTest::testMath864"
+  ],
+  "keep": [
+    "testMath864(org.apache.commons.math3.optimization.direct.CMAESOptimizerTest)"
+  ],
+  "unlocated": [
+    "exception: junit.framework.AssertionFailedError: Out of bounds (0.5246031767455861 > 0.5)"
+  ],
+  "lines": 111,
+  "seconds": 35.6,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T15:10:29Z",
+  "pare": "0.1.0",
+  "commit": "5ed938b"
+}

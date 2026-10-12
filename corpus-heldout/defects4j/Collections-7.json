@@ -1,0 +1,75 @@
+{
+  "bug": "Collections-7",
+  "project": "Collections",
+  "bug_id": 7,
+  "fixed_revision": "01086ef5b312d7aa5ad231277950618cb93664ee",
+  "report": "https://issues.apache.org/jira/browse/COLLECTIONS-278",
+  "upstream": "https://github.com/apache/commons-collections",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=TestExtendedProperties",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.collections.TestExtendedProperties",
+      "method": "testKeySet2",
+      "exception": "java.util.NoSuchElementException"
+    },
+    {
+      "class": "org.apache.commons.collections.TestExtendedProperties",
+      "method": "testKeySet3",
+      "exception": "java.util.NoSuchElementException"
+    },
+    {
+      "class": "org.apache.commons.collections.TestExtendedProperties",
+      "method": "testKeySet4",
+      "exception": "junit.framework.ComparisonFailure: expected:<[c]> but was:<[b]>"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.collections.TestExtendedProperties::testKeySet2",
+    "org.apache.commons.collections.TestExtendedProperties::testKeySet3",
+    "org.apache.commons.collections.TestExtendedProperties::testKeySet4"
+  ],
+  "keep": [
+    "testKeySet2(org.apache.commons.collections.TestExtendedProperties)",
+    "java.util.NoSuchElementException",
+    "testKeySet3(org.apache.commons.collections.TestExtendedProperties)",
+    "testKeySet4(org.apache.commons.collections.TestExtendedProperties)"
+  ],
+  "unlocated": [
+    "exception: junit.framework.ComparisonFailure: expected:<[c]> but was:<[b]>"
+  ],
+  "lines": 88,
+  "seconds": 13.3,
+  "fixes_applied": [
+    "compile-4-9.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T15:07:48Z",
+  "pare": "0.1.0",
+  "commit": "5ed938b"
+}

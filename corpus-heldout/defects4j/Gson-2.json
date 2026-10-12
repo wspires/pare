@@ -1,0 +1,59 @@
+{
+  "bug": "Gson-2",
+  "project": "Gson",
+  "bug_id": 2,
+  "fixed_revision": "fe101c10bc3597d8e715a31d94d2cc0cc54b660f",
+  "report": "https://github.com/google/gson/pull/719",
+  "upstream": "https://github.com/google/gson",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=DefaultTypeAdaptersTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "com.google.gson.functional.DefaultTypeAdaptersTest",
+      "method": "testJsonElementTypeMismatch",
+      "exception": "java.lang.ClassCastException: Cannot cast com.google.gson.JsonPrimitive to com.google.gson.JsonObject"
+    }
+  ],
+  "failed": [
+    "com.google.gson.functional.DefaultTypeAdaptersTest::testJsonElementTypeMismatch"
+  ],
+  "keep": [
+    "com.google.gson.functional.DefaultTypeAdaptersTest.testJsonElementTypeMismatch",
+    "java.lang.ClassCastException: Cannot cast com.google.gson.JsonPrimitive to com.google.gson.JsonObject"
+  ],
+  "unlocated": [],
+  "lines": 266,
+  "seconds": 13.3,
+  "fixes_applied": [
+    "locale-2-14.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T15:08:36Z",
+  "pare": "0.1.0",
+  "commit": "5ed938b"
+}

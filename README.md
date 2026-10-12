@@ -202,11 +202,15 @@ everything at 100%. These logs are short and dense in signal, which is
 where a 600-token summary has the least room.
 
 **Read this as a training score.** The misses were fixed by looking at
-these same eight cases, three of which are synthetic. The heuristics are
-now frozen; the next numbers should come from a held-out corpus of real
-logs with keep lists written before pare sees them
-(`corpus-heldout/README.md` has the protocol) and from an agent-success
-evaluation. With all tool-specific rules off, pare still reaches 88% at 600
+these same eight cases, three of which are synthetic. The first held-out
+numbers, on test runs labelled by datasets rather than by anyone working
+on pare, are much lower: on 16 SWE-bench Verified tasks pare kept 60% of
+the failing tests at 2,000 tokens, and on 11 Defects4J bugs 29% of the
+failing tests and exceptions at 600. The cause is the same in both: a run
+with several failing tests names each in a line of the same shape, and
+pare lists that shape once with a count. That is the next fix
+(`ROADMAP.md`, stage 3); `corpus-heldout/README.md` has the protocol and
+the per-source results. With all tool-specific rules off, pare still reaches 88% at 600
 and 94.5% at 2000 (bytes/4 units) on this corpus; the generic signals do
 most of the work.
 
@@ -248,11 +252,11 @@ for a native port are in [docs/DESIGN.md](docs/DESIGN.md).
 .venv/bin/pip install pytest && .venv/bin/python -m pytest proto/
 ```
 
-190 tests: severity forms and their false positives, vocabulary files, the
+194 tests: severity forms and their false positives, vocabulary files, the
 hard budget limit on every corpus file at several sizes, determinism,
 pass-through, the selection flags, memory on a large input, follow mode
 (including a randomized differential test against the batch pass),
-command mode, the collection, harvest and SWE-bench helpers, and the Claude Code hook.
+command mode, the collection, harvest, SWE-bench and Defects4J helpers, and the Claude Code hook.
 
 ## Layout
 
@@ -267,6 +271,7 @@ bench/gen_synthetic.py generator for the seeded synthetic corpus files
 bench/collect.py       turn run files into held-out cases (never shows pare's output)
 bench/harvest.py       harvest held-out candidates from Claude Code transcripts (scrubbed, staged for review)
 bench/swebench_cases.py held-out cases from SWE-bench tasks, labelled by their failing tests (needs Docker)
+bench/defects4j_cases.py held-out Java cases from Defects4J bugs, labelled by their trigger tests (needs Docker)
 integrations/          agent instructions and a Claude Code hook (integrations/README.md)
 corpus/                dev corpus: *.log, *.keep, *.cmd
 corpus-generated/      real Maven, tsc, Terraform and kubectl output from small projects in src/ (a second dev corpus, not held-out)

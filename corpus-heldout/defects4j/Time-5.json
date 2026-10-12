@@ -1,0 +1,73 @@
+{
+  "bug": "Time-5",
+  "project": "Time",
+  "bug_id": 5,
+  "fixed_revision": "a6cb59ed2280ab0a32995fa8b5f1a7b0d47cb815",
+  "report": "https://github.com/JodaOrg/joda-time/issues/79",
+  "upstream": "https://github.com/JodaOrg/joda-time",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=TestPeriod_Basics",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.joda.time.TestPeriod_Basics",
+      "method": "testNormalizedStandard_periodType_months1",
+      "exception": "java.lang.UnsupportedOperationException: Field is not supported"
+    },
+    {
+      "class": "org.joda.time.TestPeriod_Basics",
+      "method": "testNormalizedStandard_periodType_months2",
+      "exception": "java.lang.UnsupportedOperationException: Field is not supported"
+    },
+    {
+      "class": "org.joda.time.TestPeriod_Basics",
+      "method": "testNormalizedStandard_periodType_monthsWeeks",
+      "exception": "java.lang.UnsupportedOperationException: Field is not supported"
+    }
+  ],
+  "failed": [
+    "org.joda.time.TestPeriod_Basics::testNormalizedStandard_periodType_months1",
+    "org.joda.time.TestPeriod_Basics::testNormalizedStandard_periodType_months2",
+    "org.joda.time.TestPeriod_Basics::testNormalizedStandard_periodType_monthsWeeks"
+  ],
+  "keep": [
+    "testNormalizedStandard_periodType_months1(org.joda.time.TestPeriod_Basics)",
+    "java.lang.UnsupportedOperationException: Field is not supported",
+    "testNormalizedStandard_periodType_months2(org.joda.time.TestPeriod_Basics)",
+    "testNormalizedStandard_periodType_monthsWeeks(org.joda.time.TestPeriod_Basics)"
+  ],
+  "unlocated": [],
+  "lines": 88,
+  "seconds": 17.0,
+  "fixes_applied": [
+    "locale-1-27.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T15:10:48Z",
+  "pare": "0.1.0",
+  "commit": "5ed938b"
+}

@@ -1135,6 +1135,12 @@ def test_defects4j_metadata_parsing_and_selection(tmp_path):
     assert d4.mvn_command(picked[0])[-2:] == ["-Dtest=CalcTest", "test"]
     out, code = d4.split_output("noise\n>>>>> pare start\nline\n>>>>> pare exit 1\n")
     assert out == "line\n" and code == 1
+    # the exception line as Defects4J recorded it, or its message under JUnit 4's class
+    out = "java.lang.AssertionError: expected:<1> but was:<0>\n"
+    assert d4.locate_exception("java.lang.AssertionError: expected:<1> but was:<0>", out).startswith("java.lang")
+    assert d4.locate_exception("junit.framework.AssertionFailedError: expected:<1> but was:<0>", out) == "expected:<1> but was:<0>"
+    assert d4.locate_exception("junit.framework.AssertionFailedError: short", "short") is None  # too short to mean anything
+    assert d4.locate_exception("java.lang.AssertionError: Out of bounds (0.52 > 0.5)", "Out of bounds (0.68 > 0.5)") is None
 
 
 def test_defects4j_harness_rebuilds_the_buggy_version_and_writes_a_case(tmp_path):
@@ -1169,3 +1175,29 @@ def test_defects4j_harness_rebuilds_the_buggy_version_and_writes_a_case(tmp_path
         d4.main(argv + ["--force", "--out", str(tmp_path / "out2")], docker=passing)
     assert "trigger tests did not fail" in buf.getvalue()
     assert (tmp_path / "out2" / "_failed" / "Lang-1.run.log").exists()
+
+
+def test_swebench_absent_tests_are_reported_as_not_run(tmp_path):
+    pytest.importorskip("swebench")
+    import contextlib
+    import io
+    sc = load_swebench_cases()
+    task = fake_task("acme__widgets-9", f2p=("tests/test_w.py::test_never_collected",))
+    dataset = tmp_path / "tasks.jsonl"
+    dataset.write_text(json.dumps(task) + "\n")
+    docker = FakeDocker({task["image"]: fake_log(["tests/test_w.py::test_something_else"])}, present=[task["image"]])
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        sc.main(["run", "--dataset", str(dataset), "--instances", "acme__widgets-9", "--out", str(tmp_path / "o")], docker=docker)
+    assert "not in the test output" in buf.getvalue() and "test_never_collected" in buf.getvalue()
+
+
+def test_bench_tidyout_handles_a_command_given_as_a_path(tmp_path):
+    sys.path.insert(0, os.path.join(ROOT, "bench"))
+    import run as bench_run
+    if not bench_run.which("tidyout"):
+        pytest.skip("tidyout not installed")
+    log = tmp_path / "x.log"
+    log.write_text("hello from the log\n")
+    out = bench_run.Tidyout().run(str(log), ["./tests/runtests.py", "--verbosity", "2"], 2000, str(tmp_path))
+    assert b"hello from the log" in out

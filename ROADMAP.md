@@ -18,22 +18,27 @@ The gate for everything after it.
   corpus. Protocol: `corpus-heldout/README.md`. Fastest source: run
   `bench/harvest.py scan` over your existing Claude Code transcripts,
   review the candidates, promote the good ones. *Maintainer.*
-- [ ] **SWE-bench cases.** Failing test runs reproduced from SWE-bench
-  tasks, which record a repository at a buggy commit and the tests that
-  fail there (FAIL_TO_PASS). The keep list is those test ids as they appear
-  in the output, so no one's judgement is involved and the labels are
-  blind to pare by construction. Reported as its own source (`dataset` in
-  the manifest), never merged with transcript cases. The harness is built:
-  `bench/swebench_cases.py run --sample 20` pulls each task's published
-  image, runs its eval script without the fix, checks with SWE-bench's own
-  parser that the failing tests did fail, writes the case, and removes the
-  image. Verified end to end in the development container on one task
-  rebuilt from its upstream pull request (Hugging Face, where the dataset
-  lives, is blocked there). Running the 20-task sample needs Docker, the
-  dataset, and about 4 GB of disk per task at a time. *Maintainer, on a
-  machine with Docker and Hugging Face access.*
-- [ ] **Defects4J cases.** The same idea for Java (Maven and Ant), for
-  build-tool coverage SWE-bench lacks. *Repo, after the SWE-bench run.*
+- [x] **SWE-bench cases.** Failing test runs reproduced from SWE-bench
+  tasks, labelled by the tests the dataset records as failing
+  (FAIL_TO_PASS). Harness: `bench/swebench_cases.py`. First run on the
+  maintainer's machine, seed 0: 16 of 20 tasks became cases (three tasks'
+  failing tests were not found in the output, one output was under 40
+  lines). **pare kept 60 % of the failing tests at 2,000 tokens, min 0 %**;
+  tidyout kept all of them at 96 % of the input size. The cases are on
+  the maintainer's machine; commit `corpus-heldout/swebench/` to keep
+  them. *Done.*
+- [x] **Defects4J cases.** Failing Java test runs rebuilt from Defects4J
+  bugs (the fixed commit from upstream, its compile-error fixes, the
+  revert patch), run with the project's Maven build in a JDK 8 container,
+  labelled by Defects4J's trigger tests and the exception each raises.
+  Harness: `bench/defects4j_cases.py`. Seed 0, one bug per project: 11 of
+  14 became cases, committed in `corpus-heldout/defects4j/` (JacksonXml-1
+  needs unpublished snapshot dependencies, Lang-59 an antrun feature
+  removed from today's plugin, JxPath-5 has no Maven build). **pare kept
+  94 % at 2,000 tokens, but most of these logs fit and pass through
+  untouched; at 600, where every one is summarised, it kept 29 %.** Ant
+  projects (Closure, Chart) and Mockito (Gradle) are not covered. *Done
+  for Maven.*
 - [ ] **Claude token rate.** `bench/tokens.py --anthropic claude-opus-5-5`
   on a machine with credentials. If the rate differs much from the 2.8
   bytes per token measured on cl100k and o200k, change the default.
@@ -84,12 +89,20 @@ held-out evidence asks for it.
   error lines. Candidate: cap the table when it alone would fill the budget.
 - [ ] **Wide single-line errors.** A 230-character kubectl error loses its
   tail to `--width 200`.
-- [ ] **Unused budget while same-shape failures are omitted.** On the
-  reconstructed SWE-bench task (pytest, 22 failures, network cut off),
-  pare listed the `FAILED ...` lines once as a template with a count and
-  never showed the one failing test the task is about, at 600 and at 2000,
-  where it used about half the budget. If the real SWE-bench cases show
-  the same, failing-test summary lines need to compete individually.
+- [ ] **Failing tests collapse into one template entry. Confirmed on
+  both held-out sources; the first thing to fix.** When a run has several
+  failing tests, their summary lines (`FAILED path::test - ...`, Django's
+  `test_x (module.Class)`, Surefire's `testX(pkg.Class)`) share one
+  shape, so pare shows one exemplar and a count, and the specific tests
+  are gone. On SWE-bench: psf__requests-1921 0 of 6 at 1,992 tokens,
+  django__django-11451 2 of 6, mwaskom__seaborn-3069 0 of 2; on the
+  rebuilt requests-1142 pare used half its budget while dropping the one
+  failing test. On Defects4J at 600, Maven's `[INFO]` and `[ERROR]`
+  boilerplate takes the budget the test names and exceptions need.
+  Candidate: lines that name a failing test compete individually, with
+  no repeat penalty among themselves, ahead of build-tool chatter. After
+  the fix both held-out sets have influenced the code: collect a fresh
+  sample (another seed) to measure it.
 - [ ] **Re-ablate removed terms.** The end-of-output position bonus and
   the first-occurrence bonus were removed by ablation on the dev corpus;
   re-test them on the held-out set.

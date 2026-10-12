@@ -1,0 +1,65 @@
+{
+  "bug": "Compress-41",
+  "project": "Compress",
+  "bug_id": 41,
+  "fixed_revision": "f015344879f1bc3505bc616fc7ae517cf9f60838",
+  "report": "https://issues.apache.org/jira/browse/COMPRESS-367",
+  "upstream": "https://github.com/apache/commons-compress",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=ZipArchiveInputStreamTest,ZipTestCase",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.compress.archivers.ZipTestCase",
+      "method": "testListAllFilesWithNestedArchive",
+      "exception": "junit.framework.AssertionFailedError: expected:<1> but was:<0>"
+    },
+    {
+      "class": "org.apache.commons.compress.archivers.zip.ZipArchiveInputStreamTest",
+      "method": "testThrowOnInvalidEntry",
+      "exception": "junit.framework.AssertionFailedError: IOException expected"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.compress.archivers.ZipTestCase::testListAllFilesWithNestedArchive",
+    "org.apache.commons.compress.archivers.zip.ZipArchiveInputStreamTest::testThrowOnInvalidEntry"
+  ],
+  "keep": [
+    "testListAllFilesWithNestedArchive(org.apache.commons.compress.archivers.ZipTestCase)",
+    "expected:<1> but was:<0>",
+    "testThrowOnInvalidEntry(org.apache.commons.compress.archivers.zip.ZipArchiveInputStreamTest)",
+    "IOException expected"
+  ],
+  "unlocated": [],
+  "lines": 94,
+  "seconds": 18.3,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T15:08:09Z",
+  "pare": "0.1.0",
+  "commit": "5ed938b"
+}

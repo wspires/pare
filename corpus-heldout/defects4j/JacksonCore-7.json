@@ -1,0 +1,65 @@
+{
+  "bug": "JacksonCore-7",
+  "project": "JacksonCore",
+  "bug_id": 7,
+  "fixed_revision": "5cddffa133e7de41fa9efb5962cf3d0cff9b3e89",
+  "report": "https://github.com/FasterXML/jackson-core/issues/177",
+  "upstream": "https://github.com/FasterXML/jackson-core",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=GeneratorFailTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "com.fasterxml.jackson.core.json.GeneratorFailTest",
+      "method": "testFailOnWritingStringNotFieldNameBytes",
+      "exception": "junit.framework.AssertionFailedError: Should not have let com.fasterxml.jackson.core.json.UTF8JsonGenerator.writeString() be used in place of 'writeFieldName()': output = {:\"a\""
+    },
+    {
+      "class": "com.fasterxml.jackson.core.json.GeneratorFailTest",
+      "method": "testFailOnWritingStringNotFieldNameChars",
+      "exception": "junit.framework.AssertionFailedError: Should not have let com.fasterxml.jackson.core.json.WriterBasedJsonGenerator.writeString() be used in place of 'writeFieldName()': output = {:\"a\""
+    }
+  ],
+  "failed": [
+    "com.fasterxml.jackson.core.json.GeneratorFailTest::testFailOnWritingStringNotFieldNameBytes",
+    "com.fasterxml.jackson.core.json.GeneratorFailTest::testFailOnWritingStringNotFieldNameChars"
+  ],
+  "keep": [
+    "testFailOnWritingStringNotFieldNameBytes(com.fasterxml.jackson.core.json.GeneratorFailTest)",
+    "junit.framework.AssertionFailedError: Should not have let com.fasterxml.jackson.core.json.UTF8JsonGenerator.writeString() be used in place of 'writeFieldName()': output = {:\"a\"",
+    "testFailOnWritingStringNotFieldNameChars(com.fasterxml.jackson.core.json.GeneratorFailTest)",
+    "junit.framework.AssertionFailedError: Should not have let com.fasterxml.jackson.core.json.WriterBasedJsonGenerator.writeString() be used in place of 'writeFieldName()': output = {:\"a\""
+  ],
+  "unlocated": [],
+  "lines": 79,
+  "seconds": 12.8,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T15:08:50Z",
+  "pare": "0.1.0",
+  "commit": "5ed938b"
+}

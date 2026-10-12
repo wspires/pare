@@ -62,6 +62,45 @@ These are a different kind of keep list from the transcript cases: they
 only ask whether the summary names every failing test, not whether it
 keeps the assertion or the location. Report them as their own source.
 
+## Defects4J cases
+
+`bench/defects4j_cases.py` does the same for Java. Defects4J records, per
+bug, the commit that fixed it, a patch that reverts only the fix, and the
+tests that fail on the buggy version with the exception each raises. The
+harness rebuilds the buggy version from the upstream project on GitHub
+(Defects4J's own installation and download server are not needed), runs
+the failing test classes with the project's Maven build in a JDK 8
+container, and labels the case with those tests and exceptions as the
+output shows them (the assertion message alone when JUnit 4 prints it
+under another exception class than Defects4J recorded).
+
+```
+python3 bench/defects4j_cases.py run --sample 20 --dry-run
+python3 bench/defects4j_cases.py run --sample 20        # writes corpus-heldout/defects4j/
+python3 bench/run.py --corpus corpus-heldout/defects4j --budget 600 --show-misses
+```
+
+Maven projects only (14 of Defects4J's 17). Docker Hub rate-limits
+anonymous pulls; `--image mirror.gcr.io/library/maven:3.9-eclipse-temurin-8`
+pulls the same image from Google's mirror. Behind a proxy, pass it to the
+container with `--docker-arg` and `--pass-env MAVEN_OPTS`.
+
+## Results so far
+
+Reported per source, never merged, and with the dev corpus kept apart.
+Recall is the share of keep lines in pare's output.
+
+| source | cases | budget 2,000 | budget 600 |
+|---|---:|---|---|
+| SWE-bench Verified, seed 0 (maintainer's run) | 16 | 60 % (min 0 %) | not yet run |
+| Defects4J, seed 0, one bug per project | 11 | 94 % (min 50 %), mostly pass-through | 29 % (min 0 %) |
+| dev corpus, for comparison (tuned on) | 8 | 100 % | 79 % |
+
+Both sources miss in the same way: a run with several failing tests
+names each in a line of the same shape, pare lists that shape once with
+a count, and the tests themselves are dropped. ROADMAP.md stage 3 has
+the details.
+
 ## Protocol
 
 1. **Collect real logs from actual agent sessions.** The easy way: have

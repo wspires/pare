@@ -1,0 +1,4 @@
+testListAllFilesWithNestedArchive(org.apache.commons.compress.archivers.ZipTestCase)
+expected:<1> but was:<0>
+testThrowOnInvalidEntry(org.apache.commons.compress.archivers.zip.ZipArchiveInputStreamTest)
+IOException expected

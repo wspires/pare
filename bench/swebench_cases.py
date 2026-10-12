@@ -213,10 +213,13 @@ class Docker:
 # One task
 # --------------------------------------------------------------------------
 
-def evaluate(task: dict, log: str) -> tuple[bool, list[str]]:
-    """Did the eval run cleanly, and which FAIL_TO_PASS tests failed, by
-    SWE-bench's own parser for this repository."""
-    from swebench.harness.grading import get_logs_eval, test_failed
+def evaluate(task: dict, log: str) -> tuple[bool, list[str], list[str]]:
+    """Did the eval run cleanly; which FAIL_TO_PASS tests failed, and which
+    are not in the parsed results at all (did not run, or were not
+    collected), by SWE-bench's own parser for this repository. SWE-bench's
+    grading counts an absent test as failed; a case needs it in the output."""
+    from swebench.harness import grading
+    from swebench.harness.grading import get_logs_eval
     from swebench.harness.utils import make_test_spec
     spec = make_test_spec(task)
     with tempfile.NamedTemporaryFile("w", suffix=".log", delete=False, encoding="utf-8") as f:
@@ -227,8 +230,16 @@ def evaluate(task: dict, log: str) -> tuple[bool, list[str]]:
     finally:
         os.unlink(path)
     if not ok:
-        return False, []
-    return True, [t for t in fail_to_pass(task) if test_failed(t, status)]
+        return False, [], []
+    resolve = getattr(grading, "_resolve_case", lambda case, sm: case if case in sm else None)
+    failing, absent = [], []
+    for t in fail_to_pass(task):
+        key = resolve(t, status)
+        if key is None:
+            absent.append(t)
+        elif status[key] in ("FAILED", "ERROR"):
+            failing.append(t)
+    return True, failing, absent
 
 
 def make_case(task: dict, docker: Docker, args) -> tuple[str, dict]:
@@ -257,12 +268,14 @@ def make_case(task: dict, docker: Docker, args) -> tuple[str, dict]:
     if timed_out:
         save_failed(args.out, iid, log)
         return "timed out", details
-    ok, failing = evaluate(task, log)
+    ok, failing, absent = evaluate(task, log)
     if not ok:
         save_failed(args.out, iid, log)
         return "eval did not run cleanly", details
     if not failing:
         save_failed(args.out, iid, log)
+        if absent:
+            return "FAIL_TO_PASS tests not in the test output (not run or not collected)", {**details, "absent": absent}
         return "FAIL_TO_PASS tests did not fail", details
     output = test_output(log)
     nlines = output.count("\n")
@@ -343,7 +356,7 @@ def cmd_run(args, docker: Docker | None = None) -> int:
         else:
             status, details = make_case(task, docker, args)
         counts[status] = counts.get(status, 0) + 1
-        extra = ", ".join(f"{k} {v}" for k, v in details.items() if k in ("lines", "keep", "unlocated", "seconds", "error"))
+        extra = ", ".join(f"{k} {v}" for k, v in details.items() if k in ("lines", "keep", "unlocated", "absent", "seconds", "error"))
         print(f"[{n}/{len(chosen)}] {iid:<40} {status}" + (f"  ({extra})" if extra else ""), flush=True)
     print("; ".join(f"{v} {k}" for k, v in counts.items()))
     return 0 if counts.get("written", 0) or counts.get("already collected", 0) else 1

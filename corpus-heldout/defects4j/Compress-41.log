@@ -1,0 +1,94 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ----------------< org.apache.commons:commons-compress >-----------------
+[INFO] Building Apache Commons Compress 1.13-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- enforcer:1.4.1:enforce (enforce-maven-3) @ commons-compress ---
+[INFO] Skipping Rule Enforcement.
+[INFO] 
+[INFO] --- build-helper:1.10:parse-version (parse-version) @ commons-compress ---
+[INFO] 
+[INFO] --- antrun:1.8:run (javadoc.resources) @ commons-compress ---
+[INFO] Executing tasks
+
+main:
+[INFO] Executed tasks
+[INFO] 
+[INFO] --- remote-resources:1.5:process (process-resource-bundles) @ commons-compress ---
+[INFO] 
+[INFO] --- buildnumber:1.4:create (default) @ commons-compress ---
+[INFO] Executing: /bin/sh -c cd '/work' && 'git' 'rev-parse' '--verify' 'HEAD'
+[INFO] Working directory: /work
+[INFO] Storing buildNumber: f015344879f1bc3505bc616fc7ae517cf9f60838 at timestamp: 1791817685062
+[WARNING] Cannot get the branch information from the git repository: 
+Detecting the current branch failed: fatal: ref HEAD is not a symbolic ref
+
+[INFO] Executing: /bin/sh -c cd '/work' && 'git' 'rev-parse' '--verify' 'HEAD'
+[INFO] Working directory: /work
+[INFO] Storing buildScmBranch: UNKNOWN
+[INFO] 
+[INFO] --- resources:2.7:resources (default-resources) @ commons-compress ---
+[INFO] Using 'iso-8859-1' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory /work/src/main/resources
+[INFO] Copying 2 resources to META-INF
+[INFO] 
+[INFO] --- compiler:3.5.1:compile (default-compile) @ commons-compress ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- bundle:3.0.1:manifest (bundle-manifest) @ commons-compress ---
+[INFO] 
+[INFO] --- animal-sniffer:1.15:check (checkAPIcompatibility) @ commons-compress ---
+[INFO] Signature checking is skipped.
+[INFO] 
+[INFO] --- resources:2.7:testResources (default-testResources) @ commons-compress ---
+[INFO] Using 'iso-8859-1' encoding to copy filtered resources.
+[INFO] Copying 157 resources
+[INFO] Copying 2 resources to META-INF
+[INFO] 
+[INFO] --- compiler:3.5.1:testCompile (default-testCompile) @ commons-compress ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- surefire:2.19.1:test (default-test) @ commons-compress ---
+
+-------------------------------------------------------
+ T E S T S
+-------------------------------------------------------
+Running org.apache.commons.compress.archivers.ZipTestCase
+Tests run: 14, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.051 sec <<< FAILURE! - in org.apache.commons.compress.archivers.ZipTestCase
+testListAllFilesWithNestedArchive(org.apache.commons.compress.archivers.ZipTestCase)  Time elapsed: 0.011 sec  <<< FAILURE!
+java.lang.AssertionError: expected:<1> but was:<0>
+	at org.apache.commons.compress.archivers.ZipTestCase.testListAllFilesWithNestedArchive(ZipTestCase.java:281)
+
+Running org.apache.commons.compress.archivers.zip.ZipArchiveInputStreamTest
+Tests run: 10, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.001 sec <<< FAILURE! - in org.apache.commons.compress.archivers.zip.ZipArchiveInputStreamTest
+testThrowOnInvalidEntry(org.apache.commons.compress.archivers.zip.ZipArchiveInputStreamTest)  Time elapsed: 0 sec  <<< FAILURE!
+java.lang.AssertionError: IOException expected
+	at org.apache.commons.compress.archivers.zip.ZipArchiveInputStreamTest.testThrowOnInvalidEntry(ZipArchiveInputStreamTest.java:243)
+
+
+Results :
+
+Failed tests: 
+  ZipTestCase.testListAllFilesWithNestedArchive:281 expected:<1> but was:<0>
+  ZipArchiveInputStreamTest.testThrowOnInvalidEntry:243 IOException expected
+
+Tests run: 24, Failures: 2, Errors: 0, Skipped: 0
+
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.580 s
+[INFO] Finished at: 2026-10-12T15:08:08Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.19.1:test (default-test) on project commons-compress: There are test failures.
+[ERROR] 
+[ERROR] Please refer to /work/target/surefire-reports for the individual test results.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

@@ -1,0 +1,57 @@
+{
+  "bug": "Jsoup-81",
+  "project": "Jsoup",
+  "bug_id": 81,
+  "fixed_revision": "e38dfd44829e13ee83fd62bfe937580f5a998c11",
+  "report": "https://github.com/jhy/jsoup/issues/1009",
+  "upstream": "https://github.com/jhy/jsoup",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=DataUtilTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.jsoup.helper.DataUtilTest",
+      "method": "supportsXmlCharsetDeclaration",
+      "exception": "junit.framework.AssertionFailedError: expected:<Hell[\u00f6 W\u00f6]rld!> but was:<Hell[\ufffd W\ufffd]rld!>"
+    }
+  ],
+  "failed": [
+    "org.jsoup.helper.DataUtilTest::supportsXmlCharsetDeclaration"
+  ],
+  "keep": [
+    "org.jsoup.helper.DataUtilTest.supportsXmlCharsetDeclaration",
+    "expected:<Hell[\u00f6 W\u00f6]rld!> but was:<Hell[\ufffd W\ufffd]rld!>"
+  ],
+  "unlocated": [],
+  "lines": 113,
+  "seconds": 16.9,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T15:09:43Z",
+  "pare": "0.1.0",
+  "commit": "5ed938b"
+}

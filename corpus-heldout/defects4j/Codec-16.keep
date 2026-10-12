@@ -1,0 +1,2 @@
+testCodec200(org.apache.commons.codec.binary.Base32Test)
+java.lang.IllegalArgumentException: pad must not be in alphabet or whitespace
