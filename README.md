@@ -181,7 +181,7 @@ the log.
 | tool | budget 2000: out tok, ratio, recall (min per case) | budget 600 |
 |---|---|---|
 | raw | 487,810, 100%, 100% | same |
-| pare | 8,393, 1.7%, 100% (100%) | 4,354, 0.9%, 79% (60%) |
+| pare | 8,494, 1.7%, 100% (100%) | 4,352, 0.9%, 78% (60%) |
 | sqz | 268,054, 55%, 55% (14%) | no budget knob |
 | tidyout | 293,653, 60%, 89% (11%) | no budget knob |
 
@@ -193,10 +193,10 @@ developed.
 
 On `corpus-generated/`, real Maven, tsc, Terraform and kubectl output from
 small projects written to fail (seven logs, 36k input tokens, not used for
-tuning): pare keeps 96% at 2000 (7,555 tok, 21%; the two misses are a
+tuning): pare keeps 96% at 2000 (7,638 tok, 21%; the two misses are a
 third compile error sharing a template with the second, and the reactor
-summary's FAILURE line, in the cold-cache Maven build) and 56% at 600
-(3,452 tok, min 11% on the Terraform apply, whose 20 near-identical plan
+summary's FAILURE line, in the cold-cache Maven build) and 60% at 600
+(3,527 tok, min 11% on the Terraform apply, whose 20 near-identical plan
 blocks crowd out the three check-block warnings). sqz keeps 74% at 20%, tidyout
 everything at 100%. These logs are short and dense in signal, which is
 where a 600-token summary has the least room.
@@ -204,13 +204,15 @@ where a 600-token summary has the least room.
 **Read this as a training score.** The misses were fixed by looking at
 these same eight cases, three of which are synthetic. The first held-out
 numbers, on test runs labelled by datasets rather than by anyone working
-on pare, are much lower: on 16 SWE-bench Verified tasks pare kept 60% of
+on pare, were much lower: on 16 SWE-bench Verified tasks pare kept 60% of
 the failing tests at 2,000 tokens, and on 11 Defects4J bugs 29% of the
-failing tests and exceptions at 600. The cause is the same in both: a run
-with several failing tests names each in a line of the same shape, and
-pare lists that shape once with a count. That is the next fix
-(`ROADMAP.md`, stage 3); `corpus-heldout/README.md` has the protocol and
-the per-source results. With all tool-specific rules off, pare still reaches 88% at 600
+failing tests and exceptions at 600. Both had one cause: several failing
+tests named in lines of one shape, listed once with a count. With that
+fixed (`docs/DESIGN.md`, "First change from held-out evidence"), the same
+cases give 82.5% and 48%, and a separate Defects4J development sample
+68% at 600 and 100% at 2,000. Those held-out sets helped make the fix,
+so they no longer count as held out; a fresh sample is the next
+measurement (`ROADMAP.md`). With all tool-specific rules off, pare still reaches 88% at 600
 and 94.5% at 2000 (bytes/4 units) on this corpus; the generic signals do
 most of the work.
 
@@ -252,7 +254,7 @@ for a native port are in [docs/DESIGN.md](docs/DESIGN.md).
 .venv/bin/pip install pytest && .venv/bin/python -m pytest proto/
 ```
 
-194 tests: severity forms and their false positives, vocabulary files, the
+205 tests: severity forms and their false positives, vocabulary files, the
 hard budget limit on every corpus file at several sizes, determinism,
 pass-through, the selection flags, memory on a large input, follow mode
 (including a randomized differential test against the batch pass),
@@ -275,7 +277,8 @@ bench/defects4j_cases.py held-out Java cases from Defects4J bugs, labelled by th
 integrations/          agent instructions and a Claude Code hook (integrations/README.md)
 corpus/                dev corpus: *.log, *.keep, *.cmd
 corpus-generated/      real Maven, tsc, Terraform and kubectl output from small projects in src/ (a second dev corpus, not held-out)
-corpus-heldout/        protocol for the held-out corpus (empty until collected)
+corpus-dev/defects4j/  Defects4J development sample (seed 1), used to tune the failing-test fix
+corpus-heldout/        protocol and held-out cases: SWE-bench, Defects4J (results in its README)
 docs/DESIGN.md         design notes, full results, port notes
 ROADMAP.md             what comes next, in order, and who can do it
 ```

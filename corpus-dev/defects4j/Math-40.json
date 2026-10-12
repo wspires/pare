@@ -1,0 +1,57 @@
+{
+  "bug": "Math-40",
+  "project": "Math",
+  "bug_id": 40,
+  "fixed_revision": "faa7785779c79578e38336853cb9de5abfae4813",
+  "report": "https://issues.apache.org/jira/browse/MATH-716",
+  "upstream": "https://github.com/apache/commons-math",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=BracketingNthOrderBrentSolverTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.math.analysis.solvers.BracketingNthOrderBrentSolverTest",
+      "method": "testIssue716",
+      "exception": "org.apache.commons.math.exception.TooManyEvaluationsException: illegal state: maximal count (100) exceeded: evaluations"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.math.analysis.solvers.BracketingNthOrderBrentSolverTest::testIssue716"
+  ],
+  "keep": [
+    "testIssue716(org.apache.commons.math.analysis.solvers.BracketingNthOrderBrentSolverTest)",
+    "org.apache.commons.math.exception.TooManyEvaluationsException: illegal state: maximal count (100) exceeded: evaluations"
+  ],
+  "unlocated": [],
+  "lines": 114,
+  "seconds": 19.0,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T15:24:14Z",
+  "pare": "0.1.0",
+  "commit": "d730e86"
+}

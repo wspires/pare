@@ -92,10 +92,27 @@ def fail_to_pass(task: dict) -> list[str]:
     return json.loads(v) if isinstance(v, str) else list(v)
 
 
-def select(tasks: list[dict], *, ids: list[str] | None, sample: int, seed: int, max_fail: int) -> list[dict]:
+def existing_cases(dirs: list[str]) -> set[str]:
+    """Names of the cases already in these directories (their .log files and
+    MANIFEST.tsv rows), so a fresh sample can leave them out."""
+    names: set[str] = set()
+    for d in dirs:
+        if not os.path.isdir(d):
+            sys.exit(f"{os.path.basename(sys.argv[0])}: --exclude {d}: not a directory")
+        names |= {f[:-4] for f in os.listdir(d) if f.endswith(".log")}
+        manifest = os.path.join(d, "MANIFEST.tsv")
+        if os.path.exists(manifest):
+            with open(manifest, encoding="utf-8") as f:
+                names |= {line.split("\t", 1)[0] for line in f.read().splitlines()[1:] if line}
+    return names
+
+
+def select(tasks: list[dict], *, ids: list[str] | None, sample: int, seed: int, max_fail: int,
+           exclude: set[str] = frozenset()) -> list[dict]:
     """The requested ids in order, or a seeded sample spread evenly across
     repositories (round robin), among tasks with 1..max_fail failing tests
-    (a task with fifty failing tests would dominate the recall total)."""
+    (a task with fifty failing tests would dominate the recall total),
+    leaving out the ids in exclude."""
     by_id = {t["instance_id"]: t for t in tasks}
     if ids:
         missing = [i for i in ids if i not in by_id]
@@ -105,7 +122,7 @@ def select(tasks: list[dict], *, ids: list[str] | None, sample: int, seed: int, 
     rng = random.Random(seed)
     pools: dict[str, list[dict]] = {}
     for t in sorted(tasks, key=lambda t: t["instance_id"]):
-        if 1 <= len(fail_to_pass(t)) <= max_fail:
+        if 1 <= len(fail_to_pass(t)) <= max_fail and t["instance_id"] not in exclude:
             pools.setdefault(t["repo"], []).append(t)
     for pool in pools.values():
         rng.shuffle(pool)
@@ -339,7 +356,8 @@ def swebench_version() -> str:
 def cmd_run(args, docker: Docker | None = None) -> int:
     tasks = load_tasks(args.dataset, args.split)
     ids = [i.strip() for i in args.instances.split(",") if i.strip()] if args.instances else None
-    chosen = select(tasks, ids=ids, sample=args.sample, seed=args.seed, max_fail=args.max_fail_tests)
+    chosen = select(tasks, ids=ids, sample=args.sample, seed=args.seed, max_fail=args.max_fail_tests,
+                    exclude=existing_cases(args.exclude))
     print(f"{len(chosen)} task(s) from {args.dataset} ({args.split}), "
           f"{len({t['repo'] for t in chosen})} repositories")
     if args.dry_run:
@@ -371,6 +389,8 @@ def main(argv: list[str] | None = None, docker: Docker | None = None) -> int:
     p.add_argument("--instances", help="comma-separated instance ids (default: a seeded sample)")
     p.add_argument("--sample", type=int, default=20, help="tasks to sample, spread across repositories (default 20)")
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--exclude", action="append", default=[], metavar="DIR",
+                   help="leave out tasks that already have a case in DIR (repeatable): for a fresh sample")
     p.add_argument("--max-fail-tests", type=int, default=10, help="skip tasks with more failing tests than this when sampling")
     p.add_argument("--min-lines", type=int, default=40,
                    help="skip outputs shorter than this; pare passes small outputs through unchanged (default 40)")

@@ -1,0 +1,57 @@
+{
+  "bug": "Compress-36",
+  "project": "Compress",
+  "bug_id": 36,
+  "fixed_revision": "d0501577d37b594c3ff59a39ac211f7a1b170fa7",
+  "report": "https://issues.apache.org/jira/browse/COMPRESS-348",
+  "upstream": "https://github.com/apache/commons-compress",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=SevenZFileTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.compress.archivers.sevenz.SevenZFileTest",
+      "method": "readEntriesOfSize0",
+      "exception": "java.lang.IllegalStateException: No current 7z entry (call getNextEntry() first)."
+    }
+  ],
+  "failed": [
+    "org.apache.commons.compress.archivers.sevenz.SevenZFileTest::readEntriesOfSize0"
+  ],
+  "keep": [
+    "readEntriesOfSize0(org.apache.commons.compress.archivers.sevenz.SevenZFileTest)",
+    "java.lang.IllegalStateException: No current 7z entry (call getNextEntry() first)."
+  ],
+  "unlocated": [],
+  "lines": 90,
+  "seconds": 22.5,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T15:21:50Z",
+  "pare": "0.1.0",
+  "commit": "1a90ac8"
+}

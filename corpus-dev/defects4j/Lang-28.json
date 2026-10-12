@@ -1,0 +1,59 @@
+{
+  "bug": "Lang-28",
+  "project": "Lang",
+  "bug_id": 28,
+  "fixed_revision": "bef3eb6ed060d5ae14da6ce5a1909675b8cf5650",
+  "report": "https://issues.apache.org/jira/browse/LANG-617",
+  "upstream": "https://github.com/apache/commons-lang",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=NumericEntityUnescaperTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.lang3.text.translate.NumericEntityUnescaperTest",
+      "method": "testSupplementaryUnescaping",
+      "exception": "junit.framework.ComparisonFailure: Failed to unescape numeric entities supplementary characters expected:<[\ud803\udc22]> but was:<[\u0c22]>"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.lang3.text.translate.NumericEntityUnescaperTest::testSupplementaryUnescaping"
+  ],
+  "keep": [
+    "testSupplementaryUnescaping(org.apache.commons.lang3.text.translate.NumericEntityUnescaperTest)",
+    "junit.framework.ComparisonFailure: Failed to unescape numeric entities supplementary characters expected:<[\ud803\udc22]> but was:<[\u0c22]>"
+  ],
+  "unlocated": [],
+  "lines": 101,
+  "seconds": 16.8,
+  "fixes_applied": [
+    "locale-19-35.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T15:23:52Z",
+  "pare": "0.1.0",
+  "commit": "d730e86"
+}

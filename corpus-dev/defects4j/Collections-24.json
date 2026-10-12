@@ -1,0 +1,67 @@
+{
+  "bug": "Collections-24",
+  "project": "Collections",
+  "bug_id": 24,
+  "fixed_revision": "539be680cd2b1a8f6833b28ee0cca22a88161466",
+  "report": "https://issues.apache.org/jira/browse/COLLECTIONS-496",
+  "upstream": "https://github.com/apache/commons-collections",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=UnmodifiableBoundedCollectionTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.collections4.collection.UnmodifiableBoundedCollectionTest",
+      "method": "testDecorateFactory",
+      "exception": "junit.framework.AssertionFailedError: expected same:<[, One, 2, Three, null, 4, One, 5.0, 6.0, Seven, Eight, Nine, 10, 11, 12, Thirteen, 14, 15, 16]> was not:<[, One, 2, Three, null, 4, One, 5.0, 6.0, Seven, Eight, Nine, 10, 11, 12, Thirteen, 14, 15, 16]>"
+    },
+    {
+      "class": "org.apache.commons.collections4.collection.UnmodifiableBoundedCollectionTest",
+      "method": "testUnmodifiable",
+      "exception": "junit.framework.AssertionFailedError"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.collections4.collection.UnmodifiableBoundedCollectionTest::testDecorateFactory",
+    "org.apache.commons.collections4.collection.UnmodifiableBoundedCollectionTest::testUnmodifiable"
+  ],
+  "keep": [
+    "testDecorateFactory(org.apache.commons.collections4.collection.UnmodifiableBoundedCollectionTest)",
+    "junit.framework.AssertionFailedError: expected same:<[, One, 2, Three, null, 4, One, 5.0, 6.0, Seven, Eight, Nine, 10, 11, 12, Thirteen, 14, 15, 16]> was not:<[, One, 2, Three, null, 4, One, 5.0, 6.0, Seven, Eight, Nine, 10, 11, 12, Thirteen, 14, 15, 16]>",
+    "testUnmodifiable(org.apache.commons.collections4.collection.UnmodifiableBoundedCollectionTest)",
+    "junit.framework.AssertionFailedError"
+  ],
+  "unlocated": [],
+  "lines": 96,
+  "seconds": 31.3,
+  "fixes_applied": [
+    "compile-22-24.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T15:21:25Z",
+  "pare": "0.1.0",
+  "commit": "1a90ac8"
+}

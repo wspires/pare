@@ -1,0 +1,2 @@
+testCOMPRESS178(org.apache.commons.compress.archivers.TarTestCase)
+java.lang.IllegalArgumentException: Invalid byte 0 at offset 2 in '00{NUL}0765{NUL}' len=8

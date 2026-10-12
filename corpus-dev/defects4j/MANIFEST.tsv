@@ -1,0 +1,20 @@
+name	collected	pare	commit	sha256	lines	bytes	exit	command	source	labels
+Compress-12	2026-10-12T15:17:35Z	0.1.0	1a90ac8		115	6505	1	mvn -B -Dtest=TarTestCase test	dataset	dataset trigger tests
+Csv-9	2026-10-12T15:17:51Z	0.1.0	1a90ac8		82	3691	1	mvn -B -Dtest=CSVRecordTest test	dataset	dataset trigger tests
+Gson-6	2026-10-12T15:18:10Z	0.1.0	1a90ac8		164	10387	1	mvn -B -Dtest=JsonAdapterNullSafeTest test	dataset	dataset trigger tests
+JacksonCore-20	2026-10-12T15:18:30Z	0.1.0	1a90ac8		77	4085	1	mvn -B -Dtest=Base64GenerationTest,TestGeneratorMisc test	dataset	dataset trigger tests
+JacksonDatabind-54	2026-10-12T15:18:57Z	0.1.0	1a90ac8		74	3849	1	mvn -B -Dtest=TestJDKAtomicTypes test	dataset	dataset trigger tests
+JacksonXml-2	2026-10-12T15:19:14Z	0.1.0	1a90ac8		74	3711	1	mvn -B -Dtest=XmlTextTest test	dataset	dataset trigger tests
+Jsoup-80	2026-10-12T15:19:33Z	0.1.0	1a90ac8		120	6698	1	mvn -B -Dtest=XmlTreeBuilderTest test	dataset	dataset trigger tests
+Lang-16	2026-10-12T15:19:54Z	0.1.0	1a90ac8		109	6288	1	mvn -B -Dtest=NumberUtilsTest test	dataset	dataset trigger tests
+Math-24	2026-10-12T15:20:20Z	0.1.0	1a90ac8		110	6028	1	mvn -B -Dtest=BrentOptimizerTest test	dataset	dataset trigger tests
+Codec-17	2026-10-12T15:20:51Z	0.1.0	1a90ac8		93	4611	1	mvn -B -Dtest=StringUtilsTest test	dataset	dataset trigger tests
+Collections-24	2026-10-12T15:21:25Z	0.1.0	1a90ac8		96	5436	1	mvn -B -Dtest=UnmodifiableBoundedCollectionTest test	dataset	dataset trigger tests
+Compress-36	2026-10-12T15:21:50Z	0.1.0	1a90ac8		90	4306	1	mvn -B -Dtest=SevenZFileTest test	dataset	dataset trigger tests
+Csv-7	2026-10-12T15:22:09Z	0.1.0	1a90ac8		95	4829	1	mvn -B -Dtest=CSVParserTest test	dataset	dataset trigger tests
+Gson-3	2026-10-12T15:22:26Z	0.1.0	33174e3		121	7400	1	mvn -B -Dtest=MapTest test	dataset	dataset trigger tests
+JacksonCore-6	2026-10-12T15:22:43Z	0.1.0	d730e86		94	5162	1	mvn -B -Dtest=TestJsonPointer test	dataset	dataset trigger tests
+Jsoup-68	2026-10-12T15:23:32Z	0.1.0	d730e86		1109	82997	1	mvn -B -Dtest=HtmlParserTest test	dataset	dataset trigger tests
+Lang-28	2026-10-12T15:23:52Z	0.1.0	d730e86		101	5813	1	mvn -B -Dtest=NumericEntityUnescaperTest test	dataset	dataset trigger tests
+Math-40	2026-10-12T15:24:14Z	0.1.0	d730e86		114	7064	1	mvn -B -Dtest=BracketingNthOrderBrentSolverTest test	dataset	dataset trigger tests
+Time-2	2026-10-12T15:24:40Z	0.1.0	d730e86		71	3503	1	mvn -B -Dtest=TestPartial_Basics test	dataset	dataset trigger tests

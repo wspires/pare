@@ -1,0 +1,3 @@
+testBinaryAsEmbeddedObject(com.fasterxml.jackson.core.base64.Base64GenerationTest)
+com.fasterxml.jackson.core.JsonGenerationException: No native support for writing embedded objects
+testAsEmbedded(com.fasterxml.jackson.core.main.TestGeneratorMisc)

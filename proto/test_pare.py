@@ -314,6 +314,58 @@ def test_min_severity_on_server_log_excludes_info():
     assert "FATAL [db] giving up" in out
 
 
+# --- failing tests are a list, not repeats ---------------------------------
+
+FAILING = [f"test_case_{w}" for w in ("alpha", "bravo", "charlie", "delta", "echo", "foxtrot",
+                                       "golf", "hotel", "india", "juliet", "kilo", "lima")]
+
+
+def pytest_summary_log() -> bytes:
+    lines = ["============================= test session starts =============================="]
+    lines += [f"PASSED tests/test_mod.py::test_ok_{i}" for i in range(400)]
+    lines.append("=========================== short test summary info ============================")
+    for k, name in enumerate(FAILING):
+        # pytest truncates the reason to the terminal width; half have none.
+        lines.append(f"FAILED tests/test_mod.py::TestThing::{name}" + (" - TypeError: __in..." if k % 2 else ""))
+    lines.append("======================= 12 failed, 400 passed in 3.21s ========================")
+    return ("\n".join(lines) + "\n").encode()
+
+
+def test_distinct_failing_tests_each_survive():
+    # One drain template, twelve different tests: each name is news. Before,
+    # the template's repeat penalty and the near-duplicate check (four of five
+    # tokens shared) left two of them.
+    out = run(["--budget", "1000"], pytest_summary_log()).decode()
+    assert all(name in out for name in FAILING), out
+
+
+def test_repeated_error_events_still_diminish():
+    # Crashes of the same nineteen pods, over and over. Masking leaves the pod
+    # names, so each pod is its own shape, but the template has few shapes per
+    # record: they stay repeats of one template, not a list of nineteen items.
+    pods = [f"web-{c}{d}q" for c in "abcde" for d in "wxyz"]
+    lines = []
+    for i in range(400):
+        lines.append(f"2026-10-08T09:{i // 60:02d}:{i % 60:02d}Z INFO  [sync] tick {i}")
+        if i % 2 == 0:
+            lines.append(f"2026-10-08T09:{i // 60:02d}:{i % 60:02d}Z ERROR [kube] container web in pod {pods[i % 19]}"
+                         " crashed: exception in handler, exit code 137")
+    out = run(["--budget", "2000"], ("\n".join(lines) + "\n").encode()).decode()
+    assert "T2   ×200 E" in out
+    assert len([l for l in body_lines(out) if "crashed" in l]) <= 2, out
+
+
+@pytest.mark.parametrize("advice", [
+    "[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.",
+    "[ERROR] Re-run Maven using the -X switch to enable full debug logging.",
+    "[ERROR] For more information about the errors and possible solutions, please read the following articles:",
+    "[ERROR] -> [Help 1]",
+])
+def test_build_tool_advice_ranks_below_a_failing_test(advice):
+    failing = "testFoo(com.example.FooTest)  Time elapsed: 0.012 sec  <<< FAILURE!"
+    assert pare.vocab_score(advice) < pare.vocab_score(failing)
+
+
 def body_lines(out: str) -> list[str]:
     return [l for l in out.splitlines() if GUTTER.match(l)]
 
@@ -980,6 +1032,10 @@ def test_swebench_selection_is_seeded_and_spread_across_repos():
     assert "a/a__x-99" not in {t["instance_id"] for t in sc.select(tasks, ids=None, sample=99, seed=0, max_fail=10)}
     assert [t["instance_id"] for t in sc.select(tasks, ids=["c/c__x-1", "a/a__x-2"], sample=0, seed=0, max_fail=10)] \
         == ["c/c__x-1", "a/a__x-2"]
+    # a fresh sample leaves out the tasks that already have cases
+    taken = {t["instance_id"] for t in one}
+    fresh = sc.select(tasks, ids=None, sample=99, seed=3, max_fail=10, exclude=taken)
+    assert len(fresh) == 15 - 6 and not taken & {t["instance_id"] for t in fresh}
 
 
 def test_swebench_output_slicing_and_test_id_forms():
@@ -1132,6 +1188,11 @@ def test_defects4j_metadata_parsing_and_selection(tmp_path):
     assert d4.parse_bug_ids("Lang-1, Codec-12") == [("Lang", 1), ("Codec", 12)]
     picked = d4.select(str(meta), ids=None, sample=5, seed=0, max_fail=5)
     assert {b["bug"] for b in picked} == {1, 2} and all(b["project"] == "Lang" for b in picked)
+    case_dir = tmp_path / "cases"
+    case_dir.mkdir()
+    (case_dir / "Lang-1.log").write_text("x\n")
+    assert [b["bug"] for b in d4.select(str(meta), ids=None, sample=5, seed=0, max_fail=5,
+                                        exclude=d4.existing_cases([str(case_dir)]))] == [2]
     assert d4.mvn_command(picked[0])[-2:] == ["-Dtest=CalcTest", "test"]
     out, code = d4.split_output("noise\n>>>>> pare start\nline\n>>>>> pare exit 1\n")
     assert out == "line\n" and code == 1

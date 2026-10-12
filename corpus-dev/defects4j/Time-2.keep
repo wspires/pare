@@ -1,0 +1,2 @@
+testWith_baseAndArgHaveNoRange(org.joda.time.TestPartial_Basics)
+java.lang.IllegalArgumentException: Types array must not contain duplicate: era and year

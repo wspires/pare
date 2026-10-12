@@ -1,0 +1,2 @@
+testSupplementaryUnescaping(org.apache.commons.lang3.text.translate.NumericEntityUnescaperTest)
+junit.framework.ComparisonFailure: Failed to unescape numeric entities supplementary characters expected:<[𐰢]> but was:<[ఢ]>

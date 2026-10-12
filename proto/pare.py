@@ -253,6 +253,7 @@ VOCAB_CLASSES = {
     "frame": (1.0, "source locations and stack frames"),
     "pass": (-1.0, "passing-test markers (ignored when an error word is also present)"),
     "noise": (-0.75, "progress and chatter (ignored when an error word is also present)"),
+    "advice": (-3.0, "how to get more output or help: re-run with -e, see the docs (counts even on an error line)"),
     "strong-error": (0.0, "decides whether a record body counts as an error; no weight"),
     # Structural log levels: a token in a level position or form (bare
     # UPPERCASE, [bracketed], level=x, "level":"x", `error:` prefix). When one
@@ -353,6 +354,11 @@ DEFAULT_VOCAB: dict[str, list[str]] = {
         "verbose", "debug", "trace", "info", "get", "heartbeat", "ping", "pong", "poll",
         "polling", "tick",
         r"/\d+%/", r"/\.{3,}/", "/[▏▎▍▌▋▊▉█░▒▓]/", r"/\b(?:200|204|304) (?:OK|No Content|Not Modified)\b/",
+    ],
+    "advice": [
+        "re-run", "rerun", "for more information", "for more details", "please refer to",
+        "to see the full", "run with", "get more help", "resume the build", "a complete log of this run",
+        r"/\[Help \d+\]/",
     ],
     "strong-error": [
         r"/(?i)\b\w*(?:error|exception)\b/", r"/(?i)\bpanic/", r"/(?i)\btraceback\b/",
@@ -574,6 +580,10 @@ def vocab_score(text: str, head: bool = True, sev=_UNSET, has=None) -> float:
                 s += 0.5 * VOCAB_CLASSES["error"][0]
             if warn:
                 s += 0.5 * VOCAB_CLASSES["warn"][0]
+    if has("advice", text):
+        # A build tool's closing advice ("re-run Maven with the -e switch")
+        # is printed at error level on every failure; it is not the failure.
+        s += VOCAB_CLASSES["advice"][0]
     if head and has("summary", text):
         s += VOCAB_CLASSES["summary"][0]
     if has("frame", text):
@@ -665,13 +675,29 @@ def token_set(text: str) -> frozenset[str]:
     return frozenset(TOKEN_RE.findall(text))
 
 
-def is_near_duplicate(toks: frozenset[str], shown: list[frozenset[str]]) -> bool:
+def is_near_duplicate(toks: frozenset[str], shown: list[frozenset[str]], names: bool = False) -> bool:
     """True when at least NEAR_DUP_CONTAINMENT of the line's tokens already
-    appear in one line on screen. Short lines are exempt: too easy to contain."""
+    appear in one line on screen. Short lines are exempt: too easy to contain.
+    With names=True (an error line) a line is a duplicate only when what it
+    adds is numbers: "FAILED t.py::test_a" and "FAILED t.py::test_b" share
+    four of five tokens, but the fifth is the news."""
     if len(toks) < NEAR_DUP_MIN_TOKENS:
         return False
     need = NEAR_DUP_CONTAINMENT * len(toks)
-    return any(len(toks & s) >= need for s in shown)
+    for s in shown:
+        if len(toks & s) >= need and (not names or all(t.isdigit() for t in toks - s)):
+            return True
+    return False
+
+
+def is_error_line(ln: Line) -> bool:
+    """A line that reports a failure: error level or above, or, with no level,
+    error vocabulary and no pass marker. A level wins over the vocabulary: a
+    Warning event saying "probe failed" is a warning."""
+    sev = line_sev(ln)
+    if sev is not None:
+        return sev >= 3
+    return line_has(ln, "error") and not line_has(ln, "pass")
 
 
 def shape_key(ln: Line) -> str:
@@ -701,6 +727,8 @@ DENSITY_POWER = 0.35
 FILL_PENALTY = 1.5  # divisor growth per already-shown line of the same repeat key
 FILL_FLOOR = 1.0  # lines scoring below this never pad the output
 TEMPLATE_FLOOR = 1.5  # template entries below this salience stay in the ledger (the first entry is exempt)
+LIST_DISTINCT = 0.5  # a template whose records are at least this share distinct shapes is a list of different items
+LIST_SAMPLE = 200  # ...judged on its first this many records
 COMPACT_BUDGET = 1000  # below this many tokens, multi-record entries are one line
 HINT_BUDGET = 1000  # below this, the usage hint at the end is dropped
 
@@ -1408,9 +1436,30 @@ def summarize(
         that pod/storefront-x2k9p and pod/storefront-q7m2z are one shape);
         for a continuation line, its masked shape plus severity."""
         i = no - b1
-        if store.depth[i] == 0 and rec[i] >= 0:
+        if store.depth[i] == 0 and rec[i] >= 0 and not (is_error_line(store.line(i)) and lists_items(rtpl[rec[i]])):
             return f"tpl{rtpl[rec[i]]}·sev{store.sev_of(i)}"
+        # A continuation line, or an error line of a template whose records
+        # each name something different, repeats only its masked shape: ten
+        # failing tests are one drain template, but each test name is news.
         return shape_key(store.line(i))
+
+    listing: dict[int, bool] = {}
+    tpl_records: dict[int, list[int]] = {}
+
+    def lists_items(t: int) -> bool:
+        """True when most of a template's records differ in masked shape: a
+        list of failing tests, each naming its own test. Events about the same
+        three pods, repeated, share a few shapes and are repeats."""
+        if t not in listing:
+            if not tpl_records:  # first records of every template, at most LIST_SAMPLE each
+                for ri in range(store.nrecords):
+                    rs = tpl_records.setdefault(rtpl[ri], [])
+                    if len(rs) < LIST_SAMPLE:
+                        rs.append(ri)
+            heads = tpl_records.get(t, [])
+            shapes = {shape_key(store.head_of(ri)) for ri in heads}
+            listing[t] = len(shapes) >= LIST_DISTINCT * len(heads)
+        return listing[t]
 
     keys: dict[int, str] = {}
 
@@ -1544,7 +1593,7 @@ def summarize(
                 continue
             ln = store.line(no - b1)
             toks = token_set(ln.text)
-            if ln.depth == 0 and is_near_duplicate(toks, shown_tokens):
+            if ln.depth == 0 and is_near_duplicate(toks, shown_tokens, names=is_error_line(ln)):
                 continue
             if ln.depth > 0 and len(toks) >= NEAR_DUP_MIN_TOKENS and any(toks <= t for t in shown_tokens):
                 continue  # a continuation line that is a pure restatement of a shown line

@@ -1,0 +1,2 @@
+testEmpty1256(com.fasterxml.jackson.databind.deser.TestJDKAtomicTypes)
+junit.framework.ComparisonFailure: expected:<{[]}> but was:<{["a":null]}>

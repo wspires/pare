@@ -1,0 +1,96 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --------------< org.apache.commons:commons-collections4 >---------------
+[INFO] Building Apache Commons Collections 4.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- antrun:1.7:run (javadoc.resources) @ commons-collections4 ---
+[INFO] Executing tasks
+
+main:
+[INFO] Executed tasks
+[INFO] 
+[INFO] --- remote-resources:1.4:process (default) @ commons-collections4 ---
+[INFO] 
+[INFO] --- buildnumber:1.2:create (default) @ commons-collections4 ---
+[INFO] Checking for local modifications: skipped.
+[INFO] Updating project files from SCM: skipped.
+[INFO] Executing: /bin/sh -c cd /work && svn --non-interactive info
+[INFO] Working directory: /work
+[INFO] Storing buildNumber: ?????? at timestamp: 1791818474456
+[INFO] Executing: /bin/sh -c cd /work && svn --non-interactive info
+[INFO] Working directory: /work
+[INFO] Storing buildScmBranch: UNKNOWN_BRANCH
+[INFO] 
+[INFO] --- resources:2.6:resources (default-resources) @ commons-collections4 ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory /work/src/main/resources
+[INFO] Copying 2 resources to META-INF
+[INFO] 
+[INFO] --- compiler:3.1:compile (default-compile) @ commons-collections4 ---
+[INFO] Changes detected - recompiling the module!
+[INFO] Compiling 285 source files to /work/target/classes
+[WARNING] /work/src/main/java/org/apache/commons/collections4/iterators/PushbackIterator.java: Some input files use or override a deprecated API.
+[WARNING] /work/src/main/java/org/apache/commons/collections4/iterators/PushbackIterator.java: Recompile with -Xlint:deprecation for details.
+[INFO] 
+[INFO] --- bundle:2.4.0:manifest (bundle-manifest) @ commons-collections4 ---
+[INFO] 
+[INFO] --- resources:2.6:testResources (default-testResources) @ commons-collections4 ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 142 resources
+[INFO] Copying 2 resources to META-INF
+[INFO] 
+[INFO] --- compiler:3.1:testCompile (default-testCompile) @ commons-collections4 ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- surefire:2.15:test (default-test) @ commons-collections4 ---
+[INFO] Surefire report directory: /work/target/surefire-reports
+
+-------------------------------------------------------
+ T E S T S
+-------------------------------------------------------
+Running org.apache.commons.collections4.collection.UnmodifiableBoundedCollectionTest
+Tests run: 28, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 0.379 sec <<< FAILURE! - in org.apache.commons.collections4.collection.UnmodifiableBoundedCollectionTest
+testDecorateFactory(org.apache.commons.collections4.collection.UnmodifiableBoundedCollectionTest)  Time elapsed: 0.041 sec  <<< FAILURE!
+junit.framework.AssertionFailedError: expected same:<[, One, 2, Three, null, 4, One, 5.0, 6.0, Seven, Eight, Nine, 10, 11, 12, Thirteen, 14, 15, 16]> was not:<[, One, 2, Three, null, 4, One, 5.0, 6.0, Seven, Eight, Nine, 10, 11, 12, Thirteen, 14, 15, 16]>
+	at junit.framework.Assert.fail(Assert.java:57)
+	at junit.framework.Assert.failNotSame(Assert.java:325)
+	at junit.framework.Assert.assertSame(Assert.java:288)
+	at junit.framework.Assert.assertSame(Assert.java:296)
+	at junit.framework.TestCase.assertSame(TestCase.java:465)
+	at org.apache.commons.collections4.collection.UnmodifiableBoundedCollectionTest.testDecorateFactory(UnmodifiableBoundedCollectionTest.java:94)
+
+testUnmodifiable(org.apache.commons.collections4.collection.UnmodifiableBoundedCollectionTest)  Time elapsed: 0.004 sec  <<< FAILURE!
+junit.framework.AssertionFailedError: null
+	at junit.framework.Assert.fail(Assert.java:55)
+	at junit.framework.Assert.assertTrue(Assert.java:22)
+	at junit.framework.Assert.assertTrue(Assert.java:31)
+	at junit.framework.TestCase.assertTrue(TestCase.java:201)
+	at org.apache.commons.collections4.collection.UnmodifiableBoundedCollectionTest.testUnmodifiable(UnmodifiableBoundedCollectionTest.java:88)
+
+
+Results :
+
+Failed tests: 
+  UnmodifiableBoundedCollectionTest.testDecorateFactory:94 expected same:<[, One, 2, Three, null, 4, One, 5.0, 6.0, Seven, Eight, Nine, 10, 11, 12, Thirteen, 14, 15, 16]> was not:<[, One, 2, Three, null, 4, One, 5.0, 6.0, Seven, Eight, Nine, 10, 11, 12, Thirteen, 14, 15, 16]>
+  UnmodifiableBoundedCollectionTest.testUnmodifiable:88 null
+
+Tests run: 28, Failures: 2, Errors: 0, Skipped: 0
+
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  13.456 s
+[INFO] Finished at: 2026-10-12T15:21:25Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.15:test (default-test) on project commons-collections4: There are test failures.
+[ERROR] 
+[ERROR] Please refer to /work/target/surefire-reports for the individual test results.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

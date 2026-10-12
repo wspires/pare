@@ -1,0 +1,57 @@
+{
+  "bug": "JacksonDatabind-54",
+  "project": "JacksonDatabind",
+  "bug_id": 54,
+  "fixed_revision": "f7e476edb42236ad06ab7084ecd5e6c5405bf99a",
+  "report": "https://github.com/FasterXML/jackson-databind/issues/1256",
+  "upstream": "https://github.com/FasterXML/jackson-databind",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=TestJDKAtomicTypes",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "com.fasterxml.jackson.databind.deser.TestJDKAtomicTypes",
+      "method": "testEmpty1256",
+      "exception": "junit.framework.ComparisonFailure: expected:<{[]}> but was:<{[\"a\":null]}>"
+    }
+  ],
+  "failed": [
+    "com.fasterxml.jackson.databind.deser.TestJDKAtomicTypes::testEmpty1256"
+  ],
+  "keep": [
+    "testEmpty1256(com.fasterxml.jackson.databind.deser.TestJDKAtomicTypes)",
+    "junit.framework.ComparisonFailure: expected:<{[]}> but was:<{[\"a\":null]}>"
+  ],
+  "unlocated": [],
+  "lines": 74,
+  "seconds": 24.3,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T15:18:57Z",
+  "pare": "0.1.0",
+  "commit": "1a90ac8"
+}

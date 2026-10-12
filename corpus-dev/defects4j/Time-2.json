@@ -1,0 +1,59 @@
+{
+  "bug": "Time-2",
+  "project": "Time",
+  "bug_id": 2,
+  "fixed_revision": "8612f9e5b88c1bea933ef9ab1e431f5db3006b48",
+  "report": "https://github.com/JodaOrg/joda-time/issues/93",
+  "upstream": "https://github.com/JodaOrg/joda-time",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=TestPartial_Basics",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.joda.time.TestPartial_Basics",
+      "method": "testWith_baseAndArgHaveNoRange",
+      "exception": "java.lang.IllegalArgumentException: Types array must not contain duplicate: era and year"
+    }
+  ],
+  "failed": [
+    "org.joda.time.TestPartial_Basics::testWith_baseAndArgHaveNoRange"
+  ],
+  "keep": [
+    "testWith_baseAndArgHaveNoRange(org.joda.time.TestPartial_Basics)",
+    "java.lang.IllegalArgumentException: Types array must not contain duplicate: era and year"
+  ],
+  "unlocated": [],
+  "lines": 71,
+  "seconds": 20.6,
+  "fixes_applied": [
+    "locale-1-27.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T15:24:40Z",
+  "pare": "0.1.0",
+  "commit": "d730e86"
+}

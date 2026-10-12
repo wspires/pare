@@ -24,9 +24,9 @@ The gate for everything after it.
   maintainer's machine, seed 0: 16 of 20 tasks became cases (three tasks'
   failing tests were not found in the output, one output was under 40
   lines). **pare kept 60 % of the failing tests at 2,000 tokens, min 0 %**;
-  tidyout kept all of them at 96 % of the input size. The cases are on
-  the maintainer's machine; commit `corpus-heldout/swebench/` to keep
-  them. *Done.*
+  tidyout kept all of them at 96 % of the input size. Committed in
+  `corpus-heldout/swebench/`. After the failing-test fix (stage 3): 82.5 %
+  at 2,000. *Done.*
 - [x] **Defects4J cases.** Failing Java test runs rebuilt from Defects4J
   bugs (the fixed commit from upstream, its compile-error fixes, the
   revert patch), run with the project's Maven build in a JDK 8 container,
@@ -36,9 +36,18 @@ The gate for everything after it.
   needs unpublished snapshot dependencies, Lang-59 an antrun feature
   removed from today's plugin, JxPath-5 has no Maven build). **pare kept
   94 % at 2,000 tokens, but most of these logs fit and pass through
-  untouched; at 600, where every one is summarised, it kept 29 %.** Ant
-  projects (Closure, Chart) and Mockito (Gradle) are not covered. *Done
-  for Maven.*
+  untouched; at 600, where every one is summarised, it kept 29 %.** After
+  the failing-test fix: 48 % at 600, 97 % at 2,000. Ant projects
+  (Closure, Chart) and Mockito (Gradle) are not covered. *Done for
+  Maven.*
+- [ ] **Fresh held-out sample.** Both sets above helped make the
+  failing-test fix, so they no longer measure it. Draw new tasks that
+  have no case yet and report them as their own rows:
+  `bench/swebench_cases.py run --seed 1 --exclude corpus-heldout/swebench`
+  and `bench/defects4j_cases.py run --seed 2 --exclude
+  corpus-heldout/defects4j --exclude corpus-dev/defects4j`. Write them to
+  new directories (`--out`). *Maintainer for SWE-bench (the images need
+  Docker Hub); either for Defects4J.*
 - [ ] **Claude token rate.** `bench/tokens.py --anthropic claude-opus-5-5`
   on a machine with credentials. If the rate differs much from the 2.8
   bytes per token measured on cl100k and o200k, change the default.
@@ -89,20 +98,27 @@ held-out evidence asks for it.
   error lines. Candidate: cap the table when it alone would fill the budget.
 - [ ] **Wide single-line errors.** A 230-character kubectl error loses its
   tail to `--width 200`.
-- [ ] **Failing tests collapse into one template entry. Confirmed on
-  both held-out sources; the first thing to fix.** When a run has several
-  failing tests, their summary lines (`FAILED path::test - ...`, Django's
-  `test_x (module.Class)`, Surefire's `testX(pkg.Class)`) share one
-  shape, so pare shows one exemplar and a count, and the specific tests
-  are gone. On SWE-bench: psf__requests-1921 0 of 6 at 1,992 tokens,
-  django__django-11451 2 of 6, mwaskom__seaborn-3069 0 of 2; on the
-  rebuilt requests-1142 pare used half its budget while dropping the one
-  failing test. On Defects4J at 600, Maven's `[INFO]` and `[ERROR]`
-  boilerplate takes the budget the test names and exceptions need.
-  Candidate: lines that name a failing test compete individually, with
-  no repeat penalty among themselves, ahead of build-tool chatter. After
-  the fix both held-out sets have influenced the code: collect a fresh
-  sample (another seed) to measure it.
+- [x] **Failing tests collapse into one template entry.** Found on both
+  held-out sources: several failing tests (`FAILED path::test - ...`,
+  Django's `test_x (module.Class)`, Surefire's `testX(pkg.Class)`) share
+  one shape, so pare showed one exemplar and a count. Fixed by treating an
+  error line in a template of mostly distinct shapes as a list item rather
+  than a repeat, and by an `advice` vocabulary class for build-tool
+  closing advice (Maven's `re-run with -e`, `[Help 1]`), which took the
+  600-token budget on Maven runs. SWE-bench 60 → 82.5 % at 2,000;
+  Defects4J 29 → 48 % at 600; a separate Defects4J dev sample 43 → 68 %
+  at 600; dev corpus 79.5 → 78 % at 600 (one pytest line), unchanged at
+  2,000. Details in `docs/DESIGN.md`, "First change from held-out
+  evidence". *Done.*
+- [ ] **Which of many failures matter.** When most failing tests fail the
+  same way (an environment problem) and a few differ, the few are the
+  news; SWE-bench mwaskom__seaborn-3069 has 74 of one kind and the two the
+  dataset cares about, and pytest's summary cuts the reason that would
+  tell them apart. Candidate: group failing tests by their failure (the
+  `E` line or exception under each section) and show the small groups
+  first. Needs evidence from the fresh sample first.
+- [ ] **SWE-bench at 600.** 45 %: the first traceback and a few names fit.
+  Probably the same "which failures" question.
 - [ ] **Re-ablate removed terms.** The end-of-output position bonus and
   the first-occurrence bonus were removed by ablation on the dev corpus;
   re-test them on the held-out set.

@@ -1,0 +1,2 @@
+testIZeroIndex(com.fasterxml.jackson.core.TestJsonPointer)
+junit.framework.AssertionFailedError: expected:<-1> but was:<0>

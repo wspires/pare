@@ -1,0 +1,61 @@
+{
+  "bug": "Lang-16",
+  "project": "Lang",
+  "bug_id": 16,
+  "fixed_revision": "41326bf5266ecc6472bab28481b77cecd6f7fb5c",
+  "report": "https://issues.apache.org/jira/browse/LANG-746",
+  "upstream": "https://github.com/apache/commons-lang",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=NumberUtilsTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.lang3.math.NumberUtilsTest",
+      "method": "testCreateNumber",
+      "exception": "java.lang.NumberFormatException: 0Xfade is not a valid number."
+    }
+  ],
+  "failed": [
+    "org.apache.commons.lang3.math.NumberUtilsTest::testCreateNumber"
+  ],
+  "keep": [
+    "testCreateNumber(org.apache.commons.lang3.math.NumberUtilsTest)",
+    "java.lang.NumberFormatException: 0Xfade is not a valid number."
+  ],
+  "unlocated": [],
+  "lines": 109,
+  "seconds": 18.2,
+  "fixes_applied": [
+    "test-1-16.diff",
+    "test-1-21.diff",
+    "test-5-27.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T15:19:54Z",
+  "pare": "0.1.0",
+  "commit": "1a90ac8"
+}

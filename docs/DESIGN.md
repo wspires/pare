@@ -264,6 +264,7 @@ weights:
 | `frame` | +1 | stack frames and `file.ext:line` locations |
 | `pass` | −1 | ✓, PASS, ok: structural, so words in a test name (`✓ throws on invalid`) do not count |
 | `noise` | −0.75 | downloading, compiling, debug, progress bars, … (ignored when the line also has an error word) |
+| `advice` | −3 | re-run, for more information, please refer to, `[Help 1]`, …: a build tool's closing advice, counted even on an error line |
 | `strong-error` | — | decides whether a record *body* makes its template an error |
 | `level-fatal` … `level-debug` | +4 … −1 | plain level tokens for the structural detection above |
 
@@ -355,9 +356,22 @@ and it is a hard limit.
   template's exemplar head is itself a line candidate, so it can appear even
   when the entry does not make the cut; the entry takes the line over if
   placed later.
+- Repeats: a raw line's priority is divided by `1 + 1.5 × n`, where n
+  counts lines already shown with the same repeat key. A record head's key
+  is its drain template and severity (two pods' identical warnings are one
+  shape however the pod names mask); a continuation line's is its masked
+  text. The exception is an error line in a template whose records are a
+  list of different things: when at least half of the template's records
+  (the first 200) have distinct masked shapes, an error head repeats only
+  by its masked text. Twelve `FAILED t.py::test_x` lines are one drain
+  template with twelve shapes, and each test name is news; crashes of the
+  same few pods, over and over, are one template with few shapes per
+  record, and stay repeats.
 - Guards against restatement: a one-line record whose tokens are mostly
   (80 %) contained in a shown line, or a continuation line that is a pure
-  token subset of one, is skipped; an exemplar the head or tail window
+  token subset of one, is skipped (an error line only when what it adds is
+  numbers: `FAILED t.py::test_a` and `FAILED t.py::test_b` share four of
+  five tokens, but the fifth is the test); an exemplar the head or tail window
   already prints is referenced (`L308 (in tail)`), not repeated; a
   singleton whose whole record a window prints is not listed.
 - A template floor (`TEMPLATE_FLOOR`, 1.5): an entry below that salience
@@ -515,7 +529,7 @@ ceiling. sqz and tidyout have no budget, so only their counts change.
 | tool | budget 2000: out tok, ratio, recall (min) | budget 600 |
 |---|---|---|
 | raw | 487,810, 100%, 100% | same |
-| pare | 8,393, 1.7%, 100% (100%) | 4,354, 0.9%, 79% (60%) |
+| pare | 8,494, 1.7%, 100% (100%) | 4,352, 0.9%, 78% (60%) |
 | sqz | 268,054, 55%, 55% (14%) | no budget knob |
 | tidyout | 293,653, 60%, 89% (11%) | no budget knob |
 
@@ -524,13 +538,13 @@ Per case, pare:
 | case | in tok | 2000: out tok, recall | 600: out tok, recall |
 |---|---:|---|---|
 | cargo-build | 1,350 | pass-through, 8/8 | 598, 7/8 |
-| ci-pipeline | 267,891 | 1,989, 15/15 | 600, 9/15 |
+| ci-pipeline | 267,891 | 1,990, 15/15 | 600, 9/15 |
 | go-test | 3,160 | 717, 11/11 | 585, 8/11 |
 | jest-fail | 6,280 | 1,043, 10/10 | 596, 10/10 |
-| make-build | 3,311 | 936, 7/7 | 598, 7/7 |
+| make-build | 3,311 | 957, 7/7 | 598, 7/7 |
 | npm-install | 7,799 | 309, 2/2 | 212, 2/2 |
-| pytest-fail | 6,803 | 1,202, 11/11 | 580, 9/11 |
-| server-outage | 191,216 | 847, 9/9 | 585, 6/9 |
+| pytest-fail | 6,803 | 1,240, 11/11 | 578, 8/11 |
+| server-outage | 191,216 | 888, 9/9 | 585, 6/9 |
 
 Two changes after the heuristics were frozen moved these numbers, both
 format rather than scoring and both evaluated on both corpora before
@@ -542,6 +556,12 @@ losses at 600 are still spread over five files: one cargo location, six
 of fifteen in the CI log, two go frames and a FAIL line, two pytest
 exception lines, and three server-outage lines. Nothing else was tuned
 at this setting.
+
+The failing-test fix (below, "First change from held-out evidence") cost
+one line here: at 600, pytest-fail now shows the failing assertion's
+location (`tests/test_cart.py:18: AssertionError`, a different exception
+type from the template's exemplar, so no longer a repeat) and the last
+exception line misses the budget by 11 bytes; 9/11 became 8/11.
 
 ### How the misses were fixed (history)
 
@@ -567,6 +587,12 @@ cause rather than a weight:
   `invalid`; a pass marker is now structural.
 - The `kubectl … --timeout=300s` command echo ranked as an error; word
   boundaries exclude `-`.
+- Several failing tests (`FAILED path::test`, `testX(pkg.Class) <<<
+  FAILURE!`) shared one drain template, so the repeat penalty and the
+  near-duplicate guard left one or two of them; an error line in a
+  template of mostly distinct shapes now repeats only by its own shape.
+  Maven's closing `[ERROR]` advice took the 600-token budget from the test
+  names; an `advice` vocabulary class. Found on held-out sets; see below.
 
 ## Validation status
 
@@ -588,6 +614,51 @@ come from:
    broken build, find an outage cause) run with the full output, with pare,
    with sqz and with tidyout in the agent's context, reporting task success
    and tokens side by side.
+
+### First change from held-out evidence
+
+The first held-out numbers (SWE-bench Verified and Defects4J, labelled by
+the datasets; `corpus-heldout/README.md`) showed one failure on both
+sources: a run with several failing tests lists each in a line of the
+same shape, and pare showed one exemplar and a count. Two changes, both
+in "Allocation" and "Vocabulary" above:
+
+1. **Failing tests are a list, not repeats.** An error line in a template
+   whose records are mostly distinct masked shapes repeats only by its
+   own shape, and the near-duplicate guard drops an error line only when
+   what it adds is numbers. The guard against the opposite mistake (the
+   same few pods' crashes counted as news) is the distinct-shape ratio.
+2. **Build-tool advice is not the failure.** Maven ends every failed
+   build with eight or so `[ERROR]` lines of advice (`re-run Maven with
+   the -e switch`, `[Help 1]`), each a singleton template at error level,
+   so each outranked the failing tests at 600. The `advice` class (−3)
+   counts even on an error line.
+
+Developed on a separate Defects4J sample (seed 1, 19 bugs, none in the
+held-out set: `corpus-dev/defects4j/`) and checked against both dev
+corpora. Recall, before → after:
+
+| set | 600 | 1,000 | 2,000 |
+|---|---|---|---|
+| dev corpus (8) | 79.5 → 78.1 % | 95.9 → 95.9 % | 100 → 100 % |
+| generated corpus (7) | 56.1 → 59.6 % | 82.5 → 84.2 % | 96.5 → 96.5 % |
+| Defects4J dev, seed 1 (19) | 43.2 → 68.2 % | 75.0 → 90.9 % | 95.5 → 100 % |
+| *held-out* SWE-bench, seed 0 (16) | 47.5 → 45.0 % | 55.0 → 65.0 % | 60.0 → 82.5 % |
+| *held-out* Defects4J, seed 0 (11) | 29.0 → 48.4 % | 54.8 → 77.4 % | 93.5 → 96.8 % |
+
+The held-out sets are no longer held out: they found the problem, and the
+first version of change 1 was checked on them before the seed-1 dev set
+existed. A fresh sample measures the fix honestly (`--exclude` leaves out
+the tasks that already have cases). What the held-out sets still show:
+
+- **Which failures matter.** mwaskom__seaborn-3069 has 76 failing tests,
+  74 failing the same way (a pandas option missing from the environment);
+  the dataset cares about the other two. Their summary lines are cut by
+  pytest at `- as...`, so nothing on them says they fail differently, and
+  76 names do not fit in 2,000 tokens. Still 0 of 2.
+- **600 on SWE-bench.** pytest's per-test sections and summary both name
+  the test; at 600 the budget holds the first failure's traceback and a
+  few names. django__django-11451 went from 2 of 6 to 1 of 6.
 
 ### Generated corpus: real tools, chosen failures
 

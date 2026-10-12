@@ -1,0 +1,57 @@
+{
+  "bug": "JacksonCore-6",
+  "project": "JacksonCore",
+  "bug_id": 6,
+  "fixed_revision": "d99951470163764b3e01a119dab2822e5fd98204",
+  "report": "https://github.com/FasterXML/jackson-core/issues/176",
+  "upstream": "https://github.com/FasterXML/jackson-core",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=TestJsonPointer",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "com.fasterxml.jackson.core.TestJsonPointer",
+      "method": "testIZeroIndex",
+      "exception": "junit.framework.AssertionFailedError: expected:<-1> but was:<0>"
+    }
+  ],
+  "failed": [
+    "com.fasterxml.jackson.core.TestJsonPointer::testIZeroIndex"
+  ],
+  "keep": [
+    "testIZeroIndex(com.fasterxml.jackson.core.TestJsonPointer)",
+    "junit.framework.AssertionFailedError: expected:<-1> but was:<0>"
+  ],
+  "unlocated": [],
+  "lines": 94,
+  "seconds": 15.6,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T15:22:43Z",
+  "pare": "0.1.0",
+  "commit": "d730e86"
+}

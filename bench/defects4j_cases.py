@@ -172,9 +172,26 @@ def parse_bug_ids(spec: str) -> list[tuple[str, int]]:
     return out
 
 
-def select(meta: str, *, ids: list[tuple[str, int]] | None, sample: int, seed: int, max_fail: int) -> list[dict]:
+def existing_cases(dirs: list[str]) -> set[str]:
+    """Names of the cases already in these directories (their .log files and
+    MANIFEST.tsv rows), so a fresh sample can leave them out."""
+    names: set[str] = set()
+    for d in dirs:
+        if not os.path.isdir(d):
+            sys.exit(f"{os.path.basename(sys.argv[0])}: --exclude {d}: not a directory")
+        names |= {f[:-4] for f in os.listdir(d) if f.endswith(".log")}
+        manifest = os.path.join(d, "MANIFEST.tsv")
+        if os.path.exists(manifest):
+            with open(manifest, encoding="utf-8") as f:
+                names |= {line.split("\t", 1)[0] for line in f.read().splitlines()[1:] if line}
+    return names
+
+
+def select(meta: str, *, ids: list[tuple[str, int]] | None, sample: int, seed: int, max_fail: int,
+           exclude: set[str] = frozenset()) -> list[dict]:
     """The requested bugs in order, or a seeded sample spread across projects
-    (round robin) among bugs with 1..max_fail trigger tests."""
+    (round robin) among bugs with 1..max_fail trigger tests, leaving out the
+    names in exclude."""
     if ids:
         chosen = []
         for project, bug in ids:
@@ -191,7 +208,7 @@ def select(meta: str, *, ids: list[tuple[str, int]] | None, sample: int, seed: i
         pool = []
         for b in sorted(bugs_of(meta, project), key=lambda b: b["bug"]):
             t = trigger_tests(meta, project, b["bug"])
-            if 1 <= len(t) <= max_fail:
+            if 1 <= len(t) <= max_fail and f"{project}-{b['bug']}" not in exclude:
                 pool.append({**b, "triggers": t})
         rng.shuffle(pool)
         if pool:
@@ -464,7 +481,8 @@ def save_failed(out: str, name: str, log: str) -> None:
 def cmd_run(args, docker: Docker | None = None) -> int:
     ensure_metadata(args.defects4j)
     ids = parse_bug_ids(args.bugs) if args.bugs else None
-    chosen = select(args.defects4j, ids=ids, sample=args.sample, seed=args.seed, max_fail=args.max_fail_tests)
+    chosen = select(args.defects4j, ids=ids, sample=args.sample, seed=args.seed, max_fail=args.max_fail_tests,
+                    exclude=existing_cases(args.exclude))
     print(f"{len(chosen)} bug(s), {len({b['project'] for b in chosen})} projects")
     if args.dry_run:
         for b in chosen:
@@ -498,6 +516,8 @@ def main(argv: list[str] | None = None, docker: Docker | None = None) -> int:
     p.add_argument("--bugs", help="comma-separated bug ids like Lang-1,Codec-3 (default: a seeded sample)")
     p.add_argument("--sample", type=int, default=20, help="bugs to sample, spread across projects (default 20)")
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--exclude", action="append", default=[], metavar="DIR",
+                   help="leave out bugs that already have a case in DIR (repeatable): for a fresh sample")
     p.add_argument("--max-fail-tests", type=int, default=5, help="skip bugs with more trigger tests than this when sampling")
     p.add_argument("--min-lines", type=int, default=40, help="skip outputs shorter than this (default 40)")
     p.add_argument("--timeout", type=int, default=1800, help="seconds per bug, both runs (default 1800)")

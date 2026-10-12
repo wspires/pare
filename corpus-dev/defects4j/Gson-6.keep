@@ -1,0 +1,3 @@
+com.google.gson.regression.JsonAdapterNullSafeTest.testNullSafeBugDeserialize
+java.lang.NullPointerException
+com.google.gson.regression.JsonAdapterNullSafeTest.testNullSafeBugSerialize

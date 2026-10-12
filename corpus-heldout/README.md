@@ -92,14 +92,24 @@ Recall is the share of keep lines in pare's output.
 
 | source | cases | budget 2,000 | budget 600 |
 |---|---:|---|---|
-| SWE-bench Verified, seed 0 (maintainer's run) | 16 | 60 % (min 0 %) | not yet run |
-| Defects4J, seed 0, one bug per project | 11 | 94 % (min 50 %), mostly pass-through | 29 % (min 0 %) |
-| dev corpus, for comparison (tuned on) | 8 | 100 % | 79 % |
+| SWE-bench Verified, seed 0 (maintainer's run) | 16 | 60 % → 82.5 % (min 0 %) | 47.5 % → 45 % |
+| Defects4J, seed 0, one bug per project | 11 | 94 % → 97 % (min 75 %), mostly pass-through | 29 % → 48 % (min 25 %) |
+| dev corpus, for comparison (tuned on) | 8 | 100 % | 79.5 % → 78 % |
 
-Both sources miss in the same way: a run with several failing tests
-names each in a line of the same shape, pare lists that shape once with
-a count, and the tests themselves are dropped. ROADMAP.md stage 3 has
-the details.
+The first numbers are pare before the failing-test fix, the second after.
+Both sources missed in the same way: a run with several failing tests
+names each in a line of the same shape, pare listed that shape once with a
+count, and the tests themselves were dropped; on Maven at 600, the build's
+closing `[ERROR]` advice took the budget as well. The fix was developed on
+a separate Defects4J sample (`corpus-dev/defects4j/`), but these sets
+found the problem and were checked during the work, so **they are no
+longer held out**. The after-fix numbers are a dev score; a fresh sample
+is the honest one. Draw it without the tasks that already have cases:
+
+```
+python3 bench/swebench_cases.py run --seed 1 --exclude corpus-heldout/swebench --out corpus-heldout/swebench-2
+python3 bench/defects4j_cases.py run --seed 2 --exclude corpus-heldout/defects4j --exclude corpus-dev/defects4j --out corpus-heldout/defects4j-2
+```
 
 ## Protocol
 

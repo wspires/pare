@@ -1,0 +1,57 @@
+{
+  "bug": "Jsoup-68",
+  "project": "Jsoup",
+  "bug_id": 68,
+  "fixed_revision": "adb7a15a1e2dd6742a25592602a6e8ee77b518b6",
+  "report": "https://github.com/jhy/jsoup/issues/966",
+  "upstream": "https://github.com/jhy/jsoup",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=HtmlParserTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.jsoup.parser.HtmlParserTest",
+      "method": "testHandlesDeepSpans",
+      "exception": "java.lang.StackOverflowError"
+    }
+  ],
+  "failed": [
+    "org.jsoup.parser.HtmlParserTest::testHandlesDeepSpans"
+  ],
+  "keep": [
+    "org.jsoup.parser.HtmlParserTest.testHandlesDeepSpans",
+    "java.lang.StackOverflowError"
+  ],
+  "unlocated": [],
+  "lines": 1109,
+  "seconds": 30.3,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T15:23:32Z",
+  "pare": "0.1.0",
+  "commit": "d730e86"
+}
