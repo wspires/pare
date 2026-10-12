@@ -1,0 +1,27 @@
+{
+  "instance_id": "sphinx-doc__sphinx-8548",
+  "repo": "sphinx-doc/sphinx",
+  "version": "3.4",
+  "base_commit": "dd1615c59dc6fff633e27dbb3861f2d27e1fb976",
+  "image": "swebench/sweb.eval.x86_64.sphinx-doc_1776_sphinx-8548:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "tests/test_ext_autodoc_autoclass.py::test_inherited_instance_variable"
+  ],
+  "failed": [
+    "tests/test_ext_autodoc_autoclass.py::test_inherited_instance_variable"
+  ],
+  "keep": [
+    "tests/test_ext_autodoc_autoclass.py::test_inherited_instance_variable"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 5,
+  "lines": 167,
+  "seconds": 6.4,
+  "network": "bridge",
+  "collected": "2026-10-12T16:27:57Z",
+  "pare": "0.1.0",
+  "commit": "0fc602e",
+  "swebench": "5.0.2"
+}

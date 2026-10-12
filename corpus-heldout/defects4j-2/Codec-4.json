@@ -1,0 +1,65 @@
+{
+  "bug": "Codec-4",
+  "project": "Codec",
+  "bug_id": 4,
+  "fixed_revision": "bcfef8906931a7929a6db14b9d82d387fd3f17f6",
+  "report": "https://issues.apache.org/jira/browse/CODEC-89",
+  "upstream": "https://github.com/apache/commons-codec",
+  "image": "maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=Base64Codec13Test",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.codec.binary.Base64Codec13Test",
+      "method": "testEncoder",
+      "exception": "junit.framework.AssertionFailedError: Encoder test-1"
+    },
+    {
+      "class": "org.apache.commons.codec.binary.Base64Codec13Test",
+      "method": "testBinaryEncoder",
+      "exception": "junit.framework.AssertionFailedError: BinaryEncoder test-1"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.codec.binary.Base64Codec13Test::testEncoder",
+    "org.apache.commons.codec.binary.Base64Codec13Test::testBinaryEncoder"
+  ],
+  "keep": [
+    "testEncoder(org.apache.commons.codec.binary.Base64Codec13Test)",
+    "junit.framework.AssertionFailedError: Encoder test-1",
+    "testBinaryEncoder(org.apache.commons.codec.binary.Base64Codec13Test)",
+    "junit.framework.AssertionFailedError: BinaryEncoder test-1"
+  ],
+  "unlocated": [],
+  "lines": 86,
+  "seconds": 19.2,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T16:29:09Z",
+  "pare": "0.1.0",
+  "commit": "0fc602e"
+}

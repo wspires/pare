@@ -1,0 +1,27 @@
+{
+  "instance_id": "astropy__astropy-13453",
+  "repo": "astropy/astropy",
+  "version": "5.0",
+  "base_commit": "19cc80471739bcb67b7e8099246b391c355023ee",
+  "image": "swebench/sweb.eval.x86_64.astropy_1776_astropy-13453:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "astropy/io/ascii/tests/test_html.py::test_write_table_formatted_columns"
+  ],
+  "failed": [
+    "astropy/io/ascii/tests/test_html.py::test_write_table_formatted_columns"
+  ],
+  "keep": [
+    "astropy/io/ascii/tests/test_html.py::test_write_table_formatted_columns"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 9,
+  "lines": 166,
+  "seconds": 90.7,
+  "network": "bridge",
+  "collected": "2026-10-12T15:43:50Z",
+  "pare": "0.1.0",
+  "commit": "0fc602e",
+  "swebench": "5.0.2"
+}

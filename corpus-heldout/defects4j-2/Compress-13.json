@@ -1,0 +1,65 @@
+{
+  "bug": "Compress-13",
+  "project": "Compress",
+  "bug_id": 13,
+  "fixed_revision": "c75c10faae27781aeb51713f42153cad1fd242a4",
+  "report": "https://issues.apache.org/jira/browse/COMPRESS-176",
+  "upstream": "https://github.com/apache/commons-compress",
+  "image": "maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=ZipArchiveInputStreamTest,ZipFileTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.compress.archivers.zip.ZipArchiveInputStreamTest",
+      "method": "winzipBackSlashWorkaround",
+      "exception": "junit.framework.AssertionFailedError: expected:<\u00e4[/]> but was:<\u00e4[\\]>"
+    },
+    {
+      "class": "org.apache.commons.compress.archivers.zip.ZipFileTest",
+      "method": "testWinzipBackSlashWorkaround",
+      "exception": "junit.framework.AssertionFailedError: Expected: <null> but was: \u00e4\\\u00fc.txt"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.compress.archivers.zip.ZipArchiveInputStreamTest::winzipBackSlashWorkaround",
+    "org.apache.commons.compress.archivers.zip.ZipFileTest::testWinzipBackSlashWorkaround"
+  ],
+  "keep": [
+    "winzipBackSlashWorkaround(org.apache.commons.compress.archivers.zip.ZipArchiveInputStreamTest)",
+    "expected:<\u00e4[/]> but was:<\u00e4[\\]>",
+    "testWinzipBackSlashWorkaround(org.apache.commons.compress.archivers.zip.ZipFileTest)",
+    "junit.framework.AssertionFailedError: Expected: <null> but was: \u00e4\\\u00fc.txt"
+  ],
+  "unlocated": [],
+  "lines": 149,
+  "seconds": 10.0,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T16:32:47Z",
+  "pare": "0.1.0",
+  "commit": "0fc602e"
+}

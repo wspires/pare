@@ -1,0 +1,27 @@
+{
+  "instance_id": "pytest-dev__pytest-10081",
+  "repo": "pytest-dev/pytest",
+  "version": "7.2",
+  "base_commit": "da9a2b584eb7a6c7e924b2621ed0ddaeca0a7bea",
+  "image": "swebench/sweb.eval.x86_64.pytest-dev_1776_pytest-10081:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "testing/test_unittest.py::test_pdb_teardown_skipped_for_classes[@unittest.skip]"
+  ],
+  "failed": [
+    "testing/test_unittest.py::test_pdb_teardown_skipped_for_classes[@unittest.skip]"
+  ],
+  "keep": [
+    "testing/test_unittest.py::test_pdb_teardown_skipped_for_classes[@unittest.skip]"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 63,
+  "lines": 1439,
+  "seconds": 9.4,
+  "network": "bridge",
+  "collected": "2026-10-12T16:26:10Z",
+  "pare": "0.1.0",
+  "commit": "0fc602e",
+  "swebench": "5.0.2"
+}

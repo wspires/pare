@@ -1,0 +1,27 @@
+{
+  "instance_id": "scikit-learn__scikit-learn-13124",
+  "repo": "scikit-learn/scikit-learn",
+  "version": "0.21",
+  "base_commit": "9f0b959a8c9195d1b6e203f08b698e052b426ca9",
+  "image": "swebench/sweb.eval.x86_64.scikit-learn_1776_scikit-learn-13124:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "sklearn/model_selection/tests/test_split.py::test_shuffle_stratifiedkfold"
+  ],
+  "failed": [
+    "sklearn/model_selection/tests/test_split.py::test_shuffle_stratifiedkfold"
+  ],
+  "keep": [
+    "sklearn/model_selection/tests/test_split.py::test_shuffle_stratifiedkfold"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 60,
+  "lines": 100,
+  "seconds": 8.5,
+  "network": "bridge",
+  "collected": "2026-10-12T16:27:16Z",
+  "pare": "0.1.0",
+  "commit": "0fc602e",
+  "swebench": "5.0.2"
+}

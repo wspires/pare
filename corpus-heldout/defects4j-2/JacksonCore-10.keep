@@ -1,0 +1,8 @@
+testIssue207(com.fasterxml.jackson.core.sym.TestByteBasedSymbols)
+java.lang.ArrayIndexOutOfBoundsException: 256
+testCollisionsWithBytesNew187b(com.fasterxml.jackson.core.sym.TestSymbolTables)
+junit.framework.AssertionFailedError: expected:<16384> but was:<32768>
+testSyntheticWithBytesNew(com.fasterxml.jackson.core.sym.TestSymbolTables)
+junit.framework.AssertionFailedError: expected:<8534> but was:<8524>
+testShortNameCollisionsDirectNew(com.fasterxml.jackson.core.sym.TestSymbolTables)
+junit.framework.AssertionFailedError: expected:<1024> but was:<2048>

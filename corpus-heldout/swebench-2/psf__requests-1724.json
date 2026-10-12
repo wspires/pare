@@ -1,0 +1,42 @@
+{
+  "instance_id": "psf__requests-1724",
+  "repo": "psf/requests",
+  "version": "2.0",
+  "base_commit": "1ba83c47ce7b177efe90d5f51f7760680f72eda0",
+  "image": "swebench/sweb.eval.x86_64.psf_1776_requests-1724:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "test_requests.py::RequestsTestCase::test_DIGEST_AUTH_RETURNS_COOKIE",
+    "test_requests.py::RequestsTestCase::test_DIGEST_HTTP_200_OK_GET",
+    "test_requests.py::RequestsTestCase::test_different_encodings_dont_break_post",
+    "test_requests.py::RequestsTestCase::test_generic_cookiejar_works",
+    "test_requests.py::RequestsTestCase::test_uppercase_scheme_redirect",
+    "test_requests.py::RequestsTestCase::test_user_agent_transfers"
+  ],
+  "failed": [
+    "test_requests.py::RequestsTestCase::test_DIGEST_AUTH_RETURNS_COOKIE",
+    "test_requests.py::RequestsTestCase::test_DIGEST_HTTP_200_OK_GET",
+    "test_requests.py::RequestsTestCase::test_different_encodings_dont_break_post",
+    "test_requests.py::RequestsTestCase::test_generic_cookiejar_works",
+    "test_requests.py::RequestsTestCase::test_uppercase_scheme_redirect",
+    "test_requests.py::RequestsTestCase::test_user_agent_transfers"
+  ],
+  "keep": [
+    "test_requests.py::RequestsTestCase::test_DIGEST_AUTH_RETURNS_COOKIE",
+    "test_requests.py::RequestsTestCase::test_DIGEST_HTTP_200_OK_GET",
+    "test_requests.py::RequestsTestCase::test_different_encodings_dont_break_post",
+    "test_requests.py::RequestsTestCase::test_generic_cookiejar_works",
+    "test_requests.py::RequestsTestCase::test_uppercase_scheme_redirect",
+    "test_requests.py::RequestsTestCase::test_user_agent_transfers"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 79,
+  "lines": 959,
+  "seconds": 11.6,
+  "network": "bridge",
+  "collected": "2026-10-12T16:22:29Z",
+  "pare": "0.1.0",
+  "commit": "0fc602e",
+  "swebench": "5.0.2"
+}

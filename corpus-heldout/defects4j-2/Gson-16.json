@@ -1,0 +1,66 @@
+{
+  "bug": "Gson-16",
+  "project": "Gson",
+  "bug_id": 16,
+  "fixed_revision": "03a72e752ef68269990f984c9fd613cfd59224bc",
+  "report": "https://github.com/google/gson/pull/1128",
+  "upstream": "https://github.com/google/gson",
+  "image": "maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=RecursiveTypesResolveTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "com.google.gson.internal.bind.RecursiveTypesResolveTest",
+      "method": "testRecursiveTypeVariablesResolve12",
+      "exception": "java.lang.StackOverflowError"
+    },
+    {
+      "class": "com.google.gson.internal.bind.RecursiveTypesResolveTest",
+      "method": "testRecursiveTypeVariablesResolve1",
+      "exception": "java.lang.StackOverflowError"
+    }
+  ],
+  "failed": [
+    "com.google.gson.internal.bind.RecursiveTypesResolveTest::testRecursiveTypeVariablesResolve12",
+    "com.google.gson.internal.bind.RecursiveTypesResolveTest::testRecursiveTypeVariablesResolve1"
+  ],
+  "keep": [
+    "com.google.gson.internal.bind.RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve12",
+    "java.lang.StackOverflowError",
+    "com.google.gson.internal.bind.RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve1"
+  ],
+  "unlocated": [],
+  "lines": 2153,
+  "seconds": 11.4,
+  "fixes_applied": [
+    "locale-15-18.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T16:33:10Z",
+  "pare": "0.1.0",
+  "commit": "0fc602e"
+}

@@ -1,0 +1,2 @@
+org.jsoup.nodes.DocumentTypeTest.testRoundTrip
+expected:<<!DOCTYPE html [SYSTEM ]"exampledtdfile.dtd"...> but was:<<!DOCTYPE html []"exampledtdfile.dtd"...>

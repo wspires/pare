@@ -1,0 +1,2 @@
+testCustomMapValueDeser735(com.fasterxml.jackson.databind.deser.TestCustomDeserializers)
+junit.framework.AssertionFailedError: expected:<1> but was:<100>

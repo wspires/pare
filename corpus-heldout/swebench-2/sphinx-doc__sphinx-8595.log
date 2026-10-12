@@ -1,0 +1,79 @@
+py39: commands[0]> python -X dev -m pytest -rA --durations 25 tests/roots/test-ext-autodoc/target/empty_all.py tests/test_ext_autodoc_automodule.py
+[1m============================= test session starts ==============================[0m
+platform linux -- Python 3.9.20, pytest-8.3.3, pluggy-1.5.0
+cachedir: .tox/py39/.pytest_cache
+libraries: Sphinx-3.5.0+/9d57ddaa2, docutils-0.21.2
+base tempdir: /tmp/pytest-of-root/pytest-0
+rootdir: /testbed
+configfile: setup.cfg
+plugins: cov-5.0.0
+collected 1 item
+
+tests/test_ext_autodoc_automodule.py [31mF[0m[31m                                   [100%][0m
+
+=================================== FAILURES ===================================
+[31m[1m________________________________ test_empty_all ________________________________[0m
+
+app = <SphinxTestApp buildername='html'>
+
+    [0m[37m@pytest[39;49;00m.mark.sphinx([33m'[39;49;00m[33mhtml[39;49;00m[33m'[39;49;00m, testroot=[33m'[39;49;00m[33mext-autodoc[39;49;00m[33m'[39;49;00m)[90m[39;49;00m
+    [94mdef[39;49;00m [92mtest_empty_all[39;49;00m(app):[90m[39;49;00m
+        options = {[33m'[39;49;00m[33mmembers[39;49;00m[33m'[39;49;00m: [94mTrue[39;49;00m}[90m[39;49;00m
+        actual = do_autodoc(app, [33m'[39;49;00m[33mmodule[39;49;00m[33m'[39;49;00m, [33m'[39;49;00m[33mtarget.empty_all[39;49;00m[33m'[39;49;00m, options)[90m[39;49;00m
+>       [94massert[39;49;00m [96mlist[39;49;00m(actual) == [[90m[39;49;00m
+            [33m'[39;49;00m[33m'[39;49;00m,[90m[39;49;00m
+            [33m'[39;49;00m[33m.. py:module:: target.empty_all[39;49;00m[33m'[39;49;00m,[90m[39;49;00m
+            [33m'[39;49;00m[33m'[39;49;00m,[90m[39;49;00m
+            [33m'[39;49;00m[33mdocsting of empty_all module.[39;49;00m[33m'[39;49;00m,[90m[39;49;00m
+            [33m'[39;49;00m[33m'[39;49;00m,[90m[39;49;00m
+        ][90m[39;49;00m
+[1m[31mE       AssertionError: assert ['', '.. py:m..., '', '', ...] == ['', '.. py:m... module.', ''][0m
+[1m[31mE         [0m
+[1m[31mE         Left contains 18 more items, first extra item: [0m[33m'[39;49;00m[33m'[39;49;00m[90m[39;49;00m[0m
+[1m[31mE         Use -v to get more diff[0m
+
+[1m[31mtests/test_ext_autodoc_automodule.py[0m:21: AssertionError
+--------------------------- Captured stdout teardown ---------------------------
+# testroot: root
+# builder: html
+# srcdir: /tmp/pytest-of-root/pytest-0/ext-autodoc
+# outdir: /tmp/pytest-of-root/pytest-0/ext-autodoc/_build/html
+# status: 
+[01mRunning Sphinx v3.5.0+/9d57ddaa2[39;49;00m
+
+# warning: 
+[91mWARNING: while setting up extension sphinx.addnodes: node class 'meta' is already registered, its visitors will be overridden[39;49;00m
+
+[33m=============================== warnings summary ===============================[0m
+sphinx/util/docutils.py:45
+  /testbed/sphinx/util/docutils.py:45: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    __version_info__ = tuple(LooseVersion(docutils.__version__).version)
+
+sphinx/registry.py:22
+  /testbed/sphinx/registry.py:22: DeprecationWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html
+    from pkg_resources import iter_entry_points
+
+../opt/miniconda3/envs/testbed/lib/python3.9/site-packages/pkg_resources/__init__.py:3154
+../opt/miniconda3/envs/testbed/lib/python3.9/site-packages/pkg_resources/__init__.py:3154
+../opt/miniconda3/envs/testbed/lib/python3.9/site-packages/pkg_resources/__init__.py:3154
+../opt/miniconda3/envs/testbed/lib/python3.9/site-packages/pkg_resources/__init__.py:3154
+  /opt/miniconda3/envs/testbed/lib/python3.9/site-packages/pkg_resources/__init__.py:3154: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('sphinxcontrib')`.
+  Implementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.declare_namespace`. See https://setuptools.pypa.io/en/latest/references/keywords.html#keyword-namespace-packages
+    declare_namespace(pkg)
+
+sphinx/directives/patches.py:14
+  /testbed/sphinx/directives/patches.py:14: DeprecationWarning: The `docutils.parsers.rst.directive.html` module will be removed in Docutils 2.0. Since Docutils 0.18, the "Meta" node is defined in `docutils.parsers.rst.directives.misc`.
+    from docutils.parsers.rst.directives import html, images, tables
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============================= slowest 25 durations =============================
+0.44s setup    tests/test_ext_autodoc_automodule.py::test_empty_all
+0.06s call     tests/test_ext_autodoc_automodule.py::test_empty_all
+
+(1 durations < 0.005s hidden.  Use -vv to show these durations.)
+[36m[1m=========================== short test summary info ============================[0m
+[31mFAILED[0m tests/test_ext_autodoc_automodule.py::[1mtest_empty_all[0m - AssertionError: assert ['', '.. py:m..., '', '', ...] == ['', '.. py:m... m...
+[31m======================== [31m[1m1 failed[0m, [33m7 warnings[0m[31m in 0.90s[0m[31m =========================[0m
+py39: exit 1 (1.66 seconds) /testbed> python -X dev -m pytest -rA --durations 25 tests/roots/test-ext-autodoc/target/empty_all.py tests/test_ext_autodoc_automodule.py pid=45
+  py39: FAIL code 1 (1.69=setup[0.03]+cmd[1.66] seconds)
+  evaluation failed :( (1.78 seconds)

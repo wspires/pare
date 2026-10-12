@@ -1,0 +1,27 @@
+{
+  "instance_id": "pylint-dev__pylint-7080",
+  "repo": "pylint-dev/pylint",
+  "version": "2.15",
+  "base_commit": "3c5eca2ded3dd2b59ebaf23eb289453b5d2930f0",
+  "image": "swebench/sweb.eval.x86_64.pylint-dev_1776_pylint-7080:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "tests/test_self.py::TestRunTC::test_ignore_path_recursive_current_dir"
+  ],
+  "failed": [
+    "tests/test_self.py::TestRunTC::test_ignore_path_recursive_current_dir"
+  ],
+  "keep": [
+    "tests/test_self.py::TestRunTC::test_ignore_path_recursive_current_dir"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 120,
+  "lines": 1587,
+  "seconds": 22.1,
+  "network": "bridge",
+  "collected": "2026-10-12T16:14:33Z",
+  "pare": "0.1.0",
+  "commit": "0fc602e",
+  "swebench": "5.0.2"
+}

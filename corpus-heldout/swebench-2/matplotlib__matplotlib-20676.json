@@ -1,0 +1,30 @@
+{
+  "instance_id": "matplotlib__matplotlib-20676",
+  "repo": "matplotlib/matplotlib",
+  "version": "3.4",
+  "base_commit": "6786f437df54ca7780a047203cbcfaa1db8dc542",
+  "image": "swebench/sweb.eval.x86_64.matplotlib_1776_matplotlib-20676:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "lib/matplotlib/tests/test_widgets.py::test_span_selector_bound[horizontal]",
+    "lib/matplotlib/tests/test_widgets.py::test_span_selector_bound[vertical]"
+  ],
+  "failed": [
+    "lib/matplotlib/tests/test_widgets.py::test_span_selector_bound[horizontal]",
+    "lib/matplotlib/tests/test_widgets.py::test_span_selector_bound[vertical]"
+  ],
+  "keep": [
+    "lib/matplotlib/tests/test_widgets.py::test_span_selector_bound[horizontal]",
+    "lib/matplotlib/tests/test_widgets.py::test_span_selector_bound[vertical]"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 32,
+  "lines": 104,
+  "seconds": 15.5,
+  "network": "bridge",
+  "collected": "2026-10-12T16:21:45Z",
+  "pare": "0.1.0",
+  "commit": "0fc602e",
+  "swebench": "5.0.2"
+}

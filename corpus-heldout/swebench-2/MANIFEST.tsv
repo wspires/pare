@@ -1,0 +1,18 @@
+name	collected	pare	commit	sha256	lines	bytes	exit	command	source	labels
+astropy__astropy-13453	2026-10-12T15:43:50Z	0.1.0	0fc602e		166	5913		pytest -rA astropy/io/ascii/tests/test_html.py	dataset	dataset FAIL_TO_PASS
+matplotlib__matplotlib-23314	2026-10-12T15:46:15Z	0.1.0	0fc602e		944	70008		pytest -rA lib/matplotlib/tests/test_axes.py lib/mpl_toolkits/tests/test_mplot3d.py	dataset	dataset FAIL_TO_PASS
+psf__requests-2317	2026-10-12T16:12:13Z	0.1.0	0fc602e		1207	57181		pytest -rA test_requests.py	dataset	dataset FAIL_TO_PASS
+pydata__xarray-7233	2026-10-12T16:13:37Z	0.1.0	0fc602e		226	15820		pytest -rA xarray/tests/test_coarsen.py	dataset	dataset FAIL_TO_PASS
+pylint-dev__pylint-7080	2026-10-12T16:14:33Z	0.1.0	0fc602e		1587	91487		pytest -rA tests/test_self.py	dataset	dataset FAIL_TO_PASS
+pytest-dev__pytest-7324	2026-10-12T16:15:15Z	0.1.0	0fc602e		261	12201		pytest -rA testing/test_mark_expression.py	dataset	dataset FAIL_TO_PASS
+sphinx-doc__sphinx-8595	2026-10-12T16:17:15Z	0.1.0	0fc602e		79	5394		tox --current-env -epy39 -v -- tests/roots/test-ext-autodoc/target/empty_all.py tests/test_ext_autodoc_automodule.py	dataset	dataset FAIL_TO_PASS
+sympy__sympy-13615	2026-10-12T16:18:35Z	0.1.0	0fc602e		109	4152		PYTHONWARNINGS='ignore::UserWarning,ignore::SyntaxWarning' bin/test -C --verbose sympy/sets/tests/test_sets.py	dataset	dataset FAIL_TO_PASS
+astropy__astropy-7671	2026-10-12T16:19:21Z	0.1.0	0fc602e		46	1720		pytest -rA -vv -o console_output_style=classic --tb=no astropy/utils/tests/test_introspection.py	dataset	dataset FAIL_TO_PASS
+django__django-15987	2026-10-12T16:20:09Z	0.1.0	0fc602e		245	14275		./tests/runtests.py --verbosity 2 --settings=test_sqlite --parallel 1 fixtures_regress.tests	dataset	dataset FAIL_TO_PASS
+matplotlib__matplotlib-20676	2026-10-12T16:21:45Z	0.1.0	0fc602e		104	5599		pytest -rA lib/matplotlib/tests/test_widgets.py	dataset	dataset FAIL_TO_PASS
+psf__requests-1724	2026-10-12T16:22:29Z	0.1.0	0fc602e		959	42974		pytest -rA test_requests.py	dataset	dataset FAIL_TO_PASS
+pydata__xarray-6744	2026-10-12T16:24:44Z	0.1.0	0fc602e		2082	198289		pytest -rA xarray/tests/test_rolling.py	dataset	dataset FAIL_TO_PASS
+pytest-dev__pytest-10081	2026-10-12T16:26:10Z	0.1.0	0fc602e		1439	72875		pytest -rA testing/test_unittest.py	dataset	dataset FAIL_TO_PASS
+scikit-learn__scikit-learn-13124	2026-10-12T16:27:16Z	0.1.0	0fc602e		100	7362		pytest -rA sklearn/model_selection/tests/test_split.py	dataset	dataset FAIL_TO_PASS
+sphinx-doc__sphinx-8548	2026-10-12T16:27:57Z	0.1.0	0fc602e		167	10712		tox --current-env -epy39 -v -- tests/roots/test-ext-autodoc/target/instance_variable.py tests/test_ext_autodoc_autoclass.py	dataset	dataset FAIL_TO_PASS
+sympy__sympy-17630	2026-10-12T16:28:38Z	0.1.0	0fc602e		73	2987		PYTHONWARNINGS='ignore::UserWarning,ignore::SyntaxWarning' bin/test -C --verbose sympy/matrices/expressions/tests/test_blockmatrix.py sympy/matrices/expressions/tests/test_matadd.py	dataset	dataset FAIL_TO_PASS

@@ -1,0 +1,27 @@
+{
+  "instance_id": "pydata__xarray-7233",
+  "repo": "pydata/xarray",
+  "version": "2022.09",
+  "base_commit": "51d37d1be95547059251076b3fadaa317750aab3",
+  "image": "swebench/sweb.eval.x86_64.pydata_1776_xarray-7233:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "xarray/tests/test_coarsen.py::TestCoarsenConstruct::test_coarsen_construct_keeps_all_coords"
+  ],
+  "failed": [
+    "xarray/tests/test_coarsen.py::TestCoarsenConstruct::test_coarsen_construct_keeps_all_coords"
+  ],
+  "keep": [
+    "xarray/tests/test_coarsen.py::TestCoarsenConstruct::test_coarsen_construct_keeps_all_coords"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 189,
+  "lines": 226,
+  "seconds": 11.8,
+  "network": "bridge",
+  "collected": "2026-10-12T16:13:37Z",
+  "pare": "0.1.0",
+  "commit": "0fc602e",
+  "swebench": "5.0.2"
+}

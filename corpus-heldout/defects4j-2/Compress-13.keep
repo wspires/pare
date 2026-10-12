@@ -1,0 +1,4 @@
+winzipBackSlashWorkaround(org.apache.commons.compress.archivers.zip.ZipArchiveInputStreamTest)
+expected:<ä[/]> but was:<ä[\]>
+testWinzipBackSlashWorkaround(org.apache.commons.compress.archivers.zip.ZipFileTest)
+junit.framework.AssertionFailedError: Expected: <null> but was: ä\ü.txt

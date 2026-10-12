@@ -1,0 +1,64 @@
+{
+  "bug": "Codec-18",
+  "project": "Codec",
+  "bug_id": 18,
+  "fixed_revision": "5ef5bd199a4e3df74479b4b363fa29b0b3092547",
+  "report": "https://issues.apache.org/jira/browse/CODEC-231",
+  "upstream": "https://github.com/apache/commons-codec",
+  "image": "maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=StringUtilsTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.codec.binary.StringUtilsTest",
+      "method": "testEqualsCS1",
+      "exception": "java.lang.StringIndexOutOfBoundsException: String index out of range: 3"
+    },
+    {
+      "class": "org.apache.commons.codec.binary.StringUtilsTest",
+      "method": "testEqualsCS2",
+      "exception": "java.lang.StringIndexOutOfBoundsException: String index out of range: 3"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.codec.binary.StringUtilsTest::testEqualsCS1",
+    "org.apache.commons.codec.binary.StringUtilsTest::testEqualsCS2"
+  ],
+  "keep": [
+    "testEqualsCS1(org.apache.commons.codec.binary.StringUtilsTest)",
+    "java.lang.StringIndexOutOfBoundsException: String index out of range: 3",
+    "testEqualsCS2(org.apache.commons.codec.binary.StringUtilsTest)"
+  ],
+  "unlocated": [],
+  "lines": 98,
+  "seconds": 15.6,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T16:32:13Z",
+  "pare": "0.1.0",
+  "commit": "0fc602e"
+}

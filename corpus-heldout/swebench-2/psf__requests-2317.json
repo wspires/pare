@@ -1,0 +1,48 @@
+{
+  "instance_id": "psf__requests-2317",
+  "repo": "psf/requests",
+  "version": "2.4",
+  "base_commit": "091991be0da19de9108dbe5e3752917fea3d7fdc",
+  "image": "swebench/sweb.eval.x86_64.psf_1776_requests-2317:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "test_requests.py::RequestsTestCase::test_HTTP_302_ALLOW_REDIRECT_GET",
+    "test_requests.py::RequestsTestCase::test_POSTBIN_GET_POST_FILES",
+    "test_requests.py::RequestsTestCase::test_POSTBIN_GET_POST_FILES_WITH_DATA",
+    "test_requests.py::RequestsTestCase::test_basicauth_with_netrc",
+    "test_requests.py::RequestsTestCase::test_json_param_post_content_type_works",
+    "test_requests.py::RequestsTestCase::test_manual_redirect_with_partial_body_read",
+    "test_requests.py::RequestsTestCase::test_requests_history_is_saved",
+    "test_requests.py::TestTimeout::test_encoded_methods"
+  ],
+  "failed": [
+    "test_requests.py::RequestsTestCase::test_HTTP_302_ALLOW_REDIRECT_GET",
+    "test_requests.py::RequestsTestCase::test_POSTBIN_GET_POST_FILES",
+    "test_requests.py::RequestsTestCase::test_POSTBIN_GET_POST_FILES_WITH_DATA",
+    "test_requests.py::RequestsTestCase::test_basicauth_with_netrc",
+    "test_requests.py::RequestsTestCase::test_json_param_post_content_type_works",
+    "test_requests.py::RequestsTestCase::test_manual_redirect_with_partial_body_read",
+    "test_requests.py::RequestsTestCase::test_requests_history_is_saved",
+    "test_requests.py::TestTimeout::test_encoded_methods"
+  ],
+  "keep": [
+    "test_requests.py::RequestsTestCase::test_HTTP_302_ALLOW_REDIRECT_GET",
+    "test_requests.py::RequestsTestCase::test_POSTBIN_GET_POST_FILES",
+    "test_requests.py::RequestsTestCase::test_POSTBIN_GET_POST_FILES_WITH_DATA",
+    "test_requests.py::RequestsTestCase::test_basicauth_with_netrc",
+    "test_requests.py::RequestsTestCase::test_json_param_post_content_type_works",
+    "test_requests.py::RequestsTestCase::test_manual_redirect_with_partial_body_read",
+    "test_requests.py::RequestsTestCase::test_requests_history_is_saved",
+    "test_requests.py::TestTimeout::test_encoded_methods"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 133,
+  "lines": 1207,
+  "seconds": 1541.2,
+  "network": "bridge",
+  "collected": "2026-10-12T16:12:13Z",
+  "pare": "0.1.0",
+  "commit": "0fc602e",
+  "swebench": "5.0.2"
+}

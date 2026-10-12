@@ -1,0 +1,4 @@
+testEncoder(org.apache.commons.codec.binary.Base64Codec13Test)
+junit.framework.AssertionFailedError: Encoder test-1
+testBinaryEncoder(org.apache.commons.codec.binary.Base64Codec13Test)
+junit.framework.AssertionFailedError: BinaryEncoder test-1

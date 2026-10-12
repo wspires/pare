@@ -1,0 +1,27 @@
+{
+  "instance_id": "django__django-15987",
+  "repo": "django/django",
+  "version": "4.2",
+  "base_commit": "7e6b537f5b92be152779fc492bb908d27fe7c52a",
+  "image": "swebench/sweb.eval.x86_64.django_1776_django-15987:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "settings.FIXTURE_DIRS cannot contain a default fixtures directory"
+  ],
+  "failed": [
+    "settings.FIXTURE_DIRS cannot contain a default fixtures directory"
+  ],
+  "keep": [
+    "settings.FIXTURE_DIRS cannot contain a default fixtures directory"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 52,
+  "lines": 245,
+  "seconds": 5.7,
+  "network": "bridge",
+  "collected": "2026-10-12T16:20:09Z",
+  "pare": "0.1.0",
+  "commit": "0fc602e",
+  "swebench": "5.0.2"
+}

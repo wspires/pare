@@ -1,0 +1,3 @@
+com.google.gson.internal.bind.RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve12
+java.lang.StackOverflowError
+com.google.gson.internal.bind.RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve1

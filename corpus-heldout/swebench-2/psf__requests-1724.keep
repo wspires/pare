@@ -1,0 +1,6 @@
+test_requests.py::RequestsTestCase::test_DIGEST_AUTH_RETURNS_COOKIE
+test_requests.py::RequestsTestCase::test_DIGEST_HTTP_200_OK_GET
+test_requests.py::RequestsTestCase::test_different_encodings_dont_break_post
+test_requests.py::RequestsTestCase::test_generic_cookiejar_works
+test_requests.py::RequestsTestCase::test_uppercase_scheme_redirect
+test_requests.py::RequestsTestCase::test_user_agent_transfers

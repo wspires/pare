@@ -1,0 +1,98 @@
+[INFO] Scanning for projects...
+[WARNING] The project commons-codec:commons-codec:jar:1.11-SNAPSHOT uses prerequisites which is only intended for maven-plugin projects but not for non maven-plugin projects. For such purposes you should use the maven-enforcer-plugin. See https://maven.apache.org/enforcer/enforcer-rules/requireMavenVersion.html
+[INFO] 
+[INFO] --------------------< commons-codec:commons-codec >---------------------
+[INFO] Building Apache Commons Codec 1.11-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- enforcer:1.4.1:enforce (enforce-maven-3) @ commons-codec ---
+[INFO] Skipping Rule Enforcement.
+[INFO] 
+[INFO] --- build-helper:1.10:parse-version (parse-version) @ commons-codec ---
+[INFO] 
+[INFO] --- antrun:1.8:run (javadoc.resources) @ commons-codec ---
+[INFO] Executing tasks
+
+main:
+[INFO] Executed tasks
+[INFO] 
+[INFO] --- remote-resources:1.5:process (process-resource-bundles) @ commons-codec ---
+[INFO] 
+[INFO] --- buildnumber:1.4:create (default) @ commons-codec ---
+[INFO] Executing: /bin/sh -c cd '/work' && 'svn' '--non-interactive' 'info'
+[INFO] Working directory: /work
+[WARNING] Cannot get the revision information from the scm repository, proceeding with revision of ?????? : 
+Exception while executing SCM command.
+[INFO] Storing buildNumber: ?????? at timestamp: 1791822730810
+[INFO] Executing: /bin/sh -c cd '/work' && 'svn' '--non-interactive' 'info'
+[INFO] Working directory: /work
+[WARNING] Cannot get the branch information from the scm repository, proceeding with UNKNOWN_BRANCH : 
+Exception while executing SCM command.
+[INFO] Storing buildScmBranch: UNKNOWN_BRANCH
+[INFO] 
+[INFO] --- resources:2.7:resources (default-resources) @ commons-codec ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 128 resources
+[INFO] Copying 2 resources to META-INF
+[INFO] 
+[INFO] --- compiler:3.5.1:compile (default-compile) @ commons-codec ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- bundle:3.0.1:manifest (bundle-manifest) @ commons-codec ---
+[INFO] 
+[INFO] --- animal-sniffer:1.15:check (checkAPIcompatibility) @ commons-codec ---
+[INFO] Signature checking is skipped.
+[INFO] 
+[INFO] --- resources:2.7:testResources (default-testResources) @ commons-codec ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory /work/src/test/resources
+[INFO] Copying 2 resources to META-INF
+[INFO] 
+[INFO] --- compiler:3.5.1:testCompile (default-testCompile) @ commons-codec ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- jacoco:0.7.6.201602180812:prepare-agent (prepare-agent) @ commons-codec ---
+[INFO] Skipping JaCoCo execution because property jacoco.skip is set.
+[INFO] argLine set to empty
+[INFO] 
+[INFO] --- surefire:2.19.1:test (default-test) @ commons-codec ---
+
+-------------------------------------------------------
+ T E S T S
+-------------------------------------------------------
+Running org.apache.commons.codec.binary.StringUtilsTest
+Tests run: 21, Failures: 0, Errors: 2, Skipped: 0, Time elapsed: 0.049 sec <<< FAILURE! - in org.apache.commons.codec.binary.StringUtilsTest
+testEqualsCS1(org.apache.commons.codec.binary.StringUtilsTest)  Time elapsed: 0.004 sec  <<< ERROR!
+java.lang.StringIndexOutOfBoundsException: String index out of range: 3
+	at org.apache.commons.codec.binary.StringUtilsTest.testEqualsCS1(StringUtilsTest.java:228)
+
+testEqualsCS2(org.apache.commons.codec.binary.StringUtilsTest)  Time elapsed: 0 sec  <<< ERROR!
+java.lang.StringIndexOutOfBoundsException: String index out of range: 3
+	at org.apache.commons.codec.binary.StringUtilsTest.testEqualsCS2(StringUtilsTest.java:236)
+
+
+Results :
+
+Tests in error: 
+  StringUtilsTest.testEqualsCS1:228 » StringIndexOutOfBounds String index out of...
+  StringUtilsTest.testEqualsCS2:236 » StringIndexOutOfBounds String index out of...
+
+Tests run: 21, Failures: 0, Errors: 2, Skipped: 0
+
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  3.813 s
+[INFO] Finished at: 2026-10-12T16:32:13Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.19.1:test (default-test) on project commons-codec: There are test failures.
+[ERROR] 
+[ERROR] Please refer to /work/target/surefire-reports for the individual test results.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

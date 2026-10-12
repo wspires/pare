@@ -1,0 +1,59 @@
+{
+  "bug": "Collections-26",
+  "project": "Collections",
+  "bug_id": 26,
+  "fixed_revision": "f8bd75d37ca12c5d49c1b628c33c0b45e2d082eb",
+  "report": "https://issues.apache.org/jira/browse/COLLECTIONS-576",
+  "upstream": "https://github.com/apache/commons-collections",
+  "image": "maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=MultiKeyTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.collections4.keyvalue.MultiKeyTest",
+      "method": "testEqualsAfterSerializationOfDerivedClass",
+      "exception": "junit.framework.AssertionFailedError: expected:<3> but was:<0>"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.collections4.keyvalue.MultiKeyTest::testEqualsAfterSerializationOfDerivedClass"
+  ],
+  "keep": [
+    "testEqualsAfterSerializationOfDerivedClass(org.apache.commons.collections4.keyvalue.MultiKeyTest)",
+    "junit.framework.AssertionFailedError: expected:<3> but was:<0>"
+  ],
+  "unlocated": [],
+  "lines": 98,
+  "seconds": 34.5,
+  "fixes_applied": [
+    "compile-26-27.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T16:29:44Z",
+  "pare": "0.1.0",
+  "commit": "0fc602e"
+}

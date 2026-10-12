@@ -1,0 +1,57 @@
+{
+  "bug": "JacksonXml-3",
+  "project": "JacksonXml",
+  "bug_id": 3,
+  "fixed_revision": "79a4b57f2bbe08ce46e6dabb0a8b76f4a787141c",
+  "report": "https://github.com/FasterXML/jackson-dataformat-xml/issues/204",
+  "upstream": "https://github.com/FasterXML/jackson-dataformat-xml",
+  "image": "maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=XmlParserNextXxxTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "com.fasterxml.jackson.dataformat.xml.stream.XmlParserNextXxxTest",
+      "method": "testXmlAttributesWithNextTextValue",
+      "exception": "junit.framework.ComparisonFailure: expected:<7> but was:<null>"
+    }
+  ],
+  "failed": [
+    "com.fasterxml.jackson.dataformat.xml.stream.XmlParserNextXxxTest::testXmlAttributesWithNextTextValue"
+  ],
+  "keep": [
+    "testXmlAttributesWithNextTextValue(com.fasterxml.jackson.dataformat.xml.stream.XmlParserNextXxxTest)",
+    "junit.framework.ComparisonFailure: expected:<7> but was:<null>"
+  ],
+  "unlocated": [],
+  "lines": 71,
+  "seconds": 7.9,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-12T16:30:50Z",
+  "pare": "0.1.0",
+  "commit": "0fc602e"
+}

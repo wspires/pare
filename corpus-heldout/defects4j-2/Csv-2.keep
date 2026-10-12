@@ -1,0 +1,2 @@
+testGetStringInconsistentRecord(org.apache.commons.csv.CSVRecordTest)
+java.lang.Exception: Unexpected exception, expected<java.lang.IllegalArgumentException> but was<java.lang.ArrayIndexOutOfBoundsException>

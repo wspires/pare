@@ -1,0 +1,2 @@
+testEqualsAfterSerializationOfDerivedClass(org.apache.commons.collections4.keyvalue.MultiKeyTest)
+junit.framework.AssertionFailedError: expected:<3> but was:<0>
