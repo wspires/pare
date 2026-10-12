@@ -1,0 +1,30 @@
+{
+  "instance_id": "pytest-dev__pytest-6197",
+  "repo": "pytest-dev/pytest",
+  "version": "5.2",
+  "base_commit": "e856638ba086fcf5bebf1bebea32d5cf78de87b4",
+  "image": "swebench/sweb.eval.x86_64.pytest-dev_1776_pytest-6197:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "testing/test_collection.py::test_does_not_eagerly_collect_packages",
+    "testing/test_collection.py::test_does_not_put_src_on_path"
+  ],
+  "failed": [
+    "testing/test_collection.py::test_does_not_eagerly_collect_packages",
+    "testing/test_collection.py::test_does_not_put_src_on_path"
+  ],
+  "keep": [
+    "testing/test_collection.py::test_does_not_eagerly_collect_packages",
+    "testing/test_collection.py::test_does_not_put_src_on_path"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 145,
+  "lines": 3679,
+  "seconds": 9.6,
+  "network": "bridge",
+  "collected": "2026-10-12T15:09:47Z",
+  "pare": "0.1.0",
+  "commit": "0ae81ab",
+  "swebench": "5.0.2"
+}

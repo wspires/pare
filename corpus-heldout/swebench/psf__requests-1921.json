@@ -1,0 +1,42 @@
+{
+  "instance_id": "psf__requests-1921",
+  "repo": "psf/requests",
+  "version": "2.3",
+  "base_commit": "3c88e520da24ae6f736929a750876e7654accc3d",
+  "image": "swebench/sweb.eval.x86_64.psf_1776_requests-1921:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "test_requests.py::RequestsTestCase::test_DIGESTAUTH_WRONG_HTTP_401_GET",
+    "test_requests.py::RequestsTestCase::test_POSTBIN_GET_POST_FILES",
+    "test_requests.py::RequestsTestCase::test_basicauth_with_netrc",
+    "test_requests.py::RequestsTestCase::test_cookie_persists_via_api",
+    "test_requests.py::RequestsTestCase::test_headers_on_session_with_None_are_not_sent",
+    "test_requests.py::RequestsTestCase::test_uppercase_scheme_redirect"
+  ],
+  "failed": [
+    "test_requests.py::RequestsTestCase::test_DIGESTAUTH_WRONG_HTTP_401_GET",
+    "test_requests.py::RequestsTestCase::test_POSTBIN_GET_POST_FILES",
+    "test_requests.py::RequestsTestCase::test_basicauth_with_netrc",
+    "test_requests.py::RequestsTestCase::test_cookie_persists_via_api",
+    "test_requests.py::RequestsTestCase::test_headers_on_session_with_None_are_not_sent",
+    "test_requests.py::RequestsTestCase::test_uppercase_scheme_redirect"
+  ],
+  "keep": [
+    "test_requests.py::RequestsTestCase::test_DIGESTAUTH_WRONG_HTTP_401_GET",
+    "test_requests.py::RequestsTestCase::test_POSTBIN_GET_POST_FILES",
+    "test_requests.py::RequestsTestCase::test_basicauth_with_netrc",
+    "test_requests.py::RequestsTestCase::test_cookie_persists_via_api",
+    "test_requests.py::RequestsTestCase::test_headers_on_session_with_None_are_not_sent",
+    "test_requests.py::RequestsTestCase::test_uppercase_scheme_redirect"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 107,
+  "lines": 983,
+  "seconds": 9.0,
+  "network": "bridge",
+  "collected": "2026-10-12T15:07:57Z",
+  "pare": "0.1.0",
+  "commit": "0ae81ab",
+  "swebench": "5.0.2"
+}

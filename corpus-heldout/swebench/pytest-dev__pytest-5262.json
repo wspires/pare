@@ -1,0 +1,27 @@
+{
+  "instance_id": "pytest-dev__pytest-5262",
+  "repo": "pytest-dev/pytest",
+  "version": "4.5",
+  "base_commit": "58e6a09db49f34886ff13f3b7520dd0bcd7063cd",
+  "image": "swebench/sweb.eval.x86_64.pytest-dev_1776_pytest-5262:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "testing/test_capture.py::TestFDCapture::test_capfd_sys_stdout_mode"
+  ],
+  "failed": [
+    "testing/test_capture.py::TestFDCapture::test_capfd_sys_stdout_mode"
+  ],
+  "keep": [
+    "testing/test_capture.py::TestFDCapture::test_capfd_sys_stdout_mode"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 108,
+  "lines": 1322,
+  "seconds": 11.5,
+  "network": "bridge",
+  "collected": "2026-10-12T15:01:01Z",
+  "pare": "0.1.0",
+  "commit": "0ae81ab",
+  "swebench": "5.0.2"
+}

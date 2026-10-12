@@ -1,0 +1,1 @@
+testing/test_capture.py::TestFDCapture::test_capfd_sys_stdout_mode

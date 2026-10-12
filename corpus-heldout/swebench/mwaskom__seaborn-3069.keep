@@ -1,0 +1,2 @@
+tests/_core/test_plot.py::TestScaling::test_nominal_x_axis_tweaks
+tests/_core/test_plot.py::TestScaling::test_nominal_y_axis_tweaks

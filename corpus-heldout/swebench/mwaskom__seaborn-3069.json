@@ -1,0 +1,30 @@
+{
+  "instance_id": "mwaskom__seaborn-3069",
+  "repo": "mwaskom/seaborn",
+  "version": "0.12",
+  "base_commit": "54cab15bdacfaa05a88fbc5502a5b322d99f148e",
+  "image": "swebench/sweb.eval.x86_64.mwaskom_1776_seaborn-3069:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "tests/_core/test_plot.py::TestScaling::test_nominal_x_axis_tweaks",
+    "tests/_core/test_plot.py::TestScaling::test_nominal_y_axis_tweaks"
+  ],
+  "failed": [
+    "tests/_core/test_plot.py::TestScaling::test_nominal_x_axis_tweaks",
+    "tests/_core/test_plot.py::TestScaling::test_nominal_y_axis_tweaks"
+  ],
+  "keep": [
+    "tests/_core/test_plot.py::TestScaling::test_nominal_x_axis_tweaks",
+    "tests/_core/test_plot.py::TestScaling::test_nominal_y_axis_tweaks"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 94,
+  "lines": 3690,
+  "seconds": 18.0,
+  "network": "bridge",
+  "collected": "2026-10-12T14:58:39Z",
+  "pare": "0.1.0",
+  "commit": "0ae81ab",
+  "swebench": "5.0.2"
+}

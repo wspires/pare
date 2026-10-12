@@ -1,0 +1,39 @@
+{
+  "instance_id": "django__django-13212",
+  "repo": "django/django",
+  "version": "3.2",
+  "base_commit": "f4e93919e4608cfc50849a1f764fd856e0917401",
+  "image": "swebench/sweb.eval.x86_64.django_1776_django-13212:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "test_value_placeholder_with_char_field (forms_tests.tests.test_validators.ValidatorCustomMessageTests)",
+    "test_value_placeholder_with_decimal_field (forms_tests.tests.test_validators.ValidatorCustomMessageTests)",
+    "test_value_placeholder_with_file_field (forms_tests.tests.test_validators.ValidatorCustomMessageTests)",
+    "test_value_placeholder_with_integer_field (forms_tests.tests.test_validators.ValidatorCustomMessageTests)",
+    "test_value_placeholder_with_null_character (forms_tests.tests.test_validators.ValidatorCustomMessageTests)"
+  ],
+  "failed": [
+    "test_value_placeholder_with_char_field (forms_tests.tests.test_validators.ValidatorCustomMessageTests)",
+    "test_value_placeholder_with_decimal_field (forms_tests.tests.test_validators.ValidatorCustomMessageTests)",
+    "test_value_placeholder_with_file_field (forms_tests.tests.test_validators.ValidatorCustomMessageTests)",
+    "test_value_placeholder_with_integer_field (forms_tests.tests.test_validators.ValidatorCustomMessageTests)",
+    "test_value_placeholder_with_null_character (forms_tests.tests.test_validators.ValidatorCustomMessageTests)"
+  ],
+  "keep": [
+    "test_value_placeholder_with_char_field (forms_tests.tests.test_validators.ValidatorCustomMessageTests)",
+    "test_value_placeholder_with_decimal_field (forms_tests.tests.test_validators.ValidatorCustomMessageTests)",
+    "test_value_placeholder_with_file_field (forms_tests.tests.test_validators.ValidatorCustomMessageTests)",
+    "test_value_placeholder_with_integer_field (forms_tests.tests.test_validators.ValidatorCustomMessageTests)",
+    "test_value_placeholder_with_null_character (forms_tests.tests.test_validators.ValidatorCustomMessageTests)"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 2,
+  "lines": 245,
+  "seconds": 10.2,
+  "network": "bridge",
+  "collected": "2026-10-12T14:55:43Z",
+  "pare": "0.1.0",
+  "commit": "0ae81ab",
+  "swebench": "5.0.2"
+}

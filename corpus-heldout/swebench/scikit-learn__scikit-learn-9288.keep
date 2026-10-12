@@ -1,0 +1,1 @@
+sklearn/cluster/tests/test_k_means.py::test_result_of_kmeans_equal_in_diff_n_jobs

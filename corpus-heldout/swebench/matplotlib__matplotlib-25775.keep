@@ -1,0 +1,7 @@
+lib/matplotlib/tests/test_text.py::test_set_antialiased
+lib/matplotlib/tests/test_text.py::test_get_antialiased
+lib/matplotlib/tests/test_text.py::test_annotation_antialiased
+lib/matplotlib/tests/test_text.py::test_text_antialiased_off_default_vs_manual[png]
+lib/matplotlib/tests/test_text.py::test_text_antialiased_off_default_vs_manual[pdf]
+lib/matplotlib/tests/test_text.py::test_text_antialiased_on_default_vs_manual[png]
+lib/matplotlib/tests/test_text.py::test_text_antialiased_on_default_vs_manual[pdf]

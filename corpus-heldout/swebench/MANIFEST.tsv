@@ -1,0 +1,17 @@
+name	collected	pare	commit	sha256	lines	bytes	exit	command	source	labels
+django__django-13212	2026-10-12T14:55:43Z	0.1.0	0ae81ab		245	16626		./tests/runtests.py --verbosity 2 --settings=test_sqlite --parallel 1 forms_tests.tests.test_validators	dataset	dataset FAIL_TO_PASS
+matplotlib__matplotlib-25332	2026-10-12T14:57:59Z	0.1.0	0ae81ab		282	15698		pytest -rA lib/matplotlib/tests/test_pickle.py	dataset	dataset FAIL_TO_PASS
+mwaskom__seaborn-3069	2026-10-12T14:58:39Z	0.1.0	0ae81ab		3690	176138		pytest --no-header -rA tests/_core/test_plot.py	dataset	dataset FAIL_TO_PASS
+pallets__flask-5014	2026-10-12T14:59:02Z	0.1.0	0ae81ab		82	5110		pytest -rA tests/test_blueprints.py	dataset	dataset FAIL_TO_PASS
+psf__requests-1142	2026-10-12T14:59:25Z	0.1.0	0ae81ab		942	41148		pytest -rA test_requests.py	dataset	dataset FAIL_TO_PASS
+pydata__xarray-4075	2026-10-12T15:00:11Z	0.1.0	0ae81ab		1072	123932		pytest -rA xarray/tests/test_weighted.py	dataset	dataset FAIL_TO_PASS
+pylint-dev__pylint-4970	2026-10-12T15:00:33Z	0.1.0	0ae81ab		58	3857		pytest -rA tests/checkers/unittest_similar.py	dataset	dataset FAIL_TO_PASS
+pytest-dev__pytest-5262	2026-10-12T15:01:01Z	0.1.0	0ae81ab		1322	78921		pytest -rA testing/test_capture.py	dataset	dataset FAIL_TO_PASS
+scikit-learn__scikit-learn-9288	2026-10-12T15:01:35Z	0.1.0	0ae81ab		161	12665		pytest -rA sklearn/cluster/tests/test_k_means.py	dataset	dataset FAIL_TO_PASS
+sympy__sympy-15976	2026-10-12T15:02:18Z	0.1.0	0ae81ab		60	2093		PYTHONWARNINGS='ignore::UserWarning,ignore::SyntaxWarning' bin/test -C --verbose sympy/printing/tests/test_mathml.py	dataset	dataset FAIL_TO_PASS
+django__django-11451	2026-10-12T15:04:02Z	0.1.0	0ae81ab		215	17745		./tests/runtests.py --verbosity 2 --settings=test_sqlite --parallel 1 auth_tests.test_auth_backends	dataset	dataset FAIL_TO_PASS
+matplotlib__matplotlib-25775	2026-10-12T15:06:34Z	0.1.0	0ae81ab		601	29962		pytest -rA lib/matplotlib/tests/test_text.py	dataset	dataset FAIL_TO_PASS
+mwaskom__seaborn-3187	2026-10-12T15:07:31Z	0.1.0	0ae81ab		344	24820		pytest --no-header -rA tests/_core/test_plot.py tests/test_relational.py	dataset	dataset FAIL_TO_PASS
+psf__requests-1921	2026-10-12T15:07:57Z	0.1.0	0ae81ab		983	47660		pytest -rA test_requests.py	dataset	dataset FAIL_TO_PASS
+pydata__xarray-6938	2026-10-12T15:08:55Z	0.1.0	0ae81ab		562	45392		pytest -rA xarray/tests/test_variable.py	dataset	dataset FAIL_TO_PASS
+pytest-dev__pytest-6197	2026-10-12T15:09:47Z	0.1.0	0ae81ab		3679	482432		pytest -rA testing/test_collection.py testing/test_skipping.py	dataset	dataset FAIL_TO_PASS

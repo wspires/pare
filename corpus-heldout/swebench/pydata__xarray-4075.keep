@@ -1,0 +1,2 @@
+xarray/tests/test_weighted.py::test_weighted_sum_of_weights_bool
+xarray/tests/test_weighted.py::test_weighted_mean_bool

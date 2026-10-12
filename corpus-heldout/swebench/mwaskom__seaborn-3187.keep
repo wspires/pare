@@ -1,0 +1,2 @@
+tests/_core/test_plot.py::TestLegend::test_legend_has_no_offset
+tests/test_relational.py::TestRelationalPlotter::test_legend_has_no_offset

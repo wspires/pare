@@ -1,0 +1,6 @@
+test_requests.py::RequestsTestCase::test_DIGESTAUTH_WRONG_HTTP_401_GET
+test_requests.py::RequestsTestCase::test_POSTBIN_GET_POST_FILES
+test_requests.py::RequestsTestCase::test_basicauth_with_netrc
+test_requests.py::RequestsTestCase::test_cookie_persists_via_api
+test_requests.py::RequestsTestCase::test_headers_on_session_with_None_are_not_sent
+test_requests.py::RequestsTestCase::test_uppercase_scheme_redirect

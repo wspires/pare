@@ -1,0 +1,27 @@
+{
+  "instance_id": "matplotlib__matplotlib-25332",
+  "repo": "matplotlib/matplotlib",
+  "version": "3.7",
+  "base_commit": "66ba515e671638971bd11a34cff12c107a437e0b",
+  "image": "swebench/sweb.eval.x86_64.matplotlib_1776_matplotlib-25332:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "lib/matplotlib/tests/test_pickle.py::test_complete[png]"
+  ],
+  "failed": [
+    "lib/matplotlib/tests/test_pickle.py::test_complete[png]"
+  ],
+  "keep": [
+    "lib/matplotlib/tests/test_pickle.py::test_complete[png]"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 181,
+  "lines": 282,
+  "seconds": 76.0,
+  "network": "bridge",
+  "collected": "2026-10-12T14:57:59Z",
+  "pare": "0.1.0",
+  "commit": "0ae81ab",
+  "swebench": "5.0.2"
+}

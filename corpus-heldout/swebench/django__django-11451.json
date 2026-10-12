@@ -1,0 +1,42 @@
+{
+  "instance_id": "django__django-11451",
+  "repo": "django/django",
+  "version": "3.0",
+  "base_commit": "e065b293878b1e3ea56655aa9d33e87576cd77ff",
+  "image": "swebench/sweb.eval.x86_64.django_1776_django-11451:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "test_authentication_without_credentials (auth_tests.test_auth_backends.ModelBackendTest)",
+    "test_custom_perms (auth_tests.test_auth_backends.ModelBackendTest)",
+    "test_authentication_without_credentials (auth_tests.test_auth_backends.CustomPermissionsUserModelBackendTest)",
+    "test_custom_perms (auth_tests.test_auth_backends.CustomPermissionsUserModelBackendTest)",
+    "test_authentication_without_credentials (auth_tests.test_auth_backends.ExtensionUserModelBackendTest)",
+    "test_custom_perms (auth_tests.test_auth_backends.ExtensionUserModelBackendTest)"
+  ],
+  "failed": [
+    "test_authentication_without_credentials (auth_tests.test_auth_backends.ModelBackendTest)",
+    "test_custom_perms (auth_tests.test_auth_backends.ModelBackendTest)",
+    "test_authentication_without_credentials (auth_tests.test_auth_backends.CustomPermissionsUserModelBackendTest)",
+    "test_custom_perms (auth_tests.test_auth_backends.CustomPermissionsUserModelBackendTest)",
+    "test_authentication_without_credentials (auth_tests.test_auth_backends.ExtensionUserModelBackendTest)",
+    "test_custom_perms (auth_tests.test_auth_backends.ExtensionUserModelBackendTest)"
+  ],
+  "keep": [
+    "test_authentication_without_credentials (auth_tests.test_auth_backends.ModelBackendTest)",
+    "test_custom_perms (auth_tests.test_auth_backends.ModelBackendTest)",
+    "test_authentication_without_credentials (auth_tests.test_auth_backends.CustomPermissionsUserModelBackendTest)",
+    "test_custom_perms (auth_tests.test_auth_backends.CustomPermissionsUserModelBackendTest)",
+    "test_authentication_without_credentials (auth_tests.test_auth_backends.ExtensionUserModelBackendTest)",
+    "test_custom_perms (auth_tests.test_auth_backends.ExtensionUserModelBackendTest)"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 45,
+  "lines": 215,
+  "seconds": 11.0,
+  "network": "bridge",
+  "collected": "2026-10-12T15:04:02Z",
+  "pare": "0.1.0",
+  "commit": "0ae81ab",
+  "swebench": "5.0.2"
+}
