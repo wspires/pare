@@ -705,14 +705,40 @@ from 94 to 100 % at 2,000 (psf__requests-2317, 6 → 8 of 8; every case
 complete) and Defects4J seed 2 from 74 to 77 % at 1,000. 600 and 1,000 on
 SWE-bench did not move: there the tracebacks outrank the names.
 
+Which of many failures matter: in a broken environment most failing
+tests fail one way, and the few that fail otherwise are the news. On
+mwaskom__seaborn-3069, 74 of 76 fail on a missing pandas option and the
+dataset wants the two assertion failures; on psf__requests-1142, 21 of 22
+fail on a `TypeError` and it wants the one `AssertionError`. A summary
+line says nothing of this (pytest cuts the reason at `- as...`), so each
+listed failure's own section is found: the last earlier record head that
+names it (pytest's `___ Class.test_x ___`, Surefire's `testX(...) <<<
+FAILURE!`), or the item itself, up to the next head of the same kind. Its
+way of failing is the masked shape of the section's last top-level error
+line (`<PATH>:<NUM>: OptionError`). In a list of at least 5 such
+failures, one whose way is shared by at most a tenth of the list gets +2
+salience, and is listed first:
+
+```
+T7   ×60 (3 unlike the rest, first) E FAILED tests/test_b.py::{…}
+  …test_case_7 - ...
+  …test_case_31 - ...
+  …test_case_52 - ...
+  …test_case_0 - ...
+```
+
+No penalty for the common way: at 2,000 the list form still shows all
+of a large list. Dev: both cases above now name their wanted tests at 600
+and 1,000 (SWE-bench seed 0, 47.5 → 57.5 % at 600, 67.5 → 75 % at
+1,000), no case worse, and the Defects4J sets are untouched (few failures
+per bug). Fresh: psf__requests-2317 0 → 2 of 8 at 600 and 1,000. Its
+other six wanted tests fail with the forty the missing network breaks,
+in the same ways, so no ranking can find them. The section search scans
+up to 200,000 record heads before the list; on a 300,000-line log it
+added 3 % to the run time.
+
 What the first held-out sets still show:
 
-- **Which failures matter.** mwaskom__seaborn-3069 has 76 failing tests,
-  74 failing the same way (a pandas option missing from the environment);
-  the dataset cares about the other two. Their summary lines are cut by
-  pytest at `- as...`, so nothing on them says they fail differently.
-  With the list form, 2,000 tokens hold enough names to include both;
-  at 1,000 they still do not.
 - **600 on SWE-bench.** pytest's per-test sections and summary both name
   the test; at 600 the budget holds the first failure's traceback and a
   few names. django__django-11451 went from 2 of 6 to 1 of 6.

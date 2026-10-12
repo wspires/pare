@@ -118,10 +118,17 @@ held-out evidence asks for it.
   100 % at 2,000 (requests-2317 6 → 8 of 8). The bench expands the form
   before matching; `--strict` matches literal text and counts compacted
   names as missed (SWE-bench seed 1 at 2,000: 57 % strict). *Done.*
-- [ ] **Which of many failures matter.** At 600 and 1,000 the list form
-  does not help requests-2317 (0 of 8): the tracebacks of 40 failures
-  outrank the names. Candidate: group failing tests by how they fail (the
-  `E` line or exception under each) and show the small groups first.
+- [x] **Which of many failures matter.** When most failing tests fail one
+  way (a broken environment), the few that fail otherwise are the news. A
+  listed failure's section is found by name and its way of failing is the
+  shape of the section's last top-level error line; a failure whose way
+  is shared by at most a tenth of a list of 5 or more gets +2 salience,
+  and is listed first under a header that says so. Dev: seaborn-3069 and
+  requests-1142 now name their wanted tests at 600 and 1,000 (SWE-bench
+  seed 0: 47.5 → 57.5 % at 600, 67.5 → 75 % at 1,000), no losses. Fresh:
+  requests-2317 0 → 2 of 8 at 600 and 1,000. The other six fail with the
+  forty tests the missing network breaks, so nothing in the output can
+  single them out; at 2,000 the list form shows all 40. *Done.*
 - [x] **Names that differ only in numbers.** Parametrized test ids
   (`test_rolling_iter[numpy-3-True-1]`, `[numpy-3-True-2]`) masked to one
   shape, so they were repeats, not a list. A name's bracketed parameters

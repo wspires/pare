@@ -128,8 +128,10 @@ What pare still misses, from reading the misses (no code changed on them):
   fixed since* (failing tests listed compactly, about half the size):
   requests-2317 8 of 8 at 2,000, taking SWE-bench seed 1 to 100 % there
   with every case complete; still 0 of 8 at 600 and 1,000, where the
-  tracebacks of forty failures outrank the names. Which of many failures
-  matter is the open question from the first sample too.
+  tracebacks of forty failures outrank the names. Since failures that
+  fail unlike the rest of a list come first: 2 of 8 at 600 and 1,000.
+  The other six fail the way the missing network breaks thirty-odd
+  others, so nothing in the output singles them out.
 - **Test ids that differ only in numbers.** pydata__xarray-6744's
   parametrized `test_rolling_iter[numpy-3-True-1]`, `[numpy-3-True-2]`,
   `[numpy-7-True-1]` mask to one shape, so they are repeats, not a list:

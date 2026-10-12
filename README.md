@@ -218,11 +218,12 @@ fresh samples drawn after the fix and never tuned on, pare keeps 89% of
 17 SWE-bench tasks' failing tests at 2,000 tokens (63% before the fix,
 output 11% of the input) and 51% of 16 Defects4J bugs' tests and
 exceptions at 600 (30% before); tidyout keeps everything at 98 to 100% of
-the input size. Two misses those samples showed are fixed since: runs
+the input size. Three misses those samples showed are fixed since: runs
 with more failing tests than lines fit (now listed compactly, the shared
-prefix once and one short item per test) and parametrized test names
-that differ only in numbers; with both, SWE-bench seed 1 is 100% at
-2,000 tokens (`corpus-heldout/README.md`). With all tool-specific rules off, pare still reaches 88% at 600
+prefix once and one short item per test), parametrized test names that
+differ only in numbers, and the few failures that matter among many that
+fail one way (listed first); SWE-bench seed 1 is now 100% at 2,000 tokens
+and 66% at 600 (`corpus-heldout/README.md`). With all tool-specific rules off, pare still reaches 88% at 600
 and 94.5% at 2000 (bytes/4 units) on this corpus; the generic signals do
 most of the work.
 
@@ -264,7 +265,7 @@ for a native port are in [docs/DESIGN.md](docs/DESIGN.md).
 .venv/bin/pip install pytest && .venv/bin/python -m pytest proto/
 ```
 
-209 tests: severity forms and their false positives, vocabulary files, the
+210 tests: severity forms and their false positives, vocabulary files, the
 hard budget limit on every corpus file at several sizes, determinism,
 pass-through, the selection flags, memory on a large input, follow mode
 (including a randomized differential test against the batch pass),

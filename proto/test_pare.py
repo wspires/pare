@@ -378,6 +378,30 @@ def test_many_failing_tests_are_listed_compactly():
     assert bench_run.recall(out.encode(), keep, strict=True)[0] < 40
 
 
+def test_rare_failures_among_many_come_first():
+    # Sixty tests fail; fifty-seven on a missing module (a broken
+    # environment), three on an assertion. Those three are the news: placed
+    # first, and listed first under a header that says so.
+    rare = {7, 31, 52}
+    lines = ["============================= test session starts =============================="]
+    lines += [f"tests/test_mod.py::test_ok_{i} PASSED" for i in range(200)]
+    lines.append("=================================== FAILURES ===================================")
+    for k in range(60):
+        lines.append(f"____________________ test_case_{k} ____________________")
+        lines += ["    def test_x():", ">       assert f() == 1"]
+        if k in rare:
+            lines += ["E       assert 2 == 1", f"tests/test_b.py:{k}: AssertionError"]
+        else:
+            lines += ["E       ImportError: No module named 'foo'", f"tests/test_b.py:{k}: ImportError"]
+    lines.append("=========================== short test summary info ============================")
+    lines += [f"FAILED tests/test_b.py::test_case_{k} - ..." for k in range(60)]
+    lines.append("======================= 60 failed, 200 passed in 9.12s ========================")
+    out = run(["--budget", "600"], ("\n".join(lines) + "\n").encode()).decode()
+    assert "(3 unlike the rest, first) E FAILED tests/test_b.py::{…}" in out, out
+    items = [l for l in out.splitlines() if l.startswith("  …test_case_")]
+    assert [int(re.match(r"  …test_case_(\d+)", l).group(1)) for l in items[:3]] == [7, 31, 52], out
+
+
 def test_bench_expands_only_the_list_it_is_under():
     sys.path.insert(0, os.path.join(ROOT, "bench"))
     import run as bench_run

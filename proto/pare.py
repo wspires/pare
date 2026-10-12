@@ -775,6 +775,10 @@ LIST_MIN_COUNT = 3  # a list of failures this long is rendered compactly: shared
 LIST_MIN_SHARED = 16  # ...when the shared prefix and suffix save at least this many bytes per item
 LIST_ITEM = "  …"  # an item line: the list header's text before {…}, then this item
 LIST_CUT = " :/.#("  # the shared prefix ends after one of these
+RARE_FAILURE_BONUS = 2.0  # salience added to a listed failure that fails unlike most of the list
+RARE_FAILURE_SHARE = 0.1  # ...when at most this share of the list fails the same way
+RARE_FAILURE_MIN = 5  # ...in a list of at least this many failures with a known way of failing
+SECTION_MAX = 400  # lines a failure's section is followed for before giving up
 COMPACT_BUDGET = 1000  # below this many tokens, multi-record entries are one line
 HINT_BUDGET = 1000  # below this, the usage hint at the end is dropped
 
@@ -1468,7 +1472,11 @@ def summarize(
         extra += tpl.rate_note
         form = list_affixes(tpl.idx)
         if form:
-            # A list of failures: the shared text once, the items under it.
+            # A list of failures: the shared text once, the items under it,
+            # those that fail unlike the rest first.
+            n_rare = len(rare_failures(tpl.idx))
+            if n_rare:
+                extra += f" ({n_rare} unlike the rest, first)"
             return [f"{tpl.tid:<4} ×{fmt_int(count)}{extra} {tpl.marker} {form[0]}{{…}}{form[1]}"]
         # An exemplar that the head or tail window already prints is referenced,
         # not repeated.
@@ -1555,6 +1563,73 @@ def summarize(
             return None
         return clip(text[len(pre):len(text) - len(suf)], width)
 
+    rare_items: dict[int, set[int]] = {}
+
+    def rare_failures(t: int) -> set[int]:
+        """Line numbers of the listed failures in list template t that fail
+        unlike most of the list. Most failing tests in a broken environment
+        fail one way (74 with the same missing pandas option); the two that
+        fail on an assertion are the news. Each test's failure section is
+        found by name: the last earlier record head that names it (pytest's
+        "___ Class.test_x ___", Surefire's "testX(...) <<< FAILURE!"), or
+        the item itself, up to the next head of the same kind. Its way of
+        failing is the masked shape of the section's last top-level error
+        line ("<PATH>:<NUM>: OptionError")."""
+        if t in rare_items:
+            return rare_items[t]
+        rare_items[t] = set()
+        if list_affixes(t) is None:
+            return rare_items[t]
+        heads = [rstart[ri] for ri in tpl_records[t]]
+        names: dict[str, list[int]] = {}  # name token -> items naming it
+        params: dict[int, tuple[str, ...]] = {}
+        for h in heads:
+            toks = [tk for tk in TOKEN_RE.findall(item_of(h + b1) or "") if not tk.isdigit()]
+            if toks:
+                names.setdefault(max(toks, key=len), []).append(h)
+                params[h] = line_params(store.line(h))
+        if len(names) < RARE_FAILURE_MIN:
+            return rare_items[t]
+        occ = {h: h for h in params}  # the section header naming each item; itself by default
+        lo = max(0, heads[0] - 200_000)
+        for i in range(lo, heads[-1]):
+            ri = rec[i]
+            if ri < 0 or rstart[ri] != i or rtpl[ri] == t:
+                continue
+            ln = store.line(i)
+            for tk in set(TOKEN_RE.findall(ln.text)) & names.keys():
+                for h in names[tk]:
+                    if i < h and all(p in ln.text for p in params[h]):
+                        occ[h] = i  # ascending: the last one before the item wins
+        starts = set(occ.values())
+        ways: dict[int, str] = {}
+        for h, o in occ.items():
+            kind = rtpl[rec[o]]
+            way = None
+            for j in range(o + 1, min(total, o + SECTION_MAX)):
+                rj = rec[j]
+                if j in starts or (rj >= 0 and rstart[rj] == j and rtpl[rj] in (kind, t)):
+                    break  # the next section, or the list itself
+                if rj >= 0 and store.depth[j] == 0 and not blank[j]:
+                    lj = store.line(j)
+                    if is_error_line(lj):
+                        way = shape_key(lj)
+            if way is not None:
+                ways[h] = way
+        if len(ways) >= RARE_FAILURE_MIN:
+            sizes: dict[str, int] = {}
+            for w in ways.values():
+                sizes[w] = sizes.get(w, 0) + 1
+            limit = max(1, int(len(ways) * RARE_FAILURE_SHARE))
+            rare_items[t] = {h + b1 for h, w in ways.items() if sizes[w] <= limit}
+        return rare_items[t]
+
+    def rare_bonus(i: int) -> float:
+        ri = rec[i]
+        if ri < 0 or rstart[ri] != i or list_affixes(rtpl[ri]) is None:
+            return 0.0
+        return RARE_FAILURE_BONUS if (i + b1) in rare_failures(rtpl[ri]) else 0.0
+
     def item_cost(no: int) -> int:
         return nbytes([LIST_ITEM + item_of(no)])
 
@@ -1597,7 +1672,7 @@ def summarize(
     def initial(i: int) -> float:
         # Value per byte: a 180-byte advice line with a URL is worth less than
         # a 50-byte exception line of the same salience.
-        return scores[i] * (DENSITY_REF / (DENSITY_REF + slen[i])) ** DENSITY_POWER
+        return (scores[i] + rare_bonus(i)) * (DENSITY_REF / (DENSITY_REF + slen[i])) ** DENSITY_POWER
 
     order = [i for i in range(total)
              if (i + b1) not in shown and rec[i] >= 0 and not blank[i] and scores[i] >= FILL_FLOOR]
@@ -1606,7 +1681,7 @@ def summarize(
     def effective(no: int) -> float:
         i = no - b1
         # Each repeat of a shape already on screen is worth less.
-        e = scores[i] / (1.0 + FILL_PENALTY * taken.get(key_of(no), 0))
+        e = (scores[i] + rare_bonus(i)) / (1.0 + FILL_PENALTY * taken.get(key_of(no), 0))
         # Value per rendered byte: an item of a placed list costs only its
         # distinct part.
         size = len(item_of(no).encode("utf-8")) if as_item(no) else slen[i]
@@ -1800,6 +1875,8 @@ def summarize(
                     ex_no = store.head_of(tpl.exemplar).no
                     if ex_no not in window_nos and item_of(ex_no) is not None:
                         items = sorted(set(items) | {ex_no})
+                    rare = rare_failures(tpl.idx)
+                    items.sort(key=lambda no: (no not in rare, no))
                     out.extend(LIST_ITEM + item_of(no) for no in items)
                     in_windows = sum(1 for no in window_nos
                                      if no >= b1 and rec[no - b1] >= 0 and rtpl[rec[no - b1]] == tpl.idx
