@@ -3,7 +3,9 @@
 
 For every corpus/<name>.log:
   * <name>.keep  lines that must survive (one per line; a line survives if
-                 its stripped text appears as a substring of the tool output,
+                 its stripped text appears in the tool output, not run on
+                 into a longer name; "a || b" lists equivalent forms, any of
+                 which counts,
                  after pare's compact lists are expanded: a header
                  "T29 ×17 E FAILED t.py::{…}" followed by "  …test_a" stands
                  for "FAILED t.py::test_a"; --strict matches the literal text)
@@ -32,6 +34,9 @@ import stat
 import subprocess
 import sys
 import tempfile
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import collect  # noqa: E402  (keep-line matching)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -213,10 +218,12 @@ def expand_lists(text: str) -> str:
 
 
 def survivors(output: bytes, keep: list[str], strict: bool = False) -> list[bool]:
+    """Which keep lines the output shows: any of a line's " || " forms,
+    not run on into a longer name (collect.keep_found)."""
     text = output.decode("utf-8", errors="replace")
     if not strict:
         text = expand_lists(text)
-    return [k in text for k in keep]
+    return [collect.keep_found(k, text) for k in keep]
 
 
 def recall(output: bytes, keep: list[str], strict: bool = False) -> tuple[int, int]:

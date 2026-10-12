@@ -39,8 +39,8 @@
     "com.google.gson.functional.DefaultTypeAdaptersTest::testJsonElementTypeMismatch"
   ],
   "keep": [
-    "com.google.gson.functional.DefaultTypeAdaptersTest.testJsonElementTypeMismatch",
-    "java.lang.ClassCastException: Cannot cast com.google.gson.JsonPrimitive to com.google.gson.JsonObject"
+    "com.google.gson.functional.DefaultTypeAdaptersTest.testJsonElementTypeMismatch || DefaultTypeAdaptersTest.testJsonElementTypeMismatch",
+    "java.lang.ClassCastException: Cannot cast com.google.gson.JsonPrimitive to com.google.gson.JsonObject || Cannot cast com.google.gson.JsonPrimitive to com.google.gson.JsonObject"
   ],
   "unlocated": [],
   "lines": 266,

@@ -1,2 +1,2 @@
-org.apache.commons.collections.buffer.TestUnboundedFifoBuffer.testCollections220
-junit.framework.AssertionFailedError: expected:<1> but was:<0>
+org.apache.commons.collections.buffer.TestUnboundedFifoBuffer.testCollections220 || TestUnboundedFifoBuffer.testCollections220
+junit.framework.AssertionFailedError: expected:<1> but was:<0> || expected:<1> but was:<0>

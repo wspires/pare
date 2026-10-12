@@ -39,8 +39,8 @@
     "org.apache.commons.codec.binary.Base32Test::testCodec200"
   ],
   "keep": [
-    "testCodec200(org.apache.commons.codec.binary.Base32Test)",
-    "java.lang.IllegalArgumentException: pad must not be in alphabet or whitespace"
+    "testCodec200(org.apache.commons.codec.binary.Base32Test) || org.apache.commons.codec.binary.Base32Test.testCodec200 || Base32Test.testCodec200",
+    "java.lang.IllegalArgumentException: pad must not be in alphabet or whitespace || pad must not be in alphabet or whitespace"
   ],
   "unlocated": [],
   "lines": 89,

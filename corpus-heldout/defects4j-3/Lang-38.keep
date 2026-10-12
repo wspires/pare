@@ -1,2 +1,2 @@
-testLang538(org.apache.commons.lang3.time.FastDateFormatTest)
-junit.framework.ComparisonFailure: dateTime expected:<2009-10-16T[16]:42:16.000Z> but was:<2009-10-16T[08]:42:16.000Z>
+testLang538(org.apache.commons.lang3.time.FastDateFormatTest) || org.apache.commons.lang3.time.FastDateFormatTest.testLang538 || FastDateFormatTest.testLang538
+junit.framework.ComparisonFailure: dateTime expected:<2009-10-16T[16]:42:16.000Z> but was:<2009-10-16T[08]:42:16.000Z> || junit.framework.ComparisonFailure: dateTime expected:<2009-10-16T[16]:42:16.000Z || dateTime expected:<2009-10-16T[16]:42:16.000Z> but was:<2009-10-16T[08]:42:16.000Z>

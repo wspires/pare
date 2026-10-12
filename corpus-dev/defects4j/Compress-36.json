@@ -39,8 +39,8 @@
     "org.apache.commons.compress.archivers.sevenz.SevenZFileTest::readEntriesOfSize0"
   ],
   "keep": [
-    "readEntriesOfSize0(org.apache.commons.compress.archivers.sevenz.SevenZFileTest)",
-    "java.lang.IllegalStateException: No current 7z entry (call getNextEntry() first)."
+    "readEntriesOfSize0(org.apache.commons.compress.archivers.sevenz.SevenZFileTest) || org.apache.commons.compress.archivers.sevenz.SevenZFileTest.readEntriesOfSize0 || SevenZFileTest.readEntriesOfSize0",
+    "java.lang.IllegalStateException: No current 7z entry (call getNextEntry() first). || java.lang.IllegalStateException: No current 7z entry (call getNextEntry() first) || No current 7z entry (call getNextEntry() first)."
   ],
   "unlocated": [],
   "lines": 90,

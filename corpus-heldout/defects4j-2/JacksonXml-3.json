@@ -39,8 +39,8 @@
     "com.fasterxml.jackson.dataformat.xml.stream.XmlParserNextXxxTest::testXmlAttributesWithNextTextValue"
   ],
   "keep": [
-    "testXmlAttributesWithNextTextValue(com.fasterxml.jackson.dataformat.xml.stream.XmlParserNextXxxTest)",
-    "junit.framework.ComparisonFailure: expected:<7> but was:<null>"
+    "testXmlAttributesWithNextTextValue(com.fasterxml.jackson.dataformat.xml.stream.XmlParserNextXxxTest) || com.fasterxml.jackson.dataformat.xml.stream.XmlParserNextXxxTest.testXmlAttributesWithNextTextValue || XmlParserNextXxxTest.testXmlAttributesWithNextTextValue",
+    "junit.framework.ComparisonFailure: expected:<7> but was:<null> || expected:<7> but was:<null>"
   ],
   "unlocated": [],
   "lines": 71,

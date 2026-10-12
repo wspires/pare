@@ -1,2 +1,2 @@
-com.google.gson.stream.JsonWriterTest.testNonFiniteDoublesWhenLenient
-java.lang.IllegalArgumentException: Numeric values must be finite, but was NaN
+com.google.gson.stream.JsonWriterTest.testNonFiniteDoublesWhenLenient || JsonWriterTest.testNonFiniteDoublesWhenLenient
+java.lang.IllegalArgumentException: Numeric values must be finite, but was NaN || Numeric values must be finite, but was NaN

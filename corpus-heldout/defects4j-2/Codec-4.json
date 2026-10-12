@@ -45,10 +45,10 @@
     "org.apache.commons.codec.binary.Base64Codec13Test::testBinaryEncoder"
   ],
   "keep": [
-    "testEncoder(org.apache.commons.codec.binary.Base64Codec13Test)",
-    "junit.framework.AssertionFailedError: Encoder test-1",
-    "testBinaryEncoder(org.apache.commons.codec.binary.Base64Codec13Test)",
-    "junit.framework.AssertionFailedError: BinaryEncoder test-1"
+    "testEncoder(org.apache.commons.codec.binary.Base64Codec13Test) || org.apache.commons.codec.binary.Base64Codec13Test.testEncoder || Base64Codec13Test.testEncoder",
+    "junit.framework.AssertionFailedError: Encoder test-1 || Encoder test-1",
+    "testBinaryEncoder(org.apache.commons.codec.binary.Base64Codec13Test) || org.apache.commons.codec.binary.Base64Codec13Test.testBinaryEncoder || Base64Codec13Test.testBinaryEncoder",
+    "junit.framework.AssertionFailedError: BinaryEncoder test-1 || BinaryEncoder test-1"
   ],
   "unlocated": [],
   "lines": 86,

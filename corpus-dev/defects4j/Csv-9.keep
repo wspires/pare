@@ -1,2 +1,2 @@
-testToMapWithNoHeader(org.apache.commons.csv.CSVRecordTest)
+testToMapWithNoHeader(org.apache.commons.csv.CSVRecordTest) || org.apache.commons.csv.CSVRecordTest.testToMapWithNoHeader || CSVRecordTest.testToMapWithNoHeader
 java.lang.NullPointerException

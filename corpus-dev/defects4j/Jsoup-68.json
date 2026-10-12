@@ -39,8 +39,8 @@
     "org.jsoup.parser.HtmlParserTest::testHandlesDeepSpans"
   ],
   "keep": [
-    "org.jsoup.parser.HtmlParserTest.testHandlesDeepSpans",
-    "java.lang.StackOverflowError"
+    "org.jsoup.parser.HtmlParserTest.testHandlesDeepSpans || HtmlParserTest.testHandlesDeepSpans",
+    "java.lang.StackOverflowError || HtmlParserTest.testHandlesDeepSpans \u00bb StackOverflow"
   ],
   "unlocated": [],
   "lines": 1109,

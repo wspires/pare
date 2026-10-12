@@ -1,4 +1,4 @@
-winzipBackSlashWorkaround(org.apache.commons.compress.archivers.zip.ZipArchiveInputStreamTest)
+winzipBackSlashWorkaround(org.apache.commons.compress.archivers.zip.ZipArchiveInputStreamTest) || org.apache.commons.compress.archivers.zip.ZipArchiveInputStreamTest.winzipBackSlashWorkaround || ZipArchiveInputStreamTest.winzipBackSlashWorkaround
 expected:<ä[/]> but was:<ä[\]>
-testWinzipBackSlashWorkaround(org.apache.commons.compress.archivers.zip.ZipFileTest)
-junit.framework.AssertionFailedError: Expected: <null> but was: ä\ü.txt
+testWinzipBackSlashWorkaround(org.apache.commons.compress.archivers.zip.ZipFileTest) || org.apache.commons.compress.archivers.zip.ZipFileTest.testWinzipBackSlashWorkaround || ZipFileTest.testWinzipBackSlashWorkaround
+junit.framework.AssertionFailedError: Expected: <null> but was: ä\ü.txt || Expected: <null> but was: ä\ü.txt

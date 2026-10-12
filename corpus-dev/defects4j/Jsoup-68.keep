@@ -1,2 +1,2 @@
-org.jsoup.parser.HtmlParserTest.testHandlesDeepSpans
-java.lang.StackOverflowError
+org.jsoup.parser.HtmlParserTest.testHandlesDeepSpans || HtmlParserTest.testHandlesDeepSpans
+java.lang.StackOverflowError || HtmlParserTest.testHandlesDeepSpans » StackOverflow

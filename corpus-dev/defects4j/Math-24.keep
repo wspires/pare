@@ -1,2 +1,2 @@
-testMath855(org.apache.commons.math3.optimization.univariate.BrentOptimizerTest)
+testMath855(org.apache.commons.math3.optimization.univariate.BrentOptimizerTest) || org.apache.commons.math3.optimization.univariate.BrentOptimizerTest.testMath855 || BrentOptimizerTest.testMath855
 Best point not reported

@@ -39,8 +39,8 @@
     "org.apache.commons.lang3.text.translate.NumericEntityUnescaperTest::testSupplementaryUnescaping"
   ],
   "keep": [
-    "testSupplementaryUnescaping(org.apache.commons.lang3.text.translate.NumericEntityUnescaperTest)",
-    "junit.framework.ComparisonFailure: Failed to unescape numeric entities supplementary characters expected:<[\ud803\udc22]> but was:<[\u0c22]>"
+    "testSupplementaryUnescaping(org.apache.commons.lang3.text.translate.NumericEntityUnescaperTest) || org.apache.commons.lang3.text.translate.NumericEntityUnescaperTest.testSupplementaryUnescaping || NumericEntityUnescaperTest.testSupplementaryUnescaping",
+    "junit.framework.ComparisonFailure: Failed to unescape numeric entities supplementary characters expected:<[\ud803\udc22]> but was:<[\u0c22]> || Failed to unescape numeric entities supplementary characters expected:<[\ud803\udc22]> but was:<[\u0c22]>"
   ],
   "unlocated": [],
   "lines": 101,

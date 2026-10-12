@@ -39,8 +39,8 @@
     "com.fasterxml.jackson.databind.deser.TestJDKAtomicTypes::testEmpty1256"
   ],
   "keep": [
-    "testEmpty1256(com.fasterxml.jackson.databind.deser.TestJDKAtomicTypes)",
-    "junit.framework.ComparisonFailure: expected:<{[]}> but was:<{[\"a\":null]}>"
+    "testEmpty1256(com.fasterxml.jackson.databind.deser.TestJDKAtomicTypes) || com.fasterxml.jackson.databind.deser.TestJDKAtomicTypes.testEmpty1256 || TestJDKAtomicTypes.testEmpty1256",
+    "junit.framework.ComparisonFailure: expected:<{[]}> but was:<{[\"a\":null]}> || expected:<{[]}> but was:<{[\"a\":null]}>"
   ],
   "unlocated": [],
   "lines": 74,

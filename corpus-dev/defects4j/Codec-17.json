@@ -39,7 +39,7 @@
     "org.apache.commons.codec.binary.StringUtilsTest::testNewStringNullInput_CODEC229"
   ],
   "keep": [
-    "testNewStringNullInput_CODEC229(org.apache.commons.codec.binary.StringUtilsTest)",
+    "testNewStringNullInput_CODEC229(org.apache.commons.codec.binary.StringUtilsTest) || org.apache.commons.codec.binary.StringUtilsTest.testNewStringNullInput_CODEC229 || StringUtilsTest.testNewStringNullInput_CODEC229",
     "java.lang.NullPointerException"
   ],
   "unlocated": [],

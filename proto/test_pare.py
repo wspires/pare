@@ -1325,6 +1325,51 @@ def test_defects4j_metadata_parsing_and_selection(tmp_path):
     assert d4.locate_exception("java.lang.AssertionError: Out of bounds (0.52 > 0.5)", "Out of bounds (0.68 > 0.5)") is None
 
 
+def test_keep_line_alternatives_and_name_boundaries():
+    sys.path.insert(0, os.path.join(ROOT, "bench"))
+    import collect
+    out = "[ERROR]   ResolveTest.testResolve12 » StackOverflow\n"
+    assert collect.keep_found("pkg.ResolveTest.testResolve12 || ResolveTest.testResolve12", out)
+    # testResolve1 is not shown by a line naming testResolve12
+    assert not collect.keep_found("pkg.ResolveTest.testResolve1 || ResolveTest.testResolve1", out)
+    assert collect.keep_found("java.lang.StackOverflowError || ResolveTest.testResolve12 » StackOverflow", out)
+    assert collect.keep_found("x.Cls.m", "at x.Cls.m(Cls.java:3)")  # a dot or paren is a boundary
+
+
+def test_defects4j_labels_list_every_form_the_output_shows():
+    d4 = load_defects4j_cases()
+    t = {"class": "com.x.ResolveTest", "method": "testResolve1", "exception": "java.lang.StackOverflowError"}
+    out = ("[ERROR] com.x.ResolveTest.testResolve1 -- Time elapsed: 0.01 s <<< ERROR!\n"
+           "java.lang.StackOverflowError\n\tat com.x.Foo.bar(Foo.java:1)\n"
+           "[ERROR] Errors:\n[ERROR]   ResolveTest.testResolve1 » StackOverflow\n")
+    keep, failed, unlocated = d4.labels({"triggers": [t]}, out)
+    assert keep == ["com.x.ResolveTest.testResolve1 || ResolveTest.testResolve1",
+                    "java.lang.StackOverflowError || ResolveTest.testResolve1 » StackOverflow"]
+    assert failed == [t] and unlocated == []
+    assert d4.surefire_abbrev("java.lang.IllegalStateException: no") == "IllegalState"
+
+
+def test_defects4j_relabel_rewrites_keep_lists_from_the_log(tmp_path):
+    import contextlib
+    import io
+    d4 = load_defects4j_cases()
+    t = {"class": "p.CalcTest", "method": "testTwo", "exception": "junit.framework.AssertionFailedError: expected:<2> but was:<1>"}
+    (tmp_path / "Lang-1.log").write_text(
+        "testTwo(p.CalcTest)  Time elapsed: 0 sec  <<< FAILURE!\njava.lang.AssertionError: expected:<2> but was:<1>\n"
+        "Failed tests:   testTwo(p.CalcTest): expected:<2> but was:<1>\n")
+    (tmp_path / "Lang-1.keep").write_text("testTwo(p.CalcTest)\n")  # labelled before the exception was located
+    (tmp_path / "Lang-1.json").write_text(json.dumps({"triggers": [t], "keep": ["testTwo(p.CalcTest)"]}))
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        assert d4.main(["relabel", "--dry-run", str(tmp_path)]) == 0
+    assert "1 case(s) would change" in buf.getvalue() and "+ expected:<2> but was:<1>" in buf.getvalue()
+    assert (tmp_path / "Lang-1.keep").read_text() == "testTwo(p.CalcTest)\n"  # a dry run writes nothing
+    with contextlib.redirect_stdout(io.StringIO()):
+        d4.main(["relabel", str(tmp_path)])
+    assert (tmp_path / "Lang-1.keep").read_text() == "testTwo(p.CalcTest)\nexpected:<2> but was:<1>\n"
+    assert json.loads((tmp_path / "Lang-1.json").read_text())["keep"] == ["testTwo(p.CalcTest)", "expected:<2> but was:<1>"]
+
+
 def test_defects4j_harness_rebuilds_the_buggy_version_and_writes_a_case(tmp_path):
     import contextlib
     import io
@@ -1342,7 +1387,8 @@ def test_defects4j_harness_rebuilds_the_buggy_version_and_writes_a_case(tmp_path
     # the build saw the buggy version (fix reverted) with the compile-error fix applied
     assert docker.seen[0]["calc"].strip().endswith("return 1; } }") and "int y;" in docker.seen[0]["old"]
     assert (out / "Lang-1.keep").read_text().splitlines() == [
-        "testTwo(p.CalcTest)", "java.lang.AssertionError: expected:<2> but was:<1>"]
+        "testTwo(p.CalcTest) || p.CalcTest.testTwo || CalcTest.testTwo",  # the frame names the test too
+        "java.lang.AssertionError: expected:<2> but was:<1> || expected:<2> but was:<1>"]
     assert (out / "Lang-1.cmd").read_text().strip() == "mvn -B -Dtest=CalcTest test"
     log = (out / "Lang-1.log").read_text()
     assert log.startswith("[INFO] Building") and "downloading noise" not in log and ">>>>>" not in log

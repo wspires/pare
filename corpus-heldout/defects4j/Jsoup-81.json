@@ -39,7 +39,7 @@
     "org.jsoup.helper.DataUtilTest::supportsXmlCharsetDeclaration"
   ],
   "keep": [
-    "org.jsoup.helper.DataUtilTest.supportsXmlCharsetDeclaration",
+    "org.jsoup.helper.DataUtilTest.supportsXmlCharsetDeclaration || DataUtilTest.supportsXmlCharsetDeclaration",
     "expected:<Hell[\u00f6 W\u00f6]rld!> but was:<Hell[\ufffd W\ufffd]rld!>"
   ],
   "unlocated": [],

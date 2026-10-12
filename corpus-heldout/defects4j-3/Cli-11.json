@@ -39,7 +39,7 @@
     "org.apache.commons.cli.HelpFormatterTest::testPrintOptionWithEmptyArgNameUsage"
   ],
   "keep": [
-    "testPrintOptionWithEmptyArgNameUsage(org.apache.commons.cli.HelpFormatterTest)"
+    "testPrintOptionWithEmptyArgNameUsage(org.apache.commons.cli.HelpFormatterTest) || org.apache.commons.cli.HelpFormatterTest.testPrintOptionWithEmptyArgNameUsage || HelpFormatterTest.testPrintOptionWithEmptyArgNameUsage"
   ],
   "unlocated": [
     "exception: junit.framework.ComparisonFailure: expected:<usage: app -f[]"

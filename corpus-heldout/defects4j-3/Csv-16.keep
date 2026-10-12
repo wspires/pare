@@ -1,2 +1,2 @@
-testIteratorSequenceBreaking(org.apache.commons.csv.CSVParserTest)
+testIteratorSequenceBreaking(org.apache.commons.csv.CSVParserTest) || org.apache.commons.csv.CSVParserTest.testIteratorSequenceBreaking || CSVParserTest.testIteratorSequenceBreaking
 expected:<[3]> but was:<[4]>

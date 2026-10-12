@@ -1,2 +1,2 @@
-org.jsoup.helper.DataUtilTest.supportsXmlCharsetDeclaration
+org.jsoup.helper.DataUtilTest.supportsXmlCharsetDeclaration || DataUtilTest.supportsXmlCharsetDeclaration
 expected:<Hell[ö Wö]rld!> but was:<Hell[� W�]rld!>

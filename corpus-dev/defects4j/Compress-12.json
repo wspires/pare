@@ -39,8 +39,8 @@
     "org.apache.commons.compress.archivers.TarTestCase::testCOMPRESS178"
   ],
   "keep": [
-    "testCOMPRESS178(org.apache.commons.compress.archivers.TarTestCase)",
-    "java.lang.IllegalArgumentException: Invalid byte 0 at offset 2 in '00{NUL}0765{NUL}' len=8"
+    "testCOMPRESS178(org.apache.commons.compress.archivers.TarTestCase) || org.apache.commons.compress.archivers.TarTestCase.testCOMPRESS178 || TarTestCase.testCOMPRESS178",
+    "java.lang.IllegalArgumentException: Invalid byte 0 at offset 2 in '00{NUL}0765{NUL}' len=8 || Invalid byte 0 at offset 2 in '00{NUL}0765{NUL}' len=8"
   ],
   "unlocated": [],
   "lines": 115,

@@ -39,8 +39,8 @@
     "com.fasterxml.jackson.core.TestJsonPointer::testIZeroIndex"
   ],
   "keep": [
-    "testIZeroIndex(com.fasterxml.jackson.core.TestJsonPointer)",
-    "junit.framework.AssertionFailedError: expected:<-1> but was:<0>"
+    "testIZeroIndex(com.fasterxml.jackson.core.TestJsonPointer) || com.fasterxml.jackson.core.TestJsonPointer.testIZeroIndex || TestJsonPointer.testIZeroIndex",
+    "junit.framework.AssertionFailedError: expected:<-1> but was:<0> || expected:<-1> but was:<0>"
   ],
   "unlocated": [],
   "lines": 94,

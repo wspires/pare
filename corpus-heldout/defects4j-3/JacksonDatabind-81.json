@@ -39,8 +39,8 @@
     "com.fasterxml.jackson.databind.introspect.TypeCoercion1592Test::testTypeCoercion1592"
   ],
   "keep": [
-    "testTypeCoercion1592(com.fasterxml.jackson.databind.introspect.TypeCoercion1592Test)",
-    "com.fasterxml.jackson.databind.exc.InvalidDefinitionException: Invalid definition for property \"i\" (of type com.fasterxml.jackson.databind.introspect.TypeCoercion1592Test$Bean1592): Can not refine serialization type [simple type, class int] into java.lang.Integer; types not related"
+    "testTypeCoercion1592(com.fasterxml.jackson.databind.introspect.TypeCoercion1592Test) || com.fasterxml.jackson.databind.introspect.TypeCoercion1592Test.testTypeCoercion1592 || TypeCoercion1592Test.testTypeCoercion1592",
+    "com.fasterxml.jackson.databind.exc.InvalidDefinitionException: Invalid definition for property \"i\" (of type com.fasterxml.jackson.databind.introspect.TypeCoercion1592Test$Bean1592): Can not refine serialization type [simple type, class int] into java.lang.Integer; types not related || Invalid definition for property \"i\" (of type com.fasterxml.jackson.databind.introspect.TypeCoercion1592Test$Bean1592): Can not refine serialization type [simple type, class int] into java.lang.Integer; types not related"
   ],
   "unlocated": [],
   "lines": 88,

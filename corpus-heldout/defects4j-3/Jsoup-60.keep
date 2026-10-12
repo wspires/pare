@@ -1,4 +1,4 @@
-org.jsoup.select.QueryParserTest.testParsesSingleQuoteInContains
+org.jsoup.select.QueryParserTest.testParsesSingleQuoteInContains || QueryParserTest.testParsesSingleQuoteInContains
 Expected exception: org.jsoup.select.Selector$SelectorParseException
-org.jsoup.select.QueryParserTest.exceptionOnUncloseAttribute
-java.lang.Exception: Unexpected exception, expected<org.jsoup.select.Selector$SelectorParseException> but was<java.lang.IllegalArgumentException>
+org.jsoup.select.QueryParserTest.exceptionOnUncloseAttribute || QueryParserTest.exceptionOnUncloseAttribute
+java.lang.Exception: Unexpected exception, expected<org.jsoup.select.Selector$SelectorParseException> but was<java.lang.IllegalArgumentException> || Unexpected exception, expected<org.jsoup.select.Selector$SelectorParseException> but was<java.lang.IllegalArgumentException>

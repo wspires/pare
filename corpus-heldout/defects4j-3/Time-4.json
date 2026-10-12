@@ -39,7 +39,7 @@
     "org.joda.time.TestPartial_Basics::testWith3"
   ],
   "keep": [
-    "testWith3(org.joda.time.TestPartial_Basics)",
+    "testWith3(org.joda.time.TestPartial_Basics) || org.joda.time.TestPartial_Basics.testWith3 || TestPartial_Basics.testWith3",
     "junit.framework.AssertionFailedError"
   ],
   "unlocated": [],

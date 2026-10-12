@@ -39,8 +39,8 @@
     "org.apache.commons.csv.CSVRecordTest::testGetStringInconsistentRecord"
   ],
   "keep": [
-    "testGetStringInconsistentRecord(org.apache.commons.csv.CSVRecordTest)",
-    "java.lang.Exception: Unexpected exception, expected<java.lang.IllegalArgumentException> but was<java.lang.ArrayIndexOutOfBoundsException>"
+    "testGetStringInconsistentRecord(org.apache.commons.csv.CSVRecordTest) || org.apache.commons.csv.CSVRecordTest.testGetStringInconsistentRecord || CSVRecordTest.testGetStringInconsistentRecord",
+    "java.lang.Exception: Unexpected exception, expected<java.lang.IllegalArgumentException> but was<java.lang.ArrayIndexOutOfBoundsException> || Unexpected exception, expected<java.lang.IllegalArgumentException> but was<java.lang.ArrayIndexOutOfBoundsException>"
   ],
   "unlocated": [],
   "lines": 82,

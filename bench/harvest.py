@@ -555,7 +555,7 @@ def cmd_promote(args) -> int:
         problems = []
         if not keep:
             problems.append("no keep list (write NAME.keep from the log; NAME.keep.proposed is only a draft)")
-        missing = [k for k in keep if k not in text]
+        missing = [k for k in keep if not collect.keep_found(k, text)]
         if missing:
             problems.append(f"{len(missing)} keep line(s) not in the log, e.g. {missing[0][:80]!r}")
         secrets = [i for i, ln in enumerate(text.splitlines(), 1) if collect.SECRET_RX.search(ln)]

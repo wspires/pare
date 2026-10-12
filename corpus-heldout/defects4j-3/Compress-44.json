@@ -51,10 +51,10 @@
     "org.apache.commons.compress.utils.ChecksumCalculatingInputStreamTest::testClassInstantiationWithParameterBeingNullThrowsNullPointerExceptionThree"
   ],
   "keep": [
-    "testClassInstantiationWithParameterBeingNullThrowsNullPointerExceptionOne(org.apache.commons.compress.utils.ChecksumCalculatingInputStreamTest)",
+    "testClassInstantiationWithParameterBeingNullThrowsNullPointerExceptionOne(org.apache.commons.compress.utils.ChecksumCalculatingInputStreamTest) || ChecksumCalculatingInputStreamTest.testClassInstantiationWithParameterBeingNullThrowsNullPointerExceptionOne",
     "Expected exception: java.lang.NullPointerException",
-    "testClassInstantiationWithParameterBeingNullThrowsNullPointerExceptionTwo(org.apache.commons.compress.utils.ChecksumCalculatingInputStreamTest)",
-    "testClassInstantiationWithParameterBeingNullThrowsNullPointerExceptionThree(org.apache.commons.compress.utils.ChecksumCalculatingInputStreamTest)"
+    "testClassInstantiationWithParameterBeingNullThrowsNullPointerExceptionTwo(org.apache.commons.compress.utils.ChecksumCalculatingInputStreamTest) || ChecksumCalculatingInputStreamTest.testClassInstantiationWithParameterBeingNullThrowsNullPointerExceptionTwo",
+    "testClassInstantiationWithParameterBeingNullThrowsNullPointerExceptionThree(org.apache.commons.compress.utils.ChecksumCalculatingInputStreamTest) || ChecksumCalculatingInputStreamTest.testClassInstantiationWithParameterBeingNullThrowsNullPointerExceptionThree"
   ],
   "unlocated": [],
   "lines": 98,

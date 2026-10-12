@@ -45,10 +45,10 @@
     "com.fasterxml.jackson.core.json.GeneratorFailTest::testFailOnWritingStringNotFieldNameChars"
   ],
   "keep": [
-    "testFailOnWritingStringNotFieldNameBytes(com.fasterxml.jackson.core.json.GeneratorFailTest)",
-    "junit.framework.AssertionFailedError: Should not have let com.fasterxml.jackson.core.json.UTF8JsonGenerator.writeString() be used in place of 'writeFieldName()': output = {:\"a\"",
-    "testFailOnWritingStringNotFieldNameChars(com.fasterxml.jackson.core.json.GeneratorFailTest)",
-    "junit.framework.AssertionFailedError: Should not have let com.fasterxml.jackson.core.json.WriterBasedJsonGenerator.writeString() be used in place of 'writeFieldName()': output = {:\"a\""
+    "testFailOnWritingStringNotFieldNameBytes(com.fasterxml.jackson.core.json.GeneratorFailTest) || com.fasterxml.jackson.core.json.GeneratorFailTest.testFailOnWritingStringNotFieldNameBytes || GeneratorFailTest.testFailOnWritingStringNotFieldNameBytes",
+    "junit.framework.AssertionFailedError: Should not have let com.fasterxml.jackson.core.json.UTF8JsonGenerator.writeString() be used in place of 'writeFieldName()': output = {:\"a\" || junit.framework.AssertionFailedError: Should not have let com.fasterxml.jackson. || Should not have let com.fasterxml.jackson.core.json.UTF8JsonGenerator.writeString() be used in place of 'writeFieldName()': output = {:\"a\"",
+    "testFailOnWritingStringNotFieldNameChars(com.fasterxml.jackson.core.json.GeneratorFailTest) || com.fasterxml.jackson.core.json.GeneratorFailTest.testFailOnWritingStringNotFieldNameChars || GeneratorFailTest.testFailOnWritingStringNotFieldNameChars",
+    "junit.framework.AssertionFailedError: Should not have let com.fasterxml.jackson.core.json.WriterBasedJsonGenerator.writeString() be used in place of 'writeFieldName()': output = {:\"a\" || junit.framework.AssertionFailedError: Should not have let com.fasterxml.jackson. || Should not have let com.fasterxml.jackson.core.json.WriterBasedJsonGenerator.writeString() be used in place of 'writeFieldName()': output = {:\"a\""
   ],
   "unlocated": [],
   "lines": 79,

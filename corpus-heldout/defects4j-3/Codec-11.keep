@@ -1,9 +1,9 @@
-testSkipNotEncodedCRLF(org.apache.commons.codec.net.QuotedPrintableCodecTest)
-org.apache.commons.codec.DecoderException: Invalid URL encoding: not a valid digit (radix 16): 13
-testSoftLineBreakDecode(org.apache.commons.codec.net.QuotedPrintableCodecTest)
-testSoftLineBreakEncode(org.apache.commons.codec.net.QuotedPrintableCodecTest)
+testSkipNotEncodedCRLF(org.apache.commons.codec.net.QuotedPrintableCodecTest) || org.apache.commons.codec.net.QuotedPrintableCodecTest.testSkipNotEncodedCRLF || QuotedPrintableCodecTest.testSkipNotEncodedCRLF
+org.apache.commons.codec.DecoderException: Invalid URL encoding: not a valid digit (radix 16): 13 || Invalid URL encoding: not a valid digit (radix 16): 13
+testSoftLineBreakDecode(org.apache.commons.codec.net.QuotedPrintableCodecTest) || org.apache.commons.codec.net.QuotedPrintableCodecTest.testSoftLineBreakDecode || QuotedPrintableCodecTest.testSoftLineBreakDecode
+testSoftLineBreakEncode(org.apache.commons.codec.net.QuotedPrintableCodecTest) || org.apache.commons.codec.net.QuotedPrintableCodecTest.testSoftLineBreakEncode || QuotedPrintableCodecTest.testSoftLineBreakEncode
 expected:<...matics is the most b[=
-testUltimateSoftBreak(org.apache.commons.codec.net.QuotedPrintableCodecTest)
+testUltimateSoftBreak(org.apache.commons.codec.net.QuotedPrintableCodecTest) || org.apache.commons.codec.net.QuotedPrintableCodecTest.testUltimateSoftBreak || QuotedPrintableCodecTest.testUltimateSoftBreak
 expected:<...There is no end to i[=
-testTrailingSpecial(org.apache.commons.codec.net.QuotedPrintableCodecTest)
+testTrailingSpecial(org.apache.commons.codec.net.QuotedPrintableCodecTest) || org.apache.commons.codec.net.QuotedPrintableCodecTest.testTrailingSpecial || QuotedPrintableCodecTest.testTrailingSpecial
 expected:<... might contain sp=3D[=

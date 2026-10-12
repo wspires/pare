@@ -1,8 +1,8 @@
-testIssue207(com.fasterxml.jackson.core.sym.TestByteBasedSymbols)
+testIssue207(com.fasterxml.jackson.core.sym.TestByteBasedSymbols) || com.fasterxml.jackson.core.sym.TestByteBasedSymbols.testIssue207 || TestByteBasedSymbols.testIssue207
 java.lang.ArrayIndexOutOfBoundsException: 256
-testCollisionsWithBytesNew187b(com.fasterxml.jackson.core.sym.TestSymbolTables)
-junit.framework.AssertionFailedError: expected:<16384> but was:<32768>
-testSyntheticWithBytesNew(com.fasterxml.jackson.core.sym.TestSymbolTables)
-junit.framework.AssertionFailedError: expected:<8534> but was:<8524>
-testShortNameCollisionsDirectNew(com.fasterxml.jackson.core.sym.TestSymbolTables)
-junit.framework.AssertionFailedError: expected:<1024> but was:<2048>
+testCollisionsWithBytesNew187b(com.fasterxml.jackson.core.sym.TestSymbolTables) || com.fasterxml.jackson.core.sym.TestSymbolTables.testCollisionsWithBytesNew187b || TestSymbolTables.testCollisionsWithBytesNew187b
+junit.framework.AssertionFailedError: expected:<16384> but was:<32768> || expected:<16384> but was:<32768>
+testSyntheticWithBytesNew(com.fasterxml.jackson.core.sym.TestSymbolTables) || com.fasterxml.jackson.core.sym.TestSymbolTables.testSyntheticWithBytesNew || TestSymbolTables.testSyntheticWithBytesNew
+junit.framework.AssertionFailedError: expected:<8534> but was:<8524> || expected:<8534> but was:<8524>
+testShortNameCollisionsDirectNew(com.fasterxml.jackson.core.sym.TestSymbolTables) || com.fasterxml.jackson.core.sym.TestSymbolTables.testShortNameCollisionsDirectNew || TestSymbolTables.testShortNameCollisionsDirectNew
+junit.framework.AssertionFailedError: expected:<1024> but was:<2048> || expected:<1024> but was:<2048>

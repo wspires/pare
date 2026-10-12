@@ -45,9 +45,10 @@
     "com.google.gson.internal.bind.RecursiveTypesResolveTest::testRecursiveTypeVariablesResolve1"
   ],
   "keep": [
-    "com.google.gson.internal.bind.RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve12",
-    "java.lang.StackOverflowError",
-    "com.google.gson.internal.bind.RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve1"
+    "com.google.gson.internal.bind.RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve12 || RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve12",
+    "java.lang.StackOverflowError || RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve12 \u00bb StackOverflow",
+    "com.google.gson.internal.bind.RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve1 || RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve1",
+    "java.lang.StackOverflowError || RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve1 \u00bb StackOverflow"
   ],
   "unlocated": [],
   "lines": 2153,

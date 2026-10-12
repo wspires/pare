@@ -1,2 +1,2 @@
-testDuplicateHeaderElements(org.apache.commons.csv.CSVFormatTest)
-java.lang.Exception: Unexpected exception, expected<java.lang.IllegalArgumentException> but was<java.lang.IllegalStateException>
+testDuplicateHeaderElements(org.apache.commons.csv.CSVFormatTest) || org.apache.commons.csv.CSVFormatTest.testDuplicateHeaderElements || CSVFormatTest.testDuplicateHeaderElements
+java.lang.Exception: Unexpected exception, expected<java.lang.IllegalArgumentException> but was<java.lang.IllegalStateException> || Unexpected exception, expected<java.lang.IllegalArgumentException> but was<java.lang.IllegalStateException>

@@ -39,8 +39,8 @@
     "org.apache.commons.codec.binary.Base64Test::testCodec112"
   ],
   "keep": [
-    "testCodec112(org.apache.commons.codec.binary.Base64Test)",
-    "java.lang.IllegalArgumentException: Input array too big, the output array would be bigger (6) than the specified maxium size of 4"
+    "testCodec112(org.apache.commons.codec.binary.Base64Test) || org.apache.commons.codec.binary.Base64Test.testCodec112 || Base64Test.testCodec112",
+    "java.lang.IllegalArgumentException: Input array too big, the output array would be bigger (6) than the specified maxium size of 4 || java.lang.IllegalArgumentException: Input array too big, the output array would  || Input array too big, the output array would be bigger (6) than the specified maxium size of 4"
   ],
   "unlocated": [],
   "lines": 78,

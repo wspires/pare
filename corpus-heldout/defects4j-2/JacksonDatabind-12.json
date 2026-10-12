@@ -39,8 +39,8 @@
     "com.fasterxml.jackson.databind.deser.TestCustomDeserializers::testCustomMapValueDeser735"
   ],
   "keep": [
-    "testCustomMapValueDeser735(com.fasterxml.jackson.databind.deser.TestCustomDeserializers)",
-    "junit.framework.AssertionFailedError: expected:<1> but was:<100>"
+    "testCustomMapValueDeser735(com.fasterxml.jackson.databind.deser.TestCustomDeserializers) || com.fasterxml.jackson.databind.deser.TestCustomDeserializers.testCustomMapValueDeser735 || TestCustomDeserializers.testCustomMapValueDeser735",
+    "junit.framework.AssertionFailedError: expected:<1> but was:<100> || expected:<1> but was:<100>"
   ],
   "unlocated": [],
   "lines": 94,

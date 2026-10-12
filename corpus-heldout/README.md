@@ -62,6 +62,49 @@ These are a different kind of keep list from the transcript cases: they
 only ask whether the summary names every failing test, not whether it
 keeps the assertion or the location. Report them as their own source.
 
+## Labels
+
+A keep line names one fact the summary should show. When the same fact
+can be printed several ways, the line lists the forms separated by
+` || ` and counts as kept when any appears:
+
+```
+com.google.gson.internal.bind.RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve1 || RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve1
+java.lang.StackOverflowError || RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve1 » StackOverflow
+```
+
+A form must not run on into a longer name: `…Resolve1` is not shown by
+a line naming `…Resolve12` (before this rule, Gson-16 was credited with
+one such test at 600). `bench/run.py`, `ablate.py` and `tokens.py` match
+this way (`collect.keep_found`); `collect.py check` and `harvest.py
+promote` use it to confirm a keep line is in the log.
+
+The forms come from the log and the dataset only, never from pare's
+output. The Defects4J harness writes every id form the log contains
+(`testX(pkg.Cls)`, `pkg.Cls.testX`, `Cls.testX`; the short form also
+matches a stack frame naming the test) and, for an exception, the line
+Defects4J recorded, its message alone (12 characters or more), and
+Surefire 3's summary form `Cls.testX » Abbrev`. `python3
+bench/defects4j_cases.py relabel DIR...` rewrites existing cases from
+their logs and recorded triggers, without a build (`--dry-run` shows the
+changes); it relabelled all 64 Defects4J cases, and Gson-16 gained a
+line (its two tests' identical exceptions are now one line each, since
+each has its own summary form).
+
+The change moved the numbers, so both are recorded here once; numbers
+elsewhere in this file from before it use the old labels.
+
+| Defects4J set | budget | old labels | + boundary | + alternatives |
+|---|---|---|---|---|
+| seed 1 (`corpus-dev/defects4j/`) | 600 / 1,000 / 2,000 | 90.9 / 95.5 / 100 % | same | 90.9 / 100 / 100 % |
+| seed 0 (`defects4j/`) | 600 / 1,000 / 2,000 | 64.5 / 93.5 / 100 % | same | 67.7 / 96.8 / 100 % |
+| seed 2 (`defects4j-2/`) | 600 / 1,000 / 2,000 | 72.1 / 93.0 / 97.7 % | 69.8 / 93.0 / 97.7 % | 75.0 / 93.2 / 100 % |
+| seed 3 (`defects4j-3/`) | 600 / 1,000 / 2,000 | 66.7 / 94.1 / 98.0 % | same | **76.5** / 98.0 / 98.0 % |
+
+pare is the same in every column (commit `3d36efa`). The SWE-bench and
+dev corpora have no alternative forms, and the boundary rule changes
+none of their numbers.
+
 ## Defects4J cases
 
 `bench/defects4j_cases.py` does the same for Java. Defects4J records, per
@@ -123,6 +166,8 @@ SWE-bench seed 2, 82 / 86 / 100 % with the chatter fix and 77 / 82 / 95 %
 before it. tidyout keeps everything at 99.6 % of the input. On
 Defects4J seed 3, 9 of 18 logs pass through at 2,000, so 600 and 1,000
 are the numbers that test the summary; no case got worse at any budget.
+These are old-label numbers; with keep lines that accept each fact's
+alternative forms ("Labels"), the last Defects4J row is 76.5 / 98 / 98 %.
 
 ### Fresh samples: the honest measurement
 
@@ -191,7 +236,7 @@ What pare still misses, from reading the misses (no code changed on them):
   `RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve1 » StackOverflow`,
   which names the test but does not match, and JacksonCore-10 above is
   the same. Each keep line accepts one form; the numbers count these as
-  misses.
+  misses. *Fixed since* (keep lines list alternative forms; see "Labels").
 
 A fix that comes from these diagnoses spends these sets the same way as
 the first two, and the next sample (another seed, `--exclude` every

@@ -46,7 +46,7 @@
   ],
   "keep": [
     "testAxisAttribute(org.apache.commons.jxpath.ri.model.dom.DOMModelTest)",
-    "junit.framework.AssertionFailedError: Evaluating value iterator <vendor/product/price:amount/attribute::node()> expected:<[10%, 20%]> but was:<[]>",
+    "junit.framework.AssertionFailedError: Evaluating value iterator <vendor/product/price:amount/attribute::node()> expected:<[10%, 20%]> but was:<[]> || junit.framework.AssertionFailedError: Evaluating value iterator <vendor/product/ || Evaluating value iterator <vendor/product/price:amount/attribute::node()> expected:<[10%, 20%]> but was:<[]>",
     "testAxisAttribute(org.apache.commons.jxpath.ri.model.jdom.JDOMModelTest)"
   ],
   "unlocated": [],

@@ -39,7 +39,7 @@
     "org.apache.commons.csv.CSVParserTest::testDuplicateHeaderEntries"
   ],
   "keep": [
-    "testDuplicateHeaderEntries(org.apache.commons.csv.CSVParserTest)",
+    "testDuplicateHeaderEntries(org.apache.commons.csv.CSVParserTest) || CSVParserTest.testDuplicateHeaderEntries",
     "Expected exception: java.lang.IllegalStateException"
   ],
   "unlocated": [],

@@ -52,7 +52,7 @@
   ],
   "keep": [
     "testOptionGroupLong(org.apache.commons.cli.BasicParserTest)",
-    "junit.framework.ComparisonFailure: selected option expected:<bar> but was:<null>",
+    "junit.framework.ComparisonFailure: selected option expected:<bar> but was:<null> || selected option expected:<bar> but was:<null>",
     "testOptionGroupLong(org.apache.commons.cli.GnuParserTest)",
     "testOptionGroupLong(org.apache.commons.cli.PosixParserTest)"
   ],

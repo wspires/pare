@@ -376,32 +376,103 @@ def locate_exception(exc: str, output: str) -> str | None:
 FAILURES = re.compile(r"Tests run: \d+, Failures: (\d+), Errors: (\d+)")
 
 
+def surefire_abbrev(exc: str) -> str:
+    """Surefire 3's summary name for an exception: the simple class name
+    without its Error or Exception suffix (java.lang.StackOverflowError ->
+    StackOverflow), as in "Cls.testX » StackOverflow"."""
+    simple = exc.partition(": ")[0].rsplit(".", 1)[-1]
+    return re.sub(r"(?:Error|Exception)$", "", simple) or simple
+
+
+def exception_forms(t: dict, output: str) -> list[str]:
+    """The forms of a trigger test's exception that the output shows, most
+    specific first: the line as Defects4J recorded it, its first 80
+    characters, its message alone (Maven's JUnit 4 runner prints a JUnit 3
+    AssertionFailedError's message under java.lang.AssertionError, and
+    Surefire's summary repeats the message after the test name), or the
+    summary's "Cls.testX » Abbrev" form. Taken from the output and the
+    dataset only, never from a summary of it."""
+    exc = t["exception"]
+    simple = t["class"].rsplit(".", 1)[-1]
+    _cls, sep, message = exc.partition(": ")
+    message = message.strip()
+    forms = [exc]
+    if len(exc) > 80:
+        forms.append(exc[:80])
+    if sep and len(message) >= 12:
+        forms.append(message)
+    forms.append(f"{simple}.{t['method']} » {surefire_abbrev(exc)}")
+    found = []
+    for f in forms:
+        if f not in found and collect.form_in(f, output):
+            found.append(f)
+    return found
+
+
 def labels(bug: dict, output: str) -> tuple[list[str], list[dict], list[str]]:
     """(keep lines, trigger tests that failed, what could not be located).
     A trigger test counts as failed when its id is in the output: Surefire
-    names methods only when they fail or error. Its exception line is kept
-    when it appears verbatim, or its first 80 characters do, or else its
-    message alone: Defects4J recorded failures under a JUnit 3-style Ant
-    runner (junit.framework.AssertionFailedError), and Maven's JUnit 4
-    runner prints the same message under another class
-    (java.lang.AssertionError)."""
+    names methods only when they fail or error. Each keep line lists every
+    form of its fact that the output shows, separated by " || " (see
+    collect.KEEP_OR): the test as `m(pkg.Cls)`, `pkg.Cls.m` or `Cls.m`, and
+    its exception as exception_forms finds it."""
     keep, failed, unlocated = [], [], []
     for t in bug["triggers"]:
-        form = next((f for f in test_id_forms(t["class"], t["method"]) if f in output), None)
-        if form is None:
+        forms = [f for f in test_id_forms(t["class"], t["method"]) if collect.form_in(f, output)]
+        if not forms:
             unlocated.append(f"{t['class']}::{t['method']}")
             continue
         failed.append(t)
-        if form not in keep:
-            keep.append(form)
-        exc = t["exception"]
-        if exc:
-            located = locate_exception(exc, output)
-            if located and located not in keep:
-                keep.append(located)
-            elif not located:
-                unlocated.append(f"exception: {exc[:100]}")
+        line = collect.KEEP_OR.join(forms)
+        if line not in keep:
+            keep.append(line)
+        if t["exception"]:
+            forms = exception_forms(t, output)
+            line = collect.KEEP_OR.join(forms)
+            if forms and line not in keep:
+                keep.append(line)
+            elif not forms:
+                unlocated.append(f"exception: {t['exception'][:100]}")
     return keep, failed, unlocated
+
+
+def cmd_relabel(args, docker=None) -> int:
+    """Rewrite the keep lists of existing cases from their logs and the
+    triggers recorded in their .json, with no build: for a change to how
+    cases are labelled. Prints what changed."""
+    changed = 0
+    for d in args.dirs:
+        for name in sorted(f[:-5] for f in os.listdir(d) if f.endswith(".json")):
+            base = os.path.join(d, name)
+            if not os.path.exists(base + ".log"):
+                continue
+            with open(base + ".json", encoding="utf-8") as f:
+                meta = json.load(f)
+            with open(base + ".log", encoding="utf-8", errors="replace") as f:
+                output = f.read()
+            keep, failed, unlocated = labels({"triggers": meta["triggers"]}, output)
+            with open(base + ".keep", encoding="utf-8") as f:
+                old = [ln.rstrip("\n") for ln in f if ln.strip()]
+            if keep == old:
+                continue
+            changed += 1
+            print(f"{d}/{name}")
+            for k in old:
+                if k not in keep:
+                    print(f"  - {k[:150]}")
+            for k in keep:
+                if k not in old:
+                    print(f"  + {k[:150]}")
+            if args.dry_run:
+                continue
+            with open(base + ".keep", "w", encoding="utf-8") as f:
+                f.writelines(k + "\n" for k in keep)
+            meta.update(keep=keep, failed=[f"{t['class']}::{t['method']}" for t in failed], unlocated=unlocated)
+            with open(base + ".json", "w", encoding="utf-8") as f:
+                json.dump(meta, f, indent=2)
+                f.write("\n")
+    print(f"{changed} case(s) {'would change' if args.dry_run else 'relabelled'}")
+    return 0
 
 
 def make_case(bug: dict, docker: Docker, args) -> tuple[str, dict]:
@@ -532,6 +603,10 @@ def main(argv: list[str] | None = None, docker: Docker | None = None) -> int:
     p.add_argument("--force", action="store_true", help="redo bugs that already have a case")
     p.add_argument("--dry-run", action="store_true", help="show the selection and stop")
     p.set_defaults(func=cmd_run)
+    p = sub.add_parser("relabel", help="rewrite existing cases' keep lists from their logs (no build)")
+    p.add_argument("dirs", nargs="+", metavar="DIR")
+    p.add_argument("--dry-run", action="store_true", help="show what would change")
+    p.set_defaults(func=cmd_relabel, upstream=[])
     args = ap.parse_args(argv)
     upstream = {}
     for spec in args.upstream:

@@ -1,2 +1,2 @@
-testMixedContent(com.fasterxml.jackson.dataformat.xml.misc.XmlTextTest)
-junit.framework.AssertionFailedError: expected:<27> but was:<0>
+testMixedContent(com.fasterxml.jackson.dataformat.xml.misc.XmlTextTest) || com.fasterxml.jackson.dataformat.xml.misc.XmlTextTest.testMixedContent || XmlTextTest.testMixedContent
+junit.framework.AssertionFailedError: expected:<27> but was:<0> || expected:<27> but was:<0>

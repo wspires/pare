@@ -155,12 +155,15 @@ held-out evidence asks for it.
   `ComparisonFailure` counts as an error. Fresh Defects4J seed 3: 47 →
   67 % at 600, 71 → 94 % at 1,000, no case worse. Build warnings stay.
   Details: `docs/DESIGN.md`, "Maven chatter". *Done.*
-- [ ] **Keep lines with alternative forms.** A test named in Maven's
-  short form (`Test.testX » StackOverflow`) does not match a keep line
-  written with the full class name, so the bench counts a named test as
-  missed (Gson-16, JacksonCore-10). Let a keep line list equivalent forms;
-  report both scores the first time, since it changes the numbers.
-  *Repo.*
+- [x] **Keep lines with alternative forms.** A keep line may list
+  equivalent forms separated by ` || `; it counts when any form appears,
+  and a form must not run on into a longer name (`…Resolve1` is not shown
+  by `…Resolve12`). The Defects4J harness labels each test with every id
+  form the log shows and each exception with its message and Surefire's
+  `Cls.testX » Abbrev` summary form, taken from the log and the dataset,
+  never from pare's output; `defects4j_cases.py relabel DIR...` rewrote
+  the 64 existing cases. Both scores in `corpus-heldout/README.md`
+  ("Labels"): Defects4J seed 3 at 600, 67 → 76.5 %. *Done.*
 - [ ] **Re-ablate removed terms.** The end-of-output position bonus and
   the first-occurrence bonus were removed by ablation on the dev corpus;
   re-test them on the held-out set.

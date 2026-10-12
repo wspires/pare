@@ -1,3 +1,4 @@
-com.google.gson.internal.bind.RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve12
-java.lang.StackOverflowError
-com.google.gson.internal.bind.RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve1
+com.google.gson.internal.bind.RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve12 || RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve12
+java.lang.StackOverflowError || RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve12 » StackOverflow
+com.google.gson.internal.bind.RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve1 || RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve1
+java.lang.StackOverflowError || RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve1 » StackOverflow

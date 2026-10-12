@@ -1,1 +1,1 @@
-testPrintOptionWithEmptyArgNameUsage(org.apache.commons.cli.HelpFormatterTest)
+testPrintOptionWithEmptyArgNameUsage(org.apache.commons.cli.HelpFormatterTest) || org.apache.commons.cli.HelpFormatterTest.testPrintOptionWithEmptyArgNameUsage || HelpFormatterTest.testPrintOptionWithEmptyArgNameUsage

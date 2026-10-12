@@ -39,8 +39,8 @@
     "org.jsoup.parser.XmlTreeBuilderTest::handlesDodgyXmlDecl"
   ],
   "keep": [
-    "org.jsoup.parser.XmlTreeBuilderTest.handlesDodgyXmlDecl",
-    "java.lang.IndexOutOfBoundsException: Index: 0, Size: 0"
+    "org.jsoup.parser.XmlTreeBuilderTest.handlesDodgyXmlDecl || XmlTreeBuilderTest.handlesDodgyXmlDecl",
+    "java.lang.IndexOutOfBoundsException: Index: 0, Size: 0 || Index: 0, Size: 0"
   ],
   "unlocated": [],
   "lines": 120,

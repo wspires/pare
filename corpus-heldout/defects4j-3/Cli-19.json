@@ -39,8 +39,8 @@
     "org.apache.commons.cli.PosixParserTest::testUnrecognizedOption2"
   ],
   "keep": [
-    "testUnrecognizedOption2(org.apache.commons.cli.PosixParserTest)",
-    "junit.framework.AssertionFailedError: UnrecognizedOptionException wasn't thrown"
+    "testUnrecognizedOption2(org.apache.commons.cli.PosixParserTest) || org.apache.commons.cli.PosixParserTest.testUnrecognizedOption2 || PosixParserTest.testUnrecognizedOption2",
+    "junit.framework.AssertionFailedError: UnrecognizedOptionException wasn't thrown || UnrecognizedOptionException wasn't thrown"
   ],
   "unlocated": [],
   "lines": 73,

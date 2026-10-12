@@ -1,2 +1,2 @@
-testGetLineNumberWithCR(org.apache.commons.csv.CSVParserTest)
+testGetLineNumberWithCR(org.apache.commons.csv.CSVParserTest) || org.apache.commons.csv.CSVParserTest.testGetLineNumberWithCR || CSVParserTest.testGetLineNumberWithCR
 expected:<1> but was:<0>

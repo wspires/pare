@@ -45,9 +45,9 @@
     "org.apache.commons.collections.map.TestMultiValueMap::testFullMapCompatibility"
   ],
   "keep": [
-    "testEmptyMapCompatibility(org.apache.commons.collections.map.TestMultiValueMap)",
-    "java.io.InvalidClassException: org.apache.commons.collections.map.MultiValueMap; class invalid for deserialization",
-    "testFullMapCompatibility(org.apache.commons.collections.map.TestMultiValueMap)"
+    "testEmptyMapCompatibility(org.apache.commons.collections.map.TestMultiValueMap) || org.apache.commons.collections.map.TestMultiValueMap.testEmptyMapCompatibility || TestMultiValueMap.testEmptyMapCompatibility",
+    "java.io.InvalidClassException: org.apache.commons.collections.map.MultiValueMap; class invalid for deserialization || java.io.InvalidClassException: org.apache.commons.collections.map.MultiValueMap; || org.apache.commons.collections.map.MultiValueMap; class invalid for deserialization",
+    "testFullMapCompatibility(org.apache.commons.collections.map.TestMultiValueMap) || org.apache.commons.collections.map.TestMultiValueMap.testFullMapCompatibility || TestMultiValueMap.testFullMapCompatibility"
   ],
   "unlocated": [],
   "lines": 93,

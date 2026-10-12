@@ -45,10 +45,10 @@
     "org.apache.commons.compress.archivers.zip.ZipFileTest::testWinzipBackSlashWorkaround"
   ],
   "keep": [
-    "winzipBackSlashWorkaround(org.apache.commons.compress.archivers.zip.ZipArchiveInputStreamTest)",
+    "winzipBackSlashWorkaround(org.apache.commons.compress.archivers.zip.ZipArchiveInputStreamTest) || org.apache.commons.compress.archivers.zip.ZipArchiveInputStreamTest.winzipBackSlashWorkaround || ZipArchiveInputStreamTest.winzipBackSlashWorkaround",
     "expected:<\u00e4[/]> but was:<\u00e4[\\]>",
-    "testWinzipBackSlashWorkaround(org.apache.commons.compress.archivers.zip.ZipFileTest)",
-    "junit.framework.AssertionFailedError: Expected: <null> but was: \u00e4\\\u00fc.txt"
+    "testWinzipBackSlashWorkaround(org.apache.commons.compress.archivers.zip.ZipFileTest) || org.apache.commons.compress.archivers.zip.ZipFileTest.testWinzipBackSlashWorkaround || ZipFileTest.testWinzipBackSlashWorkaround",
+    "junit.framework.AssertionFailedError: Expected: <null> but was: \u00e4\\\u00fc.txt || Expected: <null> but was: \u00e4\\\u00fc.txt"
   ],
   "unlocated": [],
   "lines": 149,

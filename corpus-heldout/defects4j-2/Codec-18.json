@@ -45,9 +45,9 @@
     "org.apache.commons.codec.binary.StringUtilsTest::testEqualsCS2"
   ],
   "keep": [
-    "testEqualsCS1(org.apache.commons.codec.binary.StringUtilsTest)",
-    "java.lang.StringIndexOutOfBoundsException: String index out of range: 3",
-    "testEqualsCS2(org.apache.commons.codec.binary.StringUtilsTest)"
+    "testEqualsCS1(org.apache.commons.codec.binary.StringUtilsTest) || org.apache.commons.codec.binary.StringUtilsTest.testEqualsCS1 || StringUtilsTest.testEqualsCS1",
+    "java.lang.StringIndexOutOfBoundsException: String index out of range: 3 || String index out of range: 3",
+    "testEqualsCS2(org.apache.commons.codec.binary.StringUtilsTest) || org.apache.commons.codec.binary.StringUtilsTest.testEqualsCS2 || StringUtilsTest.testEqualsCS2"
   ],
   "unlocated": [],
   "lines": 98,

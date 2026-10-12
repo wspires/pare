@@ -51,10 +51,10 @@
     "org.apache.commons.collections.TestExtendedProperties::testKeySet4"
   ],
   "keep": [
-    "testKeySet2(org.apache.commons.collections.TestExtendedProperties)",
+    "testKeySet2(org.apache.commons.collections.TestExtendedProperties) || org.apache.commons.collections.TestExtendedProperties.testKeySet2 || TestExtendedProperties.testKeySet2",
     "java.util.NoSuchElementException",
-    "testKeySet3(org.apache.commons.collections.TestExtendedProperties)",
-    "testKeySet4(org.apache.commons.collections.TestExtendedProperties)"
+    "testKeySet3(org.apache.commons.collections.TestExtendedProperties) || org.apache.commons.collections.TestExtendedProperties.testKeySet3 || TestExtendedProperties.testKeySet3",
+    "testKeySet4(org.apache.commons.collections.TestExtendedProperties) || org.apache.commons.collections.TestExtendedProperties.testKeySet4 || TestExtendedProperties.testKeySet4"
   ],
   "unlocated": [
     "exception: junit.framework.ComparisonFailure: expected:<[c]> but was:<[b]>"

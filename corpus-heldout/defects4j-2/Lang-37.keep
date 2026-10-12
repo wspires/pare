@@ -1,2 +1,2 @@
-testJira567(org.apache.commons.lang3.ArrayUtilsAddTest)
+testJira567(org.apache.commons.lang3.ArrayUtilsAddTest) || org.apache.commons.lang3.ArrayUtilsAddTest.testJira567 || ArrayUtilsAddTest.testJira567
 java.lang.ArrayStoreException

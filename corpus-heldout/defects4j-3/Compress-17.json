@@ -39,7 +39,7 @@
     "org.apache.commons.compress.archivers.tar.TarArchiveInputStreamTest::testCompress197"
   ],
   "keep": [
-    "testCompress197(org.apache.commons.compress.archivers.tar.TarArchiveInputStreamTest)",
+    "testCompress197(org.apache.commons.compress.archivers.tar.TarArchiveInputStreamTest) || org.apache.commons.compress.archivers.tar.TarArchiveInputStreamTest.testCompress197 || TarArchiveInputStreamTest.testCompress197",
     "COMPRESS-197: Error detected parsing the header"
   ],
   "unlocated": [],

@@ -45,9 +45,9 @@
     "org.apache.commons.compress.archivers.zip.ZipArchiveInputStreamTest::testThrowOnInvalidEntry"
   ],
   "keep": [
-    "testListAllFilesWithNestedArchive(org.apache.commons.compress.archivers.ZipTestCase)",
+    "testListAllFilesWithNestedArchive(org.apache.commons.compress.archivers.ZipTestCase) || org.apache.commons.compress.archivers.ZipTestCase.testListAllFilesWithNestedArchive || ZipTestCase.testListAllFilesWithNestedArchive",
     "expected:<1> but was:<0>",
-    "testThrowOnInvalidEntry(org.apache.commons.compress.archivers.zip.ZipArchiveInputStreamTest)",
+    "testThrowOnInvalidEntry(org.apache.commons.compress.archivers.zip.ZipArchiveInputStreamTest) || org.apache.commons.compress.archivers.zip.ZipArchiveInputStreamTest.testThrowOnInvalidEntry || ZipArchiveInputStreamTest.testThrowOnInvalidEntry",
     "IOException expected"
   ],
   "unlocated": [],

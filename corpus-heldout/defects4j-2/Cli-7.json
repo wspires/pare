@@ -39,7 +39,7 @@
     "org.apache.commons.cli2.bug.Bug27575Test::testRequiredOptions"
   ],
   "keep": [
-    "testRequiredOptions(org.apache.commons.cli2.bug.Bug27575Test)"
+    "testRequiredOptions(org.apache.commons.cli2.bug.Bug27575Test) || org.apache.commons.cli2.bug.Bug27575Test.testRequiredOptions || Bug27575Test.testRequiredOptions"
   ],
   "unlocated": [
     "exception: junit.framework.ComparisonFailure: expected:<[[-h]]> but was:<[-c <arg>]>"

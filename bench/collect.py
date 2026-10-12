@@ -51,6 +51,28 @@ SECRET_RX = re.compile(
 )
 
 
+# A keep line may list equivalent forms of one fact, separated by " || ":
+# the same failing test as Surefire 2 and 3 print it, or an exception and
+# its message as the summary repeats it. The line is kept when any form is.
+KEEP_OR = " || "
+
+
+def keep_forms(line: str) -> list[str]:
+    return [f.strip() for f in line.split(KEEP_OR) if f.strip()]
+
+
+def form_in(form: str, text: str) -> bool:
+    """A form appears in the text, not run on into a longer name: the test
+    testResolve1 is not shown by a line naming testResolve12."""
+    left = r"(?<![A-Za-z0-9_])" if (form[:1].isalnum() or form[:1] == "_") else ""
+    right = r"(?![A-Za-z0-9_])" if (form[-1:].isalnum() or form[-1:] == "_") else ""
+    return re.search(left + re.escape(form) + right, text) is not None
+
+
+def keep_found(line: str, text: str) -> bool:
+    return any(form_in(f, text) for f in keep_forms(line))
+
+
 def run_dir() -> str:
     env = os.environ.get("PARE_RUN_DIR")
     if env:
@@ -262,7 +284,7 @@ def cmd_check(args) -> int:
             issues.append("keep list empty")
         with open(base + ".log", encoding="utf-8", errors="replace") as f:
             text = f.read()
-        missing = [k for k in keep if k not in text]
+        missing = [k for k in keep if not keep_found(k, text)]
         for k in missing:
             issues.append(f"keep line not in log: {k[:100]}")
         status = "ok" if not issues else "; ".join(issues[:1]) + (f" (+{len(issues) - 1} more)" if len(issues) > 1 else "")

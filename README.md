@@ -174,7 +174,8 @@ drain3 stops with these options rather than a traceback.
 [tidyout](https://github.com/sathish-2000/tidyout) over `corpus/` and
 reports output tokens and the share of must-survive lines (`<name>.keep`,
 substring match, after pare's compact lists of failing tests are written
-out in full; `--strict` matches the literal text) that each tool keeps. Tokens are bytes / 2.8, pare's
+out in full; `--strict` matches the literal text; a keep line may list
+equivalent forms as `a || b`) that each tool keeps. Tokens are bytes / 2.8, pare's
 default and the measured cl100k/o200k rate for this text
 (`bench/tokens.py`), so a budget of 2000 is 2,000 real tokens. Eight logs, 488k input tokens: real pytest, go test,
 cargo, make and npm runs, plus three seeded synthetic logs (a Jest run, a
@@ -226,7 +227,9 @@ one way (listed first), and Maven's build chatter at small budgets. On a
 third pair of samples drawn after all that and never read (16 SWE-bench
 tasks, 18 Defects4J bugs), pare keeps 100% and 98% at 2,000 tokens and
 86% and 67% at 600, where the same cases gave 95% and 86%, 77% and 33%
-before any of these fixes (`corpus-heldout/README.md`). With all tool-specific rules off, pare still reaches 88% at 600
+before any of these fixes (`corpus-heldout/README.md`; 76.5% on
+Defects4J at 600 once a keep line accepts Maven's short form of a test
+name). With all tool-specific rules off, pare still reaches 88% at 600
 and 94.5% at 2000 (bytes/4 units) on this corpus; the generic signals do
 most of the work.
 
@@ -268,7 +271,7 @@ for a native port are in [docs/DESIGN.md](docs/DESIGN.md).
 .venv/bin/pip install pytest && .venv/bin/python -m pytest proto/
 ```
 
-220 tests: severity forms and their false positives, vocabulary files, the
+223 tests: severity forms and their false positives, vocabulary files, the
 hard budget limit on every corpus file at several sizes, determinism,
 pass-through, the selection flags, memory on a large input, follow mode
 (including a randomized differential test against the batch pass),
