@@ -366,7 +366,11 @@ and it is a hard limit.
   by its masked text. Twelve `FAILED t.py::test_x` lines are one drain
   template with twelve shapes, and each test name is news; crashes of the
   same few pods, over and over, are one template with few shapes per
-  record, and stay repeats.
+  record, and stay repeats. A name's bracketed parameters (pytest's
+  `test_rolling_iter[numpy-3-True-1]`, JUnit 4's `testX[2]`) stay as
+  written in the masked text, so two parametrizations of one test are two
+  shapes, and a number inside them is news to the restatement guard
+  below.
 - Guards against restatement: a one-line record whose tokens are mostly
   (80 %) contained in a shown line, or a continuation line that is a pure
   token subset of one, is skipped (an error line only when what it adds is
@@ -659,7 +663,17 @@ after:
 
 The gains match the burned sets, so the fix was not fitted to them. The
 fresh misses, with the candidates in `ROADMAP.md` stage 3, are in
-`corpus-heldout/README.md`. What the first held-out sets still show:
+`corpus-heldout/README.md`.
+
+One of those misses is fixed since: parametrized test ids that differ
+only in numbers (`[numpy-3-True-1]`, `[numpy-3-True-2]`) masked to one
+shape, so they were repeats. A name's bracketed parameters now stay as
+written in the shape key. Developed on a synthetic log, it changed no
+output byte on any dev set (both corpora, the Defects4J dev sample, the
+two first held-out sets); on the fresh sets, xarray-6744 went from 1 to
+3 of 3 at 1,000 and 2,000 and nothing else moved. Assertion messages that
+differ only in numbers stay repeats: making a number in a message news
+would undo the repeat rule for every `timeout after 3012 ms`. What the first held-out sets still show:
 
 - **Which failures matter.** mwaskom__seaborn-3069 has 76 failing tests,
   74 failing the same way (a pandas option missing from the environment);

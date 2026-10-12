@@ -339,6 +339,26 @@ def test_distinct_failing_tests_each_survive():
     assert all(name in out for name in FAILING), out
 
 
+PARAMS = ["numpy-3-True-1", "numpy-3-True-2", "numpy-7-True-1", "numpy-7-True-2", "numpy-11-False-1", "numpy-11-False-3"]
+
+
+@pytest.mark.parametrize("form", [
+    "FAILED tests/test_roll.py::TestRolling::test_rolling_iter[{p}]",  # pytest
+    "testRollingIter[{p}](com.example.RollingTest)  Time elapsed: 0.01 sec  <<< FAILURE!",  # JUnit 4 Parameterized
+])
+def test_parametrized_failures_that_differ_only_in_numbers_each_survive(form):
+    # Masking turns [numpy-3-True-1] and [numpy-3-True-2] into one shape, so
+    # they were repeats of each other; a name's bracketed parameters are part
+    # of the name.
+    lines = ["============================= test session starts =============================="]
+    lines += [f"PASSED tests/test_roll.py::test_ok_{i}" for i in range(400)]
+    lines += [f"PASSED tests/test_roll.py::test_window[{i}-True]" for i in range(30)]
+    lines += [form.format(p=p) for p in PARAMS]
+    lines.append("======================= 6 failed, 430 passed in 3.21s ========================")
+    out = run(["--budget", "1000"], ("\n".join(lines) + "\n").encode()).decode()
+    assert all(f"[{p}]" in out for p in PARAMS), out
+
+
 def test_repeated_error_events_still_diminish():
     # Crashes of the same nineteen pods, over and over. Masking leaves the pod
     # names, so each pod is its own shape, but the template has few shapes per

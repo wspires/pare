@@ -119,13 +119,18 @@ held-out evidence asks for it.
   shared prefix once, then only the parts that differ, about a third of
   the size), and group failing tests by how they fail (the `E` line or
   exception under each) so the small groups come first.
-- [ ] **Names that differ only in numbers.** Parametrized test ids
-  (`test_rolling_iter[numpy-3-True-1]`, `[numpy-3-True-2]`) mask to one
-  shape, so they are repeats, not a list (xarray-6744, 1 of 3 at every
-  budget); likewise `expected:<16384> but was:<32768>` and
-  `expected:<1024> but was:<2048>` (JacksonCore-10). Candidate: digits
-  inside a test id's brackets are part of the name. The rule that a
-  number alone is not news stays for everything else.
+- [x] **Names that differ only in numbers.** Parametrized test ids
+  (`test_rolling_iter[numpy-3-True-1]`, `[numpy-3-True-2]`) masked to one
+  shape, so they were repeats, not a list. A name's bracketed parameters
+  (pytest's `test_x[...]`, JUnit 4's `testX[2]`) now stay as written in
+  the shape key, and a number inside them is news to the near-duplicate
+  guard. No change on any dev set; on SWE-bench seed 1, xarray-6744 went
+  from 1 to 3 of 3 at 1,000 and 2,000 (at 600 the budget goes to `XPASS`
+  lines first). Left alone on purpose: assertion messages that differ
+  only in numbers (JacksonCore-10's `expected:<1024> but was:<2048>`).
+  Their values are on screen in Surefire's summary line, and making a
+  number in a message news would undo the repeat rule for every
+  `timeout after 3012 ms`. *Done.*
 - [ ] **Maven chatter at 600.** Error- and warning-level lines that are
   neither advice nor failures (`[ERROR] Errors:`, `See dump files`, the
   effective-model warnings) still take budget; Defects4J-2 is 51 % at

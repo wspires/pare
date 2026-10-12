@@ -129,7 +129,10 @@ What pare still misses, from reading the misses (no code changed on them):
 - **Test ids that differ only in numbers.** pydata__xarray-6744's
   parametrized `test_rolling_iter[numpy-3-True-1]`, `[numpy-3-True-2]`,
   `[numpy-7-True-1]` mask to one shape, so they are repeats, not a list:
-  1 of 3 at every budget.
+  1 of 3 at every budget. *Fixed since* (bracketed parameters are part of
+  a name): 3 of 3 at 1,000 and 2,000, which takes SWE-bench seed 1 to
+  60 / 66 / 94 % at 600 / 1,000 / 2,000. No other case on either fresh set
+  changed. This set found that problem, so it is spent for that change.
 - **Assertion messages that differ only in numbers.** JacksonCore-10's
   three `AssertionFailedError: expected:<N> but was:<M>` lines mask to one
   shape, so the third is a repeat and does not fit (7 of 8 at 2,000). Its
@@ -148,9 +151,12 @@ What pare still misses, from reading the misses (no code changed on them):
   the same. Each keep line accepts one form; the numbers count these as
   misses.
 
-If a fix comes from these diagnoses, these two sets are spent the same way
-as the first two, and the next sample (another seed, `--exclude` every
-directory above) measures it.
+A fix that comes from these diagnoses spends these sets the same way as
+the first two, and the next sample (another seed, `--exclude` every
+directory above) measures it. The parametrized-name fix is the first
+such change: it was developed on a synthetic log and checked on every dev
+set before the one measurement here, but the next sample is still what
+counts.
 
 ### First samples: found the problem, now dev data
 

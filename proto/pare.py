@@ -675,17 +675,20 @@ def token_set(text: str) -> frozenset[str]:
     return frozenset(TOKEN_RE.findall(text))
 
 
-def is_near_duplicate(toks: frozenset[str], shown: list[frozenset[str]], names: bool = False) -> bool:
+def is_near_duplicate(toks: frozenset[str], shown: list[frozenset[str]], names: bool = False,
+                      name_toks: frozenset[str] = frozenset()) -> bool:
     """True when at least NEAR_DUP_CONTAINMENT of the line's tokens already
     appear in one line on screen. Short lines are exempt: too easy to contain.
     With names=True (an error line) a line is a duplicate only when what it
     adds is numbers: "FAILED t.py::test_a" and "FAILED t.py::test_b" share
-    four of five tokens, but the fifth is the news."""
+    four of five tokens, but the fifth is the news. A number in name_toks
+    (from a name's bracketed parameters, test_x[3] after test_x[2]) is news
+    too."""
     if len(toks) < NEAR_DUP_MIN_TOKENS:
         return False
     need = NEAR_DUP_CONTAINMENT * len(toks)
     for s in shown:
-        if len(toks & s) >= need and (not names or all(t.isdigit() for t in toks - s)):
+        if len(toks & s) >= need and (not names or all(t.isdigit() and t not in name_toks for t in toks - s)):
             return True
     return False
 
@@ -700,12 +703,31 @@ def is_error_line(ln: Line) -> bool:
     return line_has(ln, "error") and not line_has(ln, "pass")
 
 
+# A bracketed parameter list right after a name: pytest's test_x[numpy-3-1],
+# JUnit 4's testFoo[2]. Its digits are part of the name.
+PARAMS_RX = re.compile(r"(?<=[\w)])\[([^\[\]\s]{1,100})\]")
+
+
+def line_params(ln: Line) -> tuple[str, ...]:
+    """The bracketed parameters of a name on this line that hold a digit,
+    computed once. test_rolling_iter[numpy-3-True-1] and [numpy-3-True-2]
+    mask to one shape; these say which test it is."""
+    m = ln.memo
+    if "params" not in m:
+        m["params"] = tuple(p for p in PARAMS_RX.findall(ln.text) if any(c.isdigit() for c in p))
+    return m["params"]
+
+
 def shape_key(ln: Line) -> str:
     """Dedup key for the fill phase: the masked shape plus the structural
     severity, so a 503 request line is not a duplicate of a 200 one even
-    though masking turns both status codes into <NUM>."""
+    though masking turns both status codes into <NUM>. A name's bracketed
+    parameters are kept as written: two parametrizations of one test are
+    two tests."""
     sev = line_sev(ln)
-    return line_mask(ln) + (f" ·sev{sev}" if sev is not None else "")
+    params = line_params(ln)
+    return (line_mask(ln) + (f" ·sev{sev}" if sev is not None else "")
+            + (" ·[" + "][".join(params) + "]" if params else ""))
 
 
 # --------------------------------------------------------------------------
@@ -1593,7 +1615,9 @@ def summarize(
                 continue
             ln = store.line(no - b1)
             toks = token_set(ln.text)
-            if ln.depth == 0 and is_near_duplicate(toks, shown_tokens, names=is_error_line(ln)):
+            if ln.depth == 0 and is_near_duplicate(
+                    toks, shown_tokens, names=is_error_line(ln),
+                    name_toks=frozenset(t for p in line_params(ln) for t in TOKEN_RE.findall(p))):
                 continue
             if ln.depth > 0 and len(toks) >= NEAR_DUP_MIN_TOKENS and any(toks <= t for t in shown_tokens):
                 continue  # a continuation line that is a pure restatement of a shown line
