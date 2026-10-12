@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 """Ablation study for pare's scoring heuristics.
 
-    .venv/bin/python bench/ablate.py [--budgets 600,2000] [--corpus corpus]
+    .venv/bin/python bench/ablate.py [--budgets 600,2000] [--corpus DIR ...] [--only NAMES]
 
 Runs the pipeline in-process on every corpus file, once with the defaults
 and once per heuristic with that heuristic switched off (by overriding the
 module constant that controls it), and prints recall per budget. A
 heuristic whose removal does not lower recall is a candidate for removal.
+
+The "with ..." rows do the opposite: they switch back on a term an earlier
+ablation removed (at the weight it had), so it can be re-tested on data
+that did not exist then. With several --corpus directories, each set is
+reported on its own line under each ablation: held-out sets are never
+merged with dev ones.
 """
 
 import argparse
@@ -34,6 +40,12 @@ ABLATIONS = {
     "no window skipping": {"WINDOW_SKIP_COUNT": 10**9},
     "no compact mode": {"COMPACT_BUDGET": 0, "HINT_BUDGET": 0},
     "generic signals only": {"TOOL_SPECIFIC": False},
+    # Removed in 95c77c6 on the dev corpus; re-tested here.
+    "with end-zone (templates)": {"END_TPL_BONUS": 0.5},
+    "with start-zone (templates)": {"START_TPL_BONUS": 0.4},
+    "with end-zone (lines)": {"END_LINE_BONUS": 0.5},
+    "with first-occurrence": {"FIRST_BONUS": 0.5},
+    "with all position terms": {"END_TPL_BONUS": 0.5, "START_TPL_BONUS": 0.4, "END_LINE_BONUS": 0.5, "FIRST_BONUS": 0.5},
 }
 
 
@@ -54,24 +66,30 @@ def run_case(log_path, keep, budget):
     return hit, len(keep), pare.tokens(len(out.encode()))
 
 
+def load_cases(corpus: str) -> list[tuple[str, str, list[str]]]:
+    cases = []
+    for name in sorted(f[:-4] for f in os.listdir(corpus) if f.endswith(".log")):
+        keep_path = os.path.join(corpus, name + ".keep")
+        keep = [l.strip() for l in open(keep_path, encoding="utf-8")] if os.path.exists(keep_path) else []
+        cases.append((name, os.path.join(corpus, name + ".log"), [k for k in keep if k]))
+    return cases
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--corpus", default=os.path.join(ROOT, "corpus"))
+    ap.add_argument("--corpus", action="append", help="corpus directory, repeatable (default: corpus)")
     ap.add_argument("--budgets", default="600,2000")
     ap.add_argument("--only", help="comma-separated ablation names to run (default: all)")
     args = ap.parse_args()
     budgets = [int(b) for b in args.budgets.split(",")]
-    names = sorted(f[:-4] for f in os.listdir(args.corpus) if f.endswith(".log"))
-    cases = []
-    for name in names:
-        keep_path = os.path.join(args.corpus, name + ".keep")
-        keep = [l.strip() for l in open(keep_path, encoding="utf-8")] if os.path.exists(keep_path) else []
-        cases.append((name, os.path.join(args.corpus, name + ".log"), [k for k in keep if k]))
+    corpora = [(os.path.basename(os.path.normpath(c)), load_cases(c))
+               for c in (args.corpus or [os.path.join(ROOT, "corpus")])]
+    many = len(corpora) > 1
 
-    # Cache the expensive, heuristic-independent stages per file.
     defaults = {k: getattr(pare, k) for v in ABLATIONS.values() for k in v}
     wanted = [n for n in ABLATIONS if not args.only or n in args.only.split(",")]
-    hdr = f"{'ablation':<28}" + "".join(f"{'recall@' + str(b):>12}{'out tok':>9}" for b in budgets) + "   worst case"
+    label_w = 28 + (22 if many else 0)
+    hdr = f"{'ablation':<{label_w}}" + "".join(f"{'recall@' + str(b):>12}{'out tok':>9}" for b in budgets) + "   worst case"
     print(hdr)
     print("-" * len(hdr))
     for name in wanted:
@@ -80,20 +98,22 @@ def main():
         for k, v in ABLATIONS[name].items():
             setattr(pare, k, v)
         pare.VOCAB = pare.Vocab(pare.DEFAULT_VOCAB)
-        row = f"{name:<28}"
-        worst = ("", 1.0)
-        for b in budgets:
-            hit = tot = toks = 0
-            for cname, path, keep in cases:
-                h, t, tk = run_case(path, keep, b)
-                hit += h
-                tot += t
-                toks += tk
-                if t and h / t < worst[1]:
-                    worst = (f"{cname}@{b} {h}/{t}", h / t)
-            row += f"{100 * hit / tot:>11.1f}%{toks:>9}"
-        print(row + "   " + worst[0])
-        sys.stdout.flush()
+        for cname_set, cases in corpora:
+            label = f"{name}  [{cname_set}]" if many else name
+            row = f"{label:<{label_w}}"
+            worst = ("", 1.0)
+            for b in budgets:
+                hit = tot = toks = 0
+                for cname, path, keep in cases:
+                    h, t, tk = run_case(path, keep, b)
+                    hit += h
+                    tot += t
+                    toks += tk
+                    if t and h / t < worst[1]:
+                        worst = (f"{cname}@{b} {h}/{t}", h / t)
+                row += f"{100 * hit / max(1, tot):>11.1f}%{toks:>9}"
+            print(row + "   " + worst[0])
+            sys.stdout.flush()
 
 
 if __name__ == "__main__":

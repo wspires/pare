@@ -164,9 +164,14 @@ held-out evidence asks for it.
   never from pare's output; `defects4j_cases.py relabel DIR...` rewrote
   the 64 existing cases. Both scores in `corpus-heldout/README.md`
   ("Labels"): Defects4J seed 3 at 600, 67 → 76.5 %. *Done.*
-- [ ] **Re-ablate removed terms.** The end-of-output position bonus and
-  the first-occurrence bonus were removed by ablation on the dev corpus;
-  re-test them on the held-out set.
+- [x] **Re-ablate removed terms.** The four position terms removed in
+  95c77c6 (end zone and start zone for templates, end zone for lines,
+  first occurrence) are back in the code at weight 0, and `bench/ablate.py`
+  switches each on at its old weight ("with ..." rows) per set. On nine
+  sets none earns its place: first occurrence costs up to 14 points
+  (SWE-bench seed 1 at 2,000); the end-zone line bonus helps SWE-bench at
+  1,000 (+7.5, +5.7) and hurts Defects4J there (−2.3, −3.9). All stay off.
+  Table: `docs/DESIGN.md`, "Scoring model". *Done.*
 - [ ] **Tool-specific rules.** Recheck which earn their place; generic
   signals alone reach 88 % at 600 and 94.5 % at 2000 on the dev corpus.
 

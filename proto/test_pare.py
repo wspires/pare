@@ -1441,3 +1441,25 @@ def test_bench_fake_command_replays_the_log_and_terminates(tmp_path, cmd):
     name, args, env = bench_run.fake_command(str(log), cmd, str(tmp_path))
     p = subprocess.run([name, *args], env=env, capture_output=True, stdin=subprocess.DEVNULL, timeout=10)
     assert p.stdout == b"hello from the log\n"
+
+
+def test_ablation_candidates_run_and_stay_off_by_default():
+    # The terms removed by ablation are kept at weight 0 for re-testing:
+    # off, the output is unchanged; on, each still runs within the budget.
+    sys.path.insert(0, os.path.join(ROOT, "bench"))
+    import ablate
+    path = os.path.join(CORPUS, "pytest-fail.log")
+    keep = [l.strip() for l in open(os.path.join(CORPUS, "pytest-fail.keep"), encoding="utf-8") if l.strip()]
+    base = ablate.run_case(path, keep, 600)
+    for name in [n for n in ablate.ABLATIONS if n.startswith("with ")]:
+        saved = {k: getattr(pare, k) for k in ablate.ABLATIONS[name]}
+        try:
+            for k, v in ablate.ABLATIONS[name].items():
+                setattr(pare, k, v)
+            hit, total, toks = ablate.run_case(path, keep, 600)
+            assert total == len(keep) and toks <= 600, name
+        finally:
+            for k, v in saved.items():
+                setattr(pare, k, v)
+    assert ablate.run_case(path, keep, 600) == base
+    assert pare.END_TPL_BONUS == pare.START_TPL_BONUS == pare.END_LINE_BONUS == pare.FIRST_BONUS == 0.0

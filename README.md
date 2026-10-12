@@ -236,7 +236,7 @@ most of the work.
 ```
 python3 -m venv .venv && .venv/bin/pip install -r proto/requirements.txt -r bench/requirements.txt
 .venv/bin/python bench/run.py [--budget 2000] [--corpus DIR] [--show-misses] [--json out.json]
-.venv/bin/python bench/ablate.py        # recall with each heuristic switched off
+.venv/bin/python bench/ablate.py        # recall with each heuristic switched off, or a removed one back on
 .venv/bin/python bench/tokens.py        # the byte proxy vs tiktoken counts (needs tiktoken)
 ```
 
@@ -271,7 +271,7 @@ for a native port are in [docs/DESIGN.md](docs/DESIGN.md).
 .venv/bin/pip install pytest && .venv/bin/python -m pytest proto/
 ```
 
-223 tests: severity forms and their false positives, vocabulary files, the
+224 tests: severity forms and their false positives, vocabulary files, the
 hard budget limit on every corpus file at several sizes, determinism,
 pass-through, the selection flags, memory on a large input, follow mode
 (including a randomized differential test against the batch pass),

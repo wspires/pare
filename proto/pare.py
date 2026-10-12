@@ -1311,6 +1311,21 @@ def analyze(stream, *, width: int, spool_path: str) -> tuple[Store, str]:
 
 NOVELTY_BONUS = 1.0  # follow mode: salience added to a template first seen in this window
 
+# Terms removed by ablation on the dev corpus (commit 95c77c6), kept at
+# weight 0 so bench/ablate.py can re-test them on new data ("with ..." rows).
+# The weights they had are in the comments.
+END_TPL_BONUS = 0.0  # template salience: its last record in the end zone (0.5), all of them (twice that)
+START_TPL_BONUS = 0.0  # template salience: its first record in the start zone (0.4)
+END_LINE_BONUS = 0.0  # line score: the line is in the end zone (0.5)
+FIRST_BONUS = 0.0  # line score: first record of its template, or first line of its shape at its depth in it (0.5)
+END_ZONE_FRACTION, END_ZONE_MAX = 0.1, 60  # the end zone: the last 10 % of records (or lines), at most 60
+START_ZONE_FRACTION, START_ZONE_MAX = 0.05, 30  # the start zone: the first 5 %, at most 30
+ZONE_MIN = 10  # a zone is never shorter than this
+
+
+def zone_len(n: int, fraction: float, cap: int) -> int:
+    return max(min(n, ZONE_MIN), min(int(n * fraction), cap))
+
 
 @dataclass
 class FollowInfo:
@@ -1344,6 +1359,38 @@ def summarize(
         for tpl in templates:
             if tpl.new:
                 tpl.salience += NOVELTY_BONUS
+    if END_TPL_BONUS or START_TPL_BONUS:  # ablation candidates, off by default
+        nrec = max(1, store.nrecords)
+        end_zone = nrec - zone_len(nrec, END_ZONE_FRACTION, END_ZONE_MAX)
+        start_zone = zone_len(nrec, START_ZONE_FRACTION, START_ZONE_MAX)
+        first_rec: dict[int, int] = {}
+        last_rec: dict[int, int] = {}
+        for ri in range(store.nrecords):
+            first_rec.setdefault(rtpl[ri], ri)
+            last_rec[rtpl[ri]] = ri
+        for tpl in templates:
+            if tpl.idx in first_rec:
+                f, l = first_rec[tpl.idx], last_rec[tpl.idx]
+                if l >= end_zone:
+                    tpl.salience += END_TPL_BONUS * (2 if f >= end_zone else 1)
+                if f < start_zone:
+                    tpl.salience += START_TPL_BONUS
+    line_zone = total - zone_len(total, END_ZONE_FRACTION, END_ZONE_MAX)
+    firsts: set[int] = set()
+    if FIRST_BONUS:  # ablation candidate, off by default
+        seen: set[tuple] = set()
+        for i in range(total):
+            if rec[i] < 0 or blank[i]:
+                continue
+            t = rtpl[rec[i]]
+            key = (t, 0) if store.depth[i] == 0 else (t, store.depth[i], shape_key(store.line(i)))
+            if key not in seen:
+                seen.add(key)
+                firsts.add(i)
+
+    def position_bonus(i: int) -> float:
+        return (END_LINE_BONUS if i >= line_zone else 0.0) + (FIRST_BONUS if i in firsts else 0.0)
+
     by_sal = sorted(templates, key=lambda t: (-t.salience, t.idx))
     new_count = sum(1 for t in templates if t.new)
 
@@ -1680,16 +1727,16 @@ def summarize(
     def initial(i: int) -> float:
         # Value per byte: a 180-byte advice line with a URL is worth less than
         # a 50-byte exception line of the same salience.
-        return (scores[i] + rare_bonus(i)) * (DENSITY_REF / (DENSITY_REF + slen[i])) ** DENSITY_POWER
+        return (scores[i] + rare_bonus(i) + position_bonus(i)) * (DENSITY_REF / (DENSITY_REF + slen[i])) ** DENSITY_POWER
 
     order = [i for i in range(total)
-             if (i + b1) not in shown and rec[i] >= 0 and not blank[i] and scores[i] >= FILL_FLOOR]
+             if (i + b1) not in shown and rec[i] >= 0 and not blank[i] and scores[i] + position_bonus(i) >= FILL_FLOOR]
     order.sort(key=lambda i: -initial(i))  # stable: ties stay in line order
 
     def effective(no: int) -> float:
         i = no - b1
         # Each repeat of a shape already on screen is worth less.
-        e = (scores[i] + rare_bonus(i)) / (1.0 + FILL_PENALTY * taken.get(key_of(no), 0))
+        e = (scores[i] + rare_bonus(i) + position_bonus(i)) / (1.0 + FILL_PENALTY * taken.get(key_of(no), 0))
         # Value per rendered byte: an item of a placed list costs only its
         # distinct part.
         size = len(item_of(no).encode("utf-8")) if as_item(no) else slen[i]

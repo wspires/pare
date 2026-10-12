@@ -311,15 +311,42 @@ record, a gentler repeat penalty for error lines, line-level template
 rarity, and a first-occurrence bonus.
 
 Those removals were judged on the same eight dev cases, so "removed" means
-"did not help here", not "proven useless". Two of them are the kind that
-could matter on logs this corpus does not have and should be re-ablated
-once the held-out set exists: the **end-of-output position bonus** (a final
-verdict with no error vocabulary, in a tool whose summary line is not in
-the tail window) and the **first-occurrence bonus** (the first instance of
-a repeated warning when later copies happen to sit near the end). The
-others are less likely to come back: the template bonus and body-error
-bonus duplicated signals the queue already has, and the record decay and
-coherence bonus were superseded by the repeat penalty and exemplar bodies.
+"did not help here", not "proven useless". The position terms were the
+kind that could matter on logs this corpus did not have: the
+**end-of-output bonus** (a final verdict with no error vocabulary, in a
+tool whose summary line is not in the tail window) and the
+**first-occurrence bonus** (the first instance of a repeated warning when
+later copies happen to sit near the end). The others are less likely to
+come back: the template bonus and body-error bonus duplicated signals the
+queue already has, and the record decay and coherence bonus were
+superseded by the repeat penalty and exemplar bodies.
+
+**Re-ablated on nine sets.** The four position terms are back in the code
+at weight 0 (`END_TPL_BONUS`, `START_TPL_BONUS`, `END_LINE_BONUS`,
+`FIRST_BONUS`), and `bench/ablate.py --corpus DIR ...` switches each on at
+the weight it had ("with ..." rows), reporting each set on its own line.
+Change in recall, percentage points at 600 / 1,000 / 2,000 (* = the
+latest fresh samples; Defects4J with alternative-form labels):
+
+| term (old weight) | dev corpus | generated | D4J s1 | D4J s0 | D4J s2 | D4J s3* | SWE s0 | SWE s1 | SWE s2* |
+|---|---|---|---|---|---|---|---|---|---|
+| end zone, templates (0.5, 1.0 if all records) | 0 / 0 / 0 | +5.3 / −1.7 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | −2.5 / +2.5 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| start zone, templates (0.4) | −1.4 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| end zone, lines (0.5) | −1.4 / 0 / 0 | +1.7 / −1.7 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / −2.3 / 0 | 0 / −3.9 / 0 | 0 / +7.5 / 0 | 0 / +5.7 / 0 | 0 / 0 / 0 |
+| first occurrence (0.5) | 0 / 0 / −1.4 | +1.7 / −3.5 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | −2.0 / −3.9 / 0 | +2.5 / 0 / −2.5 | −2.8 / 0 / −14.3 | −9.1 / 0 / 0 |
+| all four | +1.4 / 0 / −1.4 | +5.3 / −5.3 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / −2.3 / 0 | −2.0 / −3.9 / 0 | 0 / +2.5 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+
+None earns its place, so all stay at 0. First occurrence is harmful
+outright: almost every line of a traceback is the first of its shape
+(`def test_none_timeout(self):`, `>  assert r.status_code == 200`,
+`E  + where 503 = …`), so the bonus lifts traceback lines over the list of
+failing tests; psf__requests-2317 falls from 8 to 3 of 8 at 2,000. The end-zone
+line bonus is the only term with a consistent gain on one source
+(SWE-bench at 1,000: pytest ends with its verdict and the short summary)
+and a consistent loss on another (Defects4J at 1,000: Maven ends with its
+build verdict and chatter), so it is a per-tool signal rather than a
+general one; the tail window already covers the end. The output-size
+columns, not shown, grow with every term on.
 
 | heuristic | without it: recall@600 / @2000 (out tok @2000 where that is the reason) |
 |---|---|
