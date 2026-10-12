@@ -88,28 +88,85 @@ container with `--docker-arg` and `--pass-env MAVEN_OPTS`.
 ## Results so far
 
 Reported per source, never merged, and with the dev corpus kept apart.
-Recall is the share of keep lines in pare's output.
+Recall is the share of all keep lines in pare's output (pooled over the
+cases, as `bench/run.py` prints it); "full" counts the cases where pare
+kept every keep line. tidyout keeps everything on every source, at 96 to
+100 % of the input size.
 
-| source | cases | budget 2,000 | budget 600 |
-|---|---:|---|---|
-| SWE-bench Verified, seed 0 (maintainer's run) | 16 | 60 % → 82.5 % (min 0 %) | 47.5 % → 45 % |
-| Defects4J, seed 0, one bug per project | 11 | 94 % → 97 % (min 75 %), mostly pass-through | 29 % → 48 % (min 25 %) |
-| dev corpus, for comparison (tuned on) | 8 | 100 % | 79.5 % → 78 % |
+### Fresh samples: the honest measurement
 
-The first numbers are pare before the failing-test fix, the second after.
-Both sources missed in the same way: a run with several failing tests
-names each in a line of the same shape, pare listed that shape once with a
-count, and the tests themselves were dropped; on Maven at 600, the build's
-closing `[ERROR]` advice took the budget as well. The fix was developed on
-a separate Defects4J sample (`corpus-dev/defects4j/`), but these sets
-found the problem and were checked during the work, so **they are no
-longer held out**. The after-fix numbers are a dev score; a fresh sample
-is the honest one. Draw it without the tasks that already have cases:
+Drawn after the failing-test fix, with `--exclude` so no task overlaps a
+set that influenced it, and not looked at before measuring:
 
 ```
 python3 bench/swebench_cases.py run --seed 1 --exclude corpus-heldout/swebench --out corpus-heldout/swebench-2
 python3 bench/defects4j_cases.py run --seed 2 --exclude corpus-heldout/defects4j --exclude corpus-dev/defects4j --out corpus-heldout/defects4j-2
 ```
+
+pare before the fix (commit `d730e86`) → after (`0fc602e`), same cases:
+
+| source | cases | budget 600 | budget 1,000 | budget 2,000 |
+|---|---:|---|---|---|
+| SWE-bench Verified, seed 1 (`swebench-2/`, 35 keep lines) | 17 | 51 → 60 %, full 12 → 14 | 60 → 60 %, full 14 → 14 | 63 → 89 % (min 33 %), full 14 → 15 |
+| Defects4J, seed 2 (`defects4j-2/`, 43 keep lines) | 16 | 30 → 51 %, full 2 → 6 | 63 → 74 %, full 6 → 11 | 86 → 98 % (min 88 %), full 13 → 15 |
+
+At 2,000 tokens pare's output is 11 % of the SWE-bench input and 31 % of
+the Defects4J input; 10 of the 16 Defects4J logs fit and pass through
+untouched, so the Defects4J number that tests the summary is the one at
+600 and 1,000. The fix generalises: these numbers are close to, or above,
+what the burned sets showed after the fix. One case got worse:
+JacksonCore-10 at 1,000, 4 → 3 of 8.
+
+What pare still misses, from reading the misses (no code changed on them):
+
+- **More failing tests than the budget holds.** psf__requests-2317 has 40
+  failing tests, many with `assert 503 == 200` (the test server is out of
+  the container's reach); the dataset
+  wants 8 of them. As lines, 40 names cost about 1,200 tokens: 0 of 8 at
+  600 and 1,000, 6 of 8 at 2,000. psf__requests-1724 is the same: 32
+  failing, 6 wanted, 2 of 6 at 600 and 1,000, all 6 at 2,000. Which of
+  many failures matter is the open question from the first sample too.
+- **Test ids that differ only in numbers.** pydata__xarray-6744's
+  parametrized `test_rolling_iter[numpy-3-True-1]`, `[numpy-3-True-2]`,
+  `[numpy-7-True-1]` mask to one shape, so they are repeats, not a list:
+  1 of 3 at every budget.
+- **Assertion messages that differ only in numbers.** JacksonCore-10's
+  three `AssertionFailedError: expected:<N> but was:<M>` lines mask to one
+  shape, so the third is a repeat and does not fit (7 of 8 at 2,000). Its
+  message is on screen all the same, in Surefire's summary line
+  (`TestSymbolTables.testShortNameCollisionsDirectNew:473 expected:<1024>
+  but was:<2048>`), but the keep line asks for the exception line.
+- **Maven at 600.** Error- and warning-level build chatter (`[ERROR]
+  Errors:`, `See dump files`, `Some problems were encountered while
+  building the effective model`) still takes budget, and Gson-16's
+  two 1,000-line `StackOverflowError` traces take more.
+- **Matching is stricter than reading.** Gson-16's keep lines ask for
+  `com.google.gson…RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve1`;
+  at 1,000 pare shows Maven's summary form
+  `RecursiveTypesResolveTest.testRecursiveTypeVariablesResolve1 » StackOverflow`,
+  which names the test but does not match, and JacksonCore-10 above is
+  the same. Each keep line accepts one form; the numbers count these as
+  misses.
+
+If a fix comes from these diagnoses, these two sets are spent the same way
+as the first two, and the next sample (another seed, `--exclude` every
+directory above) measures it.
+
+### First samples: found the problem, now dev data
+
+| source | cases | budget 600 | budget 2,000 |
+|---|---:|---|---|
+| SWE-bench Verified, seed 0 (`swebench/`) | 16 | 47.5 → 45 % | 60 → 82.5 % (min 0 %) |
+| Defects4J, seed 0, one bug per project (`defects4j/`) | 11 | 29 → 48 % (min 25 %) | 94 → 97 % (min 75 %), mostly pass-through |
+| dev corpus, for comparison (tuned on) | 8 | 79.5 → 78 % | 100 % |
+
+Before → after the failing-test fix. Both sources missed in the same way:
+a run with several failing tests names each in a line of the same shape,
+pare listed that shape once with a count, and the tests themselves were
+dropped; on Maven at 600, the build's closing `[ERROR]` advice took the
+budget as well. The fix was developed on a separate Defects4J sample
+(`corpus-dev/defects4j/`), but these sets found the problem and were
+checked during the work, so they are no longer held out.
 
 ## Protocol
 

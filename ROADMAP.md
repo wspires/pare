@@ -40,14 +40,14 @@ The gate for everything after it.
   the failing-test fix: 48 % at 600, 97 % at 2,000. Ant projects
   (Closure, Chart) and Mockito (Gradle) are not covered. *Done for
   Maven.*
-- [ ] **Fresh held-out sample.** Both sets above helped make the
-  failing-test fix, so they no longer measure it. Draw new tasks that
-  have no case yet and report them as their own rows:
-  `bench/swebench_cases.py run --seed 1 --exclude corpus-heldout/swebench`
-  and `bench/defects4j_cases.py run --seed 2 --exclude
-  corpus-heldout/defects4j --exclude corpus-dev/defects4j`. Write them to
-  new directories (`--out`). *Maintainer for SWE-bench (the images need
-  Docker Hub); either for Defects4J.*
+- [x] **Fresh held-out sample.** SWE-bench seed 1 (17 cases,
+  `corpus-heldout/swebench-2/`) and Defects4J seed 2 (16 cases,
+  `corpus-heldout/defects4j-2/`), drawn with `--exclude` after the
+  failing-test fix and measured before anyone looked at them. pare before
+  → after the fix: SWE-bench 63 → 89 % at 2,000 and 51 → 60 % at 600;
+  Defects4J 30 → 51 % at 600 and 63 → 74 % at 1,000 (98 % at 2,000,
+  where 10 of 16 logs pass through). The fix holds on unseen data. Per
+  case and the remaining misses: `corpus-heldout/README.md`. *Done.*
 - [ ] **Claude token rate.** `bench/tokens.py --anthropic claude-opus-5-5`
   on a machine with credentials. If the rate differs much from the 2.8
   bytes per token measured on cl100k and o200k, change the default.
@@ -110,15 +110,32 @@ held-out evidence asks for it.
   at 600; dev corpus 79.5 → 78 % at 600 (one pytest line), unchanged at
   2,000. Details in `docs/DESIGN.md`, "First change from held-out
   evidence". *Done.*
-- [ ] **Which of many failures matter.** When most failing tests fail the
-  same way (an environment problem) and a few differ, the few are the
-  news; SWE-bench mwaskom__seaborn-3069 has 74 of one kind and the two the
-  dataset cares about, and pytest's summary cuts the reason that would
-  tell them apart. Candidate: group failing tests by their failure (the
-  `E` line or exception under each section) and show the small groups
-  first. Needs evidence from the fresh sample first.
-- [ ] **SWE-bench at 600.** 45 %: the first traceback and a few names fit.
-  Probably the same "which failures" question.
+- [ ] **Which of many failures matter, and listing them compactly.**
+  When a run has more failing tests than the budget holds, pare cannot
+  show every name as a line. psf__requests-2317 has 40 failing tests and
+  the dataset wants 8 (0 at 600 and 1,000, 6 at 2,000); requests-1724 has
+  32 and wants 6; seaborn-3069 has 76, 74 failing the same way. Two
+  candidates, measured separately: render a list template compactly (the
+  shared prefix once, then only the parts that differ, about a third of
+  the size), and group failing tests by how they fail (the `E` line or
+  exception under each) so the small groups come first.
+- [ ] **Names that differ only in numbers.** Parametrized test ids
+  (`test_rolling_iter[numpy-3-True-1]`, `[numpy-3-True-2]`) mask to one
+  shape, so they are repeats, not a list (xarray-6744, 1 of 3 at every
+  budget); likewise `expected:<16384> but was:<32768>` and
+  `expected:<1024> but was:<2048>` (JacksonCore-10). Candidate: digits
+  inside a test id's brackets are part of the name. The rule that a
+  number alone is not news stays for everything else.
+- [ ] **Maven chatter at 600.** Error- and warning-level lines that are
+  neither advice nor failures (`[ERROR] Errors:`, `See dump files`, the
+  effective-model warnings) still take budget; Defects4J-2 is 51 % at
+  600.
+- [ ] **Keep lines with alternative forms.** A test named in Maven's
+  short form (`Test.testX » StackOverflow`) does not match a keep line
+  written with the full class name, so the bench counts a named test as
+  missed (Gson-16, JacksonCore-10). Let a keep line list equivalent forms;
+  report both scores the first time, since it changes the numbers.
+  *Repo.*
 - [ ] **Re-ablate removed terms.** The end-of-output position bonus and
   the first-occurrence bonus were removed by ablation on the dev corpus;
   re-test them on the held-out set.

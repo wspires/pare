@@ -648,8 +648,18 @@ corpora. Recall, before → after:
 
 The held-out sets are no longer held out: they found the problem, and the
 first version of change 1 was checked on them before the seed-1 dev set
-existed. A fresh sample measures the fix honestly (`--exclude` leaves out
-the tasks that already have cases). What the held-out sets still show:
+existed. Fresh samples drawn afterwards with `--exclude` (SWE-bench seed
+1, 17 tasks; Defects4J seed 2, 16 bugs) measure it honestly, before →
+after:
+
+| set | 600 | 1,000 | 2,000 |
+|---|---|---|---|
+| *fresh* SWE-bench, seed 1 (17) | 51 → 60 % | 60 → 60 % | 63 → 89 % |
+| *fresh* Defects4J, seed 2 (16) | 30 → 51 % | 63 → 74 % | 86 → 98 % |
+
+The gains match the burned sets, so the fix was not fitted to them. The
+fresh misses, with the candidates in `ROADMAP.md` stage 3, are in
+`corpus-heldout/README.md`. What the first held-out sets still show:
 
 - **Which failures matter.** mwaskom__seaborn-3069 has 76 failing tests,
   74 failing the same way (a pandas option missing from the environment);

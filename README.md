@@ -206,13 +206,16 @@ these same eight cases, three of which are synthetic. The first held-out
 numbers, on test runs labelled by datasets rather than by anyone working
 on pare, were much lower: on 16 SWE-bench Verified tasks pare kept 60% of
 the failing tests at 2,000 tokens, and on 11 Defects4J bugs 29% of the
-failing tests and exceptions at 600. Both had one cause: several failing
-tests named in lines of one shape, listed once with a count. With that
-fixed (`docs/DESIGN.md`, "First change from held-out evidence"), the same
-cases give 82.5% and 48%, and a separate Defects4J development sample
-68% at 600 and 100% at 2,000. Those held-out sets helped make the fix,
-so they no longer count as held out; a fresh sample is the next
-measurement (`ROADMAP.md`). With all tool-specific rules off, pare still reaches 88% at 600
+failing tests and exceptions at 600. Both had one cause, several failing
+tests named in lines of one shape and listed once with a count, which is
+now fixed (`docs/DESIGN.md`, "First change from held-out evidence"). On
+fresh samples drawn after the fix and never tuned on, pare keeps 89% of
+17 SWE-bench tasks' failing tests at 2,000 tokens (63% before the fix,
+output 11% of the input) and 51% of 16 Defects4J bugs' tests and
+exceptions at 600 (30% before); tidyout keeps everything at 98 to 100% of
+the input size. The remaining misses are runs with more failing tests
+than the budget holds and test names that differ only in numbers
+(`corpus-heldout/README.md`). With all tool-specific rules off, pare still reaches 88% at 600
 and 94.5% at 2000 (bytes/4 units) on this corpus; the generic signals do
 most of the work.
 
