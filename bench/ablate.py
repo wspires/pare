@@ -40,6 +40,10 @@ ABLATIONS = {
     "no window skipping": {"WINDOW_SKIP_COUNT": 10**9},
     "no compact mode": {"COMPACT_BUDGET": 0, "HINT_BUDGET": 0},
     "generic signals only": {"TOOL_SPECIFIC": False},
+    "no pytest rules": {"TOOL_PYTEST": False},
+    "no rustc/gcc rules": {"TOOL_RUSTC": False},
+    "no logcat/glog levels": {"TOOL_LOGCAT": False},
+    "no blank-in-block rule": {"TOOL_BLANK_IN_BLOCK": False},
     # Removed in 95c77c6 on the dev corpus; re-tested here.
     "with end-zone (templates)": {"END_TPL_BONUS": 0.5},
     "with start-zone (templates)": {"START_TPL_BONUS": 0.4},

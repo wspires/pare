@@ -1463,3 +1463,27 @@ def test_ablation_candidates_run_and_stay_off_by_default():
                 setattr(pare, k, v)
     assert ablate.run_case(path, keep, 600) == base
     assert pare.END_TPL_BONUS == pare.START_TPL_BONUS == pare.END_LINE_BONUS == pare.FIRST_BONUS == 0.0
+
+
+def test_each_tool_rule_switches_off_on_its_own():
+    flags = ["TOOL_SPECIFIC", "TOOL_PYTEST", "TOOL_RUSTC", "TOOL_LOGCAT", "TOOL_BLANK_IN_BLOCK"]
+    saved = {f: getattr(pare, f) for f in flags}
+    lines = {"pytest": "E       assert 1 == 2", "rustc": "error[E0308]: mismatched types",
+             "logcat": "E/ActivityManager( 123): crash"}
+    try:
+        def levels():
+            pare.VOCAB = pare.Vocab(pare.DEFAULT_VOCAB)  # the letter forms are built with the vocabulary
+            return {k: pare.VOCAB.severity(v) for k, v in lines.items()}
+        assert levels() == {"pytest": 3, "rustc": 3, "logcat": 3}
+        pare.TOOL_PYTEST = False
+        assert levels() == {"pytest": None, "rustc": 3, "logcat": 3}
+        assert not pare.continuation_rx().match("E       assert 1 == 2")
+        pare.TOOL_PYTEST, pare.TOOL_LOGCAT = True, False
+        assert levels() == {"pytest": 3, "rustc": 3, "logcat": None}
+        pare.TOOL_LOGCAT, pare.TOOL_SPECIFIC = True, False  # the master switch turns every rule off
+        assert levels() == {"pytest": None, "rustc": None, "logcat": None}
+        assert pare.continuation_rx().pattern == pare.CONT_GENERIC
+    finally:
+        for f, v in saved.items():
+            setattr(pare, f, v)
+        pare.VOCAB = pare.Vocab(pare.DEFAULT_VOCAB)

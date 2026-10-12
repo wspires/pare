@@ -229,9 +229,11 @@ tasks, 18 Defects4J bugs), pare keeps 100% and 98% at 2,000 tokens and
 86% and 67% at 600, where the same cases gave 95% and 86%, 77% and 33%
 before any of these fixes (`corpus-heldout/README.md`; 76.5% on
 Defects4J at 600 once a keep line accepts Maven's short form of a test
-name). With all tool-specific rules off, pare still reaches 88% at 600
-and 94.5% at 2000 (bytes/4 units) on this corpus; the generic signals do
-most of the work.
+name). With all tool-specific rules off, pare reaches 71% at 600 and 96%
+at 2,000 on this corpus; on held-out Defects4J the rules change nothing
+and on held-out SWE-bench they are worth up to 18 points, almost all of
+it from the pytest markers and the blank-line-in-a-block rule
+(`docs/DESIGN.md`, "Tool-specific rules").
 
 ```
 python3 -m venv .venv && .venv/bin/pip install -r proto/requirements.txt -r bench/requirements.txt
@@ -271,7 +273,7 @@ for a native port are in [docs/DESIGN.md](docs/DESIGN.md).
 .venv/bin/pip install pytest && .venv/bin/python -m pytest proto/
 ```
 
-224 tests: severity forms and their false positives, vocabulary files, the
+225 tests: severity forms and their false positives, vocabulary files, the
 hard budget limit on every corpus file at several sizes, determinism,
 pass-through, the selection flags, memory on a large input, follow mode
 (including a randomized differential test against the batch pass),

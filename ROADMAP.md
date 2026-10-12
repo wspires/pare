@@ -172,8 +172,15 @@ held-out evidence asks for it.
   (SWE-bench seed 1 at 2,000); the end-zone line bonus helps SWE-bench at
   1,000 (+7.5, +5.7) and hurts Defects4J there (−2.3, −3.9). All stay off.
   Table: `docs/DESIGN.md`, "Scoring model". *Done.*
-- [ ] **Tool-specific rules.** Recheck which earn their place; generic
-  signals alone reach 88 % at 600 and 94.5 % at 2000 on the dev corpus.
+- [x] **Tool-specific rules.** Each rule now has its own switch and
+  ablation row. On nine sets: the pytest markers (up to 14 points on
+  held-out SWE-bench) and the blank-line-in-a-block rule (4 to 17 points
+  on every Python and dev set) earn their place; rustc/gcc shows only on
+  the dev corpus; logcat/glog levels change nothing because no set has
+  that output (kept, untested); Defects4J needs none of them. All kept.
+  Table: `docs/DESIGN.md`, "Tool-specific rules". *Done.*
+- [ ] **An Android or glog log.** The logcat/glog level forms have no
+  case in any corpus. *Maintainer* (or a generated corpus entry).
 
 ## 4. Release
 

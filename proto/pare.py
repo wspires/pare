@@ -86,16 +86,31 @@ CONT_GENERIC = (
 # tools is listed here and in TOOL_SPECIFIC_NOTES, and can be switched off
 # together (TOOL_SPECIFIC = False) to measure what the generic signals alone
 # achieve; bench/ablate.py has an entry for that.
-CONT_TOOL = (
+CONT_RUSTC = (
     r"|^\s*\d*\s*\|(?:\s|$)"  # rustc/gcc gutter lines
     r"|^\s*-->\s"  # rustc location
     r"|^\s*= (?:note|help|warning):"  # rustc notes
     r"|^\s*::: "  # rustc secondary location
-    r"|^E\s{2,}|^>\s{2,}"  # pytest failure detail and source marker lines
 )
+CONT_PYTEST = r"|^E\s{2,}|^>\s{2,}"  # pytest failure detail and source marker lines
+CONT_TOOL = CONT_RUSTC + CONT_PYTEST
 CONT_GENERIC_RE = re.compile(CONT_GENERIC)
 CONT_RE = re.compile(CONT_GENERIC + CONT_TOOL)
-TOOL_SPECIFIC = True
+TOOL_SPECIFIC = True  # all of the rules below; False switches every one off
+# One switch per rule, for bench/ablate.py to measure each on its own.
+TOOL_PYTEST = True  # E and > marker lines continue the failure block; a bare E is an error level
+TOOL_RUSTC = True  # gutter, -->, = note and ::: lines continue a diagnostic; error[E0308]: is a level
+TOOL_LOGCAT = True  # logcat E/Tag( and E/Tag:, glog E0921 levels
+TOOL_BLANK_IN_BLOCK = True  # one blank line inside an indented block does not end the record
+
+
+def tool_rule(flag: bool) -> bool:
+    return TOOL_SPECIFIC and flag
+
+
+def continuation_rx() -> re.Pattern:
+    return re.compile(CONT_GENERIC + (CONT_RUSTC if tool_rule(TOOL_RUSTC) else "")
+                      + (CONT_PYTEST if tool_rule(TOOL_PYTEST) else ""))
 TOOL_SPECIFIC_NOTES = [
     "pytest: E and > marker lines continue the failure block; a bare E at column 0 is an error level",
     "rustc/gcc: gutter (NN |), --> location, = note/help and ::: lines continue the diagnostic; error[E0308]: is a level",
@@ -442,14 +457,17 @@ class Vocab:
         # ...anchored to the line start (after an optional timestamp and
         # pid/tid), so "I/O error" and "T/F flag" are not levels; and pytest's
         # failure-detail marker, a bare E at column 0 followed by two spaces.
-        self.level_letter_rx = re.compile(
-            r"^(?:[\d:.\-]{5,24}\s+){0,2}(?:\d+\s+\d+\s+)?([EWIDVTF])/[\w.$]+[(:]"  # logcat E/Tag( or E/Tag:
-            r"|^(?:[\d:.\-]{5,24}\s+){1,2}\d+\s+\d+\s+([EWIDVF])\s+\S+:"  # logcat threadtime: date time pid tid E Tag:
-            r"|^([EWIF])\d{4}\s"  # glog E0921 10:11:12
-            r"|\[([EWIDVTF])\]"  # [I]
-            r"|^(E)\s{2,}"  # pytest
-        )
-        self.level_letter_generic_rx = re.compile(r"\[([EWIDVTF])\]")
+        letters = r"\[([EWIDVTF])\]"  # [I]
+        if tool_rule(TOOL_LOGCAT):
+            letters += (
+                r"|^(?:[\d:.\-]{5,24}\s+){0,2}(?:\d+\s+\d+\s+)?([EWIDVTF])/[\w.$]+[(:]"  # logcat E/Tag( or E/Tag:
+                r"|^(?:[\d:.\-]{5,24}\s+){1,2}\d+\s+\d+\s+([EWIDVF])\s+\S+:"  # logcat threadtime: date time pid tid E Tag:
+                r"|^([EWIF])\d{4}\s"  # glog E0921 10:11:12
+            )
+        if tool_rule(TOOL_PYTEST):
+            letters += r"|^(E)\s{2,}"  # pytest
+        # Built from the rule switches when the vocabulary is built.
+        self.level_letter_rx = re.compile(letters)
 
     def has(self, cls: str, text: str) -> bool:
         rx = self.rx[cls]
@@ -474,11 +492,11 @@ class Vocab:
                 tok.isupper()  # ERROR, WARN: an uppercase token is a level
                 or (start > 0 and head[start - 1] in "[(<|")  # [error], (warn)
                 or (nxt == ":" and start <= 60)  # error: ..., Warning: ...
-                or (TOOL_SPECIFIC and start == 0 and nxt == "[")  # rustc error[E0308]:
+                or (tool_rule(TOOL_RUSTC) and start == 0 and nxt == "[")  # rustc error[E0308]:
             )
             if ok:
                 return self.level_of[tok.upper()]
-        m = (self.level_letter_rx if TOOL_SPECIFIC else self.level_letter_generic_rx).search(text[:80])
+        m = self.level_letter_rx.search(text[:80])
         if m:
             return LETTER_LEVEL[next(g for g in m.groups() if g)]
         return None
@@ -1002,7 +1020,7 @@ class Pass:
         self.window_no = 0
         self.started = time.monotonic()
         self.worst_sev = -1  # highest severity seen in the current window (follow triggers)
-        self.cont_rx = CONT_RE if TOOL_SPECIFIC else CONT_GENERIC_RE
+        self.cont_rx = continuation_rx()
         self.every = 0  # follow: window cap in lines; on_full is called when it is reached
         self.on_full = None
         self.carry: CarriedHead | None = None  # the record open at the last cut, until a line ends it
@@ -1146,12 +1164,12 @@ class Pass:
             store.score.append(0.0)
             if self.carry is not None and self.cur == -1:
                 # Same rule for the carried record: one blank keeps it open.
-                if self.pending_carried or not TOOL_SPECIFIC:
+                if self.pending_carried or not tool_rule(TOOL_BLANK_IN_BLOCK):
                     self.carry = None
                 else:
                     self.pending_carried = True
                 return
-            if self.pending_blank != -1 or self.cur == -1 or not TOOL_SPECIFIC:
+            if self.pending_blank != -1 or self.cur == -1 or not tool_rule(TOOL_BLANK_IN_BLOCK):
                 self.cur = -1
             self.pending_blank = i if self.cur != -1 else -1
             return

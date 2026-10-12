@@ -506,7 +506,9 @@ the budget still applies. `--max-templates N` caps the table.
 
 Everything pare knows about particular tools, in one place, so recall can
 be measured with and without it (`TOOL_SPECIFIC = False` in `proto/pare.py`,
-or the "generic signals only" row of `bench/ablate.py`):
+or the "generic signals only" row of `bench/ablate.py`), and each rule on
+its own (`TOOL_PYTEST`, `TOOL_RUSTC`, `TOOL_LOGCAT`, `TOOL_BLANK_IN_BLOCK`;
+the "no ... rules" rows):
 
 - pytest: `E` and `>` marker lines continue the failure block; a bare `E`
   at column 0 is an error level.
@@ -517,10 +519,43 @@ or the "generic signals only" row of `bench/ablate.py`):
 - Jest, pytest: a single blank line inside an indented block does not end
   the record.
 
-Without them: 87.7 % at 600 and 94.5 % at 2000 on the dev corpus (with: 97.3
-% and 100 %). The generic signals (levels, status codes, exit codes,
-vocabulary, rarity, inheritance) are the real story; the tool rules add 5 to
-8 points on this corpus.
+When the rules were frozen, the dev corpus without them gave 87.7 % at 600
+and 94.5 % at 2000 (bytes/4 units; with them 97.3 % and 100 %).
+
+**Rechecked on nine sets**, each rule switched off on its own. Change in
+recall, percentage points at 600 / 1,000 / 2,000 (* = the latest fresh
+samples; output size where it moved):
+
+| switched off | dev corpus | generated | D4J s1, s0, s2, s3* | SWE s0 | SWE s1 | SWE s2* |
+|---|---|---|---|---|---|---|
+| (default recall) | 78.1 / 95.9 / 100 | 57.9 / 84.2 / 96.5 | 68–91 / 93–100 / 98–100 | 62.5 / 75 / 90 | 65.7 / 71.4 / 100 | 86.4 / 90.9 / 100 |
+| all rules | −6.9 / −5.5 / −4.1 | 0 / −5.3 / −5.3 | 0 everywhere | −10.0 / −2.5 / −5.0 | −11.4 / 0 / −17.1 | −18.2 / −18.2 / 0 |
+| pytest markers | 0 / 0 / 0 | 0 | 0 | −5.0 / 0 / −2.5 | −8.6 / 0 / −14.3 | −13.7 / −13.6 / 0 |
+| rustc/gcc | 0 / −1.4 / 0 | 0 | 0 | 0 | 0 | 0 |
+| logcat/glog levels | 0 | 0 | 0 | 0 | 0 | 0 |
+| blank line in a block | −4.1 / −4.1 / −4.1 | 0 / −5.3 / −5.3 | 0 | −7.5 / −2.5 / 0 | −8.6 / 0 / −17.1 | −4.6 / 0 / 0 |
+
+- **pytest markers earn their place on held-out data**, by up to 14
+  points; the dev corpus hardly noticed them (its pytest log is small).
+  Without them `E` lines are records of their own and the failure blocks
+  fall apart.
+- **The blank-line rule is the most valuable rule**, and not only for
+  pytest and Jest: it costs 4 to 17 points wherever it is off, and the
+  output grows by up to 970 tokens per set (summed over the three
+  budgets).
+- **rustc/gcc** shows only on the dev corpus (cargo and make, one line at
+  1,000); no held-out set has Rust or C output. Kept, on that evidence.
+- **logcat/glog levels change nothing because no set has Android or glog
+  output.** Kept as untested, not proven: they only recognise an explicit
+  level syntax (like `[ERROR]`), and their false positives (`I/O error`,
+  `T/F flag`) have regression tests. An Android build or logcat capture
+  would test them.
+- **Maven needs none of them.** Every Defects4J set is unchanged with all
+  rules off: Java output is carried by the generic signals.
+
+All four stay. Tool knowledge also lives in the vocabulary (the `advice`
+phrases name Maven, Gradle and npm wordings; `ComparisonFailure`), which
+is the prior by design and outside this switch.
 
 ## Benchmark detail
 
