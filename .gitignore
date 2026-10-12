@@ -17,3 +17,5 @@ terraform.tfstate*
 corpus-heldout/inbox/
 # full eval logs of SWE-bench tasks that did not produce a case (debugging only)
 corpus-heldout/swebench/_failed/
+# full build logs of Defects4J bugs that did not produce a case (debugging only)
+corpus-heldout/defects4j/_failed/

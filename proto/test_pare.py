@@ -1041,3 +1041,131 @@ def test_swebench_harness_writes_cases_and_skips_bad_runs(tmp_path):
     with contextlib.redirect_stdout(buf):
         sc.main(argv, docker=docker)
     assert "acme__widgets-1" in buf.getvalue() and "already collected" in buf.getvalue()  # idempotent
+
+
+# --- bench/defects4j_cases.py ------------------------------------------------------
+
+def load_defects4j_cases():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("defects4j_cases", os.path.join(ROOT, "bench", "defects4j_cases.py"))
+    mod = importlib.util.module_from_spec(spec)
+    sys.path.insert(0, os.path.join(ROOT, "bench"))
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def git_in(path, *args):
+    return subprocess.run(["git", "-C", str(path), *args], capture_output=True, text=True, check=True).stdout.strip()
+
+
+def make_d4j_fixture(tmp_path):
+    """A tiny upstream project and the Defects4J metadata for one bug in it:
+    the fixed commit returns 2, the revert patch makes it return 1 (the bug),
+    and a compile-error fix for bugs 1-2 edits another file."""
+    up = tmp_path / "upstream"
+    (up / "src" / "main" / "java" / "p").mkdir(parents=True)
+    (up / "pom.xml").write_text("<project/>\n")
+    calc = up / "src" / "main" / "java" / "p" / "Calc.java"
+    calc.write_text("package p; class Calc { int two() { return 2; } }\n")
+    (up / "Old.java").write_text("class Old { int x; }\n")
+    git_in(tmp_path, "init", "-q", str(up))
+    git_in(up, "-c", "user.name=t", "-c", "user.email=t@t", "add", "-A")
+    git_in(up, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "fixed")
+    fixed = git_in(up, "rev-parse", "HEAD")
+    calc.write_text("package p; class Calc { int two() { return 1; } }\n")
+    revert = git_in(up, "diff")
+    git_in(up, "checkout", "-q", "--", ".")
+    (up / "Old.java").write_text("class Old { int y; }\n")
+    compile_fix = git_in(up, "diff")
+    git_in(up, "checkout", "-q", "--", ".")
+    meta = tmp_path / "d4j" / "framework" / "projects" / "Lang"
+    for sub in ("patches", "trigger_tests", "compile-errors"):
+        (meta / sub).mkdir(parents=True)
+    (meta / "active-bugs.csv").write_text(
+        "bug.id,revision.id.buggy,revision.id.fixed,report.id,report.url\n"
+        f"1,0000000,{fixed},LANG-1,https://example.org/LANG-1\n"
+        f"2,0000000,{'f' * 40},LANG-2,https://example.org/LANG-2\n")
+    (meta / "patches" / "1.src.patch").write_text(revert + "\n")
+    (meta / "patches" / "2.src.patch").write_text(revert + "\n")
+    (meta / "compile-errors" / "test-1-2.diff").write_text(compile_fix + "\n")
+    (meta / "compile-errors" / "test-5-9.diff").write_text("not applied to bug 1\n")
+    trig = ("--- p.CalcTest::testTwo\njava.lang.AssertionError: expected:<2> but was:<1>\n"
+            "\tat p.CalcTest.testTwo(CalcTest.java:7)\n")
+    (meta / "trigger_tests" / "1").write_text(trig)
+    (meta / "trigger_tests" / "2").write_text(trig)
+    return up, tmp_path / "d4j"
+
+
+class FakeMavenDocker:
+    image = "fake/maven:8"
+
+    def __init__(self, fail=True):
+        self.fail, self.seen = fail, []
+
+    def ensure_image(self):
+        return True, ""
+
+    def run(self, work, command, *, timeout):
+        self.seen.append({"calc": open(os.path.join(work, "src/main/java/p/Calc.java")).read(),
+                          "old": open(os.path.join(work, "Old.java")).read(), "command": command})
+        lines = ["[INFO] Building widgets 1.0"] + [f"[INFO] Compiling {i} source files" for i in range(45)]
+        lines += ["Running p.CalcTest"]
+        if self.fail:
+            lines += ["Tests run: 3, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.01 sec <<< FAILURE!",
+                      "testTwo(p.CalcTest)  Time elapsed: 0.001 sec  <<< FAILURE!",
+                      "java.lang.AssertionError: expected:<2> but was:<1>", "\tat p.CalcTest.testTwo(CalcTest.java:7)",
+                      "Tests run: 3, Failures: 1, Errors: 0, Skipped: 0", "[INFO] BUILD FAILURE"]
+        else:
+            lines += ["Tests run: 3, Failures: 0, Errors: 0, Skipped: 0", "[INFO] BUILD SUCCESS"]
+        code = 1 if self.fail else 0
+        return "downloading noise\n>>>>> pare start\n" + "\n".join(lines) + f"\n>>>>> pare exit {code}\n", False
+
+
+def test_defects4j_metadata_parsing_and_selection(tmp_path):
+    d4 = load_defects4j_cases()
+    _, meta = make_d4j_fixture(tmp_path)
+    t = d4.trigger_tests(str(meta), "Lang", 1)
+    assert t == [{"class": "p.CalcTest", "method": "testTwo", "exception": "java.lang.AssertionError: expected:<2> but was:<1>"}]
+    assert [os.path.basename(f) for f in d4.compile_fixes(str(meta), "Lang", 1)] == ["test-1-2.diff"]
+    assert d4.compile_fixes(str(meta), "Lang", 3) == []
+    assert d4.test_id_forms("p.CalcTest", "testTwo") == ["testTwo(p.CalcTest)", "p.CalcTest.testTwo", "CalcTest.testTwo", "p.CalcTest::testTwo"]
+    assert d4.parse_bug_ids("Lang-1, Codec-12") == [("Lang", 1), ("Codec", 12)]
+    picked = d4.select(str(meta), ids=None, sample=5, seed=0, max_fail=5)
+    assert {b["bug"] for b in picked} == {1, 2} and all(b["project"] == "Lang" for b in picked)
+    assert d4.mvn_command(picked[0])[-2:] == ["-Dtest=CalcTest", "test"]
+    out, code = d4.split_output("noise\n>>>>> pare start\nline\n>>>>> pare exit 1\n")
+    assert out == "line\n" and code == 1
+
+
+def test_defects4j_harness_rebuilds_the_buggy_version_and_writes_a_case(tmp_path):
+    import contextlib
+    import io
+    d4 = load_defects4j_cases()
+    up, meta = make_d4j_fixture(tmp_path)
+    out = tmp_path / "out"
+    docker = FakeMavenDocker()
+    argv = ["run", "--defects4j", str(meta), "--bugs", "Lang-1,Lang-2", "--upstream", f"Lang={up}", "--out", str(out)]
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc = d4.main(argv, docker=docker)
+    text = buf.getvalue()
+    assert rc == 0, text
+    assert "Lang-1" in text and "written" in text and "fixed revision not found upstream" in text
+    # the build saw the buggy version (fix reverted) with the compile-error fix applied
+    assert docker.seen[0]["calc"].strip().endswith("return 1; } }") and "int y;" in docker.seen[0]["old"]
+    assert (out / "Lang-1.keep").read_text().splitlines() == [
+        "testTwo(p.CalcTest)", "java.lang.AssertionError: expected:<2> but was:<1>"]
+    assert (out / "Lang-1.cmd").read_text().strip() == "mvn -B -Dtest=CalcTest test"
+    log = (out / "Lang-1.log").read_text()
+    assert log.startswith("[INFO] Building") and "downloading noise" not in log and ">>>>>" not in log
+    meta_json = json.loads((out / "Lang-1.json").read_text())
+    assert meta_json["fixes_applied"] == ["test-1-2.diff"] and meta_json["exit"] == 1
+    row = (out / "MANIFEST.tsv").read_text().splitlines()[1].split("\t")
+    assert row[0] == "Lang-1" and row[-2:] == ["dataset", "dataset trigger tests"]
+
+    passing = FakeMavenDocker(fail=False)
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        d4.main(argv + ["--force", "--out", str(tmp_path / "out2")], docker=passing)
+    assert "trigger tests did not fail" in buf.getvalue()
+    assert (tmp_path / "out2" / "_failed" / "Lang-1.run.log").exists()
