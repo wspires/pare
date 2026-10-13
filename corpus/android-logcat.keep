@@ -1,0 +1,8 @@
+W NoteRepository: note 117 has no 'updated' field, skipping
+E SQLiteLog: (1) no such table: notes_v2
+android.database.sqlite.SQLiteException: no such table: notes_v2 (code 1 SQLITE_ERROR)
+E AndroidRuntime: FATAL EXCEPTION: main
+Process: com.example.notes, PID: 4321
+java.lang.NullPointerException: Attempt to invoke virtual method 'java.lang.String com.example.notes.data.Note.getTitle()' on a null object reference
+at com.example.notes.ui.NoteListAdapter.onBindViewHolder(NoteListAdapter.kt:58)
+Process com.example.notes (pid 4321) has died

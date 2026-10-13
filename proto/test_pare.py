@@ -1487,3 +1487,20 @@ def test_each_tool_rule_switches_off_on_its_own():
         for f, v in saved.items():
             setattr(pare, f, v)
         pare.VOCAB = pare.Vocab(pare.DEFAULT_VOCAB)
+
+
+def test_command_mode_records_output_size_and_stats_totals_it(tmp_path):
+    runs = tmp_path / "runs"
+    script = "import sys\nfor i in range(3000): print(f'INFO step {i} ok')\nprint('ERROR boom'); sys.exit(3)"
+    p = subprocess.run([sys.executable, os.path.join(HERE, "pare.py"), "--run-dir", str(runs), "--budget", "300",
+                        "--", sys.executable, "-c", script], capture_output=True)
+    assert p.returncode == 3
+    meta = json.loads(next(runs.glob("*.json")).read_text())
+    assert meta["out_bytes"] == len(p.stdout) and meta["bytes"] > 50_000 and meta["budget"] == 300
+    out = subprocess.run([sys.executable, os.path.join(HERE, "pare.py"), "--run-dir", str(runs), "--stats"],
+                         capture_output=True, text=True).stdout
+    assert "1 command run" in out and "saved ~" in out and "exit 3" in out
+    assert "\n" not in out.split("## largest\n")[1].rstrip("\n")  # a multi-line command prints on one line
+    empty = subprocess.run([sys.executable, os.path.join(HERE, "pare.py"), "--run-dir", str(tmp_path / "none"), "--stats"],
+                           capture_output=True, text=True)
+    assert empty.returncode == 0 and "no command-mode runs" in empty.stdout

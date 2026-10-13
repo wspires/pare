@@ -91,12 +91,18 @@ return a permission decision. `PARE_HOOK_DECISION` picks what it sends:
 | `ask` | Every rewritten command prompts, showing the rewritten form. |
 | `allow` | Every rewritten command runs without a prompt. Your allow and ask rules no longer gate the commands on the hook's list; deny rules still apply. Use it only if you would allow everything on that list anyway. |
 
-Not verified here: the development container could not run Claude Code
-hooks, so whether a rewrite with no decision is applied (rather than
-ignored) is unconfirmed; the hooks reference shows `updatedInput` together
-with `allow` or `ask`. If it is ignored, nothing breaks: the command runs
-unwrapped. To check, run a listed command in a session and look for a
-`## raw:` line at the end of its output.
+Verified in a Claude Code session (cloud, October 2026): with no decision
+sent, the rewrite is applied. A listed command came back as pare's output,
+ending with its `## raw: … · exit 0` line. The hook also took effect as
+soon as `.claude/settings.json` was written, without restarting the
+session. That session's permission mode allowed the command either way,
+so how the rewrite meets a narrower allow rule is still to be seen; if a
+rewrite were ignored, nothing would break, as the command runs unwrapped.
+
+This repository registers the hook for itself in `.claude/settings.json`
+(through `$CLAUDE_PROJECT_DIR`, so the same file works in any checkout);
+it does nothing where `pare` is not on PATH. `uv tool install --editable .`
+makes `pare` the working copy, so the hook runs the code being changed.
 
 Other notes from the hooks reference: a hook that times out does not block
 the call (the command then runs unwrapped); the Bash tool's own timeout
@@ -112,3 +118,24 @@ signal to the command and still prints a summary of what it saw.
 | `PARE_HOOK_DECISION` | unset | `ask` or `allow`; see above |
 | `PARE_HOOK_EXTRA` | unset | an extra regex of commands to wrap, matched against the command without its path, e.g. `^(just|nx) ` |
 | `PARE_HOOK_DISABLE` | unset | any value turns the hook off |
+
+### What it saved
+
+Command mode records, next to each run file, how many bytes the command
+printed and how many pare printed. `pare --stats` totals them:
+
+```
+$ pare --stats
+# pare --stats: 14 command runs in /root/.cache/pare/runs
+raw ~212,480 tok → printed ~18,233 tok · saved ~194,247 tok (91.4 %)
+3 runs fit the budget and passed through whole
+## largest
+...
+```
+
+The saving is an upper bound on what the agent avoided reading. Without
+pare it might have cut the output itself (`| tail`, `| grep`, or the
+harness truncating a long result), and with pare it may go back to the run
+file for more (`--only`, `--since`). A run that fits the budget costs a
+few more tokens than the raw output (the `## raw:` line). Runs from before
+pare recorded its output size are skipped.

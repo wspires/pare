@@ -5,7 +5,8 @@
 
 Writes <name>.log, <name>.keep and <name>.cmd for each synthetic case. The
 real-tool logs in corpus/ (pytest, go test, cargo, make, npm) were captured
-from actual runs and are not regenerated here.
+from actual runs and are not regenerated here. android-logcat stands in
+for a real `adb logcat` capture, which needs an emulator or device.
 """
 
 import os
@@ -340,12 +341,148 @@ def ci_pipeline(out_dir):
     write(out_dir, "ci-pipeline", lines, keep, "bash ci.sh")
 
 
+def android_logcat(out_dir):
+    """`adb logcat -d -v threadtime` from an emulator session in which a
+    notes app syncs, hits a database error, and crashes with a
+    NullPointerException in a RecyclerView adapter. Threadtime format as
+    Android's logprint writes it: "MM-DD HH:MM:SS.mmm", pid and tid
+    right-aligned in five columns, the level letter, the tag padded to
+    eight characters before the colon, and every line of a multi-line
+    message (a stack trace) under its own full prefix. Around it, the
+    emulator's usual noise, including errors that repeat all session."""
+    rng = random.Random(20261013)
+    lines, keep = [], []
+    ms = [9 * 3600_000 + 12 * 60_000]
+    APP, APP_PID = "com.example.notes", 4321
+    SYS = 512  # system_server
+
+    def at(pid, tid, level, tag, msg):
+        ms[0] += rng.randint(0, 35)
+        t = ms[0]
+        stamp = f"10-13 {t // 3600_000:02d}:{t // 60_000 % 60:02d}:{t // 1000 % 60:02d}.{t % 1000:03d}"
+        lines.append(f"{stamp} {pid:5d} {tid:5d} {level} {tag:<8}: {msg}")
+
+    def multi(pid, tid, level, tag, text):
+        for part in text.split("\n"):
+            at(pid, tid, level, tag, part)
+
+    def noise(n):
+        for _ in range(n):
+            r = rng.random()
+            if r < 0.14:
+                at(298, 298, "E", "netmgr", "Failed to open QEMU pipe 'qemud:network': Invalid argument")
+            elif r < 0.26:
+                at(441, 467, "E", "GnssHAL_GnssInterface", f"gnssSvStatusCb: b: input svInfo.flags is {rng.choice([8, 9, 13])}")
+            elif r < 0.36:
+                at(306, 306, "D", "EGL_emulation", f"eglMakeCurrent: 0x{rng.randrange(16**8):08x}: ver 3 0 (tinfo 0x{rng.randrange(16**8):08x})")
+            elif r < 0.45:
+                at(SYS, rng.randint(530, 1900), "I", "chatty", f"uid=1000(system) {rng.choice(['Binder:512_3', 'android.display', 'android.bg'])} identical {rng.randint(2, 40)} lines")
+            elif r < 0.53:
+                at(SYS, rng.randint(530, 1900), "W", "ActivityManager", f"Slow operation: {rng.randint(51, 400)}ms so far, now at startProcess: done updating pids map")
+            elif r < 0.61:
+                at(SYS, 541, "D", "ConnectivityService", f"NetworkAgentInfo [MOBILE (LTE) - {rng.randint(100, 120)}] validation {rng.choice(['passed', 'passed', 'partial'])}")
+            elif r < 0.68:
+                at(SYS, 566, "I", "BatteryStatsService", "In wakeup_callback: resumed from suspend")
+            elif r < 0.75:
+                at(1873, 1873, "D", "gralloc_ranchu", f"gralloc_alloc: Creating ashmem region of size {rng.choice([8294400, 3686400, 9216000])}")
+            elif r < 0.82:
+                at(2210, 2241, "I", "GoogleInputMethod", f"onFinishInput() : Dummy InputConnection bound")
+            elif r < 0.88:
+                at(SYS, 1440, "W", "AppOps", f"Noting op not finished: uid 10{rng.randint(100, 160)} pkg com.google.android.gms code 79 time={rng.randint(10**12, 2 * 10**12)} duration=0")
+            elif r < 0.94:
+                at(SYS, 539, "I", "WindowManager", f"WIN DEATH: Window{{{rng.randrange(16**7):07x} u0 Splash Screen com.google.android.apps.nexuslauncher}}")
+            else:
+                at(1655, 1679, "I", "zygote64", f"Background concurrent copying GC freed {rng.randint(9000, 40000)}({rng.randint(400, 2000)}KB) AllocSpace objects, {rng.randint(0, 6)}(120KB) LOS objects, 49% free, {rng.randint(3, 9)}MB/{rng.randint(6, 18)}MB, paused {rng.randint(20, 90)}us total {rng.randint(10, 60)}.{rng.randint(100, 999)}ms")
+
+    noise(900)
+    at(SYS, 1440, "I", "ActivityTaskManager", f"START u0 {{act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp={APP}/.ui.MainActivity}} from uid 10087")
+    at(SYS, 600, "I", "ActivityManager", f"Start proc {APP_PID}:{APP}/u0a87 for pre-top-activity {{{APP}/{APP}.ui.MainActivity}}")
+    at(APP_PID, APP_PID, "I", APP.split(".")[-1], "Late-enabling -Xcheck:jni")
+    at(APP_PID, APP_PID, "W", APP.split(".")[-1], "Unexpected CPU variant for X86 using defaults: x86_64")
+    at(APP_PID, APP_PID, "D", "NetworkSecurityConfig", "No Network Security Config specified, using platform default")
+    multi(APP_PID, APP_PID, "D", "StrictMode", "StrictMode policy violation; ~duration=14 ms: android.os.strictmode.DiskReadViolation\n"
+          "\tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1659)\n"
+          "\tat android.app.SharedPreferencesImpl.awaitLoadedLocked(SharedPreferencesImpl.java:283)\n"
+          "\tat android.app.SharedPreferencesImpl.getString(SharedPreferencesImpl.java:298)\n"
+          f"\tat {APP}.data.Settings.lastSync(Settings.kt:21)\n"
+          f"\tat {APP}.ui.MainActivity.onCreate(MainActivity.kt:34)")
+    at(APP_PID, 4370, "D", "NoteSync", "starting sync, last=2026-10-12T22:41:07Z")
+    sync_tid = 4370
+    for page in range(1, 9):
+        at(APP_PID, 4372, "I", "okhttp.OkHttpClient", f"--> GET https://api.example.com/v2/notes?page={page}&since=1760308867")
+        noise(rng.randint(10, 30))
+        at(APP_PID, 4372, "I", "okhttp.OkHttpClient", f"<-- 200 OK https://api.example.com/v2/notes?page={page}&since=1760308867 ({rng.randint(80, 400)}ms, {rng.randint(9, 30)}.{rng.randint(0, 9)}kB body)")
+        for k in range(25):
+            note = (page - 1) * 25 + k + 1
+            if note == 117:
+                at(APP_PID, sync_tid, "W", "NoteRepository", "note 117 has no 'updated' field, skipping")
+                keep.append("W NoteRepository: note 117 has no 'updated' field, skipping")
+                continue
+            at(APP_PID, sync_tid, "D", "NoteSync", f"synced note {note} (rev {rng.randint(1, 30)})")
+            if rng.random() < 0.3:
+                noise(1)
+        noise(rng.randint(20, 60))
+    at(APP_PID, sync_tid, "E", "SQLiteLog", "(1) no such table: notes_v2 in \"INSERT INTO notes_v2(id,title,body,updated) VALUES (?,?,?,?)\"")
+    keep.append("E SQLiteLog: (1) no such table: notes_v2")
+    multi(APP_PID, sync_tid, "E", "SQLiteDatabase", "Error inserting body=Groceries for the week title=Groceries id=201 updated=1760390400\n"
+          "android.database.sqlite.SQLiteException: no such table: notes_v2 (code 1 SQLITE_ERROR): , while compiling: INSERT INTO notes_v2(id,title,body,updated) VALUES (?,?,?,?)\n"
+          "\tat android.database.sqlite.SQLiteConnection.nativePrepareStatement(Native Method)\n"
+          "\tat android.database.sqlite.SQLiteConnection.acquirePreparedStatement(SQLiteConnection.java:1047)\n"
+          "\tat android.database.sqlite.SQLiteSession.prepare(SQLiteSession.java:597)\n"
+          "\tat android.database.sqlite.SQLiteDatabase.insertWithOnConflict(SQLiteDatabase.java:1786)\n"
+          f"\tat {APP}.data.NoteDao.upsert(NoteDao.kt:47)\n"
+          f"\tat {APP}.data.NoteRepository.save(NoteRepository.kt:88)\n"
+          f"\tat {APP}.sync.NoteSync.run(NoteSync.kt:61)")
+    keep.append("android.database.sqlite.SQLiteException: no such table: notes_v2 (code 1 SQLITE_ERROR)")
+    at(APP_PID, sync_tid, "I", "NoteSync", "sync finished: 199 synced, 1 skipped, 1 failed")
+    noise(120)
+    at(APP_PID, 4402, "W", "OpenGLRenderer", "Failed to choose config with EGL_SWAP_BEHAVIOR_PRESERVED, retrying without...")
+    at(APP_PID, APP_PID, "I", "Choreographer", "Skipped 48 frames!  The application may be doing too much work on its main thread.")
+    multi(APP_PID, APP_PID, "E", "AndroidRuntime", "FATAL EXCEPTION: main\n"
+          f"Process: {APP}, PID: {APP_PID}\n"
+          f"java.lang.NullPointerException: Attempt to invoke virtual method 'java.lang.String {APP}.data.Note.getTitle()' on a null object reference\n"
+          f"\tat {APP}.ui.NoteListAdapter.onBindViewHolder(NoteListAdapter.kt:58)\n"
+          f"\tat {APP}.ui.NoteListAdapter.onBindViewHolder(NoteListAdapter.kt:21)\n"
+          "\tat androidx.recyclerview.widget.RecyclerView$Adapter.onBindViewHolder(RecyclerView.java:7254)\n"
+          "\tat androidx.recyclerview.widget.RecyclerView$Adapter.bindViewHolder(RecyclerView.java:7337)\n"
+          "\tat androidx.recyclerview.widget.RecyclerView$Recycler.tryBindViewHolderByDeadline(RecyclerView.java:6194)\n"
+          "\tat androidx.recyclerview.widget.RecyclerView$Recycler.tryGetViewHolderForPositionByDeadline(RecyclerView.java:6460)\n"
+          "\tat androidx.recyclerview.widget.LinearLayoutManager.layoutChunk(LinearLayoutManager.java:1583)\n"
+          "\tat androidx.recyclerview.widget.LinearLayoutManager.fill(LinearLayoutManager.java:1541)\n"
+          "\tat androidx.recyclerview.widget.LinearLayoutManager.onLayoutChildren(LinearLayoutManager.java:668)\n"
+          "\tat androidx.recyclerview.widget.RecyclerView.dispatchLayoutStep2(RecyclerView.java:4309)\n"
+          "\tat androidx.recyclerview.widget.RecyclerView.onLayout(RecyclerView.java:4579)\n"
+          "\tat android.view.View.layout(View.java:24529)\n"
+          "\tat android.view.ViewGroup.layout(ViewGroup.java:7383)\n"
+          "\tat android.view.ViewRootImpl.performLayout(ViewRootImpl.java:4422)\n"
+          "\tat android.view.ViewRootImpl.performTraversals(ViewRootImpl.java:3828)\n"
+          "\tat android.view.Choreographer.doFrame(Choreographer.java:1337)\n"
+          "\tat android.os.Handler.dispatchMessage(Handler.java:106)\n"
+          "\tat android.os.Looper.loop(Looper.java:317)\n"
+          "\tat android.app.ActivityThread.main(ActivityThread.java:8705)\n"
+          "\tat java.lang.reflect.Method.invoke(Native Method)\n"
+          "\tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)\n"
+          "\tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)")
+    keep += ["E AndroidRuntime: FATAL EXCEPTION: main",
+             f"Process: {APP}, PID: {APP_PID}",
+             f"java.lang.NullPointerException: Attempt to invoke virtual method 'java.lang.String {APP}.data.Note.getTitle()' on a null object reference",
+             f"at {APP}.ui.NoteListAdapter.onBindViewHolder(NoteListAdapter.kt:58)"]
+    at(APP_PID, APP_PID, "I", "Process", f"Sending signal. PID: {APP_PID} SIG: 9")
+    at(SYS, 1440, "W", "ActivityTaskManager", f"  Force finishing activity {APP}/.ui.MainActivity")
+    at(SYS, 1912, "I", "ActivityManager", f"Process {APP} (pid {APP_PID}) has died: fg  TOP ")
+    keep.append(f"Process {APP} (pid {APP_PID}) has died")
+    at(SYS, 1912, "W", "InputDispatcher", f"channel '9f3c2a1 {APP}/{APP}.ui.MainActivity (server)' ~ Channel is unrecoverably broken and will be disposed!")
+    noise(700)
+    write(out_dir, "android-logcat", lines, keep, "adb logcat -d -v threadtime")
+
+
 def main():
     out_dir = sys.argv[1] if len(sys.argv) > 1 else "corpus"
     os.makedirs(out_dir, exist_ok=True)
     server_log(out_dir)
     jest_log(out_dir)
     ci_pipeline(out_dir)
+    android_logcat(out_dir)
 
 
 if __name__ == "__main__":

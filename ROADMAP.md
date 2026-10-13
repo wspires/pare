@@ -88,9 +88,14 @@ The blocker for stage 1 is friction, so this comes first in practice.
   what the agent did next (never from pare's scoring); stages candidates
   in a git-ignored inbox; `promote` refuses a case without a reviewed keep
   list or with credentials left in it. *Repo.*
-- [ ] **Try the hook in a real Claude Code session.** Unverified here:
-  whether a rewrite sent without a permission decision is applied, and
-  how it interacts with your permission rules. *Maintainer.*
+- [x] **Try the hook in a real Claude Code session.** A rewrite sent
+  without a permission decision is applied, and the hook took effect as
+  soon as `.claude/settings.json` was written. This repository now
+  registers it for itself. Still to see: a narrow allow rule against the
+  rewritten form. *Done.*
+- [x] **Measure what it saves.** Command mode records the command's
+  output size and pare's; `pare --stats` totals them (an upper bound:
+  see `integrations/README.md`). *Done.*
 - [ ] **Use it for a while.** Run files accumulate from normal work; then
   `bench/collect.py` turns the interesting ones into held-out cases.
   *Maintainer.*
@@ -179,8 +184,21 @@ held-out evidence asks for it.
   the dev corpus; logcat/glog levels change nothing because no set has
   that output (kept, untested); Defects4J needs none of them. All kept.
   Table: `docs/DESIGN.md`, "Tool-specific rules". *Done.*
-- [ ] **An Android or glog log.** The logcat/glog level forms have no
-  case in any corpus. *Maintainer* (or a generated corpus entry).
+- [x] **An Android logcat case.** `corpus/android-logcat`, seeded and
+  synthetic (`bench/gen_synthetic.py`), in Android's threadtime format: it
+  found that pare missed every level on lines whose tag is shorter than
+  eight characters (logcat pads it before the colon; 663 of 2,510 lines),
+  now fixed. With the logcat rule: 50 / 75 / 87.5 % at 600 / 1,000 /
+  2,000; without it, 62.5 % at 1,000. *Done; a real capture and a glog
+  log are still wanted (Maintainer).*
+- [ ] **logcat stack traces.** logcat prefixes every line of a stack
+  trace, so frames are not indented continuations: they cluster into one
+  template across traces, and the app's own frame
+  (`NoteListAdapter.kt:58`) is lost at 600 and 1,000. Candidate: read a
+  logcat line's prefix as structure, and its message as the line. The
+  process-death line (`ActivityManager: … has died`, INFO) is also lost
+  in system noise at 2,000. Wait for a real capture before changing
+  anything.
 
 ## 4. Release
 

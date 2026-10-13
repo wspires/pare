@@ -545,11 +545,13 @@ samples; output size where it moved):
   budgets).
 - **rustc/gcc** shows only on the dev corpus (cargo and make, one line at
   1,000); no held-out set has Rust or C output. Kept, on that evidence.
-- **logcat/glog levels change nothing because no set has Android or glog
-  output.** Kept as untested, not proven: they only recognise an explicit
-  level syntax (like `[ERROR]`), and their false positives (`I/O error`,
-  `T/F flag`) have regression tests. An Android build or logcat capture
-  would test them.
+- **logcat/glog levels change nothing on these sets because none has
+  Android or glog output.** A synthetic logcat case added since
+  (`corpus/android-logcat`, threadtime format) shows the logcat rule
+  working: 75 % at 1,000 with it, 62.5 % without. It also found that the
+  rule missed every line with a tag shorter than eight characters, which
+  logcat pads before the colon (`E netmgr  : …`): 663 of 2,510 lines had
+  no level. Fixed; no other log changed. glog is still untested.
 - **Maven needs none of them.** Every Defects4J set is unchanged with all
   rules off: Java output is carried by the generic signals.
 
@@ -634,6 +636,7 @@ Per case, pare:
 | npm-install | 7,799 | 309, 2/2 | 212, 2/2 |
 | pytest-fail | 6,803 | 1,240, 11/11 | 578, 8/11 |
 | server-outage | 191,216 | 888, 9/9 | 585, 6/9 |
+| android-logcat (added later; not in the totals above) | 96,969 | 1,984, 7/8 | 596, 4/8 |
 
 Two changes after the heuristics were frozen moved these numbers, both
 format rather than scoring and both evaluated on both corpora before

@@ -85,6 +85,8 @@ T25  ×6 S --- Captured log <*> ---
 `pare --only T5 < runfile` then prints the 120 omitted lines of one
 template; `--except`, `--min-severity error` and `--since L200` narrow it
 further. Template ids are stable because the pipeline is deterministic.
+In command mode (`pare -- CMD`), `pare --stats` totals what the command
+printed against what pare printed, over every run so far.
 
 Tokens are estimated as bytes / 2.8, the rate measured with tiktoken on
 pare's output (cl100k and o200k agree); `--chars-per-token` changes it,
@@ -177,7 +179,8 @@ substring match, after pare's compact lists of failing tests are written
 out in full; `--strict` matches the literal text; a keep line may list
 equivalent forms as `a || b`) that each tool keeps. Tokens are bytes / 2.8, pare's
 default and the measured cl100k/o200k rate for this text
-(`bench/tokens.py`), so a budget of 2000 is 2,000 real tokens. Eight logs, 488k input tokens: real pytest, go test,
+(`bench/tokens.py`), so a budget of 2000 is 2,000 real tokens. Eight logs (a ninth, a synthetic Android logcat capture, was added later
+and is reported in `docs/DESIGN.md`), 488k input tokens: real pytest, go test,
 cargo, make and npm runs, plus three seeded synthetic logs (a Jest run, a
 535 KB service outage, a 750 KB CI job). Versions: pare 0.1.0 / drain3
 0.9.11, sqz 1.9.0, tidyout-cli 0.2.0; sqz runs one-shot
@@ -273,7 +276,7 @@ for a native port are in [docs/DESIGN.md](docs/DESIGN.md).
 .venv/bin/pip install pytest && .venv/bin/python -m pytest proto/
 ```
 
-225 tests: severity forms and their false positives, vocabulary files, the
+231 tests: severity forms and their false positives, vocabulary files, the
 hard budget limit on every corpus file at several sizes, determinism,
 pass-through, the selection flags, memory on a large input, follow mode
 (including a randomized differential test against the batch pass),

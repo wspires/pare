@@ -461,7 +461,7 @@ class Vocab:
         if tool_rule(TOOL_LOGCAT):
             letters += (
                 r"|^(?:[\d:.\-]{5,24}\s+){0,2}(?:\d+\s+\d+\s+)?([EWIDVTF])/[\w.$]+[(:]"  # logcat E/Tag( or E/Tag:
-                r"|^(?:[\d:.\-]{5,24}\s+){1,2}\d+\s+\d+\s+([EWIDVF])\s+\S+:"  # logcat threadtime: date time pid tid E Tag:
+                r"|^(?:[\d:.\-]{5,24}\s+){1,2}\d+\s+\d+\s+([EWIDVF])\s+\S+\s*:"  # logcat threadtime: date time pid tid E Tag: (short tags padded to 8)
                 r"|^([EWIF])\d{4}\s"  # glog E0921 10:11:12
             )
         if tool_rule(TOOL_PYTEST):
@@ -2248,6 +2248,8 @@ def main(argv: list[str] | None = None) -> int:
                          "lists (default: $PARE_VOCAB); see --dump-vocab for the format")
     ap.add_argument("--dump-vocab", action="store_true",
                     help="print the built-in vocabulary (after applying --vocab) in file format and exit")
+    ap.add_argument("--stats", action="store_true",
+                    help="print what command mode saved: raw output against pare's, from the run directory's records")
     ap.add_argument("--version", action="version", version=f"pare {__version__}")
     ap.epilog = ("command mode: pare [options] -- CMD [ARGS...] runs CMD with stdout and stderr merged, "
                  "summarises the output, ends the summary with its exit status, records the command "
@@ -2271,6 +2273,8 @@ def main(argv: list[str] | None = None) -> int:
         except OSError as e:
             sys.exit(f"pare: cannot read vocab file {args.vocab}: {e.strerror}")
         VOCAB = Vocab(parse_vocab(vocab_text, DEFAULT_VOCAB, source=args.vocab))
+    if args.stats:
+        return stats(args.run_dir or default_run_dir())
     if args.dump_vocab:
         sys.stdout.write(dump_vocab(VOCAB.entries))
         return 0
@@ -2355,6 +2359,9 @@ def main(argv: list[str] | None = None) -> int:
             )
         sys.stdout.write(out)
         sys.stdout.flush()
+        if run and run_path:  # what the command printed against what pare printed, for --stats
+            run.write_meta(run_path, lines=len(store), nbytes=store.total_bytes,
+                           out_bytes=len(out.encode("utf-8")), budget=args.budget)
         return exit_code
     finally:
         if store is not None:
@@ -2364,6 +2371,62 @@ def main(argv: list[str] | None = None) -> int:
                 os.unlink(spool_path)
             except OSError:
                 pass
+
+
+class CountingWriter:
+    """A text stream that counts the bytes written through it (follow mode's
+    output, for the run's --stats record)."""
+
+    def __init__(self, stream):
+        self.stream = stream
+        self.nbytes = 0
+
+    def write(self, text: str) -> int:
+        self.nbytes += len(text.encode("utf-8"))
+        return self.stream.write(text)
+
+    def flush(self) -> None:
+        self.stream.flush()
+
+
+def stats(run_dir: str, out=sys.stdout) -> int:
+    """--stats: what command mode saved, from the .json records next to the
+    run files: per command, what it printed against what pare printed.
+    The saving is an upper bound on what an agent avoided reading: without
+    pare it might have cut the output itself (tail, grep, a truncating
+    harness), and with pare it may read more of the run file afterwards."""
+    rows = []
+    try:
+        names = sorted(f for f in os.listdir(run_dir) if f.endswith(".json"))
+    except OSError:
+        names = []
+    for name in names:
+        try:
+            with open(os.path.join(run_dir, name), encoding="utf-8") as f:
+                m = json.load(f)
+        except (OSError, ValueError):
+            continue
+        if not isinstance(m, dict) or m.get("out_bytes") is None:
+            continue  # written before pare recorded its output, or still running
+        cpt = m.get("chars_per_token") or CHARS_PER_TOKEN
+        rows.append((m.get("started", ""), re.sub(r"\s+", " ", " ".join(m.get("command") or [])), m.get("bytes", 0), m["out_bytes"], cpt,
+                     m.get("exit")))
+    if not rows:
+        out.write(f"# pare --stats: no command-mode runs with output sizes in {run_dir}\n")
+        return 0
+    tok = lambda b, cpt: math.ceil(b / cpt)
+    raw = sum(tok(r[2], r[4]) for r in rows)
+    shown = sum(tok(r[3], r[4]) for r in rows)
+    out.write(f"# pare --stats: {len(rows)} command run{'s' if len(rows) != 1 else ''} in {run_dir}\n")
+    out.write(f"raw ~{fmt_int(raw)} tok → printed ~{fmt_int(shown)} tok"
+              f" · saved ~{fmt_int(max(0, raw - shown))} tok ({100.0 * (raw - shown) / raw if raw else 0.0:.1f} %)\n")
+    passthrough = sum(1 for r in rows if r[3] >= r[2])
+    if passthrough:
+        out.write(f"{passthrough} run{'s' if passthrough != 1 else ''} fit the budget and passed through whole\n")
+    out.write("## largest\n")
+    for started, cmd, nb, ob, cpt, code in sorted(rows, key=lambda r: -(r[2] - r[3]))[:10]:
+        out.write(f"{started}  ~{fmt_int(tok(nb, cpt)):>8} → ~{fmt_int(tok(ob, cpt)):>6} tok  exit {code}  {clip(cmd, 80)}\n")
+    return 0
 
 
 class CommandRun:
@@ -2432,9 +2495,11 @@ class CommandRun:
         self.exit_code = 128 - rc if rc < 0 else rc
         return self.exit_code
 
-    def write_meta(self, run_path: str, *, lines: int, nbytes: int) -> None:
-        """<run file>.json next to the run file: what produced it. Read by
-        bench/collect.py to fill in a held-out case's .cmd."""
+    def write_meta(self, run_path: str, *, lines: int, nbytes: int, out_bytes: int | None = None,
+                   budget: int | None = None) -> None:
+        """<run file>.json next to the run file: what produced it, and how
+        much of it pare printed. Read by bench/collect.py to fill in a
+        held-out case's .cmd, and by --stats."""
         meta = {
             "command": self.command,
             "cwd": self.cwd,
@@ -2445,6 +2510,8 @@ class CommandRun:
             "bytes": nbytes,
             "pare": __version__,
         }
+        if out_bytes is not None:
+            meta.update(out_bytes=out_bytes, budget=budget, chars_per_token=CHARS_PER_TOKEN)
         try:
             with open(os.path.splitext(run_path)[0] + ".json", "w", encoding="utf-8") as f:
                 json.dump(meta, f, indent=2)
@@ -2490,7 +2557,7 @@ def follow(args, spool_path: str, run_path: str | None, run: CommandRun | None =
     flush per --min-interval), and at end of input."""
     flush_sev = {"error": 3, "fatal": 4, "none": 99}[args.flush_on]
     fd = run.proc.stdout.fileno() if run else sys.stdin.fileno()
-    out = sys.stdout
+    out = CountingWriter(sys.stdout)
     k = 0
     with open(spool_path, "wb") as spool, open(spool_path, "rb") as reader:
         p = Pass(args.width, spool, spool_path)
@@ -2559,13 +2626,13 @@ def follow(args, spool_path: str, run_path: str | None, run: CommandRun | None =
         p.finish()
         flush(final=True)
         exit_code = run.wait() if run else 0
-        if run and run_path:
-            run.write_meta(run_path, lines=p.nlines, nbytes=p.total_bytes)
         out.write(f"# pare: end of input · {fmt_int(p.nlines)} lines, {fmt_int(p.total_bytes)} B"
                   f" (~{fmt_int(tokens(p.total_bytes))} tok) · {len(p.globals)} templates · "
                   + (f"raw: {run_path}" if run_path else "raw: (not saved)")
                   + (f" · exit {exit_code}" if run else "") + "\n")
         out.flush()
+        if run and run_path:
+            run.write_meta(run_path, lines=p.nlines, nbytes=p.total_bytes, out_bytes=out.nbytes, budget=args.budget)
     return exit_code
 
 
