@@ -104,6 +104,16 @@ TOOL_LOGCAT = True  # logcat E/Tag( and E/Tag:, glog E0921 levels
 TOOL_BLANK_IN_BLOCK = True  # one blank line inside an indented block does not end the record
 
 
+# A logcat line's header in the threadtime format ("10-13 09:12:31.620  4321
+# 4321 E AndroidRuntime: ...") or the time format ("10-13 09:12:31.620
+# E/AndroidRuntime( 4321): ..."). One Log call that prints several lines (a
+# stack trace) repeats the same header, timestamp included, on every line.
+LOGCAT_HEADER_RX = re.compile(
+    r"^(\d\d-\d\d \d\d:\d\d:\d\d\.\d{3})\s+(?:(\d+)\s+(\d+)\s+([VDIWEF])\s+([^:]*?)\s*:"
+    r"|([VDIWEF])/([^(]*)\(\s*(\d+)\):)"
+)
+
+
 def tool_rule(flag: bool) -> bool:
     return TOOL_SPECIFIC and flag
 
@@ -114,7 +124,7 @@ def continuation_rx() -> re.Pattern:
 TOOL_SPECIFIC_NOTES = [
     "pytest: E and > marker lines continue the failure block; a bare E at column 0 is an error level",
     "rustc/gcc: gutter (NN |), --> location, = note/help and ::: lines continue the diagnostic; error[E0308]: is a level",
-    "logcat: E/Tag( and E/Tag: at the line start are levels; glog: E0921 10:11:12",
+    "logcat: E/Tag( and E/Tag: at the line start are levels, and a multi-line entry (one header repeated) is split by its message; glog: E0921 10:11:12",
     "Jest/pytest: a single blank line inside an indented block does not end the record",
 ]
 
@@ -816,7 +826,9 @@ def tokens(nbytes: int) -> int:
     """Token estimate: bytes / CHARS_PER_TOKEN. A proxy, not a tokenizer; the
     default 2.8 is what pare output measures on cl100k/o200k (bench/tokens.py).
     --chars-per-token 4 gives the classic bytes/4 rule of thumb."""
-    return math.ceil(nbytes / CHARS_PER_TOKEN)
+    # Less a hair, so that 2,800 bytes at 2.8 is 1,000 tokens, not the 1,001
+    # that floating point makes of 2800 / 2.8.
+    return math.ceil(nbytes / CHARS_PER_TOKEN - 1e-9)
 
 
 def budget_bytes_for(budget: int) -> int:
@@ -1028,6 +1040,7 @@ class Pass:
         self.head_text = ""
         self.head_no = 0
         self.head_sev: int | None = None
+        self.logcat_key: tuple | None = None  # the logcat header of the last non-blank line
         self.cur = -1
         self.head_indent = 0
         self.head_vocab = 0.0
@@ -1127,14 +1140,35 @@ class Pass:
             if now_r >= RATE_FACTOR * before_r:
                 tpl.rate_note = f" (rate {before_r:.2g}/s → {now_r:.2g}/s)"
 
+    def _joins(self, text: str, indent: int, logcat: tuple | None, message: str) -> bool:
+        """Whether a line continues the open record, by its shape: deeper
+        indentation or a known continuation form. A logcat line is judged by
+        its message, since the header in front of every line means nothing
+        in it is indented, and only within one entry: one Log call printed
+        over several lines repeats the same header, so a new header always
+        starts a new record. Inside an entry ("FATAL EXCEPTION: main",
+        "Process: ...", the exception, its frames) the exception heads its
+        record and the frames continue it, as in any Java trace."""
+        if logcat is not None:
+            return logcat == self.logcat_key and (indent_of(message) > self.head_indent
+                                                  or bool(self.cont_rx.match(message)))
+        return indent > self.head_indent or bool(self.cont_rx.match(text))
+
     def _add(self, raw: bytes) -> None:
         text = clean_line(raw.decode("utf-8", errors="replace"))
         indent = indent_of(text)
         stripped = text.strip()
+        logcat = None
+        message = text
+        if tool_rule(TOOL_LOGCAT):
+            m = LOGCAT_HEADER_RX.match(text)
+            if m:
+                logcat = m.groups()
+                message = text[m.end():].removeprefix(" ")
         if self.every and self.on_full is not None and stripped and len(self.store) >= self.every and not (
             self.cur != -1
             and (self.store.rend[self.cur] - self.store.rstart[self.cur]) < MAX_RECORD_LINES
-            and (indent > self.head_indent or self.cont_rx.match(text))
+            and self._joins(text, indent, logcat, message)
         ):
             # The window is full and this line starts a record: cut here, so
             # a window boundary never splits a record and the segmentation,
@@ -1158,6 +1192,7 @@ class Pass:
             # Blank lines end a record and belong to none, except that a
             # single blank line may sit inside an indented block.
             store.blank_total += 1
+            self.logcat_key = None
             store.blank.append(1)
             store.rec.append(-1)
             store.depth.append(0)
@@ -1189,7 +1224,7 @@ class Pass:
             # First non-blank line of a window after a cut that left a record
             # open: does it continue that record? Same test as below, against
             # the carried head and the record's length so far.
-            if self.carry_len < MAX_RECORD_LINES and (indent > self.head_indent or self.cont_rx.match(text)):
+            if self.carry_len < MAX_RECORD_LINES and self._joins(text, indent, logcat, message):
                 g = self.globals[self.carry.gid]
                 tpl = self.window_tpl.get(g.gid)
                 if tpl is None:
@@ -1213,16 +1248,25 @@ class Pass:
         is_cont = (
             cur != -1
             and (rend[cur] - rstart[cur] + (self.carry_len if cur == 0 and store.carry is not None else 0)) < MAX_RECORD_LINES
-            and (indent > self.head_indent or self.cont_rx.match(text))
+            and self._joins(text, indent, logcat, message)
         )
+        self.logcat_key = logcat
         if is_cont:
+            if logcat is not None:
+                # The entry's level is its head's; a line of its message is
+                # judged by the message alone (a frame is a frame, not an
+                # error line) and gets the entry's weight by inheritance.
+                text = message
+                sev = VOCAB.severity(text)
+                store.sev[i] = -1 if sev is None else sev
+                memo.clear()
             tpl = store.templates[rtpl[cur]]
             if self.pending_blank != -1:
                 store.rec[self.pending_blank] = cur
                 store.depth[self.pending_blank] = 1
                 tpl.lines += 1
             rend[cur] = i + 1
-            d = max(1, (indent - self.head_indent + 1) // 2)
+            d = max(1, ((indent_of(message) if logcat is not None else indent) - self.head_indent + 1) // 2)
             store.rec.append(cur)
             store.depth.append(d)
             tpl.lines += 1
@@ -1236,7 +1280,7 @@ class Pass:
             cur = self.cur = len(rstart)
             rstart.append(i)
             rend.append(i + 1)
-            self.head_indent = indent
+            self.head_indent = indent_of(message) if logcat is not None else indent
             self.head_text, self.head_no, self.head_sev = text, store.base + i + 1, sev
             # Cluster the masked head line.
             res = self.miner.add_log_message(drain_message(text))

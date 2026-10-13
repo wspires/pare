@@ -189,16 +189,17 @@ held-out evidence asks for it.
   found that pare missed every level on lines whose tag is shorter than
   eight characters (logcat pads it before the colon; 663 of 2,510 lines),
   now fixed. With the logcat rule: 50 / 75 / 87.5 % at 600 / 1,000 /
-  2,000; without it, 62.5 % at 1,000. *Done; a real capture and a glog
+  2,000 (87.5 % at 1,000 since the entry fix below); without it, 62.5 %
+  at 1,000. *Done; a real capture and a glog
   log are still wanted (Maintainer).*
-- [ ] **logcat stack traces.** logcat prefixes every line of a stack
-  trace, so frames are not indented continuations: they cluster into one
-  template across traces, and the app's own frame
-  (`NoteListAdapter.kt:58`) is lost at 600 and 1,000. Candidate: read a
-  logcat line's prefix as structure, and its message as the line. The
-  process-death line (`ActivityManager: … has died`, INFO) is also lost
-  in system noise at 2,000. Wait for a real capture before changing
-  anything.
+- [x] **logcat stack traces.** A logcat line is now judged by its
+  message inside its entry (one header repeated): a new header starts a
+  record, and the exception heads its record with its frames under it.
+  The case goes from 75 to 87.5 % at 1,000 (50 % at 600 and 87.5 % at
+  2,000 either way), and no other log's output changed. *Done.*
+- [ ] **logcat process death.** `ActivityManager: Process … has died`
+  (INFO) is still lost in system noise at every budget. Wait for a real
+  capture.
 
 ## 4. Release
 

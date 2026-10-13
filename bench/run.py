@@ -45,7 +45,7 @@ CHARS_PER_TOKEN = 2.8  # set from --chars-per-token
 
 
 def tokens(data: bytes) -> int:
-    return math.ceil(len(data) / CHARS_PER_TOKEN)
+    return math.ceil(len(data) / CHARS_PER_TOKEN - 1e-9)  # 2800 / 2.8 is 1000, not 1001
 
 
 def which(name: str) -> str | None:

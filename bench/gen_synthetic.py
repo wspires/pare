@@ -348,7 +348,8 @@ def android_logcat(out_dir):
     Android's logprint writes it: "MM-DD HH:MM:SS.mmm", pid and tid
     right-aligned in five columns, the level letter, the tag padded to
     eight characters before the colon, and every line of a multi-line
-    message (a stack trace) under its own full prefix. Around it, the
+    message (a stack trace) under the same full header, timestamp
+    included. Around it, the
     emulator's usual noise, including errors that repeat all session."""
     rng = random.Random(20261013)
     lines, keep = [], []
@@ -356,15 +357,20 @@ def android_logcat(out_dir):
     APP, APP_PID = "com.example.notes", 4321
     SYS = 512  # system_server
 
-    def at(pid, tid, level, tag, msg):
-        ms[0] += rng.randint(0, 35)
-        t = ms[0]
-        stamp = f"10-13 {t // 3600_000:02d}:{t // 60_000 % 60:02d}:{t // 1000 % 60:02d}.{t % 1000:03d}"
+    def at(pid, tid, level, tag, msg, stamp=None):
+        if stamp is None:
+            ms[0] += rng.randint(0, 35)
+            t = ms[0]
+            stamp = f"10-13 {t // 3600_000:02d}:{t // 60_000 % 60:02d}:{t // 1000 % 60:02d}.{t % 1000:03d}"
         lines.append(f"{stamp} {pid:5d} {tid:5d} {level} {tag:<8}: {msg}")
+        return stamp
 
     def multi(pid, tid, level, tag, text):
+        # One Log call: logcat repeats the entry's header, timestamp included,
+        # on every line of its message.
+        stamp = None
         for part in text.split("\n"):
-            at(pid, tid, level, tag, part)
+            stamp = at(pid, tid, level, tag, part, stamp)
 
     def noise(n):
         for _ in range(n):

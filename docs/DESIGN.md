@@ -514,8 +514,9 @@ the "no ... rules" rows):
   at column 0 is an error level.
 - rustc/gcc: gutter (`NN |`), `-->` location, `= note/help` and `:::` lines
   continue the diagnostic; `error[E0308]:` is a level.
-- logcat: `E/Tag(` and `E/Tag:` at the line start are levels; glog:
-  `E0921 10:11:12`.
+- logcat: `E/Tag(` and `E/Tag:` at the line start are levels, and a
+  multi-line entry (one header repeated on each line) is split by its
+  message, not its header; glog: `E0921 10:11:12`.
 - Jest, pytest: a single blank line inside an indented block does not end
   the record.
 
@@ -548,10 +549,30 @@ samples; output size where it moved):
 - **logcat/glog levels change nothing on these sets because none has
   Android or glog output.** A synthetic logcat case added since
   (`corpus/android-logcat`, threadtime format) shows the logcat rule
-  working: 75 % at 1,000 with it, 62.5 % without. It also found that the
+  working: 75 % at 1,000 with it, 62.5 % without (87.5 % with it since
+  the entry fix below). It also found that the
   rule missed every line with a tag shorter than eight characters, which
   logcat pads before the colon (`E netmgr  : …`): 663 of 2,510 lines had
   no level. Fixed; no other log changed. glog is still untested.
+
+  **logcat entries.** logcat prints one Log call over several lines by
+  repeating its header, timestamp included, on each, so nothing in a
+  stack trace is indented and every frame looked like a record of its
+  own: frames of different traces clustered into one template and the
+  app's frame was lost. Now a logcat line is judged by its message, inside
+  its entry: a new header always starts a record, and within an entry
+  the generic rules apply to the message, so the exception heads its
+  record and its frames continue it, as in any Java trace. A continuation
+  line is also scored by its message (the `E` in the header belongs to the
+  entry; a frame is a frame). Two intermediate versions were worse and
+  were dropped: one record per entry, with every line scored at the
+  header's level, put 20 frames ahead of the exception (25 / 37.5 /
+  62.5 %); one record per entry scored by message still lost the
+  exception at 600 (37.5 %). On the case, with its generator fixed to give
+  every line of an entry one timestamp, as real logcat does: 50 / 75 /
+  87.5 % before, 50 / 87.5 / 87.5 % after, at 600 / 1,000 / 2,000; the
+  NullPointerException now heads its record with
+  `NoteListAdapter.kt:58` under it. No other log's output changed.
 - **Maven needs none of them.** Every Defects4J set is unchanged with all
   rules off: Java output is carried by the generic signals.
 
@@ -636,7 +657,7 @@ Per case, pare:
 | npm-install | 7,799 | 309, 2/2 | 212, 2/2 |
 | pytest-fail | 6,803 | 1,240, 11/11 | 578, 8/11 |
 | server-outage | 191,216 | 888, 9/9 | 585, 6/9 |
-| android-logcat (added later; not in the totals above) | 96,969 | 1,984, 7/8 | 596, 4/8 |
+| android-logcat (added later; not in the totals above) | 95,542 | 1,996, 7/8 | 596, 4/8 |
 
 Two changes after the heuristics were frozen moved these numbers, both
 format rather than scoring and both evaluated on both corpora before

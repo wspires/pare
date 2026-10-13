@@ -1504,3 +1504,31 @@ def test_command_mode_records_output_size_and_stats_totals_it(tmp_path):
     empty = subprocess.run([sys.executable, os.path.join(HERE, "pare.py"), "--run-dir", str(tmp_path / "none"), "--stats"],
                            capture_output=True, text=True)
     assert empty.returncode == 0 and "no command-mode runs" in empty.stdout
+
+
+def test_tokens_round_exact_multiples_down():
+    # 2800 / 2.8 is 1000.0000000000001 in floating point; it is 1,000 tokens.
+    assert pare.tokens(2800) == 1000 and pare.tokens(2801) == 1001 and pare.tokens(0) == 0
+
+
+def test_logcat_entry_is_split_by_its_message_not_its_header(tmp_path):
+    # One Log call printed over several lines repeats its header. Inside the
+    # entry, the exception heads its record and the frames continue it; a new
+    # header always ends the record.
+    h = "10-13 09:12:30.489  4321  4321 E AndroidRuntime: "
+    lines = [
+        h + "FATAL EXCEPTION: main",
+        h + "Process: com.example.notes, PID: 4321",
+        h + "java.lang.NullPointerException: Attempt to invoke virtual method on a null object reference",
+        h + "\tat com.example.notes.ui.NoteListAdapter.onBindViewHolder(NoteListAdapter.kt:58)",
+        h + "\tat android.os.Looper.loop(Looper.java:317)",
+        "10-13 09:12:30.508  4321  4321 I Process : Sending signal. PID: 4321 SIG: 9",
+        "10-13 09:12:30.509  4321  4321 I Process :\tindented message, but a new entry",
+    ]
+    spool = str(tmp_path / "spool")
+    store, _ = pare.analyze(io.BytesIO(("\n".join(lines) + "\n").encode()), width=200, spool_path=spool)
+    heads = [store.rstart[store.rec[i]] == i for i in range(len(lines))]
+    assert heads == [True, True, True, False, False, True, True]
+    assert store.depth[3] >= 1 and store.rec[3] == store.rec[2] == store.rec[4]
+    # a frame is judged by its message: not an error line because of the E in the header
+    assert store.sev[3] == -1 and store.sev[2] == 3

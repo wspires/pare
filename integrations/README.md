@@ -99,6 +99,9 @@ session. That session's permission mode allowed the command either way,
 so how the rewrite meets a narrower allow rule is still to be seen; if a
 rewrite were ignored, nothing would break, as the command runs unwrapped.
 
+Claude Code hands the hook a command without a leading `cd` into the
+current directory, so `cd <project> && pytest` is wrapped like `pytest`.
+
 This repository registers the hook for itself in `.claude/settings.json`
 (through `$CLAUDE_PROJECT_DIR`, so the same file works in any checkout);
 it does nothing where `pare` is not on PATH. `uv tool install --editable .`
