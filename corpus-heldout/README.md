@@ -136,7 +136,7 @@ cases, as `bench/run.py` prints it); "full" counts the cases where pare
 kept every keep line. tidyout keeps everything on every source, at 96 to
 100 % of the input size.
 
-### Latest fresh sample: the current honest number
+### Fourth fresh sample: Defects4J seed 4
 
 Defects4J seed 4, drawn after the tail-window change (`b163491`) with
 `--exclude` every earlier Defects4J set, and measured before anyone read
@@ -168,7 +168,13 @@ the chatter fix and back to 3 with the window change. The three misses
 left at 600 are all JUnit 3 assertion messages (Codec-2's `EOF
 expected:<-1> but was:<13>`, Gson-8's and JxPath-19's `expected:<…> but
 was:<…>`); each case's failing test is shown. Nothing was changed for
-them.
+them when this was measured.
+
+**Spent since.** Those three misses led to two changes (frame names are
+not error words; a warning's rarity counts three quarters; `docs/DESIGN.md`,
+"JUnit 3 assertion messages"), measured on this sample: 92.3 → 100 % at
+600. That number is a training score now; the next honest one needs a
+fifth sample.
 
 ### Third fresh samples
 

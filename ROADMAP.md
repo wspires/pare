@@ -61,6 +61,17 @@ The gate for everything after it.
   pare 92 / 100 / 100 % at 600 / 1,000 / 2,000; before any held-out fix,
   41 / 79 / 97 %. The three misses at 600 are JUnit 3 assertion messages
   whose tests are shown. *Done; spent by the next change measured on it.*
+- [x] **JUnit 3 assertion messages.** Seed 4's three misses at 600.
+  A stack frame's method names (`Assert.fail`, `assertEquals`) no longer
+  count as error words, and a warning-level template's rarity counts three
+  quarters, so a one-off POM warning no longer outranks two tests failing
+  the same way. Seed 4 92 → 100 % at 600; seed 3 82 → 88 %; seed 2 80 →
+  91 %; seed 0 84 → 90 %; android-logcat +1 line; no case worse. Seed 4
+  is spent. Details: `docs/DESIGN.md`, "JUnit 3 assertion messages".
+  *Done.*
+- [ ] **Fifth fresh sample.** Defects4J seed 5 (and SWE-bench seed 3),
+  drawn with every earlier set excluded, to measure the two rules above
+  on data they were not chosen on.
 - [ ] **Claude token rate.** `bench/tokens.py --anthropic claude-opus-5-5`
   on a machine with credentials. If the rate differs much from the 2.8
   bytes per token measured on cl100k and o200k, change the default.

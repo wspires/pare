@@ -592,6 +592,15 @@ LEVEL_ONLY_RX = re.compile(r"^\W*(?:" + "|".join(sorted({t for c in LEVEL_CLASSE
                            + r")\W*$", re.I)
 
 
+# A call-stack frame: Java, JavaScript and C# "at pkg.Cls.method(...)",
+# Python 'File "x.py", line 3, in f'. Its words are code names, so with
+# STACK_FRAME_NAMES on, its error and warn words do not count.
+STACK_FRAME_NAMES = True
+STACK_FRAME_RX = re.compile(
+    r'^\s*(?:at\s+(?:async\s+|new\s+)?[\w$.<>\[\]/:@-]+\s*(?:\(|$|\sin\s)|File "[^"]*", line \d+)'
+)
+
+
 def vocab_score(text: str, head: bool = True, sev=_UNSET, has=None) -> float:
     """Salience of one line's text. A structural log level, when present,
     sets the base score and decides whether error/warn words count: an INFO
@@ -611,6 +620,10 @@ def vocab_score(text: str, head: bool = True, sev=_UNSET, has=None) -> float:
             # ("throws on invalid") are not log vocabulary.
             s += VOCAB_CLASSES["pass"][0]
         else:
+            if (err or warn) and STACK_FRAME_NAMES and STACK_FRAME_RX.match(text):
+                # junit.framework.Assert.fail, test_raises_error: the words of
+                # a frame's function name say nothing about what happened.
+                err = warn = False
             if err:
                 s += VOCAB_CLASSES["error"][0]
             if warn:
@@ -698,7 +711,9 @@ def score_templates(store: Store) -> None:
         # (Position, block-size and body-error bonuses were ablated away:
         # they changed nothing at any budget. See bench/ablate.py.)
         tpl.vocab = head_vocab
-        tpl.salience = head_vocab + RARITY_WEIGHT * rarity_of(tpl)
+        # A warning's rarity counts for less: a one-off build warning should
+        # not outrank a failure seen twice (two tests failing the same way).
+        tpl.salience = head_vocab + RARITY_WEIGHT * rarity_of(tpl) * (WARN_RARITY if tpl_level == 2 else 1.0)
         if tpl_level is not None and tpl_level <= 1 and not body_err:
             tpl.marker = "S" if line_has(head, "summary") else "."  # info/debug: structure wins
         elif (tpl_level is not None and tpl_level >= 3) or body_err or (
@@ -811,6 +826,7 @@ NEAR_DUP_MAX_COUNT = 5  # templates this small are skipped when their exemplar r
 # Scoring weights. Each one survived bench/ablate.py: switching it off lowers
 # recall at some budget or grows the output at the same recall.
 RARITY_WEIGHT = 2.0  # template salience: weight of 1/(1+log2 count)
+WARN_RARITY = 0.75  # ...times this for a template at warning level
 INHERIT = 0.6  # share of the record head's vocabulary a continuation line inherits
 DEPTH_PENALTY = 0.25  # per level of indentation depth, up to 4
 LOCATION_BONUS = 1.5  # the first source location after an error line in a record

@@ -1633,3 +1633,68 @@ def test_the_tail_window_skips_build_advice():
     assert "BUILD FAILURE" in tail and "There are test failures" in tail
     assert "-X switch" not in tail and "[Help 1]" not in tail
     assert not any(l.rstrip().endswith(": [ERROR]") for l in tail.splitlines())
+
+
+@pytest.mark.parametrize("line", [
+    "\tat junit.framework.Assert.fail(Assert.java:47)",
+    "\tat org.junit.Assert.assertEquals(Assert.java:115)",
+    "    at Object.<anonymous> (/app/test/fails.test.js:3:5)",
+    "    at new FailingWidget (/app/widget.js:10:3)",
+    '  File "/testbed/tests/test_x.py", line 12, in test_raises_error',
+    "   at App.Tests.ShouldFail() in /src/Tests.cs:line 42",
+])
+def test_a_stack_frames_names_are_not_vocabulary(line):
+    # Assert.fail and test_raises_error are function names: the frame is a
+    # frame, scored as one, not an error line.
+    assert pare.vocab_score(line, head=False) == pare.VOCAB_CLASSES["frame"][0]
+
+
+@pytest.mark.parametrize("line", [
+    "src/main.c:8:14: error: expected ';' before '}' token",
+    "at least one test failed",
+    "junit.framework.AssertionFailedError: EOF expected:<-1> but was:<13>",
+])
+def test_lines_that_are_not_frames_keep_their_error_words(line):
+    assert pare.vocab_score(line, head=False) >= 3.0
+
+
+def test_a_junit3_assertion_message_beats_its_framework_frames():
+    # JUnit 3 under Surefire 2.4 prints each failing test's message only on
+    # the exception line (its summary lists names alone). The frames under
+    # it (Assert.fail, Assert.failNotEquals) used to score as errors and
+    # take the room the second message needed.
+    def failure(cls, test, msg, asserts):
+        return [f"Running org.example.{cls}",
+                "Tests run: 3, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.05 sec <<< FAILURE!",
+                f"{test}(org.example.{cls})  Time elapsed: 0.001 sec  <<< FAILURE!",
+                f"junit.framework.AssertionFailedError: {msg}",
+                "\tat junit.framework.Assert.fail(Assert.java:47)",
+                *[f"\tat junit.framework.Assert.{a}(Assert.java:{20 + k})" for k, a in enumerate(asserts)],
+                f"\tat org.example.{cls}.{test}(TestIt.java:53)", ""]
+    lines = [f"[INFO] Download {i} of the build's dependencies from central" for i in range(60)]
+    lines += failure("OutTest", "testEmptyOut", "Streaming base64 encode", ["assertTrue"])
+    lines += failure("InTest", "testEmptyIn", "EOF expected:<-1> but was:<13>",
+                     ["failNotEquals", "assertEquals", "assertEquals"])
+    lines += ["Results :", "", "Failed tests: ", "  testEmptyOut(org.example.OutTest)", "  testEmptyIn(org.example.InTest)", "",
+              "Tests run: 6, Failures: 2, Errors: 0, Skipped: 0", "[INFO] BUILD FAILURE"]
+    out = run(["--budget", "400"], ("\n".join(lines) + "\n").encode()).decode()
+    assert "Streaming base64 encode" in out and "EOF expected:<-1> but was:<13>" in out, out
+
+
+def test_a_one_off_warning_does_not_outrank_a_failure_seen_twice(tmp_path):
+    # Two tests failing the same way make one template seen twice; a
+    # singleton build warning used to outrank it on rarity alone.
+    log = ("[WARNING] The expression ${pom.version} is deprecated. Please use ${project.version} instead.\n"
+           "junit.framework.AssertionFailedError: pointer iterator expected:<[a, b]> but was:<[a, a]>\n"
+           "\tat junit.framework.Assert.fail(Assert.java:47)\n"
+           "junit.framework.AssertionFailedError: pointer iterator expected:<[a, b]> but was:<[a, a]>\n"
+           "\tat junit.framework.Assert.fail(Assert.java:47)\n")
+    store, _ = pare.analyze(io.BytesIO(log.encode()), width=200, spool_path=str(tmp_path / "s"))
+    store.open()
+    try:
+        pare.score_templates(store)
+        warn = next(t for t in store.templates if t.text.startswith("[WARNING]"))
+        fail = next(t for t in store.templates if "AssertionFailedError" in t.text)
+        assert fail.count == 2 and fail.salience > warn.salience
+    finally:
+        store.close()

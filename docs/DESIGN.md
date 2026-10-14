@@ -672,7 +672,7 @@ Per case, pare:
 | npm-install | 7,799 | 309, 2/2 | 212, 2/2 |
 | pytest-fail | 6,803 | 1,240, 11/11 | 578, 8/11 |
 | server-outage | 191,216 | 888, 9/9 | 585, 6/9 |
-| android-logcat (added later; not in the totals above) | 95,542 | 1,979, 8/8 | 596, 4/8 |
+| android-logcat (added later; not in the totals above) | 95,542 | 1,979, 8/8 | 596, 4/8 (593, 5/8 since "JUnit 3 assertion messages") |
 
 Two changes after the heuristics were frozen moved these numbers, both
 format rather than scoring and both evaluated on both corpora before
@@ -906,6 +906,57 @@ What the first held-out sets still show:
 - **600 on SWE-bench.** pytest's per-test sections and summary both name
   the test; at 600 the budget holds the first failure's traceback and a
   few names. django__django-11451 went from 2 of 6 to 1 of 6.
+
+### JUnit 3 assertion messages
+
+Found on Defects4J seed 4, the fourth fresh sample (it is spent now). Its
+three misses at 600 were all JUnit 3 assertion messages, and JUnit 3 under
+old Surefire prints a failing test's message only on the exception line:
+the "Failed tests:" summary lists names alone. Two things kept that line
+out.
+
+**Frame names read as error words.** `at junit.framework.Assert.fail(…)`,
+`Assert.failNotEquals`, `Assert.assertEquals`: the method names contain
+`fail` and `assert`, so each frame scored as an error line (6.8 for the
+first, with the location bonus, against 3.0 for the exception line above
+it), and two or three of them took the room the second message needed.
+A stack frame's words are code names, so on a frame line (`at pkg.Cls.m(…)`
+in Java, JavaScript and C#, Python's `File "…", line N, in f`) the error
+and warn vocabulary no longer counts (`STACK_FRAME_NAMES`). A compiler's
+`src/x.c:8:14: error: …` is a location, not a frame, and keeps its score.
+
+**A one-off warning outranked a failure seen twice.** Rarity adds 2.0 to a
+template seen once and 1.0 to one seen twice, so Maven's POM warnings
+(`'build.plugins.plugin.version' … is missing`, `${pom.version} is
+deprecated`, each printed once) beat two tests failing with the same
+message (JxPath-19). A warning-level template's rarity now counts three
+quarters (`WARN_RARITY`): a singleton warning (2.25 + 1.5) ranks below an
+error seen twice (3.0 + 1.0). Half was tried first; it gained the same
+Defects4J lines but cost android-logcat a real warning at 1,000 (`note 117
+has no 'updated' field, skipping`), and three quarters gains them all
+without that loss. The value was chosen on these sets, so it is a training
+number until a fresh sample says otherwise.
+
+Gains per set, before → after (pare `821097f` → this change); no case lost
+a line anywhere, at any budget:
+
+| set | 600 | 1,000 | 2,000 |
+|---|---|---|---|
+| Defects4J seed 4 (18, found the problem) | 92.3 → **100 %** | 100 % | 100 % |
+| Defects4J seed 3 (18) | 82.4 → 88.2 % | 98 % | 98 % |
+| Defects4J seed 2 (16) | 79.5 → 90.9 % | 93.2 → 95.5 % | 100 % |
+| Defects4J seed 0 (11, dev) | 83.9 → 90.3 % | 100 % | 100 % |
+| Defects4J dev, seed 1 (19) | 100 % | 100 % | 100 % |
+| dev corpus (8) | 76.5 → 77.8 % | 96.3 % | 100 % |
+| generated corpus (7), SWE-bench seeds 0–2 | unchanged | unchanged | unchanged |
+
+Seed 4 alone: the frame rule gives Codec-2 its message (92.3 → 94.9 %);
+the warning discount gives JxPath-19 its message and Gson-8 its Surefire
+summary line (→ 100 %). JacksonCore-10, whose `expected:<1024> but
+was:<2048>` messages were left alone earlier as numbers-only repeats,
+gains one at 600 and one at 1,000 from the frame rule. Both rules have
+ablation rows (`no warning rarity discount`, `frame names as
+vocabulary`), and each costs seed 4 lines when switched off.
 
 ### Generated corpus: real tools, chosen failures
 

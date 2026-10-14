@@ -243,7 +243,11 @@ before any of these fixes (`corpus-heldout/README.md`; 76.5% on
 Defects4J at 600 once a keep line accepts Maven's short form of a test
 name). On a fourth sample, 18 Defects4J bugs drawn after the last change
 and never read, pare keeps 92% at 600 and 100% at 1,000 and 2,000 tokens,
-where the same cases gave 41%, 79% and 97% before any of these fixes. With all tool-specific rules off, pare reaches 71% at 600 and 96%
+where the same cases gave 41%, 79% and 97% before any of these fixes.
+Its misses at 600, JUnit 3 assertion messages crowded out by framework
+stack frames and one-off build warnings, are fixed since (seed 4 is spent
+now: 100% at every budget, and Defects4J seeds 2 and 3 gain 6 to 11
+points at 600). With all tool-specific rules off, pare reaches 71% at 600 and 96%
 at 2,000 on this corpus; on held-out Defects4J the rules change nothing
 and on held-out SWE-bench they are worth up to 18 points, almost all of
 it from the pytest markers and the blank-line-in-a-block rule
@@ -292,7 +296,7 @@ A few tests skip themselves when an optional tool is missing: tidyout
 (`.[bench]`) and the SWE-bench package (`.[datasets]`). Extras combine:
 `pip install -e '.[dev,bench,datasets]'`.
 
-240 tests: severity forms and their false positives, vocabulary files, the
+251 tests: severity forms and their false positives, vocabulary files, the
 hard budget limit on every corpus file at several sizes, determinism,
 pass-through, the selection flags, memory on a large input, follow mode
 (including a randomized differential test against the batch pass),

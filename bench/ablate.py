@@ -29,6 +29,8 @@ from run import survivors  # noqa: E402
 ABLATIONS = {
     "default": {},
     "no rarity (templates)": {"RARITY_WEIGHT": 0.0},
+    "no warning rarity discount": {"WARN_RARITY": 1.0},
+    "frame names as vocabulary": {"STACK_FRAME_NAMES": False},
     "no inheritance": {"INHERIT": 0.0},
     "no depth penalty": {"DEPTH_PENALTY": 0.0},
     "no location bonus": {"LOCATION_BONUS": 0.0},
