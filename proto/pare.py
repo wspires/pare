@@ -2103,9 +2103,14 @@ def summarize(
         out_bytes = measure(body)
         if out_bytes <= budget_bytes or not shed():
             break
-    # Absurdly small budget: even the skeleton does not fit. Cut from the end.
+    # Absurdly small budget: even the skeleton does not fit. Cut from the end,
+    # but keep the run line to the last: in a summary this small it is the
+    # most useful line, the way to everything else.
     while out_bytes > budget_bytes and body:
-        body.pop()
+        if body[-1] == run_line and len(body) > 1:
+            del body[-2]
+        else:
+            body.pop()
         out_bytes = measure(body)
     text = "\n".join([header(out_bytes)] + body) + "\n"
     if len(text.encode()) > budget_bytes:

@@ -290,7 +290,7 @@ A few tests skip themselves when an optional tool is missing: tidyout
 (`.[bench]`) and the SWE-bench package (`.[datasets]`). Extras combine:
 `pip install -e '.[dev,bench,datasets]'`.
 
-238 tests: severity forms and their false positives, vocabulary files, the
+239 tests: severity forms and their false positives, vocabulary files, the
 hard budget limit on every corpus file at several sizes, determinism,
 pass-through, the selection flags, memory on a large input, follow mode
 (including a randomized differential test against the batch pass),

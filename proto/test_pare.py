@@ -561,6 +561,8 @@ def test_memory_stays_small_on_large_input(tmp_path):
     )
     p = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True, check=True)
     peak_kb = int(p.stdout.strip())
+    if sys.platform == "darwin":
+        peak_kb //= 1024  # macOS reports ru_maxrss in bytes, Linux in kilobytes
     assert peak_kb < 100 * 1024, f"peak RSS {peak_kb // 1024} MB"
 
 
@@ -1606,3 +1608,16 @@ def test_prune_command_line(tmp_path):
     assert (tmp_path / "aaaaaaaaaaaa.log").exists()
     p = subprocess.run([sys.executable, os.path.join(HERE, "pare.py"), "--dry-run"], capture_output=True, text=True)
     assert p.returncode != 0 and "--dry-run goes with --prune" in p.stderr
+
+
+def test_a_tiny_budget_keeps_the_run_line_over_the_ledger(tmp_path):
+    # A long run directory (macOS temp paths are) and a tiny budget: when even
+    # the skeleton does not fit, the run line is the last thing given up.
+    # The run line ("## raw: <dir>/<12 hex>.log") at 170 bytes: it fits with
+    # the header in 280 bytes (100 tokens), but not with the ledger as well.
+    run_dir = tmp_path / ("d" * (170 - len("## raw: ") - len(str(tmp_path)) - 1 - len("/0123456789ab.log")))
+    data = b"a\nb\nERROR c\n" * 50
+    p = subprocess.run([sys.executable, os.path.join(HERE, "pare.py"), "--run-dir", str(run_dir), "--budget", "100"],
+                       input=data, capture_output=True, check=True)
+    out = p.stdout.decode()
+    assert f"## raw: {run_dir}" in out and pare.tokens(len(p.stdout)) <= 100, out
