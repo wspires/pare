@@ -466,7 +466,9 @@ shell reports pare's) and the command line itself. In command mode:
 - **Exit status.** pare exits with the command's code (128 + n when a
   signal killed it, 127 when it could not be found) and appends it to the
   run line, `## raw: … · exit 1`, or `## exit 1` when nothing was saved.
-  The note is part of the budgeted output.
+  The note is part of the budgeted output. A run whose whole output fits
+  is printed byte for byte, with no run line, and only a non-zero status
+  added (`## exit 1`): exit 0 adds nothing.
 - **Metadata.** `<hash>.json` next to the run file records the command,
   working directory, exit code, start time, duration, line and byte counts
   and pare version. `bench/collect.py` reads it to fill in a held-out

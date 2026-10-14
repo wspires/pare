@@ -269,7 +269,7 @@ def test_small_input_passes_through():
     assert out == data  # no header, no growth: the input is the output
     p = subprocess.run([sys.executable, os.path.join(HERE, "pare.py"), "--budget", "100", "--run-dir",
                         os.path.join(ROOT, ".pytest-run-dir-tmp")], input=data, capture_output=True, check=True)
-    assert p.stdout.startswith(data) and b"## raw: " in p.stdout  # with a run file, one line is added
+    assert p.stdout == data  # a run file is saved, but the output is already all of it: no line is added
 
 
 def test_only_and_except_select_by_template():
@@ -566,8 +566,8 @@ def test_memory_stays_small_on_large_input(tmp_path):
 
 def test_run_file_is_content_addressed(tmp_path):
     data = b"a\nb\nERROR c\n" * 50
-    p = subprocess.run([sys.executable, os.path.join(HERE, "pare.py"), "--run-dir", str(tmp_path)],
-                       input=data, capture_output=True, check=True)
+    p = subprocess.run([sys.executable, os.path.join(HERE, "pare.py"), "--run-dir", str(tmp_path), "--budget", "100"],
+                       input=data, capture_output=True, check=True)  # small enough to summarise, so the run file is named
     digest = hashlib.sha256(data).hexdigest()[:12]
     assert (tmp_path / f"{digest}.log").read_bytes() == data
     assert str(tmp_path / f"{digest}.log") in p.stdout.decode()
@@ -824,7 +824,7 @@ def test_command_mode_keeps_the_exit_code_and_records_the_command(tmp_path):
     assert p.returncode == 3
     out = p.stdout.decode().splitlines()
     assert out[:2] == ["hello", "oops"]  # stdout and stderr merged, in order
-    assert out[-1].startswith("## raw: ") and out[-1].endswith(" · exit 3")
+    assert out[-1] == "## exit 3"  # a pass-through names no run file, but keeps a failing status
     meta_files = [f for f in os.listdir(tmp_path) if f.endswith(".json")]
     assert len(meta_files) == 1
     meta = json.load(open(tmp_path / meta_files[0]))
@@ -866,7 +866,7 @@ def test_command_mode_survives_a_timeout_and_a_leftover_background_job():
     t = time.time()
     p = pare_cmd(["--", "sh", "-c", "echo up; sleep 30 & echo done"], timeout=15)
     assert p.returncode == 0 and time.time() - t < 10  # the background sleep holds the pipe; pare does not wait for it
-    assert p.stdout.decode().splitlines() == ["up", "done", "## exit 0"]
+    assert p.stdout.decode().splitlines() == ["up", "done"]  # exit 0 adds nothing
 
 
 def test_command_mode_with_follow():

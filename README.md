@@ -113,7 +113,8 @@ pare --budget 2000 -- ./gradlew build
 
 The exit code survives (a pipe reports pare's), the summary ends with the
 exit status (`## raw: … · exit 1`), and the command is recorded next to
-the run file. stdout and stderr are merged in the order the command wrote
+the run file. Output that fits the budget is printed as it is, with no
+`## raw:` line (it is already all of it), plus `## exit N` when N is not 0. stdout and stderr are merged in the order the command wrote
 them. A SIGTERM from a tool's timeout is passed to the command, and pare
 still summarises what it printed; once the command has exited, pare does
 not wait for a background process it left holding the pipe.

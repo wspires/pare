@@ -93,7 +93,8 @@ return a permission decision. `PARE_HOOK_DECISION` picks what it sends:
 
 Verified in a Claude Code session (cloud, October 2026): with no decision
 sent, the rewrite is applied. A listed command came back as pare's output,
-ending with its `## raw: … · exit 0` line. The hook also took effect as
+ending with its `## raw: … · exit 0` line (a run that fits now ends
+without it; see below). The hook also took effect as
 soon as `.claude/settings.json` was written, without restarting the
 session. That session's permission mode allowed the command either way,
 so how the rewrite meets a narrower allow rule is still to be seen; if a
@@ -139,8 +140,8 @@ raw ~212,480 tok → printed ~18,233 tok · saved ~194,247 tok (91.4 %)
 The saving is an upper bound on what the agent avoided reading. Without
 pare it might have cut the output itself (`| tail`, `| grep`, or the
 harness truncating a long result), and with pare it may go back to the run
-file for more (`--only`, `--since`). A run that fits the budget costs a
-few more tokens than the raw output (the `## raw:` line). Runs from before
+file for more (`--only`, `--since`). A run that fits the budget is printed
+as it is and costs nothing extra (a failing one adds `## exit N`). Runs from before
 pare recorded its output size are skipped.
 
 ### Run files do not pile up

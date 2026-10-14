@@ -1490,9 +1490,14 @@ def summarize(
         run_line = f"## raw: {run_path}" if run_path else "## raw: (not saved)"
     if note:
         run_line += f" · {note}"  # command mode: the exit status
-    # The line a verbatim pass-through ends with: the run file and the note,
-    # or the note alone when nothing was saved.
-    verbatim_end = run_line if run_path else (f"## {note}" if note else None)
+    # The line a verbatim pass-through ends with. A whole run that fits is the
+    # output, byte for byte: the run file adds nothing to it, so it is not
+    # named, and only a failing exit status is added. A follow window keeps
+    # its run line: it is one part of a stream.
+    if follow is not None:
+        verbatim_end = run_line if run_path else (f"## {note}" if note else None)
+    else:
+        verbatim_end = f"## {note}" if note and note != "exit 0" else None
     run_hint = "   expand with: pare --only T<n> < raw   ·   drop noise: pare --except T<n>,T<m> < raw"
 
     # Follow mode: a window with nothing above the salience floor and no new
