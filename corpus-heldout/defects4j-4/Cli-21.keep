@@ -1,0 +1,2 @@
+testNegativeNumber(org.apache.commons.cli2.bug.BugCLI150Test) || org.apache.commons.cli2.bug.BugCLI150Test.testNegativeNumber || BugCLI150Test.testNegativeNumber
+org.apache.commons.cli2.OptionException: Unexpected -42 while processing --num || Unexpected -42 while processing --num

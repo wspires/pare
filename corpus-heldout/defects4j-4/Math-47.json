@@ -1,0 +1,66 @@
+{
+  "bug": "Math-47",
+  "project": "Math",
+  "bug_id": 47,
+  "fixed_revision": "32b0f7336b7627bc6e471a1091dfb2712b613eee",
+  "report": "https://issues.apache.org/jira/browse/MATH-657",
+  "upstream": "https://github.com/apache/commons-math",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=ComplexTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.math.complex.ComplexTest",
+      "method": "testAtanI",
+      "exception": "junit.framework.AssertionFailedError"
+    },
+    {
+      "class": "org.apache.commons.math.complex.ComplexTest",
+      "method": "testDivideZero",
+      "exception": "junit.framework.AssertionFailedError: expected:<(NaN, NaN)> but was:<(Infinity, Infinity)>"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.math.complex.ComplexTest::testAtanI",
+    "org.apache.commons.math.complex.ComplexTest::testDivideZero"
+  ],
+  "keep": [
+    "testAtanI(org.apache.commons.math.complex.ComplexTest) || org.apache.commons.math.complex.ComplexTest.testAtanI || ComplexTest.testAtanI",
+    "testDivideZero(org.apache.commons.math.complex.ComplexTest) || org.apache.commons.math.complex.ComplexTest.testDivideZero || ComplexTest.testDivideZero",
+    "expected:<(NaN, NaN)> but was:<(Infinity, Infinity)>"
+  ],
+  "unlocated": [
+    "exception: junit.framework.AssertionFailedError"
+  ],
+  "lines": 170,
+  "seconds": 13.2,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-14T02:18:41Z",
+  "pare": "0.1.0",
+  "commit": "b163491"
+}

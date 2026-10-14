@@ -1,0 +1,59 @@
+{
+  "bug": "Collections-21",
+  "project": "Collections",
+  "bug_id": 21,
+  "fixed_revision": "803a9c6c17efbc98bc9513e6bf7e6900d4dbae2c",
+  "report": "https://issues.apache.org/jira/browse/COLLECTIONS-310",
+  "upstream": "https://github.com/apache/commons-collections",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=SetUniqueListTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.collections4.list.SetUniqueListTest",
+      "method": "testSubListIsUnmodifiable",
+      "exception": "junit.framework.AssertionFailedError: subList should be unmodifiable"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.collections4.list.SetUniqueListTest::testSubListIsUnmodifiable"
+  ],
+  "keep": [
+    "testSubListIsUnmodifiable(org.apache.commons.collections4.list.SetUniqueListTest) || org.apache.commons.collections4.list.SetUniqueListTest.testSubListIsUnmodifiable || SetUniqueListTest.testSubListIsUnmodifiable",
+    "junit.framework.AssertionFailedError: subList should be unmodifiable || subList should be unmodifiable"
+  ],
+  "unlocated": [],
+  "lines": 91,
+  "seconds": 15.0,
+  "fixes_applied": [
+    "compile-21-21.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-14T02:19:30Z",
+  "pare": "0.1.0",
+  "commit": "b163491"
+}

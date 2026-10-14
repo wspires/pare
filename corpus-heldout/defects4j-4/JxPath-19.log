@@ -1,0 +1,85 @@
+[INFO] Scanning for projects...
+[WARNING] 
+[WARNING] Some problems were encountered while building the effective model for commons-jxpath:commons-jxpath:jar:1.4-SNAPSHOT
+[WARNING] 'build.plugins.plugin.version' for org.apache.maven.plugins:maven-idea-plugin is missing. @ org.apache.commons:commons-parent:12, /m2/org/apache/commons/commons-parent/12/commons-parent-12.pom, line 266, column 15
+[WARNING] The expression ${pom.version} is deprecated. Please use ${project.version} instead.
+[WARNING] 
+[WARNING] It is highly recommended to fix these problems because they threaten the stability of your build.
+[WARNING] 
+[WARNING] For this reason, future Maven versions might no longer support building such malformed projects.
+[WARNING] 
+[INFO] 
+[INFO] -------------------< commons-jxpath:commons-jxpath >--------------------
+[INFO] Building Commons JXPath 1.4-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- antrun:1.3:run (javadoc.resources) @ commons-jxpath ---
+[INFO] Executing tasks
+[INFO] Executed tasks
+[INFO] 
+[INFO] --- resources:3.4.0:resources (default-resources) @ commons-jxpath ---
+[INFO] Copying 2 resources from . to target/classes/META-INF
+[INFO] 
+[INFO] --- compiler:2.0.2:compile (default-compile) @ commons-jxpath ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- bundle:1.4.0:manifest (bundle-manifest) @ commons-jxpath ---
+[INFO] 
+[INFO] --- resources:3.4.0:testResources (default-testResources) @ commons-jxpath ---
+[INFO] Copying 5 resources from src/test to target/test-classes
+[INFO] 
+[INFO] --- compiler:2.0.2:testCompile (default-testCompile) @ commons-jxpath ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- surefire:2.4.3:test (default-test) @ commons-jxpath ---
+[INFO] Surefire report directory: /work/target/surefire-reports
+
+-------------------------------------------------------
+ T E S T S
+-------------------------------------------------------
+Running org.apache.commons.jxpath.ri.model.AliasedNamespaceIterationTest
+Tests run: 2, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 0.194 sec <<< FAILURE!
+testIterateDOM(org.apache.commons.jxpath.ri.model.AliasedNamespaceIterationTest)  Time elapsed: 0.165 sec  <<< FAILURE!
+junit.framework.AssertionFailedError: Evaluating pointer iterator </a:doc/a:elem> expected:<[/a:doc[1]/a:elem[1], /a:doc[1]/a:elem[2]]> but was:<[/a:doc[1]/a:elem[1], /a:doc[1]/a:elem[1]]>
+	at junit.framework.Assert.fail(Assert.java:47)
+	at junit.framework.Assert.failNotEquals(Assert.java:282)
+	at junit.framework.Assert.assertEquals(Assert.java:64)
+	at org.apache.commons.jxpath.JXPathTestCase.assertXPathPointerIterator(JXPathTestCase.java:176)
+	at org.apache.commons.jxpath.ri.model.AliasedNamespaceIterationTest.doTestIterate(AliasedNamespaceIterationTest.java:50)
+	at org.apache.commons.jxpath.ri.model.AliasedNamespaceIterationTest.testIterateDOM(AliasedNamespaceIterationTest.java:54)
+
+testIterateJDOM(org.apache.commons.jxpath.ri.model.AliasedNamespaceIterationTest)  Time elapsed: 0.016 sec  <<< FAILURE!
+junit.framework.AssertionFailedError: Evaluating pointer iterator </a:doc/a:elem> expected:<[/a:doc[1]/a:elem[1], /a:doc[1]/a:elem[2]]> but was:<[/a:doc[1]/a:elem[1], /a:doc[1]/a:elem[1]]>
+	at junit.framework.Assert.fail(Assert.java:47)
+	at junit.framework.Assert.failNotEquals(Assert.java:282)
+	at junit.framework.Assert.assertEquals(Assert.java:64)
+	at org.apache.commons.jxpath.JXPathTestCase.assertXPathPointerIterator(JXPathTestCase.java:176)
+	at org.apache.commons.jxpath.ri.model.AliasedNamespaceIterationTest.doTestIterate(AliasedNamespaceIterationTest.java:50)
+	at org.apache.commons.jxpath.ri.model.AliasedNamespaceIterationTest.testIterateJDOM(AliasedNamespaceIterationTest.java:58)
+
+
+Results :
+
+Failed tests: 
+  testIterateDOM(org.apache.commons.jxpath.ri.model.AliasedNamespaceIterationTest)
+  testIterateJDOM(org.apache.commons.jxpath.ri.model.AliasedNamespaceIterationTest)
+
+Tests run: 2, Failures: 2, Errors: 0, Skipped: 0
+
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  1.433 s
+[INFO] Finished at: 2026-10-14T02:18:16Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.4.3:test (default-test) on project commons-jxpath: There are test failures.
+[ERROR] 
+[ERROR] Please refer to /work/target/surefire-reports for the individual test results.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

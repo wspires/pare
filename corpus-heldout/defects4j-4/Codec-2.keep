@@ -1,0 +1,4 @@
+testBase64EmptyInputStream(org.apache.commons.codec.binary.Base64InputStreamTest) || org.apache.commons.codec.binary.Base64InputStreamTest.testBase64EmptyInputStream || Base64InputStreamTest.testBase64EmptyInputStream
+junit.framework.AssertionFailedError: EOF expected:<-1> but was:<13> || EOF expected:<-1> but was:<13>
+testBase64EmptyOutputStream(org.apache.commons.codec.binary.Base64OutputStreamTest) || org.apache.commons.codec.binary.Base64OutputStreamTest.testBase64EmptyOutputStream || Base64OutputStreamTest.testBase64EmptyOutputStream
+junit.framework.AssertionFailedError: Streaming base64 encode || Streaming base64 encode

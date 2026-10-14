@@ -1,0 +1,2 @@
+testFormatStandard_negative(org.joda.time.format.TestISOPeriodFormat) || org.joda.time.format.TestISOPeriodFormat.testFormatStandard_negative || TestISOPeriodFormat.testFormatStandard_negative
+junit.framework.ComparisonFailure: expected:<PT[-]0.008S> but was:<PT[]0.008S> || expected:<PT[-]0.008S> but was:<PT[]0.008S>

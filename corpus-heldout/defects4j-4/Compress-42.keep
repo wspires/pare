@@ -1,0 +1,1 @@
+isUnixSymlinkIsFalseIfMoreThanOneFlagIsSet(org.apache.commons.compress.archivers.zip.ZipArchiveEntryTest) || org.apache.commons.compress.archivers.zip.ZipArchiveEntryTest.isUnixSymlinkIsFalseIfMoreThanOneFlagIsSet || ZipArchiveEntryTest.isUnixSymlinkIsFalseIfMoreThanOneFlagIsSet

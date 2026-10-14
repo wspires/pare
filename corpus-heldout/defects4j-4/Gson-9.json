@@ -1,0 +1,59 @@
+{
+  "bug": "Gson-9",
+  "project": "Gson",
+  "bug_id": 9,
+  "fixed_revision": "874e74a3072f7ff0d2533296698ad126321516d1",
+  "report": "https://github.com/google/gson/pull/836",
+  "upstream": "https://github.com/google/gson",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=JsonWriterTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "com.google.gson.stream.JsonWriterTest",
+      "method": "testBoxedBooleans",
+      "exception": "java.lang.NullPointerException"
+    }
+  ],
+  "failed": [
+    "com.google.gson.stream.JsonWriterTest::testBoxedBooleans"
+  ],
+  "keep": [
+    "com.google.gson.stream.JsonWriterTest.testBoxedBooleans || JsonWriterTest.testBoxedBooleans",
+    "java.lang.NullPointerException"
+  ],
+  "unlocated": [],
+  "lines": 114,
+  "seconds": 11.1,
+  "fixes_applied": [
+    "locale-2-14.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-14T02:20:31Z",
+  "pare": "0.1.0",
+  "commit": "b163491"
+}

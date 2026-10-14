@@ -1,0 +1,2 @@
+testCompressedHeaderWithNonDefaultDictionarySize(org.apache.commons.compress.archivers.sevenz.SevenZFileTest) || org.apache.commons.compress.archivers.sevenz.SevenZFileTest.testCompressedHeaderWithNonDefaultDictionarySize || SevenZFileTest.testCompressedHeaderWithNonDefaultDictionarySize
+org.tukaani.xz.UnsupportedOptionsException: LZMA dictionary is too big for this implementation || org.tukaani.xz.UnsupportedOptionsException: LZMA dictionary is too big for this  || LZMA dictionary is too big for this implementation

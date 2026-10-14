@@ -241,7 +241,9 @@ tasks, 18 Defects4J bugs), pare keeps 100% and 98% at 2,000 tokens and
 86% and 67% at 600, where the same cases gave 95% and 86%, 77% and 33%
 before any of these fixes (`corpus-heldout/README.md`; 76.5% on
 Defects4J at 600 once a keep line accepts Maven's short form of a test
-name). With all tool-specific rules off, pare reaches 71% at 600 and 96%
+name). On a fourth sample, 18 Defects4J bugs drawn after the last change
+and never read, pare keeps 92% at 600 and 100% at 1,000 and 2,000 tokens,
+where the same cases gave 41%, 79% and 97% before any of these fixes. With all tool-specific rules off, pare reaches 71% at 600 and 96%
 at 2,000 on this corpus; on held-out Defects4J the rules change nothing
 and on held-out SWE-bench they are worth up to 18 points, almost all of
 it from the pytest markers and the blank-line-in-a-block rule

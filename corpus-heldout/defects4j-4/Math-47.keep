@@ -1,0 +1,3 @@
+testAtanI(org.apache.commons.math.complex.ComplexTest) || org.apache.commons.math.complex.ComplexTest.testAtanI || ComplexTest.testAtanI
+testDivideZero(org.apache.commons.math.complex.ComplexTest) || org.apache.commons.math.complex.ComplexTest.testDivideZero || ComplexTest.testDivideZero
+expected:<(NaN, NaN)> but was:<(Infinity, Infinity)>

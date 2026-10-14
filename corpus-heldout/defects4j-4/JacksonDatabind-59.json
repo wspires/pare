@@ -1,0 +1,57 @@
+{
+  "bug": "JacksonDatabind-59",
+  "project": "JacksonDatabind",
+  "bug_id": 59,
+  "fixed_revision": "e59194aaff0a6e520184138924c69045160ee9d9",
+  "report": "https://github.com/FasterXML/jackson-databind/issues/1384",
+  "upstream": "https://github.com/FasterXML/jackson-databind",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=TypeRefinementForMapTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "com.fasterxml.jackson.databind.jsontype.TypeRefinementForMapTest",
+      "method": "testMapKeyRefinement1384",
+      "exception": "com.fasterxml.jackson.databind.JsonMappingException: Can not find a (Map) Key deserializer for type [simple type, class com.fasterxml.jackson.databind.jsontype.TypeRefinementForMapTest$CompoundKey]"
+    }
+  ],
+  "failed": [
+    "com.fasterxml.jackson.databind.jsontype.TypeRefinementForMapTest::testMapKeyRefinement1384"
+  ],
+  "keep": [
+    "testMapKeyRefinement1384(com.fasterxml.jackson.databind.jsontype.TypeRefinementForMapTest) || com.fasterxml.jackson.databind.jsontype.TypeRefinementForMapTest.testMapKeyRefinement1384 || TypeRefinementForMapTest.testMapKeyRefinement1384",
+    "com.fasterxml.jackson.databind.JsonMappingException: Can not find a (Map) Key deserializer for type [simple type, class com.fasterxml.jackson.databind.jsontype.TypeRefinementForMapTest$CompoundKey] || Can not find a (Map) Key deserializer for type [simple type, class com.fasterxml.jackson.databind.jsontype.TypeRefinementForMapTest$CompoundKey]"
+  ],
+  "unlocated": [],
+  "lines": 92,
+  "seconds": 17.3,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-14T02:17:49Z",
+  "pare": "0.1.0",
+  "commit": "b163491"
+}

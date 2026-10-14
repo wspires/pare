@@ -1,0 +1,57 @@
+{
+  "bug": "Csv-12",
+  "project": "Csv",
+  "bug_id": 12,
+  "fixed_revision": "c81ad0328eefb438cc875b9c9f081be93f9fdcc2",
+  "report": "https://issues.apache.org/jira/browse/CSV-128",
+  "upstream": "https://github.com/apache/commons-csv",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=CSVParserTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.csv.CSVParserTest",
+      "method": "testExcelHeaderCountLessThanData",
+      "exception": "java.lang.IllegalArgumentException: The header contains a duplicate name: \"\" in [A, B, C, , ]"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.csv.CSVParserTest::testExcelHeaderCountLessThanData"
+  ],
+  "keep": [
+    "testExcelHeaderCountLessThanData(org.apache.commons.csv.CSVParserTest) || org.apache.commons.csv.CSVParserTest.testExcelHeaderCountLessThanData || CSVParserTest.testExcelHeaderCountLessThanData",
+    "java.lang.IllegalArgumentException: The header contains a duplicate name: \"\" in [A, B, C, , ] || java.lang.IllegalArgumentException: The header contains a duplicate name: \"\" in  || The header contains a duplicate name: \"\" in [A, B, C, , ]"
+  ],
+  "unlocated": [],
+  "lines": 90,
+  "seconds": 12.6,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-14T02:17:06Z",
+  "pare": "0.1.0",
+  "commit": "b163491"
+}

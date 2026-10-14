@@ -1,0 +1,60 @@
+{
+  "bug": "Lang-32",
+  "project": "Lang",
+  "bug_id": 32,
+  "fixed_revision": "1f35e7c99b66b8d46c4ad96558e694a10aa38062",
+  "report": "https://issues.apache.org/jira/browse/LANG-586",
+  "upstream": "https://github.com/apache/commons-lang",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=HashCodeBuilderTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.lang3.builder.HashCodeBuilderTest",
+      "method": "testReflectionObjectCycle",
+      "exception": "junit.framework.AssertionFailedError: Expected: <null> but was: []"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.lang3.builder.HashCodeBuilderTest::testReflectionObjectCycle"
+  ],
+  "keep": [
+    "testReflectionObjectCycle(org.apache.commons.lang3.builder.HashCodeBuilderTest) || org.apache.commons.lang3.builder.HashCodeBuilderTest.testReflectionObjectCycle || HashCodeBuilderTest.testReflectionObjectCycle"
+  ],
+  "unlocated": [
+    "exception: junit.framework.AssertionFailedError: Expected: <null> but was: []"
+  ],
+  "lines": 97,
+  "seconds": 8.8,
+  "fixes_applied": [
+    "locale-19-35.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-14T02:18:26Z",
+  "pare": "0.1.0",
+  "commit": "b163491"
+}

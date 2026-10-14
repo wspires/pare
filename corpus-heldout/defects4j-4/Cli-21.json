@@ -1,0 +1,59 @@
+{
+  "bug": "Cli-21",
+  "project": "Cli",
+  "bug_id": 21,
+  "fixed_revision": "9cd78b4c83df53ba302baadac4c976ca84f428f9",
+  "report": "https://issues.apache.org/jira/browse/CLI-150",
+  "upstream": "https://github.com/apache/commons-cli",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=BugCLI150Test",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.cli2.bug.BugCLI150Test",
+      "method": "testNegativeNumber",
+      "exception": "org.apache.commons.cli2.OptionException: Unexpected -42 while processing --num"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.cli2.bug.BugCLI150Test::testNegativeNumber"
+  ],
+  "keep": [
+    "testNegativeNumber(org.apache.commons.cli2.bug.BugCLI150Test) || org.apache.commons.cli2.bug.BugCLI150Test.testNegativeNumber || BugCLI150Test.testNegativeNumber",
+    "org.apache.commons.cli2.OptionException: Unexpected -42 while processing --num || Unexpected -42 while processing --num"
+  ],
+  "unlocated": [],
+  "lines": 74,
+  "seconds": 22.8,
+  "fixes_applied": [
+    "test-21-21.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-14T02:16:22Z",
+  "pare": "0.1.0",
+  "commit": "b163491"
+}

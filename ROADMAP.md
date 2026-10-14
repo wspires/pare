@@ -55,6 +55,12 @@ The gate for everything after it.
   Defects4J 67 / 94 / 98 % at 600 / 1,000 / 2,000; before any held-out
   fix, 77 / 86 / 95 % and 33 / 55 / 86 %. *Done; both are spent by the
   next change measured on them.*
+- [x] **Fourth fresh sample.** Defects4J seed 4 (18 bugs,
+  `corpus-heldout/defects4j-4/`), drawn after the tail-window change with
+  every earlier Defects4J set excluded, measured before reading. Current
+  pare 92 / 100 / 100 % at 600 / 1,000 / 2,000; before any held-out fix,
+  41 / 79 / 97 %. The three misses at 600 are JUnit 3 assertion messages
+  whose tests are shown. *Done; spent by the next change measured on it.*
 - [ ] **Claude token rate.** `bench/tokens.py --anthropic claude-opus-5-5`
   on a machine with credentials. If the rate differs much from the 2.8
   bytes per token measured on cl100k and o200k, change the default.

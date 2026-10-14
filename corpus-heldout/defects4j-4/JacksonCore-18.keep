@@ -1,0 +1,2 @@
+testTooBigBigDecimal(com.fasterxml.jackson.core.json.TestJsonGeneratorFeatures) || com.fasterxml.jackson.core.json.TestJsonGeneratorFeatures.testTooBigBigDecimal || TestJsonGeneratorFeatures.testTooBigBigDecimal
+junit.framework.AssertionFailedError: Should not have written without exception: 1E+10000 || junit.framework.AssertionFailedError: Should not have written without exception: || Should not have written without exception: 1E+10000

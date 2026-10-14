@@ -1,0 +1,2 @@
+testCompatibilityWithOriginalVersion(org.apache.commons.codec.language.bm.PhoneticEngineRegressionTest) || org.apache.commons.codec.language.bm.PhoneticEngineRegressionTest.testCompatibilityWithOriginalVersion || PhoneticEngineRegressionTest.testCompatibilityWithOriginalVersion
+expected:<...dzn|bntsn|bnzn|vndzn[]> but was:<...dzn|bntsn|bnzn|vndzn[|vntsn]>

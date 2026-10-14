@@ -1,0 +1,64 @@
+{
+  "bug": "JxPath-19",
+  "project": "JxPath",
+  "bug_id": 19,
+  "fixed_revision": "7b2847e882a9e4216dcf0f35d27101e363611532",
+  "report": "https://issues.apache.org/jira/browse/JXPATH-125",
+  "upstream": "https://github.com/apache/commons-jxpath",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=AliasedNamespaceIterationTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.jxpath.ri.model.AliasedNamespaceIterationTest",
+      "method": "testIterateJDOM",
+      "exception": "junit.framework.AssertionFailedError: Evaluating pointer iterator </a:doc/a:elem> expected:<[/a:doc[1]/a:elem[1], /a:doc[1]/a:elem[2]]> but was:<[/a:doc[1]/a:elem[1], /a:doc[1]/a:elem[1]]>"
+    },
+    {
+      "class": "org.apache.commons.jxpath.ri.model.AliasedNamespaceIterationTest",
+      "method": "testIterateDOM",
+      "exception": "junit.framework.AssertionFailedError: Evaluating pointer iterator </a:doc/a:elem> expected:<[/a:doc[1]/a:elem[1], /a:doc[1]/a:elem[2]]> but was:<[/a:doc[1]/a:elem[1], /a:doc[1]/a:elem[1]]>"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.jxpath.ri.model.AliasedNamespaceIterationTest::testIterateJDOM",
+    "org.apache.commons.jxpath.ri.model.AliasedNamespaceIterationTest::testIterateDOM"
+  ],
+  "keep": [
+    "testIterateJDOM(org.apache.commons.jxpath.ri.model.AliasedNamespaceIterationTest) || org.apache.commons.jxpath.ri.model.AliasedNamespaceIterationTest.testIterateJDOM || AliasedNamespaceIterationTest.testIterateJDOM",
+    "junit.framework.AssertionFailedError: Evaluating pointer iterator </a:doc/a:elem> expected:<[/a:doc[1]/a:elem[1], /a:doc[1]/a:elem[2]]> but was:<[/a:doc[1]/a:elem[1], /a:doc[1]/a:elem[1]]> || junit.framework.AssertionFailedError: Evaluating pointer iterator </a:doc/a:elem || Evaluating pointer iterator </a:doc/a:elem> expected:<[/a:doc[1]/a:elem[1], /a:doc[1]/a:elem[2]]> but was:<[/a:doc[1]/a:elem[1], /a:doc[1]/a:elem[1]]>",
+    "testIterateDOM(org.apache.commons.jxpath.ri.model.AliasedNamespaceIterationTest) || org.apache.commons.jxpath.ri.model.AliasedNamespaceIterationTest.testIterateDOM || AliasedNamespaceIterationTest.testIterateDOM"
+  ],
+  "unlocated": [],
+  "lines": 85,
+  "seconds": 9.0,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-14T02:18:16Z",
+  "pare": "0.1.0",
+  "commit": "b163491"
+}

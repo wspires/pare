@@ -1,0 +1,57 @@
+{
+  "bug": "Jsoup-51",
+  "project": "Jsoup",
+  "bug_id": 51,
+  "fixed_revision": "25e0e1e9ffca9a350d060db7d2179c5c9e459055",
+  "report": "https://github.com/jhy/jsoup/issues/667",
+  "upstream": "https://github.com/jhy/jsoup",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=HtmlParserTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.jsoup.parser.HtmlParserTest",
+      "method": "testSupportsNonAsciiTags",
+      "exception": "junit.framework.AssertionFailedError: expected:<[Yes]> but was:<[]>"
+    }
+  ],
+  "failed": [
+    "org.jsoup.parser.HtmlParserTest::testSupportsNonAsciiTags"
+  ],
+  "keep": [
+    "org.jsoup.parser.HtmlParserTest.testSupportsNonAsciiTags || HtmlParserTest.testSupportsNonAsciiTags",
+    "expected:<[Yes]> but was:<[]>"
+  ],
+  "unlocated": [],
+  "lines": 92,
+  "seconds": 10.7,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-14T02:18:06Z",
+  "pare": "0.1.0",
+  "commit": "b163491"
+}

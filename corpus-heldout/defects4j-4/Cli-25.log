@@ -1,0 +1,189 @@
+[INFO] Scanning for projects...
+[WARNING] 
+[WARNING] Some problems were encountered while building the effective model for commons-cli:commons-cli:jar:1.2
+[WARNING] 'build.plugins.plugin.version' for org.apache.maven.plugins:maven-idea-plugin is missing. @ org.apache.commons:commons-parent:11, /m2/org/apache/commons/commons-parent/11/commons-parent-11.pom, line 255, column 15
+[WARNING] The expression ${pom.version} is deprecated. Please use ${project.version} instead.
+[WARNING] 
+[WARNING] It is highly recommended to fix these problems because they threaten the stability of your build.
+[WARNING] 
+[WARNING] For this reason, future Maven versions might no longer support building such malformed projects.
+[WARNING] 
+[INFO] 
+[INFO] ----------------------< commons-cli:commons-cli >-----------------------
+[INFO] Building Commons CLI 1.2
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- antrun:1.1:run (javadoc.resources) @ commons-cli ---
+[INFO] Executing tasks
+[INFO] Executed tasks
+[INFO] 
+[INFO] --- resources:3.4.0:resources (default-resources) @ commons-cli ---
+[WARNING] Using platform encoding (UTF-8 actually) to copy filtered resources, i.e. build is platform dependent!
+[INFO] Copying 2 resources from . to target/classes/META-INF
+[INFO] 
+[INFO] --- compiler:2.0.2:compile (default-compile) @ commons-cli ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- bundle:1.4.0:manifest (bundle-manifest) @ commons-cli ---
+[INFO] 
+[INFO] --- resources:3.4.0:testResources (default-testResources) @ commons-cli ---
+[WARNING] Using platform encoding (UTF-8 actually) to copy filtered resources, i.e. build is platform dependent!
+[INFO] skip non existing resourceDirectory /work/src/test/resources
+[INFO] 
+[INFO] --- compiler:2.0.2:testCompile (default-testCompile) @ commons-cli ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- surefire:2.4.3:test (default-test) @ commons-cli ---
+[INFO] Surefire report directory: /work/target/surefire-reports
+
+-------------------------------------------------------
+ T E S T S
+-------------------------------------------------------
+Running org.apache.commons.cli.bug.BugCLI162Test
+usage: app
+ -h,--help   This is
+             a
+             looooon
+             g
+             descrip
+             tion
+usage:
+       org.apache.comm
+       ons.cli.bug.Bug
+       CLI162Test
+Header
+-x,--extralongarg
+                     T
+                     h
+                     i
+                     s
+                     d
+                     e
+                     s
+                     c
+                     r
+                     i
+                     p
+                     t
+                     i
+                     o
+                     n
+                     i
+                     s
+                     L
+                     o
+                     n
+                     g
+                     .
+Footer
+
+usage: org.apache.commons.cli.bug.BugCLI162Test
+ -2,--jdbc2sfmd <arg>        Converts the JDBC file in the first argument
+                             to an SMFD file specified in the second
+                             argument.
+ -a,--paramNames <arg>       Parameter XML names; default names are
+                             param1, param2, etc. Example: -a "pname1
+                             pname2"
+ -b,--jdbc <arg>             Writes a JDBC binding node file for the given
+                             SQL
+ -c,--url <arg>              Connection URL
+ -d,--driver <arg>           JDBC driver class name
+ -e,--description <arg>      SFMD description. A default description is
+                             used if omited. Example: -e "Runs such and
+                             such"
+ -f,--sfmd <arg>             Writes a SFMD file for the given SQL
+ -g,--printTiming            Prints timing information
+ -h,--help                   Prints help and quits
+ -i,--interactive            Runs in interactive mode, reading and writing
+                             from the console, 'go' or '/' sends a
+                             statement
+ -j,--node <arg>             Writes a JDBC node file for the given SQL
+                             (internal debugging)
+ -l,--columnNames <arg>      Column XML names; default names column
+                             labels. Example: -l "cname1 cname2"
+ -m,--printMetaData          Prints metadata information
+ -n,--info                   Prints driver information and properties. If
+                             -c is not specified, all drivers on the
+                             classpath are displayed.
+ -o,--paramModes <arg>       Parameters modes (1=IN, 2=INOUT, 4=OUT,
+                             0=Unknown). -o and -O are mutually exclusive.
+                             Example for 2 parameters, OUT and IN: -o "4
+                             1"
+ -O,--paramModeNames <arg>   Parameters mode names (IN, INOUT, OUT,
+                             Unknown). -o and -O are mutually exclusive.
+                             Example for 2 parameters, OUT and IN: -O "OUT
+                             IN"
+ -p,--password <arg>         The database password for the user specified
+                             with the -u option. You can obfuscate the
+                             password with
+                             org.mortbay.jetty.security.Password, see
+                             http://docs.codehaus.org/display/JETTY/Securi
+                             ng+Passwords
+ -s,--sql <arg>              Runs SQL or {call stored_procedure(?, ?)} or
+                             {?=call function(?, ?)}
+ -t,--printStack             Prints stack traces on errors
+    --trim <arg>             Trims leading and trailing spaces from all
+                             column values. Column XML names can be
+                             optionally specified to set which columns to
+                             trim.
+ -u,--user <arg>             A database user name
+ -w,--outfile <arg>          Writes the SQL output to the given file
+ -y,--paramTypes <arg>       Parameter types from java.sql.Types. -y and
+                             -Y are mutually exclusive. Example: -y "-10
+                             12"
+ -Y,--paramTypeNames <arg>   Parameter java.sql.Types names. -y and -Y are
+                             mutually exclusive. Example: -Y "CURSOR
+                             VARCHAR"
+Tests run: 4, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.024 sec <<< FAILURE!
+testLongLineChunkingIndentIgnored(org.apache.commons.cli.bug.BugCLI162Test)  Time elapsed: 0.003 sec  <<< FAILURE!
+junit.framework.ComparisonFailure: Long arguments did not split as expected expected:<...This description is
+ Long...> but was:<...                    T
+                     h
+                     i
+                     s
+                     d
+                     e
+                     s
+                     c
+                     r
+                     i
+                     p
+                     t
+                     i
+                     o
+                     n
+                     i
+                     s
+                     L
+                     o
+                     n
+                     g
+                     ...>
+	at junit.framework.Assert.assertEquals(Assert.java:81)
+	at org.apache.commons.cli.bug.BugCLI162Test.testLongLineChunkingIndentIgnored(BugCLI162Test.java:280)
+
+
+Results :
+
+Failed tests: 
+  testLongLineChunkingIndentIgnored(org.apache.commons.cli.bug.BugCLI162Test)
+
+Tests run: 4, Failures: 1, Errors: 0, Skipped: 0
+
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  1.140 s
+[INFO] Finished at: 2026-10-14T02:19:04Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.4.3:test (default-test) on project commons-cli: There are test failures.
+[ERROR] 
+[ERROR] Please refer to /work/target/surefire-reports for the individual test results.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

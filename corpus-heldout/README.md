@@ -136,7 +136,41 @@ cases, as `bench/run.py` prints it); "full" counts the cases where pare
 kept every keep line. tidyout keeps everything on every source, at 96 to
 100 % of the input size.
 
-### Latest fresh samples: the current honest numbers
+### Latest fresh sample: the current honest number
+
+Defects4J seed 4, drawn after the tail-window change (`b163491`) with
+`--exclude` every earlier Defects4J set, and measured before anyone read
+it. Seed 3 below is spent: the Maven chatter fix and the tail-window
+change were both measured on it.
+
+```
+python3 bench/defects4j_cases.py run --sample 20 --seed 4 --exclude corpus-heldout/defects4j --exclude corpus-heldout/defects4j-2 --exclude corpus-heldout/defects4j-3 --exclude corpus-dev/defects4j --out corpus-heldout/defects4j-4
+```
+
+18 of 20 bugs gave a case (Collections-3 has no Maven build at that
+revision; JacksonXml-5's build failed before any test ran). 39 keep lines,
+labelled with alternative forms. Compress-42's exception
+(`junit.framework.AssertionFailedError`, no message) never appears in its
+log, so only the test is labelled. No log fits in 600 or 1,000 tokens;
+13 of 18 fit in 2,000 and pass through.
+
+| version | 600 | 1,000 | 2,000 |
+|---|---|---|---|
+| before any held-out fix (`d730e86`) | 41 % (min 0) | 79 % (min 0) | 97 % |
+| failing-test lists, rare failures first (`2f13edb`) | 59 % (min 0) | 92 % | 97 % |
+| + Maven chatter fix (`3d36efa`) | 82 % (min 33) | 97 % | 100 % |
+| + head and tail windows skip chatter (`b163491`) | **92 %** (min 67) | **100 %** | 100 % |
+
+Same numbers with `--strict` (no compact lists to expand). Output is 30 %,
+50 % and 83 % of the input. Each version kept at least as much as the one
+before on every case, except one: Gson-8 at 1,000 went 3 → 2 of 3 with
+the chatter fix and back to 3 with the window change. The three misses
+left at 600 are all JUnit 3 assertion messages (Codec-2's `EOF
+expected:<-1> but was:<13>`, Gson-8's and JxPath-19's `expected:<…> but
+was:<…>`); each case's failing test is shown. Nothing was changed for
+them.
+
+### Third fresh samples
 
 Drawn after all the changes below, with `--exclude` every earlier set, and
 measured before anyone read them. Three versions of pare on the same

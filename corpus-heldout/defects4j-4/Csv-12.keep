@@ -1,0 +1,2 @@
+testExcelHeaderCountLessThanData(org.apache.commons.csv.CSVParserTest) || org.apache.commons.csv.CSVParserTest.testExcelHeaderCountLessThanData || CSVParserTest.testExcelHeaderCountLessThanData
+java.lang.IllegalArgumentException: The header contains a duplicate name: "" in [A, B, C, , ] || java.lang.IllegalArgumentException: The header contains a duplicate name: "" in  || The header contains a duplicate name: "" in [A, B, C, , ]

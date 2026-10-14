@@ -1,0 +1,57 @@
+{
+  "bug": "Codec-14",
+  "project": "Codec",
+  "bug_id": 14,
+  "fixed_revision": "39d5df29fb768fd257f9d328b99f00bc69ec864a",
+  "report": "https://issues.apache.org/jira/browse/CODEC-187",
+  "upstream": "https://github.com/apache/commons-codec",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=PhoneticEngineRegressionTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.codec.language.bm.PhoneticEngineRegressionTest",
+      "method": "testCompatibilityWithOriginalVersion",
+      "exception": "junit.framework.AssertionFailedError: expected:<...dzn|bntsn|bnzn|vndzn[]> but was:<...dzn|bntsn|bnzn|vndzn[|vntsn]>"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.codec.language.bm.PhoneticEngineRegressionTest::testCompatibilityWithOriginalVersion"
+  ],
+  "keep": [
+    "testCompatibilityWithOriginalVersion(org.apache.commons.codec.language.bm.PhoneticEngineRegressionTest) || org.apache.commons.codec.language.bm.PhoneticEngineRegressionTest.testCompatibilityWithOriginalVersion || PhoneticEngineRegressionTest.testCompatibilityWithOriginalVersion",
+    "expected:<...dzn|bntsn|bnzn|vndzn[]> but was:<...dzn|bntsn|bnzn|vndzn[|vntsn]>"
+  ],
+  "unlocated": [],
+  "lines": 85,
+  "seconds": 9.3,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-14T02:19:14Z",
+  "pare": "0.1.0",
+  "commit": "b163491"
+}

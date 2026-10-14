@@ -1,0 +1,2 @@
+com.google.gson.stream.JsonWriterTest.testBoxedBooleans || JsonWriterTest.testBoxedBooleans
+java.lang.NullPointerException
