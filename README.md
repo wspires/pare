@@ -282,8 +282,13 @@ for a native port are in [docs/DESIGN.md](docs/DESIGN.md).
 ## Tests
 
 ```
-.venv/bin/pip install pytest && .venv/bin/python -m pytest proto/
+.venv/bin/pip install -e '.[dev]'       # pare itself and pytest (the `dev` extra)
+.venv/bin/python -m pytest -q proto/
 ```
+
+A few tests skip themselves when an optional tool is missing: tidyout
+(`.[bench]`) and the SWE-bench package (`.[datasets]`). Extras combine:
+`pip install -e '.[dev,bench,datasets]'`.
 
 238 tests: severity forms and their false positives, vocabulary files, the
 hard budget limit on every corpus file at several sizes, determinism,
