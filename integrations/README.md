@@ -142,3 +142,14 @@ harness truncating a long result), and with pare it may go back to the run
 file for more (`--only`, `--since`). A run that fits the budget costs a
 few more tokens than the raw output (the `## raw:` line). Runs from before
 pare recorded its output size are skipped.
+
+### Run files do not pile up
+
+Every wrapped command leaves a run file, so with the hook on they add up.
+pare prunes them itself, at most once an hour: run files older than 14
+days, then the oldest until the rest fit in 500 MB, but never one less
+than a day old, since a summary in the current session may point at it.
+`PARE_RUN_KEEP_DAYS`, `PARE_RUN_MAX_MB` (0 for no limit) and
+`PARE_RUN_PRUNE=off` change that; `pare --prune --dry-run` shows what a
+sweep would remove. A run file worth keeping as a held-out case should be
+copied with `bench/collect.py add` before it ages out.

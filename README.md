@@ -88,6 +88,14 @@ further. Template ids are stable because the pipeline is deterministic.
 In command mode (`pare -- CMD`), `pare --stats` totals what the command
 printed against what pare printed, over every run so far.
 
+Run files live in `~/.cache/pare/runs` (`$PARE_RUN_DIR`). pare prunes
+them itself, at most hourly: those older than 14 days go, then the oldest
+until the rest fit in 500 MB, never one less than a day old
+(`$PARE_RUN_KEEP_DAYS`, `$PARE_RUN_MAX_MB`, 0 for no limit;
+`$PARE_RUN_PRUNE=off` stops it). `pare --prune [--dry-run]` sweeps now.
+Only files pare named are touched, and a pruned run keeps its small
+`.json` record, so `--stats` still counts it.
+
 Tokens are estimated as bytes / 2.8, the rate measured with tiktoken on
 pare's output (cl100k and o200k agree); `--chars-per-token` changes it,
 and 4 gives the prose rule of thumb. The budget is a hard ceiling; 1,000
@@ -276,7 +284,7 @@ for a native port are in [docs/DESIGN.md](docs/DESIGN.md).
 .venv/bin/pip install pytest && .venv/bin/python -m pytest proto/
 ```
 
-234 tests: severity forms and their false positives, vocabulary files, the
+238 tests: severity forms and their false positives, vocabulary files, the
 hard budget limit on every corpus file at several sizes, determinism,
 pass-through, the selection flags, memory on a large input, follow mode
 (including a randomized differential test against the batch pass),

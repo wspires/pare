@@ -2254,6 +2254,120 @@ def select(
 # --------------------------------------------------------------------------
 
 
+# Run-file pruning. Only files pare named itself are ever removed: a run
+# file (<12 hex>.log, follow-<time>-<pid>.log) and a spool a killed pare left
+# behind (.pare-<pid>.tmp). The small .json record next to a pruned run file
+# stays, marked "pruned", so --stats keeps its history.
+RUN_FILE_RX = re.compile(r"^(?:[0-9a-f]{12}|follow-\d{8}-\d{6}-\d+)\.log$")
+STALE_SPOOL_RX = re.compile(r"^\.pare-\d+\.tmp$")
+PRUNE_KEEP_DAYS = 14.0  # $PARE_RUN_KEEP_DAYS: run files older than this go (0: no age limit)
+PRUNE_MAX_MB = 500.0  # $PARE_RUN_MAX_MB: past this total, the oldest go first (0: no size limit)
+PRUNE_MIN_AGE_S = 86400  # ...but never one younger than a day: a summary may still point at it
+PRUNE_EVERY_S = 3600  # automatic pruning runs at most this often ($PARE_RUN_PRUNE=off disables it)
+PRUNE_MARKER = ".last-prune"
+
+
+def prune_limits() -> tuple[float, float]:
+    def number(var: str, default: float) -> float:
+        try:
+            return max(0.0, float(os.environ.get(var, default)))
+        except ValueError:
+            return default
+    return number("PARE_RUN_KEEP_DAYS", PRUNE_KEEP_DAYS), number("PARE_RUN_MAX_MB", PRUNE_MAX_MB)
+
+
+def prune_runs(run_dir: str, *, keep_days: float, max_mb: float, now: float | None = None,
+               dry_run: bool = False) -> list[tuple[str, int, str]]:
+    """Remove old run files: those older than keep_days, then, oldest first,
+    as many as it takes to bring the rest under max_mb, sparing any younger
+    than a day. A rerun with the same output rewrites its run file, so
+    recently used output counts as new. Returns (path, bytes, reason) for
+    each file removed, or that would be with dry_run."""
+    now = time.time() if now is None else now
+    try:
+        names = os.listdir(run_dir)
+    except OSError:
+        return []
+    removed: list[tuple[str, int, str]] = []
+    runs: list[tuple[float, int, str]] = []
+    for name in names:
+        path = os.path.join(run_dir, name)
+        try:
+            st = os.stat(path)
+        except OSError:
+            continue
+        if STALE_SPOOL_RX.match(name):
+            if now - st.st_mtime > PRUNE_MIN_AGE_S:
+                removed.append((path, st.st_size, "spool left by an interrupted run"))
+        elif RUN_FILE_RX.match(name):
+            runs.append((st.st_mtime, st.st_size, path))
+    runs.sort()  # oldest first
+    kept = []
+    for mtime, size, path in runs:
+        if keep_days and now - mtime > keep_days * 86400:
+            removed.append((path, size, f"older than {keep_days:g} days"))
+        else:
+            kept.append((mtime, size, path))
+    if max_mb:
+        total = sum(size for _, size, _ in kept)
+        for mtime, size, path in kept:
+            if total <= max_mb * 1024 * 1024 or now - mtime < PRUNE_MIN_AGE_S:
+                break
+            removed.append((path, size, f"over {max_mb:g} MB in all"))
+            total -= size
+    if not dry_run:
+        stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now))
+        for path, _, _ in removed:
+            try:
+                os.unlink(path)
+            except OSError:
+                continue
+            meta_path = os.path.splitext(path)[0] + ".json"
+            try:
+                with open(meta_path, encoding="utf-8") as f:
+                    meta = json.load(f)
+                meta["pruned"] = stamp
+                with open(meta_path, "w", encoding="utf-8") as f:
+                    json.dump(meta, f, indent=2)
+                    f.write("\n")
+            except (OSError, ValueError):
+                pass
+    return removed
+
+
+def maybe_prune(run_dir: str) -> None:
+    """Automatic pruning, at most once per PRUNE_EVERY_S; never in the way of
+    the summary."""
+    if os.environ.get("PARE_RUN_PRUNE", "").lower() in ("off", "0", "no", "false"):
+        return
+    marker = os.path.join(run_dir, PRUNE_MARKER)
+    try:
+        if time.time() - os.stat(marker).st_mtime < PRUNE_EVERY_S:
+            return
+    except OSError:
+        pass
+    try:
+        with open(marker, "w"):
+            pass
+        keep_days, max_mb = prune_limits()
+        prune_runs(run_dir, keep_days=keep_days, max_mb=max_mb)
+    except OSError:
+        pass
+
+
+def prune_command(run_dir: str, dry_run: bool, out=sys.stdout) -> int:
+    keep_days, max_mb = prune_limits()
+    removed = prune_runs(run_dir, keep_days=keep_days, max_mb=max_mb, dry_run=dry_run)
+    limits = f"keep {keep_days:g} days, at most {max_mb:g} MB; $PARE_RUN_KEEP_DAYS, $PARE_RUN_MAX_MB"
+    verb = "would remove" if dry_run else "removed"
+    total = sum(size for _, size, _ in removed)
+    out.write(f"# pare --prune: {verb} {len(removed)} file{'s' if len(removed) != 1 else ''},"
+              f" {total / 1024 / 1024:.1f} MB, in {run_dir} ({limits})\n")
+    for path, size, reason in removed:
+        out.write(f"{os.path.basename(path)}  {size / 1024:,.0f} KB  {reason}\n")
+    return 0
+
+
 def default_run_dir() -> str:
     env = os.environ.get("PARE_RUN_DIR")
     if env:
@@ -2307,6 +2421,10 @@ def main(argv: list[str] | None = None) -> int:
                          "lists (default: $PARE_VOCAB); see --dump-vocab for the format")
     ap.add_argument("--dump-vocab", action="store_true",
                     help="print the built-in vocabulary (after applying --vocab) in file format and exit")
+    ap.add_argument("--prune", action="store_true",
+                    help="remove old run files now: older than $PARE_RUN_KEEP_DAYS (14), or past $PARE_RUN_MAX_MB (500) in all;"
+                         " pare also does this on its own, at most hourly ($PARE_RUN_PRUNE=off to stop it)")
+    ap.add_argument("--dry-run", action="store_true", help="with --prune: list what would be removed")
     ap.add_argument("--stats", action="store_true",
                     help="print what command mode saved: raw output against pare's, from the run directory's records")
     ap.add_argument("--version", action="version", version=f"pare {__version__}")
@@ -2334,6 +2452,10 @@ def main(argv: list[str] | None = None) -> int:
         VOCAB = Vocab(parse_vocab(vocab_text, DEFAULT_VOCAB, source=args.vocab))
     if args.stats:
         return stats(args.run_dir or default_run_dir())
+    if args.dry_run and not args.prune:
+        sys.exit("pare: --dry-run goes with --prune")
+    if args.prune:
+        return prune_command(args.run_dir or default_run_dir(), args.dry_run)
     if args.dump_vocab:
         sys.stdout.write(dump_vocab(VOCAB.entries))
         return 0
@@ -2363,6 +2485,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         run_dir = args.run_dir or default_run_dir()
         os.makedirs(run_dir, exist_ok=True)
+        maybe_prune(run_dir)
         if args.follow:
             spool_path = os.path.join(run_dir, time.strftime("follow-%Y%m%d-%H%M%S-") + f"{os.getpid()}.log")
         else:

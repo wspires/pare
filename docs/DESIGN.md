@@ -193,7 +193,9 @@ exists to make explicit.
 
 1. **Tee.** Raw stdin is saved to a run file named by content hash
    (`$PARE_RUN_DIR` or `~/.cache/pare/runs/<sha>.log`), so nothing is lost
-   and the same input always maps to the same path.
+   and the same input always maps to the same path. Run files are pruned
+   after 14 days, or past 500 MB in all, oldest first and never one under
+   a day old (see the README).
 2. **Segment.** Lines become records: a line indented deeper than the
    previous record's head, or shaped like a continuation (stack frame,
    caret marker, `Caused by:`, assertion detail, diff hunk; plus the

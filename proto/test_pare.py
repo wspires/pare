@@ -9,6 +9,7 @@ import json
 import os
 import re
 import subprocess
+import time
 import sys
 
 import pytest
@@ -1546,3 +1547,62 @@ def test_logcat_death_of_a_crashed_process_is_an_error(tmp_path):
     ]
     store, _ = pare.analyze(io.BytesIO(("\n".join(lines) + "\n").encode()), width=200, spool_path=str(tmp_path / "s"))
     assert [store.sev[i] for i in (0, 3, 4)] == [1, 3, 1]
+
+
+def make_run(d, name, *, days_old, size=100, meta=None):
+    path = d / name
+    path.write_bytes(b"x" * size)
+    t = time.time() - days_old * 86400
+    os.utime(path, (t, t))
+    if meta is not None:
+        (d / (name[:-4] + ".json")).write_text(json.dumps(meta))
+    return path
+
+
+def test_prune_by_age_spares_what_pare_did_not_name(tmp_path):
+    old = make_run(tmp_path, "aaaaaaaaaaaa.log", days_old=20, meta={"command": ["pytest"], "out_bytes": 10})
+    new = make_run(tmp_path, "bbbbbbbbbbbb.log", days_old=2)
+    follow = make_run(tmp_path, "follow-20260901-101010-77.log", days_old=30)
+    mine = make_run(tmp_path, "my-notes.log", days_old=90)  # not a name pare gives a run file
+    spool = make_run(tmp_path, ".pare-4242.tmp", days_old=3)
+    fresh_spool = make_run(tmp_path, ".pare-4343.tmp", days_old=0.1)  # perhaps a run in progress
+    dry = pare.prune_runs(str(tmp_path), keep_days=14, max_mb=0, dry_run=True)
+    assert {os.path.basename(p) for p, _, _ in dry} == {old.name, follow.name, spool.name}
+    assert old.exists()  # a dry run removes nothing
+    pare.prune_runs(str(tmp_path), keep_days=14, max_mb=0)
+    assert not old.exists() and not follow.exists() and not spool.exists()
+    assert new.exists() and mine.exists() and fresh_spool.exists()
+    assert "pruned" in json.loads((tmp_path / "aaaaaaaaaaaa.json").read_text())  # the record stays for --stats
+
+
+def test_prune_by_size_takes_the_oldest_and_never_a_new_one(tmp_path):
+    mb = 1024 * 1024
+    a = make_run(tmp_path, "aaaaaaaaaaaa.log", days_old=4, size=mb)
+    b = make_run(tmp_path, "bbbbbbbbbbbb.log", days_old=3, size=mb)
+    c = make_run(tmp_path, "cccccccccccc.log", days_old=2, size=mb)
+    d = make_run(tmp_path, "dddddddddddd.log", days_old=0.5, size=3 * mb)  # over the cap alone, but under a day old
+    removed = pare.prune_runs(str(tmp_path), keep_days=0, max_mb=1.5)
+    assert [os.path.basename(p) for p, _, _ in removed] == [a.name, b.name, c.name]
+    assert d.exists()
+
+
+def test_automatic_pruning_is_hourly_and_can_be_switched_off(tmp_path, monkeypatch):
+    old = make_run(tmp_path, "aaaaaaaaaaaa.log", days_old=20)
+    monkeypatch.setenv("PARE_RUN_PRUNE", "off")
+    pare.maybe_prune(str(tmp_path))
+    assert old.exists()
+    monkeypatch.delenv("PARE_RUN_PRUNE")
+    pare.maybe_prune(str(tmp_path))
+    assert not old.exists()
+    old2 = make_run(tmp_path, "bbbbbbbbbbbb.log", days_old=20)
+    pare.maybe_prune(str(tmp_path))  # within the hour: no second sweep
+    assert old2.exists()
+
+
+def test_prune_command_line(tmp_path):
+    make_run(tmp_path, "aaaaaaaaaaaa.log", days_old=20)
+    out = run(["--run-dir", str(tmp_path), "--prune", "--dry-run"], b"").decode()
+    assert "would remove 1 file" in out and "aaaaaaaaaaaa.log" in out and "older than 14 days" in out
+    assert (tmp_path / "aaaaaaaaaaaa.log").exists()
+    p = subprocess.run([sys.executable, os.path.join(HERE, "pare.py"), "--dry-run"], capture_output=True, text=True)
+    assert p.returncode != 0 and "--dry-run goes with --prune" in p.stderr
