@@ -656,7 +656,7 @@ ceiling. sqz and tidyout have no budget, so only their counts change.
 | tool | budget 2000: out tok, ratio, recall (min) | budget 600 |
 |---|---|---|
 | raw | 487,810, 100%, 100% | same |
-| pare | 8,494, 1.7%, 100% (100%) | 4,352, 0.9%, 78% (60%) |
+| pare | 8,494, 1.7%, 100% (100%) | 4,341, 0.9%, 79.5% (60%) |
 | sqz | 268,054, 55%, 55% (14%) | no budget knob |
 | tidyout | 293,653, 60%, 89% (11%) | no budget knob |
 
@@ -664,7 +664,7 @@ Per case, pare:
 
 | case | in tok | 2000: out tok, recall | 600: out tok, recall |
 |---|---:|---|---|
-| cargo-build | 1,350 | pass-through, 8/8 | 598, 7/8 |
+| cargo-build | 1,350 | pass-through, 8/8 | 587, 8/8 |
 | ci-pipeline | 267,891 | 1,990, 15/15 | 600, 9/15 |
 | go-test | 3,160 | 717, 11/11 | 585, 8/11 |
 | jest-fail | 6,280 | 1,043, 10/10 | 596, 10/10 |
@@ -866,6 +866,19 @@ the −3 advice weight still left a singleton advice line at salience 3.5
 4. **`ComparisonFailure` is an error.** The CamelCase exception names
    covered `*Error` and `*Exception` but not `*Failure`, so JUnit's
    `junit.framework.ComparisonFailure: expected:<…>` scored 0.
+
+**The windows too.** The head and tail windows take lines by position,
+so the tail of a failed Maven build was still its closing advice (`[ERROR]
+-> [Help 1]`, `re-run Maven with the -e switch`, bare `[ERROR]` lines).
+The windows now skip both kinds of chatter as well, even as the first or
+last line, and the tail reaches the verdict: the test counts, the reactor
+summary, `BUILD FAILURE`, `Failed to execute goal … There are test
+failures.` Defects4J seed 0 at 600: 67.7 → 83.9 %; the dev sample 90.9 →
+100 %; the fresh seed 3, 76.5 → 82.4 %; seed 2, 75 → 79.5 %; each
+generated Maven case gains a line, and cargo-build gains rustc's last
+line at 600 (its `For more information … try rustc --explain` is advice
+too). No set lost a line, and many 2,000-token outputs got smaller.
+SWE-bench is unchanged.
 
 Build warnings (`'build.plugins.plugin.version' … is missing`,
 `bootstrap class path not set`) stay: they are real warnings, and the dev

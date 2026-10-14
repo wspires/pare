@@ -740,6 +740,14 @@ def is_near_duplicate(toks: frozenset[str], shown: list[frozenset[str]], names: 
     return False
 
 
+def is_chatter(ln: Line) -> bool:
+    """A line that says nothing about what happened: a build tool's closing
+    advice ("re-run Maven with the -e switch", "[Help 1]") or a level with no
+    message ("[ERROR]"). Both score under the floor; the head and tail
+    windows, which take lines by position, skip them too."""
+    return line_has(ln, "advice") or (line_sev(ln) is not None and LEVEL_ONLY_RX.match(ln.text) is not None)
+
+
 def is_error_line(ln: Line) -> bool:
     """A line that reports a failure: error level or above, or, with no level,
     error vocabulary and no pass marker. A level wins over the vocabulary: a
@@ -1548,6 +1556,8 @@ def summarize(
             if len(out) >= n:
                 break
             ri = rec[i]
+            if ri >= 0 and is_chatter(store.line(i)):
+                continue  # advice or a bare level: says nothing, even as the first or last line
             if i + b1 == keep_no or ri < 0:
                 out.append(i + b1)
                 continue

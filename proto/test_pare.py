@@ -1621,3 +1621,15 @@ def test_a_tiny_budget_keeps_the_run_line_over_the_ledger(tmp_path):
                        input=data, capture_output=True, check=True)
     out = p.stdout.decode()
     assert f"## raw: {run_dir}" in out and pare.tokens(len(p.stdout)) <= 100, out
+
+
+def test_the_tail_window_skips_build_advice():
+    # Maven ends a failed build with a screen of advice and bare [ERROR]
+    # lines; the tail window takes lines by position, so it skips them and
+    # reaches the verdict.
+    data = open(os.path.join(GENERATED, "maven-test.log"), "rb").read()
+    out = run(["--budget", "2000"], data).decode()
+    tail = out.split("## tail", 1)[1].split("## omitted", 1)[0]
+    assert "BUILD FAILURE" in tail and "There are test failures" in tail
+    assert "-X switch" not in tail and "[Help 1]" not in tail
+    assert not any(l.rstrip().endswith(": [ERROR]") for l in tail.splitlines())

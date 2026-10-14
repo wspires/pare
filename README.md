@@ -199,7 +199,7 @@ the log.
 | tool | budget 2000: out tok, ratio, recall (min per case) | budget 600 |
 |---|---|---|
 | raw | 487,810, 100%, 100% | same |
-| pare | 8,494, 1.7%, 100% (100%) | 4,352, 0.9%, 78% (60%) |
+| pare | 8,494, 1.7%, 100% (100%) | 4,341, 0.9%, 79.5% (60%) |
 | sqz | 268,054, 55%, 55% (14%) | no budget knob |
 | tidyout | 293,653, 60%, 89% (11%) | no budget knob |
 
@@ -290,7 +290,7 @@ A few tests skip themselves when an optional tool is missing: tidyout
 (`.[bench]`) and the SWE-bench package (`.[datasets]`). Extras combine:
 `pip install -e '.[dev,bench,datasets]'`.
 
-239 tests: severity forms and their false positives, vocabulary files, the
+240 tests: severity forms and their false positives, vocabulary files, the
 hard budget limit on every corpus file at several sizes, determinism,
 pass-through, the selection flags, memory on a large input, follow mode
 (including a randomized differential test against the batch pass),
