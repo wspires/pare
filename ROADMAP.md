@@ -197,9 +197,10 @@ held-out evidence asks for it.
   record, and the exception heads its record with its frames under it.
   The case goes from 75 to 87.5 % at 1,000 (50 % at 600 and 87.5 % at
   2,000 either way), and no other log's output changed. *Done.*
-- [ ] **logcat process death.** `ActivityManager: Process … has died`
-  (INFO) is still lost in system noise at every budget. Wait for a real
-  capture.
+- [x] **logcat process death.** The death of a pid that logged a
+  `FATAL EXCEPTION` is now an error (other deaths, routine kills of cached
+  apps, stay INFO). The logcat case is 100 % at 1,000 and 2,000. *Done;
+  a real capture should confirm the line forms.*
 
 ## 4. Release
 

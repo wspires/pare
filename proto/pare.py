@@ -114,6 +114,12 @@ LOGCAT_HEADER_RX = re.compile(
 )
 
 
+# ActivityManager reports every process exit at INFO, routine kills of
+# cached apps included; the death of a process that just crashed is the end
+# of the crash.
+LOGCAT_DEATH_RX = re.compile(r"Process \S+ \(pid (\d+)\) has died")
+
+
 def tool_rule(flag: bool) -> bool:
     return TOOL_SPECIFIC and flag
 
@@ -124,7 +130,7 @@ def continuation_rx() -> re.Pattern:
 TOOL_SPECIFIC_NOTES = [
     "pytest: E and > marker lines continue the failure block; a bare E at column 0 is an error level",
     "rustc/gcc: gutter (NN |), --> location, = note/help and ::: lines continue the diagnostic; error[E0308]: is a level",
-    "logcat: E/Tag( and E/Tag: at the line start are levels, and a multi-line entry (one header repeated) is split by its message; glog: E0921 10:11:12",
+    "logcat: E/Tag( and E/Tag: at the line start are levels, a multi-line entry (one header repeated) is split by its message, and the death of a pid that logged a FATAL EXCEPTION is an error; glog: E0921 10:11:12",
     "Jest/pytest: a single blank line inside an indented block does not end the record",
 ]
 
@@ -1041,6 +1047,7 @@ class Pass:
         self.head_no = 0
         self.head_sev: int | None = None
         self.logcat_key: tuple | None = None  # the logcat header of the last non-blank line
+        self.crashed_pids: set[str] = set()  # logcat: pids that logged a FATAL EXCEPTION
         self.cur = -1
         self.head_indent = 0
         self.head_vocab = 0.0
@@ -1185,6 +1192,14 @@ class Pass:
         store.rlen.append(len(f"{store.base + i + 1}: {clip(text, self.width)}".encode("utf-8")) + 1)
         store.slen.append(len(stripped))
         sev = VOCAB.severity(text)
+        if logcat is not None:
+            pid = logcat[1] or logcat[7]  # threadtime or time format
+            if message.startswith("FATAL EXCEPTION"):
+                self.crashed_pids.add(pid)
+            elif self.crashed_pids:
+                m = LOGCAT_DEATH_RX.search(message)
+                if m and m.group(1) in self.crashed_pids:
+                    sev = max(3, sev or 0)  # the crashed process is gone: part of the failure, not routine
         store.sev.append(-1 if sev is None else sev)
         if sev is not None and sev > self.worst_sev:
             self.worst_sev = sev

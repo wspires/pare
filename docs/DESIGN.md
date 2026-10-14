@@ -516,7 +516,9 @@ the "no ... rules" rows):
   continue the diagnostic; `error[E0308]:` is a level.
 - logcat: `E/Tag(` and `E/Tag:` at the line start are levels, and a
   multi-line entry (one header repeated on each line) is split by its
-  message, not its header; glog: `E0921 10:11:12`.
+  message, not its header, and ActivityManager's `Process … (pid N) has
+  died` (INFO) is an error when pid N logged a `FATAL EXCEPTION`; glog:
+  `E0921 10:11:12`.
 - Jest, pytest: a single blank line inside an indented block does not end
   the record.
 
@@ -573,6 +575,15 @@ samples; output size where it moved):
   87.5 % before, 50 / 87.5 / 87.5 % after, at 600 / 1,000 / 2,000; the
   NullPointerException now heads its record with
   `NoteListAdapter.kt:58` under it. No other log's output changed.
+
+  **A crashed process's death.** ActivityManager logs every process exit
+  at INFO (`Process com.example.notes (pid 4321) has died: fg TOP`),
+  routine kills of cached apps included, so the line scored −0.5 and was
+  lost at every budget. Making every death an error would flood a real
+  capture with those kills; instead pare remembers the pids that logged a
+  `FATAL EXCEPTION` and raises a later death of one of them to error
+  level. The case goes to 100 % at 1,000 and 2,000 (from 87.5 %); at 600
+  it does not fit. No other log's output changed.
 - **Maven needs none of them.** Every Defects4J set is unchanged with all
   rules off: Java output is carried by the generic signals.
 
@@ -657,7 +668,7 @@ Per case, pare:
 | npm-install | 7,799 | 309, 2/2 | 212, 2/2 |
 | pytest-fail | 6,803 | 1,240, 11/11 | 578, 8/11 |
 | server-outage | 191,216 | 888, 9/9 | 585, 6/9 |
-| android-logcat (added later; not in the totals above) | 95,542 | 1,996, 7/8 | 596, 4/8 |
+| android-logcat (added later; not in the totals above) | 95,542 | 1,979, 8/8 | 596, 4/8 |
 
 Two changes after the heuristics were frozen moved these numbers, both
 format rather than scoring and both evaluated on both corpora before

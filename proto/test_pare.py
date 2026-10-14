@@ -1532,3 +1532,17 @@ def test_logcat_entry_is_split_by_its_message_not_its_header(tmp_path):
     assert store.depth[3] >= 1 and store.rec[3] == store.rec[2] == store.rec[4]
     # a frame is judged by its message: not an error line because of the E in the header
     assert store.sev[3] == -1 and store.sev[2] == 3
+
+
+def test_logcat_death_of_a_crashed_process_is_an_error(tmp_path):
+    # ActivityManager logs every process exit at INFO; only the one that
+    # follows that process's FATAL EXCEPTION is part of a failure.
+    lines = [
+        "10-13 09:12:20.000   512  1912 I ActivityManager: Process com.android.chrome (pid 2345) has died: cch+15 CEM",
+        "10-13 09:12:30.489  4321  4321 E AndroidRuntime: FATAL EXCEPTION: main",
+        "10-13 09:12:30.489  4321  4321 E AndroidRuntime: Process: com.example.notes, PID: 4321",
+        "10-13 09:12:30.555   512  1912 I ActivityManager: Process com.example.notes (pid 4321) has died: fg  TOP ",
+        "10-13 09:12:31.000   512  1912 I ActivityManager: Process com.android.vending (pid 3456) has died: cch+5 CEM",
+    ]
+    store, _ = pare.analyze(io.BytesIO(("\n".join(lines) + "\n").encode()), width=200, spool_path=str(tmp_path / "s"))
+    assert [store.sev[i] for i in (0, 3, 4)] == [1, 3, 1]
