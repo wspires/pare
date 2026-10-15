@@ -968,36 +968,42 @@ and kubectl runs on small projects written to fail (sources in its `src/`,
 provenance in its README). The tools and their formatting are genuine; the
 failures and the keep lists are not blind, so this is a second development
 corpus for formats `corpus/` lacks, and it does not count toward the
-held-out set. Nothing was tuned on it. Pare, frozen, scores:
+held-out set. Nothing was tuned on it. Current pare scores:
 
 | case | in tok | budget 2000: out, recall | budget 600: out, recall |
 |---|---:|---|---|
-| maven-compile (cold cache, 495 lines) | 22,628 | 1,032, 8/10 | 594, 6/10 |
-| maven-test (Surefire, 128 lines) | 3,763 | 1,675, 9/9 | 594, 3/9 |
+| maven-compile (cold cache, 495 lines) | 22,628 | 910, 9/10 | 593, 7/10 |
+| maven-test (Surefire, 128 lines) | 3,763 | 1,559, 9/9 | 593, 4/9 |
 | tsc-build (35 errors, 49 lines) | 1,614 | pass-through, 13/13 | 598, 7/13 |
 | terraform-init (20 lines) | 287 | pass-through, 4/4 | pass-through, 4/4 |
 | terraform-validate (37 lines) | 473 | pass-through, 8/8 | pass-through, 8/8 |
 | terraform-apply (plan + apply, 462 lines) | 5,922 | 1,086, 9/9 | 597, 1/9 |
-| kubectl-apply (unreachable API server, 18 lines) | 1,388 | pass-through, 4/4 | 309, 3/4 |
+| kubectl-apply (unreachable API server, 18 lines) | 1,388 | pass-through, 4/4 | 391, 3/4 |
 
-Overall 96 % at 2,000 (7,555 tokens, 21 % of the input) and 56 % at 600
-(3,452 tokens). sqz keeps 74 % of these lines at 20 % of the input,
+Overall 98 % at 2,000 (7,317 tokens, 20 % of the input) and 60 % at 600
+(3,532 tokens). When the heuristics were frozen it was 96 % (7,555
+tokens) and 56 %; the gain since is the tail-window change ("Maven
+chatter", "The windows too"), which gave each Maven case a line at 600
+and maven-compile its third compile error at 2,000. sqz keeps 74 % of
+these lines at 20 % of the input,
 tidyout everything at 100 %: short, signal-dense logs are where a
 600-token summary has the least room, and where sqz's line-level
 compression competes. Observations, recorded rather than fixed:
 
-- **maven-compile at 2000** misses the same two lines before and after
-  the template floor: the second and third compile errors share one
-  template (`incompatible types: <*> cannot be converted to <*>`, ×4
-  because Maven prints the block twice), so only the exemplar is shown and
-  the `[22,16]` sibling is in the ledger; and the reactor summary's
-  `shop-api ... FAILURE` line is a plain `[INFO]` line whose only signal
-  is the word FAILURE inside a dotted leader. Before the floor the entry
-  table (43 templates) exhausted the budget with no selected lines; the
-  floor halved the output, but the two lines still rank below the error
-  entries that are shown.
+- **maven-compile at 2000** misses one line: the reactor summary's
+  `shop-api ... FAILURE` is a plain `[INFO]` line whose only signal is
+  the word FAILURE inside a dotted leader, and it ranks below the error
+  entries that are shown. Until the tail-window change it also missed a
+  compile error: the second and third share one template (`incompatible
+  types: <*> cannot be converted to <*>`, ×4 because Maven prints the
+  block twice), so only the exemplar was shown and the `[22,16]` sibling
+  was in the ledger. With the closing advice skipped, the tail window
+  reaches Maven's second printing of the errors and shows both. Before
+  the template floor the entry table (43 templates) exhausted the budget
+  with no selected lines; the floor halved the output.
 - **maven-test at 600** keeps the Surefire results block (both failure
-  summaries with file:line) but not the stack-trace lines; 600 real tokens
+  summaries with file:line) and, since the tail-window change, `There
+  are test failures.`, but not the stack-trace lines; 600 real tokens
   is below the skeleton plus nine keep lines here.
 - **terraform-apply at 600** keeps the `Warning: Check block assertion
   failed` template but loses the three assertion messages and the plan and

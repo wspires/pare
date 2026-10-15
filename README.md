@@ -211,10 +211,9 @@ developed.
 
 On `corpus-generated/`, real Maven, tsc, Terraform and kubectl output from
 small projects written to fail (seven logs, 36k input tokens, not used for
-tuning): pare keeps 96% at 2000 (7,638 tok, 21%; the two misses are a
-third compile error sharing a template with the second, and the reactor
-summary's FAILURE line, in the cold-cache Maven build) and 60% at 600
-(3,527 tok, min 11% on the Terraform apply, whose 20 near-identical plan
+tuning): pare keeps 98% at 2000 (7,317 tok, 20%; the one miss is the
+reactor summary's FAILURE line in the cold-cache Maven build) and 60% at
+600 (3,532 tok, min 11% on the Terraform apply, whose 20 near-identical plan
 blocks crowd out the three check-block warnings). sqz keeps 74% at 20%, tidyout
 everything at 100%. These logs are short and dense in signal, which is
 where a 600-token summary has the least room.
