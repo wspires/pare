@@ -136,7 +136,43 @@ cases, as `bench/run.py` prints it); "full" counts the cases where pare
 kept every keep line. tidyout keeps everything on every source, at 96 to
 100 % of the input size.
 
-### Latest fresh sample: the current honest number
+### Latest fresh SWE-bench sample: seed 3
+
+SWE-bench Verified seed 3, drawn after the JUnit 3 change (`27c905c`) with
+`--exclude` every earlier SWE-bench set, on the maintainer's machine (this
+repository's cloud environment cannot reach Hugging Face), and measured
+before anyone read it. The last fresh SWE-bench sample (seed 2) predates
+the Maven chatter fix, the head and tail window change and the JUnit 3
+change; none of them is aimed at pytest, so this checks they cost nothing
+there.
+
+```
+python3 bench/swebench_cases.py run --sample 20 --seed 3 --exclude corpus-heldout/swebench --exclude corpus-heldout/swebench-2 --exclude corpus-heldout/swebench-3 --out corpus-heldout/swebench-4
+```
+
+15 tasks gave a case (four more ran but their FAIL_TO_PASS tests did not
+fail as recorded, an environment problem; their logs are in `_failed/`).
+17 keep lines; most tasks want one failing test. The logs are larger than
+Defects4J's (805 to 36,120 tokens, 172,887 in all): one fits in 1,000
+tokens, three in 2,000.
+
+| version | 600 | 1,000 | 2,000 |
+|---|---|---|---|
+| before any held-out fix (`d730e86`) | 76.5 % | 100 % | 100 % |
+| failing-test lists, rare failures first (`2f13edb`) | 82.4 % | 100 % | 100 % |
+| + Maven chatter fix (`3d36efa`) | 94.1 % | 100 % | 100 % |
+| + head and tail windows skip chatter (`821097f`) | 94.1 % | 100 % | 100 % |
+| + JUnit 3 assertion messages (`89e2de8`) | **94.1 %** | **100 %** | **100 %** |
+
+Same numbers with `--strict`. Output is 5 %, 8 % and 14 % of the input.
+The window and JUnit 3 changes change no case here (the second trims 3
+tokens at 600); no case got worse with any version. The chatter fix helps
+pytest too (psf__requests-6028, pydata__xarray-4695 at 600): its advice
+class covers pytest's and Python's closing hints as well as Maven's. The
+one miss is pydata__xarray-4094 at 600, its single failing test
+(`test_to_stacked_array_to_unstacked_dataset`), shown at 1,000.
+
+### Latest fresh Defects4J sample: seed 5
 
 Defects4J seed 5, drawn after the JUnit 3 change (`89e2de8`) with
 `--exclude` every earlier Defects4J set, and measured before anyone read

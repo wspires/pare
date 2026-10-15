@@ -76,10 +76,12 @@ The gate for everything after it.
   hold on data they were not chosen on: 80.4 → 87.0 % at 600, no case
   worse. Left: Gson-7's messages that differ in one word, Csv-3's long
   assertion message. *Done; spent by the next change measured on it.*
-- [ ] **SWE-bench seed 3.** The last fresh SWE-bench sample (seed 2) was
-  drawn before the Maven chatter, tail-window and JUnit 3 changes; none
-  of them is aimed at pytest, so a fresh one would show whether they cost
-  anything there.
+- [x] **SWE-bench seed 3.** 15 tasks (`corpus-heldout/swebench-4/`),
+  drawn after the JUnit 3 change with every earlier SWE-bench set
+  excluded, measured before reading: 94.1 / 100 / 100 % at 600 / 1,000 /
+  2,000 (76.5 / 100 / 100 % before any held-out fix). The tail-window
+  and JUnit 3 changes change no case; nothing got worse. One miss:
+  pydata__xarray-4094's only failing test at 600. *Done.*
 - [ ] **Claude token rate.** `bench/tokens.py --anthropic claude-opus-5-5`
   on a machine with credentials. If the rate differs much from the 2.8
   bytes per token measured on cl100k and o200k, change the default.
