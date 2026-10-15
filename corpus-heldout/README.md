@@ -105,6 +105,16 @@ pare is the same in every column (commit `3d36efa`). The SWE-bench and
 dev corpora have no alternative forms, and the boundary rule changes
 none of their numbers.
 
+**Surefire 3's `#` form.** Surefire 3's error summary names a test
+`pkg.Cls#testX` (`[ERROR]   com.google.gson.stream.JsonReaderTest#testPeeking…
+IllegalStateException …`), a form the labeller did not list, so a summary
+that showed the test only there was scored as missing it. Found on Gson-7
+(seed 5). `pkg.Cls#testX` and `Cls#testX` are id forms now; `relabel`
+changed 10 cases (Gson and Time, the projects on Surefire 3). With pare
+unchanged (`27c905c`), only seed 5 moves: 87.0 → 91.3 % at 600 (Gson-4,
+Gson-7), 91.3 → 93.5 % at 1,000 (Gson-7). Numbers in this file from
+before it use the old labels.
+
 ## Defects4J cases
 
 `bench/defects4j_cases.py` does the same for Java. Defects4J records, per
@@ -172,7 +182,7 @@ class covers pytest's and Python's closing hints as well as Maven's. The
 one miss is pydata__xarray-4094 at 600, its single failing test
 (`test_to_stacked_array_to_unstacked_dataset`), shown at 1,000.
 
-### Latest fresh Defects4J sample: seed 5
+### Fifth fresh Defects4J sample: seed 5
 
 Defects4J seed 5, drawn after the JUnit 3 change (`89e2de8`) with
 `--exclude` every earlier Defects4J set, and measured before anyone read
@@ -215,6 +225,15 @@ What is still missed (from the miss list only; no code changed on it):
 - **Csv-3**: a long `Records do not match expected result (entry 8): …`
   assertion message, at 600 and 1,000.
 - **Gson-4**: one of five failing tests at 600.
+
+**Spent since.** Gson-7 led to two changes (a template seen twice lists
+both lines; a line is not clipped when the marker saves nothing;
+`docs/DESIGN.md`, "Messages that differ in one word") and to the `#`
+label form above (which also credits Gson-4's missing test). With the new
+labels, measured on this sample: 91.3 / 93.5 / 100 % before the changes,
+**93.5 / 97.8 / 100 %** after; Gson-7 at 1,000 goes 4 → 6 of 6. That is
+a training score now. The next honest Defects4J number needs a sixth
+sample.
 
 ### Fourth fresh sample: Defects4J seed 4
 

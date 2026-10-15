@@ -39,7 +39,7 @@
     "org.joda.time.TestPartial_Basics::testWith_baseAndArgHaveNoRange"
   ],
   "keep": [
-    "testWith_baseAndArgHaveNoRange(org.joda.time.TestPartial_Basics) || org.joda.time.TestPartial_Basics.testWith_baseAndArgHaveNoRange || TestPartial_Basics.testWith_baseAndArgHaveNoRange",
+    "testWith_baseAndArgHaveNoRange(org.joda.time.TestPartial_Basics) || org.joda.time.TestPartial_Basics.testWith_baseAndArgHaveNoRange || TestPartial_Basics.testWith_baseAndArgHaveNoRange || org.joda.time.TestPartial_Basics#testWith_baseAndArgHaveNoRange || TestPartial_Basics#testWith_baseAndArgHaveNoRange",
     "java.lang.IllegalArgumentException: Types array must not contain duplicate: era and year || java.lang.IllegalArgumentException: Types array must not contain duplicate: era  || Types array must not contain duplicate: era and year"
   ],
   "unlocated": [],

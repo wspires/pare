@@ -39,7 +39,7 @@
     "com.google.gson.stream.JsonWriterTest::testBoxedBooleans"
   ],
   "keep": [
-    "com.google.gson.stream.JsonWriterTest.testBoxedBooleans || JsonWriterTest.testBoxedBooleans",
+    "com.google.gson.stream.JsonWriterTest.testBoxedBooleans || JsonWriterTest.testBoxedBooleans || com.google.gson.stream.JsonWriterTest#testBoxedBooleans || JsonWriterTest#testBoxedBooleans",
     "java.lang.NullPointerException"
   ],
   "unlocated": [],

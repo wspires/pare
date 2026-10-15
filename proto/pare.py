@@ -845,6 +845,7 @@ RARE_FAILURE_BONUS = 2.0  # salience added to a listed failure that fails unlike
 RARE_FAILURE_SHARE = 0.1  # ...when at most this share of the list fails the same way
 RARE_FAILURE_MIN = 5  # ...in a list of at least this many failures with a known way of failing
 SECTION_MAX = 400  # lines a failure's section is followed for before giving up
+PAIR_MEMBERS = True  # a template seen twice lists both lines instead of its pattern and one example
 COMPACT_BUDGET = 1000  # below this many tokens, multi-record entries are one line
 HINT_BUDGET = 1000  # below this, the usage hint at the end is dropped
 
@@ -872,7 +873,11 @@ def fmt_int(n: int) -> str:
 def clip(text: str, width: int) -> str:
     if len(text) <= width:
         return text
-    return text[: width - 1].rstrip() + f"…(+{len(text) - width + 1}c)"
+    cut = len(text) - width + 1
+    marker = f"…(+{cut}c)"
+    if len(marker) >= cut:
+        return text  # the marker would be no shorter than what it replaces
+    return text[: width - 1].rstrip() + marker
 
 
 def fmt_line(ln: Line, width: int) -> str:
@@ -1643,13 +1648,44 @@ def summarize(
             return [f"{tpl.tid:<4} ×{fmt_int(count)}{extra} {tpl.marker} {form[0]}{{…}}{form[1]}"]
         # An exemplar that the head or tail window already prints is referenced,
         # not repeated.
-        where = "head" if ex.no in head_nos else "tail" if ex.no in tail_nos else None
-        ref = f"L{ex.no} (in {where})" if where else f"L{ex.no}: {clip(ex.text.strip(), width)}"
+        ref = ref_of(ex.no, ex.text)
+        other = pair_of(tpl)
+        if other is not None:
+            # Seen twice: both lines cost about what the pattern and one
+            # example do, and say what the pattern's <*> hides ("Expected an
+            # int" and "Expected a long").
+            first, second = sorted((ex.no, other))
+            return [f"{tpl.tid:<4} ×{fmt_int(count)}{extra} {tpl.marker} {ref_of(first, text_of(first))}",
+                    f"     {ref_of(second, text_of(second))}"]
         if count == 1 or compact or tpl.text == drain_message(ex.text):
             # One line: a singleton, a small budget, or a template with no
             # variables, whose text would only repeat the exemplar.
             return [f"{tpl.tid:<4} ×{fmt_int(count)}{extra} {tpl.marker} {ref}"]
         return [f"{tpl.tid:<4} ×{fmt_int(count)}{extra} {tpl.marker} {clip(tpl.text, width)}", f"     e.g. {ref}"]
+
+    def ref_of(no: int, text: str) -> str:
+        """A line as a template entry shows it: referenced when the head or
+        tail window already prints it, else in full."""
+        where = "head" if no in head_nos else "tail" if no in tail_nos else None
+        return f"L{no} (in {where})" if where else f"L{no}: {clip(text.strip(), width)}"
+
+    pairs: dict[int, int | None] = {}
+
+    def pair_of(tpl: Template) -> int | None:
+        """For a template seen exactly twice in this window, the line number
+        of the record head that is not its exemplar; None otherwise, at a
+        compact budget (one line per entry), or when the two heads read the
+        same."""
+        if tpl.idx not in pairs:
+            other = None
+            if PAIR_MEMBERS and tpl.count == 2 and not compact and tpl.text != drain_message(store.head_of(tpl.exemplar).text):
+                rs = [ri for ri in records_of(tpl.idx) if ri != tpl.exemplar]
+                if len(rs) == 1:
+                    ln = store.head_of(rs[0])
+                    if ln.no >= b1 and ln.text.strip() != store.head_of(tpl.exemplar).text.strip():
+                        other = ln.no
+            pairs[tpl.idx] = other
+        return pairs[tpl.idx]
 
     def repeat_key(no: int) -> str:
         """What counts as 'another one of these' for diminishing returns: for a
@@ -1669,17 +1705,21 @@ def summarize(
     listing: dict[int, bool] = {}
     tpl_records: dict[int, list[int]] = {}
 
+    def records_of(t: int) -> list[int]:
+        """The first records of template t, at most LIST_SAMPLE."""
+        if not tpl_records:  # filled for every template at once
+            for ri in range(store.nrecords):
+                rs = tpl_records.setdefault(rtpl[ri], [])
+                if len(rs) < LIST_SAMPLE:
+                    rs.append(ri)
+        return tpl_records.get(t, [])
+
     def lists_items(t: int) -> bool:
         """True when most of a template's records differ in masked shape: a
         list of failing tests, each naming its own test. Events about the same
         three pods, repeated, share a few shapes and are repeats."""
         if t not in listing:
-            if not tpl_records:  # first records of every template, at most LIST_SAMPLE each
-                for ri in range(store.nrecords):
-                    rs = tpl_records.setdefault(rtpl[ri], [])
-                    if len(rs) < LIST_SAMPLE:
-                        rs.append(ri)
-            heads = tpl_records.get(t, [])
+            heads = records_of(t)
             shapes = {name_key(store.head_of(ri)) for ri in heads}
             listing[t] = len(shapes) >= LIST_DISTINCT * len(heads)
         return listing[t]
@@ -1918,12 +1958,15 @@ def summarize(
                 avail -= cost
                 if DEBUG:
                     print(f"place tpl {tpl.tid:<4} prio={-negp:6.2f} cost={cost:4d} left={avail:5d} {ex_line.text.strip()[:60]!r}", file=sys.stderr)
-                if ex_line.no not in shown:
-                    note_shown(ex_line.no)
-                elif ex_line.no in picked_nos:  # the entry now shows this line
-                    picked[:] = [(p, l) for p, l in picked if l.no != ex_line.no]
-                    picked_nos.discard(ex_line.no)
-                    avail += rlen[ex_start] + 20
+                for no in (ex_line.no, pair_of(tpl)):
+                    if no is None:
+                        continue
+                    if no not in shown:
+                        note_shown(no)
+                    elif no in picked_nos:  # the entry now shows this line
+                        picked[:] = [(p, l) for p, l in picked if l.no != no]
+                        picked_nos.discard(no)
+                        avail += rlen[no - b1] + 20
                 if is_list:  # lines of the list picked before it: now items, and cheaper
                     for _, l in picked:
                         if as_item(l.no):

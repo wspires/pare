@@ -45,9 +45,9 @@
     "com.google.gson.regression.JsonAdapterNullSafeTest::testNullSafeBugSerialize"
   ],
   "keep": [
-    "com.google.gson.regression.JsonAdapterNullSafeTest.testNullSafeBugDeserialize || JsonAdapterNullSafeTest.testNullSafeBugDeserialize",
+    "com.google.gson.regression.JsonAdapterNullSafeTest.testNullSafeBugDeserialize || JsonAdapterNullSafeTest.testNullSafeBugDeserialize || com.google.gson.regression.JsonAdapterNullSafeTest#testNullSafeBugDeserialize || JsonAdapterNullSafeTest#testNullSafeBugDeserialize",
     "java.lang.NullPointerException",
-    "com.google.gson.regression.JsonAdapterNullSafeTest.testNullSafeBugSerialize || JsonAdapterNullSafeTest.testNullSafeBugSerialize"
+    "com.google.gson.regression.JsonAdapterNullSafeTest.testNullSafeBugSerialize || JsonAdapterNullSafeTest.testNullSafeBugSerialize || com.google.gson.regression.JsonAdapterNullSafeTest#testNullSafeBugSerialize || JsonAdapterNullSafeTest#testNullSafeBugSerialize"
   ],
   "unlocated": [],
   "lines": 164,

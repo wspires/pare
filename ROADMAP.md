@@ -82,6 +82,15 @@ The gate for everything after it.
   2,000 (76.5 / 100 / 100 % before any held-out fix). The tail-window
   and JUnit 3 changes change no case; nothing got worse. One miss:
   pydata__xarray-4094's only failing test at 600. *Done.*
+- [x] **Messages that differ in one word.** Gson-7 (Defects4J seed 5).
+  A template seen twice lists both lines instead of its pattern and one
+  example; a line is not clipped when the clip marker saves nothing; the
+  Defects4J labeller accepts Surefire 3's `Cls#testX`. Seed 5 (new
+  labels) 91.3 / 93.5 → 93.5 / 97.8 % at 600 / 1,000; maven-test +1 at
+  1,000; no case worse anywhere. Seed 5 is spent. *Done.*
+- [ ] **Sixth fresh Defects4J sample.** Seed 6, every earlier set
+  excluded, to measure the pair and clip rules on data they were not
+  chosen on.
 - [ ] **Claude token rate.** `bench/tokens.py --anthropic claude-opus-5-5`
   on a machine with credentials. If the rate differs much from the 2.8
   bytes per token measured on cl100k and o200k, change the default.

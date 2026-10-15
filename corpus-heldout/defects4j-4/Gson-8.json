@@ -45,9 +45,9 @@
     "com.google.gson.internal.UnsafeAllocatorInstantiationTest::testAbstractClassInstantiation"
   ],
   "keep": [
-    "com.google.gson.internal.UnsafeAllocatorInstantiationTest.testInterfaceInstantiation || UnsafeAllocatorInstantiationTest.testInterfaceInstantiation",
+    "com.google.gson.internal.UnsafeAllocatorInstantiationTest.testInterfaceInstantiation || UnsafeAllocatorInstantiationTest.testInterfaceInstantiation || com.google.gson.internal.UnsafeAllocatorInstantiationTest#testInterfaceInstantiation || UnsafeAllocatorInstantiationTest#testInterfaceInstantiation",
     "junit.framework.AssertionFailedError: expected:<class java.lang.reflect.InvocationTargetException> but was:<class java.lang.UnsupportedOperationException> || expected:<class java.lang.reflect.InvocationTargetException> but was:<class java.lang.UnsupportedOperationException>",
-    "com.google.gson.internal.UnsafeAllocatorInstantiationTest.testAbstractClassInstantiation || UnsafeAllocatorInstantiationTest.testAbstractClassInstantiation"
+    "com.google.gson.internal.UnsafeAllocatorInstantiationTest.testAbstractClassInstantiation || UnsafeAllocatorInstantiationTest.testAbstractClassInstantiation || com.google.gson.internal.UnsafeAllocatorInstantiationTest#testAbstractClassInstantiation || UnsafeAllocatorInstantiationTest#testAbstractClassInstantiation"
   ],
   "unlocated": [],
   "lines": 150,

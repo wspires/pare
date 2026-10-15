@@ -961,6 +961,46 @@ gains one at 600 and one at 1,000 from the frame rule. Both rules have
 ablation rows (`no warning rarity discount`, `frame names as
 vocabulary`), and each costs seed 4 lines when switched off.
 
+### Messages that differ in one word
+
+Found on Gson-7 (Defects4J seed 5, spent now). Two tests fail with
+`JsonSyntaxException … Expected an int but was STRING …` and `… Expected
+a long but was STRING …`, and Surefire 3's error summary prints each on
+one line. drain makes the two lines one template, and pare showed it as
+the template's pattern (`Expected <*> <*> but was STRING …`) and one
+example: the word that differs was the one the pattern hid. Three
+causes, one fixed in the labels:
+
+- **A template seen twice lists both lines** (`PAIR_MEMBERS`), at budgets
+  where entries get more than one line (1,000 and up). The pattern and an
+  example cost what two lines do, and the pattern only says what the two
+  share. A template seen three times or more keeps its pattern, and one
+  whose two lines read the same shows one.
+- **A clip that saves nothing is not made.** At `--width 200` a 202-
+  character line became `…path…(+2c)`, longer than the line, and lost
+  the `$.` its keep line ends with. `clip` now leaves a line whole when
+  the marker would be no shorter than what it cuts (at most 6 characters
+  over the width).
+- **Surefire 3's `Cls#testX` form was not a label form**
+  (`corpus-heldout/README.md`, "Labels"): Gson-7's third test was on
+  screen and scored as missing.
+
+With the new labels on every set, before → after (pare `27c905c` → this
+change); no case lost a line on any set at any budget:
+
+| set | 600 | 1,000 | 2,000 |
+|---|---|---|---|
+| Defects4J seed 5 (17, found the problem) | 91.3 → 93.5 % | 93.5 → **97.8 %** | 100 % |
+| generated corpus (7) | 59.6 % | 87.7 → 89.5 % (maven-test) | 98.2 % |
+| every other set (Defects4J 0–4, dev, SWE-bench 0–3) | unchanged | unchanged | unchanged |
+
+The pair rule gives Gson-7 its `Expected a long` line at 1,000 and
+maven-test one line; the clip gives Gson-7 its `Expected an int` line at
+600 and 1,000. Outputs at 2,000 move by under 1 %. At 600 Gson-7 still
+misses its third test's message: entries are one line there, and the
+second summary line (240 bytes) does not fit. The ablation row `pattern
+for a pair` switches the pair rule off.
+
 ### Generated corpus: real tools, chosen failures
 
 `corpus-generated/` holds output captured from real Maven, tsc, Terraform

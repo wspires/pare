@@ -253,7 +253,10 @@ fixes; the JUnit 3 fix itself is worth 80 → 87% at 600 there. On 15
 fresh SWE-bench tasks drawn at the same time, pare keeps 94% at 600 and
 100% at 1,000 and 2,000 tokens (77% at 600 before any of these fixes),
 with output 5 to 14% of the input; none of the Java-motivated changes
-cost pytest a line. With all tool-specific rules off, pare reaches 71% at 600 and 96%
+cost pytest a line. Two messages that differ in one word (Gson-7:
+"Expected an int", "Expected a long") are both shown since, where pare
+used to show their shared pattern; that, and a label form Surefire 3
+prints, spent the Defects4J sample (93.5 / 97.8 / 100% there now). With all tool-specific rules off, pare reaches 71% at 600 and 96%
 at 2,000 on this corpus; on held-out Defects4J the rules change nothing
 and on held-out SWE-bench they are worth up to 18 points, almost all of
 it from the pytest markers and the blank-line-in-a-block rule
@@ -302,7 +305,7 @@ A few tests skip themselves when an optional tool is missing: tidyout
 (`.[bench]`) and the SWE-bench package (`.[datasets]`). Extras combine:
 `pip install -e '.[dev,bench,datasets]'`.
 
-251 tests: severity forms and their false positives, vocabulary files, the
+253 tests: severity forms and their false positives, vocabulary files, the
 hard budget limit on every corpus file at several sizes, determinism,
 pass-through, the selection flags, memory on a large input, follow mode
 (including a randomized differential test against the batch pass),

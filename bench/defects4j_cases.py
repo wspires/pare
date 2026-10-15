@@ -356,9 +356,11 @@ def split_output(log: str) -> tuple[str, int | None]:
 
 def test_id_forms(cls: str, method: str) -> list[str]:
     """How Surefire versions print a failing test: `m(pkg.Cls)` (2.x),
-    `pkg.Cls.m` and `Cls.m` (3.x), or Defects4J's own `pkg.Cls::m`."""
+    `pkg.Cls.m` and `Cls.m` (3.x), `pkg.Cls#m` and `Cls#m` (3.x's summary
+    of errors), or Defects4J's own `pkg.Cls::m`."""
     simple = cls.rsplit(".", 1)[-1]
-    return [f"{method}({cls})", f"{cls}.{method}", f"{simple}.{method}", f"{cls}::{method}"]
+    return [f"{method}({cls})", f"{cls}.{method}", f"{simple}.{method}", f"{cls}#{method}", f"{simple}#{method}",
+            f"{cls}::{method}"]
 
 
 def locate_exception(exc: str, output: str) -> str | None:

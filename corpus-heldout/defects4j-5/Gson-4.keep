@@ -1,5 +1,5 @@
-com.google.gson.stream.JsonReaderTest.testTopLevelValueTypeWithSkipValue || JsonReaderTest.testTopLevelValueTypeWithSkipValue
+com.google.gson.stream.JsonReaderTest.testTopLevelValueTypeWithSkipValue || JsonReaderTest.testTopLevelValueTypeWithSkipValue || com.google.gson.stream.JsonReaderTest#testTopLevelValueTypeWithSkipValue || JsonReaderTest#testTopLevelValueTypeWithSkipValue
 com.google.gson.stream.MalformedJsonException: Use JsonReader.setLenient(true) to accept malformed JSON at line 1 column 1 path $ || Use JsonReader.setLenient(true) to accept malformed JSON at line 1 column 1 path $
-com.google.gson.stream.JsonReaderTest.testTopLevelValueTypes || JsonReaderTest.testTopLevelValueTypes
-com.google.gson.stream.JsonWriterTest.testTopLevelValueTypes || JsonWriterTest.testTopLevelValueTypes
+com.google.gson.stream.JsonReaderTest.testTopLevelValueTypes || JsonReaderTest.testTopLevelValueTypes || com.google.gson.stream.JsonReaderTest#testTopLevelValueTypes || JsonReaderTest#testTopLevelValueTypes
+com.google.gson.stream.JsonWriterTest.testTopLevelValueTypes || JsonWriterTest.testTopLevelValueTypes || com.google.gson.stream.JsonWriterTest#testTopLevelValueTypes || JsonWriterTest#testTopLevelValueTypes
 java.lang.IllegalStateException: JSON must start with an array or an object. || JSON must start with an array or an object.

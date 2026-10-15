@@ -40,6 +40,7 @@ ABLATIONS = {
     "no salience floor": {"FILL_FLOOR": -99.0},
     "no near-dup suppression": {"NEAR_DUP_CONTAINMENT": 9.0, "NEAR_DUP_MIN_TOKENS": 10**9},
     "no window skipping": {"WINDOW_SKIP_COUNT": 10**9},
+    "pattern for a pair": {"PAIR_MEMBERS": False},
     "no compact mode": {"COMPACT_BUDGET": 0, "HINT_BUDGET": 0},
     "generic signals only": {"TOOL_SPECIFIC": False},
     "no pytest rules": {"TOOL_PYTEST": False},

@@ -1308,7 +1308,8 @@ def test_defects4j_metadata_parsing_and_selection(tmp_path):
     assert t == [{"class": "p.CalcTest", "method": "testTwo", "exception": "java.lang.AssertionError: expected:<2> but was:<1>"}]
     assert [os.path.basename(f) for f in d4.compile_fixes(str(meta), "Lang", 1)] == ["test-1-2.diff"]
     assert d4.compile_fixes(str(meta), "Lang", 3) == []
-    assert d4.test_id_forms("p.CalcTest", "testTwo") == ["testTwo(p.CalcTest)", "p.CalcTest.testTwo", "CalcTest.testTwo", "p.CalcTest::testTwo"]
+    assert d4.test_id_forms("p.CalcTest", "testTwo") == ["testTwo(p.CalcTest)", "p.CalcTest.testTwo", "CalcTest.testTwo",
+                                                       "p.CalcTest#testTwo", "CalcTest#testTwo", "p.CalcTest::testTwo"]
     assert d4.parse_bug_ids("Lang-1, Codec-12") == [("Lang", 1), ("Codec", 12)]
     picked = d4.select(str(meta), ids=None, sample=5, seed=0, max_fail=5)
     assert {b["bug"] for b in picked} == {1, 2} and all(b["project"] == "Lang" for b in picked)
@@ -1698,3 +1699,24 @@ def test_a_one_off_warning_does_not_outrank_a_failure_seen_twice(tmp_path):
         assert fail.count == 2 and fail.salience > warn.salience
     finally:
         store.close()
+
+
+def test_clip_leaves_a_line_whole_when_the_marker_saves_nothing():
+    assert pare.clip("x" * 202, 200) == "x" * 202  # "…(+3c)" is longer than the 3 characters it replaces
+    clipped = pare.clip("x" * 260, 200)
+    assert clipped.endswith("…(+61c)") and len(clipped) < 260
+
+
+def test_a_template_seen_twice_lists_both_lines():
+    # Two Surefire summary lines that differ in one word mask to one
+    # pattern ("Expected <*> <*> but was STRING"); with two members the
+    # pattern and one example cost what both lines do, and hide the word.
+    filler = [f"[INFO] Downloading artifact {i} of the build's dependencies from central" for i in range(80)]
+    lines = filler + [
+        "[ERROR]   com.example.MapTest#testIntKeys JsonSyntaxException java.lang.IllegalStateException: Expected an int but was STRING at line 1 column 2",
+        "[ERROR]   com.example.MapTest#testLongKeys JsonSyntaxException java.lang.IllegalStateException: Expected a long but was STRING at line 1 column 2",
+        "[INFO] BUILD FAILURE",
+    ]
+    out = run(["--budget", "1000"], ("\n".join(lines) + "\n").encode()).decode()
+    assert "Expected an int" in out and "Expected a long" in out, out
+    assert "Expected <*>" not in out, out
