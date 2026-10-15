@@ -1,0 +1,16 @@
+name	collected	pare	commit	sha256	lines	bytes	exit	command	source	labels
+django__django-14765	2026-10-15T02:35:34Z	0.1.0	27c905c		104	6618		./tests/runtests.py --verbosity 2 --settings=test_sqlite --parallel 1 migrations.test_state	dataset	dataset FAIL_TO_PASS
+matplotlib__matplotlib-24149	2026-10-15T02:38:18Z	0.1.0	27c905c		948	67098		pytest -rA lib/matplotlib/tests/test_axes.py	dataset	dataset FAIL_TO_PASS
+psf__requests-6028	2026-10-15T02:38:31Z	0.1.0	27c905c		427	31305		pytest -rA tests/test_utils.py	dataset	dataset FAIL_TO_PASS
+pydata__xarray-4695	2026-10-15T02:39:22Z	0.1.0	27c905c		1198	90672		pytest -rA xarray/tests/test_dataarray.py	dataset	dataset FAIL_TO_PASS
+pytest-dev__pytest-5809	2026-10-15T02:39:52Z	0.1.0	27c905c		149	8800		pytest -rA testing/test_pastebin.py	dataset	dataset FAIL_TO_PASS
+sphinx-doc__sphinx-10466	2026-10-15T02:40:44Z	0.1.0	27c905c		559	56015		tox --current-env -epy39 -v -- tests/test_build_gettext.py	dataset	dataset FAIL_TO_PASS
+django__django-16901	2026-10-15T02:43:18Z	0.1.0	27c905c		48	2254		./tests/runtests.py --verbosity 2 --settings=test_sqlite --parallel 1 xor_lookups.tests	dataset	dataset FAIL_TO_PASS
+matplotlib__matplotlib-23299	2026-10-15T02:44:20Z	0.1.0	27c905c		350	27210		pytest -rA lib/matplotlib/tests/test_rcparams.py	dataset	dataset FAIL_TO_PASS
+psf__requests-1766	2026-10-15T02:44:42Z	0.1.0	27c905c		142	9483		pytest -rA test_requests.py	dataset	dataset FAIL_TO_PASS
+pydata__xarray-4094	2026-10-15T02:45:36Z	0.1.0	27c905c		1636	101134		pytest -rA xarray/tests/test_dataset.py	dataset	dataset FAIL_TO_PASS
+pylint-dev__pylint-6903	2026-10-15T02:45:56Z	0.1.0	27c905c		147	7756		pytest -rA tests/test_pylint_runners.py	dataset	dataset FAIL_TO_PASS
+pytest-dev__pytest-7571	2026-10-15T02:46:09Z	0.1.0	27c905c		435	21184		pytest -rA testing/logging/test_fixture.py	dataset	dataset FAIL_TO_PASS
+scikit-learn__scikit-learn-14629	2026-10-15T02:46:33Z	0.1.0	27c905c		59	3883		pytest -rA sklearn/tests/test_multioutput.py	dataset	dataset FAIL_TO_PASS
+sphinx-doc__sphinx-9258	2026-10-15T02:46:48Z	0.1.0	27c905c		825	46920		tox --current-env -epy39 -v -- tests/test_domain_py.py	dataset	dataset FAIL_TO_PASS
+sympy__sympy-20438	2026-10-15T02:47:20Z	0.1.0	27c905c		129	3738		PYTHONWARNINGS='ignore::UserWarning,ignore::SyntaxWarning' bin/test -C --verbose sympy/sets/tests/test_sets.py	dataset	dataset FAIL_TO_PASS

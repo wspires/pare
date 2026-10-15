@@ -1,0 +1,27 @@
+{
+  "instance_id": "pytest-dev__pytest-5809",
+  "repo": "pytest-dev/pytest",
+  "version": "4.6",
+  "base_commit": "8aba863a634f40560e25055d179220f0eefabe9a",
+  "image": "swebench/sweb.eval.x86_64.pytest-dev_1776_pytest-5809:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "testing/test_pastebin.py::TestPaste::test_create_new_paste"
+  ],
+  "failed": [
+    "testing/test_pastebin.py::TestPaste::test_create_new_paste"
+  ],
+  "keep": [
+    "testing/test_pastebin.py::TestPaste::test_create_new_paste"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 3,
+  "lines": 149,
+  "seconds": 9.1,
+  "network": "bridge",
+  "collected": "2026-10-15T02:39:52Z",
+  "pare": "0.1.0",
+  "commit": "27c905c",
+  "swebench": "5.0.2"
+}

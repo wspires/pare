@@ -1,0 +1,27 @@
+{
+  "instance_id": "pylint-dev__pylint-6903",
+  "repo": "pylint-dev/pylint",
+  "version": "2.15",
+  "base_commit": "ca80f03a43bc39e4cc2c67dc99817b3c9f13b8a6",
+  "image": "swebench/sweb.eval.x86_64.pylint-dev_1776_pylint-6903:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "tests/test_pylint_runners.py::test_pylint_run_jobs_equal_zero_dont_crash_with_cpu_fraction"
+  ],
+  "failed": [
+    "tests/test_pylint_runners.py::test_pylint_run_jobs_equal_zero_dont_crash_with_cpu_fraction"
+  ],
+  "keep": [
+    "tests/test_pylint_runners.py::test_pylint_run_jobs_equal_zero_dont_crash_with_cpu_fraction"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 8,
+  "lines": 147,
+  "seconds": 10.9,
+  "network": "bridge",
+  "collected": "2026-10-15T02:45:56Z",
+  "pare": "0.1.0",
+  "commit": "27c905c",
+  "swebench": "5.0.2"
+}

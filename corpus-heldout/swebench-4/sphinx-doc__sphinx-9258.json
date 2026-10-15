@@ -1,0 +1,27 @@
+{
+  "instance_id": "sphinx-doc__sphinx-9258",
+  "repo": "sphinx-doc/sphinx",
+  "version": "4.1",
+  "base_commit": "06107f838c28ab6ca6bfc2cc208e15997fcb2146",
+  "image": "swebench/sweb.eval.x86_64.sphinx-doc_1776_sphinx-9258:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "tests/test_domain_py.py::test_info_field_list_piped_type"
+  ],
+  "failed": [
+    "tests/test_domain_py.py::test_info_field_list_piped_type"
+  ],
+  "keep": [
+    "tests/test_domain_py.py::test_info_field_list_piped_type"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 45,
+  "lines": 825,
+  "seconds": 5.5,
+  "network": "bridge",
+  "collected": "2026-10-15T02:46:48Z",
+  "pare": "0.1.0",
+  "commit": "27c905c",
+  "swebench": "5.0.2"
+}

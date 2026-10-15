@@ -1,0 +1,27 @@
+{
+  "instance_id": "pytest-dev__pytest-7571",
+  "repo": "pytest-dev/pytest",
+  "version": "6.0",
+  "base_commit": "422685d0bdc110547535036c1ff398b5e1c44145",
+  "image": "swebench/sweb.eval.x86_64.pytest-dev_1776_pytest-7571:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "testing/logging/test_fixture.py::test_change_level_undos_handler_level"
+  ],
+  "failed": [
+    "testing/logging/test_fixture.py::test_change_level_undos_handler_level"
+  ],
+  "keep": [
+    "testing/logging/test_fixture.py::test_change_level_undos_handler_level"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 14,
+  "lines": 435,
+  "seconds": 5.4,
+  "network": "bridge",
+  "collected": "2026-10-15T02:46:09Z",
+  "pare": "0.1.0",
+  "commit": "27c905c",
+  "swebench": "5.0.2"
+}

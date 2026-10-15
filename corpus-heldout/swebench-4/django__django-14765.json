@@ -1,0 +1,27 @@
+{
+  "instance_id": "django__django-14765",
+  "repo": "django/django",
+  "version": "4.0",
+  "base_commit": "4e8121e8e42a24acc3565851c9ef50ca8322b15c",
+  "image": "swebench/sweb.eval.x86_64.django_1776_django-14765:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "test_real_apps_non_set (migrations.test_state.StateTests)"
+  ],
+  "failed": [
+    "test_real_apps_non_set (migrations.test_state.StateTests)"
+  ],
+  "keep": [
+    "test_real_apps_non_set (migrations.test_state.StateTests)"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 64,
+  "lines": 104,
+  "seconds": 6.6,
+  "network": "bridge",
+  "collected": "2026-10-15T02:35:34Z",
+  "pare": "0.1.0",
+  "commit": "27c905c",
+  "swebench": "5.0.2"
+}

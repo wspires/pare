@@ -1,0 +1,27 @@
+{
+  "instance_id": "scikit-learn__scikit-learn-14629",
+  "repo": "scikit-learn/scikit-learn",
+  "version": "0.22",
+  "base_commit": "4aded39b5663d943f6a4809abacfa9cae3d7fb6a",
+  "image": "swebench/sweb.eval.x86_64.scikit-learn_1776_scikit-learn-14629:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "sklearn/tests/test_multioutput.py::test_multi_output_classes_[estimator1]"
+  ],
+  "failed": [
+    "sklearn/tests/test_multioutput.py::test_multi_output_classes_[estimator1]"
+  ],
+  "keep": [
+    "sklearn/tests/test_multioutput.py::test_multi_output_classes_[estimator1]"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 26,
+  "lines": 59,
+  "seconds": 7.6,
+  "network": "bridge",
+  "collected": "2026-10-15T02:46:33Z",
+  "pare": "0.1.0",
+  "commit": "27c905c",
+  "swebench": "5.0.2"
+}

@@ -1,0 +1,27 @@
+{
+  "instance_id": "django__django-16901",
+  "repo": "django/django",
+  "version": "5.0",
+  "base_commit": "ee36e101e8f8c0acde4bb148b738ab7034e902a0",
+  "image": "swebench/sweb.eval.x86_64.django_1776_django-16901:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "test_filter_multiple (xor_lookups.tests.XorLookupsTests.test_filter_multiple)"
+  ],
+  "failed": [
+    "test_filter_multiple (xor_lookups.tests.XorLookupsTests.test_filter_multiple)"
+  ],
+  "keep": [
+    "test_filter_multiple (xor_lookups.tests.XorLookupsTests.test_filter_multiple)"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 6,
+  "lines": 48,
+  "seconds": 7.3,
+  "network": "bridge",
+  "collected": "2026-10-15T02:43:18Z",
+  "pare": "0.1.0",
+  "commit": "27c905c",
+  "swebench": "5.0.2"
+}

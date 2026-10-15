@@ -1,0 +1,32 @@
+{
+  "instance_id": "psf__requests-1766",
+  "repo": "psf/requests",
+  "version": "2.0",
+  "base_commit": "847735553aeda6e6633f2b32e14ba14ba86887a4",
+  "image": "swebench/sweb.eval.x86_64.psf_1776_requests-1766:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "test_requests.py::RequestsTestCase::test_DIGESTAUTH_QUOTES_QOP_VALUE",
+    "test_requests.py::RequestsTestCase::test_HTTP_200_OK_GET_ALTERNATIVE",
+    "test_requests.py::RequestsTestCase::test_cookie_sent_on_redirect",
+    "test_requests.py::RequestsTestCase::test_custom_content_type",
+    "test_requests.py::RequestsTestCase::test_params_are_merged_case_sensitive",
+    "test_requests.py::RequestsTestCase::test_user_agent_transfers"
+  ],
+  "failed": [
+    "test_requests.py::RequestsTestCase::test_DIGESTAUTH_QUOTES_QOP_VALUE"
+  ],
+  "keep": [
+    "test_requests.py::RequestsTestCase::test_DIGESTAUTH_QUOTES_QOP_VALUE"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 79,
+  "lines": 142,
+  "seconds": 14.8,
+  "network": "bridge",
+  "collected": "2026-10-15T02:44:42Z",
+  "pare": "0.1.0",
+  "commit": "27c905c",
+  "swebench": "5.0.2"
+}

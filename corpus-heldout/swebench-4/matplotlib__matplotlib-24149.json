@@ -1,0 +1,27 @@
+{
+  "instance_id": "matplotlib__matplotlib-24149",
+  "repo": "matplotlib/matplotlib",
+  "version": "3.6",
+  "base_commit": "af39f1edffcd828f05cfdd04f2e59506bb4a27bc",
+  "image": "swebench/sweb.eval.x86_64.matplotlib_1776_matplotlib-24149:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "lib/matplotlib/tests/test_axes.py::test_bar_all_nan[png]"
+  ],
+  "failed": [
+    "lib/matplotlib/tests/test_axes.py::test_bar_all_nan[png]"
+  ],
+  "keep": [
+    "lib/matplotlib/tests/test_axes.py::test_bar_all_nan[png]"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 767,
+  "lines": 948,
+  "seconds": 109.2,
+  "network": "bridge",
+  "collected": "2026-10-15T02:38:18Z",
+  "pare": "0.1.0",
+  "commit": "27c905c",
+  "swebench": "5.0.2"
+}

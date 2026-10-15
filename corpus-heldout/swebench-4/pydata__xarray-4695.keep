@@ -1,0 +1,1 @@
+xarray/tests/test_dataarray.py::TestDataArray::test_loc_dim_name_collision_with_sel_params

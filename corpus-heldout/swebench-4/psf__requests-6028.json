@@ -1,0 +1,30 @@
+{
+  "instance_id": "psf__requests-6028",
+  "repo": "psf/requests",
+  "version": "2.27",
+  "base_commit": "0192aac24123735b3eaf9b08df46429bb770c283",
+  "image": "swebench/sweb.eval.x86_64.psf_1776_requests-6028:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "tests/test_utils.py::test_prepend_scheme_if_needed[http://user:pass@example.com/path?query-http://user:pass@example.com/path?query]",
+    "tests/test_utils.py::test_prepend_scheme_if_needed[http://user@example.com/path?query-http://user@example.com/path?query]"
+  ],
+  "failed": [
+    "tests/test_utils.py::test_prepend_scheme_if_needed[http://user:pass@example.com/path?query-http://user:pass@example.com/path?query]",
+    "tests/test_utils.py::test_prepend_scheme_if_needed[http://user@example.com/path?query-http://user@example.com/path?query]"
+  ],
+  "keep": [
+    "tests/test_utils.py::test_prepend_scheme_if_needed[http://user:pass@example.com/path?query-http://user:pass@example.com/path?query]",
+    "tests/test_utils.py::test_prepend_scheme_if_needed[http://user@example.com/path?query-http://user@example.com/path?query]"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 185,
+  "lines": 427,
+  "seconds": 3.6,
+  "network": "bridge",
+  "collected": "2026-10-15T02:38:31Z",
+  "pare": "0.1.0",
+  "commit": "27c905c",
+  "swebench": "5.0.2"
+}
