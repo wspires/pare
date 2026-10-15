@@ -1,0 +1,2 @@
+org.jsoup.safety.CleanerTest.testIsValidBodyHtml || CleanerTest.testIsValidBodyHtml
+org.jsoup.safety.CleanerTest.testIsValidDocument || CleanerTest.testIsValidDocument

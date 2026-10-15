@@ -1,0 +1,2 @@
+shortTextFilesAreNoTARs(org.apache.commons.compress.archivers.ArchiveStreamFactoryTest) || org.apache.commons.compress.archivers.ArchiveStreamFactoryTest.shortTextFilesAreNoTARs || ArchiveStreamFactoryTest.shortTextFilesAreNoTARs
+created an input stream for a non-archive

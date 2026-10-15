@@ -1,0 +1,2 @@
+testPartialReadTruncatedData(org.apache.commons.compress.compressors.bzip2.PythonTruncatedBzip2Test) || org.apache.commons.compress.compressors.bzip2.PythonTruncatedBzip2Test.testPartialReadTruncatedData || PythonTruncatedBzip2Test.testPartialReadTruncatedData
+java.io.IOException: unexpected end of stream || unexpected end of stream

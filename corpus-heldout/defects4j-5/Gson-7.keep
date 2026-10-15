@@ -1,0 +1,6 @@
+com.google.gson.functional.MapTest.testMapDeserializationWithUnquotedLongKeys || MapTest.testMapDeserializationWithUnquotedLongKeys
+com.google.gson.JsonSyntaxException: java.lang.IllegalStateException: Expected a long but was STRING at line 1 column 2 path $. || com.google.gson.JsonSyntaxException: java.lang.IllegalStateException: Expected a || java.lang.IllegalStateException: Expected a long but was STRING at line 1 column 2 path $.
+com.google.gson.functional.MapTest.testMapDeserializationWithUnquotedIntegerKeys || MapTest.testMapDeserializationWithUnquotedIntegerKeys
+com.google.gson.JsonSyntaxException: java.lang.IllegalStateException: Expected an int but was STRING at line 1 column 2 path $. || com.google.gson.JsonSyntaxException: java.lang.IllegalStateException: Expected a || java.lang.IllegalStateException: Expected an int but was STRING at line 1 column 2 path $.
+com.google.gson.stream.JsonReaderTest.testPeekingUnquotedStringsPrefixedWithIntegers || JsonReaderTest.testPeekingUnquotedStringsPrefixedWithIntegers
+java.lang.IllegalStateException: Expected an int but was STRING at line 1 column 2 path $[0] || java.lang.IllegalStateException: Expected an int but was STRING at line 1 column || Expected an int but was STRING at line 1 column 2 path $[0]

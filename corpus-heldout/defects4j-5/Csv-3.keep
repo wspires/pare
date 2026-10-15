@@ -1,0 +1,4 @@
+testEscapedMySqlNullValue(org.apache.commons.csv.CSVLexerTest) || org.apache.commons.csv.CSVLexerTest.testEscapedMySqlNullValue || CSVLexerTest.testEscapedMySqlNullValue
+testEscapedCharacter(org.apache.commons.csv.CSVLexerTest) || org.apache.commons.csv.CSVLexerTest.testEscapedCharacter || CSVLexerTest.testEscapedCharacter
+testBackslashEscaping(org.apache.commons.csv.CSVParserTest) || org.apache.commons.csv.CSVParserTest.testBackslashEscaping || CSVParserTest.testBackslashEscaping
+Records do not match expected result (entry 8): arrays first differed at element [1]; expected:<   "quoted "" [/]" / string"   > but was:<   "quoted "" []" / string"   >

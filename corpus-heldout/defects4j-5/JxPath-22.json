@@ -1,0 +1,60 @@
+{
+  "bug": "JxPath-22",
+  "project": "JxPath",
+  "bug_id": 22,
+  "fixed_revision": "afa2deca94436837e785b89362cfaaf84a8ca1bd",
+  "report": "https://issues.apache.org/jira/browse/JXPATH-154",
+  "upstream": "https://github.com/apache/commons-jxpath",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=JXPath154Test",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.jxpath.ri.model.JXPath154Test",
+      "method": "testInnerEmptyNamespaceDOM",
+      "exception": "junit.framework.ComparisonFailure: expected:</b:foo[1]/[test[1]]> but was:</b:foo[1]/[node()[2]]>"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.jxpath.ri.model.JXPath154Test::testInnerEmptyNamespaceDOM"
+  ],
+  "keep": [
+    "testInnerEmptyNamespaceDOM(org.apache.commons.jxpath.ri.model.JXPath154Test) || org.apache.commons.jxpath.ri.model.JXPath154Test.testInnerEmptyNamespaceDOM || JXPath154Test.testInnerEmptyNamespaceDOM"
+  ],
+  "unlocated": [
+    "exception: junit.framework.ComparisonFailure: expected:</b:foo[1]/[test[1]]> but was:</b:foo[1]/[node()[2]]>"
+  ],
+  "lines": 80,
+  "seconds": 7.3,
+  "fixes_applied": [
+    "LazyDynaBean-20-22.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-15T00:50:52Z",
+  "pare": "0.1.0",
+  "commit": "89e2de8"
+}

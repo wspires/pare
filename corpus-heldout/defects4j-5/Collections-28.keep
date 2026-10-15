@@ -1,0 +1,2 @@
+testPrefixMapClear(org.apache.commons.collections4.trie.PatriciaTrieTest) || org.apache.commons.collections4.trie.PatriciaTrieTest.testPrefixMapClear || PatriciaTrieTest.testPrefixMapClear
+java.lang.NullPointerException

@@ -1,0 +1,2 @@
+testToMapWithShortRecord(org.apache.commons.csv.CSVRecordTest) || org.apache.commons.csv.CSVRecordTest.testToMapWithShortRecord || CSVRecordTest.testToMapWithShortRecord
+java.lang.ArrayIndexOutOfBoundsException: 2

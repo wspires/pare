@@ -1,0 +1,74 @@
+{
+  "bug": "Gson-4",
+  "project": "Gson",
+  "bug_id": 4,
+  "fixed_revision": "af68d70cd55826fa7149effd7397d64667ca264c",
+  "report": "https://github.com/google/gson/pull/773",
+  "upstream": "https://github.com/google/gson",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=JsonReaderTest,JsonWriterTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "com.google.gson.stream.JsonReaderTest",
+      "method": "testTopLevelValueTypeWithSkipValue",
+      "exception": "com.google.gson.stream.MalformedJsonException: Use JsonReader.setLenient(true) to accept malformed JSON at line 1 column 1 path $"
+    },
+    {
+      "class": "com.google.gson.stream.JsonReaderTest",
+      "method": "testTopLevelValueTypes",
+      "exception": "com.google.gson.stream.MalformedJsonException: Use JsonReader.setLenient(true) to accept malformed JSON at line 1 column 1 path $"
+    },
+    {
+      "class": "com.google.gson.stream.JsonWriterTest",
+      "method": "testTopLevelValueTypes",
+      "exception": "java.lang.IllegalStateException: JSON must start with an array or an object."
+    }
+  ],
+  "failed": [
+    "com.google.gson.stream.JsonReaderTest::testTopLevelValueTypeWithSkipValue",
+    "com.google.gson.stream.JsonReaderTest::testTopLevelValueTypes",
+    "com.google.gson.stream.JsonWriterTest::testTopLevelValueTypes"
+  ],
+  "keep": [
+    "com.google.gson.stream.JsonReaderTest.testTopLevelValueTypeWithSkipValue || JsonReaderTest.testTopLevelValueTypeWithSkipValue",
+    "com.google.gson.stream.MalformedJsonException: Use JsonReader.setLenient(true) to accept malformed JSON at line 1 column 1 path $ || Use JsonReader.setLenient(true) to accept malformed JSON at line 1 column 1 path $",
+    "com.google.gson.stream.JsonReaderTest.testTopLevelValueTypes || JsonReaderTest.testTopLevelValueTypes",
+    "com.google.gson.stream.JsonWriterTest.testTopLevelValueTypes || JsonWriterTest.testTopLevelValueTypes",
+    "java.lang.IllegalStateException: JSON must start with an array or an object. || JSON must start with an array or an object."
+  ],
+  "unlocated": [],
+  "lines": 161,
+  "seconds": 9.0,
+  "fixes_applied": [
+    "locale-2-14.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-15T00:50:02Z",
+  "pare": "0.1.0",
+  "commit": "89e2de8"
+}

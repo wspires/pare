@@ -1,0 +1,85 @@
+[INFO] Scanning for projects...
+[WARNING] 
+[WARNING] Some problems were encountered while building the effective model for commons-codec:commons-codec:jar:1.4.1-SNAPSHOT
+[WARNING] 'build.plugins.plugin.version' for org.apache.maven.plugins:maven-idea-plugin is missing. @ org.apache.commons:commons-parent:15, /m2/org/apache/commons/commons-parent/15/commons-parent-15.pom, line 329, column 15
+[WARNING] 
+[WARNING] It is highly recommended to fix these problems because they threaten the stability of your build.
+[WARNING] 
+[WARNING] For this reason, future Maven versions might no longer support building such malformed projects.
+[WARNING] 
+[INFO] 
+[INFO] --------------------< commons-codec:commons-codec >---------------------
+[INFO] Building Commons Codec 1.4.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- antrun:1.3:run (javadoc.resources) @ commons-codec ---
+[INFO] Executing tasks
+[INFO] Executed tasks
+[INFO] 
+[INFO] --- remote-resources:1.0:process (default) @ commons-codec ---
+[INFO] Setting property: classpath.resource.loader.class => 'org.codehaus.plexus.velocity.ContextClassLoaderResourceLoader'.
+[INFO] Setting property: velocimacro.messages.on => 'false'.
+[INFO] Setting property: resource.loader => 'classpath'.
+[INFO] Setting property: resource.manager.logwhenfound => 'false'.
+[INFO] 
+[INFO] --- resources:2.4.1:resources (default-resources) @ commons-codec ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 2 resources to META-INF
+[INFO] 
+[INFO] --- compiler:2.1:compile (default-compile) @ commons-codec ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- bundle:1.4.3:manifest (bundle-manifest) @ commons-codec ---
+[INFO] 
+[INFO] --- resources:2.4.1:testResources (default-testResources) @ commons-codec ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory /work/src/test/resources
+[INFO] 
+[INFO] --- compiler:2.1:testCompile (default-testCompile) @ commons-codec ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- surefire:2.5:test (default-test) @ commons-codec ---
+[INFO] Surefire report directory: /work/target/surefire-reports
+
+-------------------------------------------------------
+ T E S T S
+-------------------------------------------------------
+Running org.apache.commons.codec.binary.Base64OutputStreamTest
+Tests run: 7, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.381 sec <<< FAILURE!
+testCodec98NPE(org.apache.commons.codec.binary.Base64OutputStreamTest)  Time elapsed: 0.001 sec  <<< ERROR!
+java.lang.NullPointerException
+	at org.apache.commons.codec.binary.Base64.decode(Base64.java:594)
+	at org.apache.commons.codec.binary.Base64OutputStream.close(Base64OutputStream.java:192)
+	at org.apache.commons.codec.binary.Base64OutputStreamTest.testCodec98NPE(Base64OutputStreamTest.java:62)
+
+Running org.apache.commons.codec.binary.Base64InputStreamTest
+Tests run: 9, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 1.077 sec <<< FAILURE!
+testCodec98NPE(org.apache.commons.codec.binary.Base64InputStreamTest)  Time elapsed: 0 sec  <<< ERROR!
+java.lang.NullPointerException
+
+
+Results :
+
+Tests in error: 
+  testCodec98NPE(org.apache.commons.codec.binary.Base64OutputStreamTest)
+  testCodec98NPE(org.apache.commons.codec.binary.Base64InputStreamTest)
+
+Tests run: 16, Failures: 0, Errors: 2, Skipped: 0
+
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  2.736 s
+[INFO] Finished at: 2026-10-15T00:49:25Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.5:test (default-test) on project commons-codec: There are test failures.
+[ERROR] 
+[ERROR] Please refer to /work/target/surefire-reports for the individual test results.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

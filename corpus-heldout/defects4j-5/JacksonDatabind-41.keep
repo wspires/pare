@@ -1,0 +1,2 @@
+testDeprecatedTypeResolution(com.fasterxml.jackson.databind.interop.DeprecatedTypeHandling1102Test) || com.fasterxml.jackson.databind.interop.DeprecatedTypeHandling1102Test.testDeprecatedTypeResolution || DeprecatedTypeHandling1102Test.testDeprecatedTypeResolution
+java.lang.IllegalArgumentException: Unrecognized Type: [null] || Unrecognized Type: [null]

@@ -1,0 +1,57 @@
+{
+  "bug": "Cli-28",
+  "project": "Cli",
+  "bug_id": 28,
+  "fixed_revision": "3433f467554985a6bd9bf530a4810376be6fe250",
+  "report": "https://issues.apache.org/jira/browse/CLI-201",
+  "upstream": "https://github.com/apache/commons-cli",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=ValueTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.cli.ValueTest",
+      "method": "testPropertyOptionFlags",
+      "exception": "junit.framework.AssertionFailedError"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.cli.ValueTest::testPropertyOptionFlags"
+  ],
+  "keep": [
+    "testPropertyOptionFlags(org.apache.commons.cli.ValueTest) || org.apache.commons.cli.ValueTest.testPropertyOptionFlags || ValueTest.testPropertyOptionFlags",
+    "junit.framework.AssertionFailedError"
+  ],
+  "unlocated": [],
+  "lines": 80,
+  "seconds": 21.6,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-15T00:49:14Z",
+  "pare": "0.1.0",
+  "commit": "89e2de8"
+}

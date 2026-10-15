@@ -1,0 +1,57 @@
+{
+  "bug": "Codec-3",
+  "project": "Codec",
+  "bug_id": 3,
+  "fixed_revision": "a5dfe5cbc95d7f3ce0b4829756690c2cb8439f4c",
+  "report": "https://issues.apache.org/jira/browse/CODEC-84",
+  "upstream": "https://github.com/apache/commons-codec",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=DoubleMetaphone2Test",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.codec.language.DoubleMetaphone2Test",
+      "method": "testDoubleMetaphoneAlternate",
+      "exception": "junit.framework.ComparisonFailure: Test [19]=Angier expected:<AN[J]R> but was:<AN[K]R>"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.codec.language.DoubleMetaphone2Test::testDoubleMetaphoneAlternate"
+  ],
+  "keep": [
+    "testDoubleMetaphoneAlternate(org.apache.commons.codec.language.DoubleMetaphone2Test) || org.apache.commons.codec.language.DoubleMetaphone2Test.testDoubleMetaphoneAlternate || DoubleMetaphone2Test.testDoubleMetaphoneAlternate",
+    "junit.framework.ComparisonFailure: Test [19]=Angier expected:<AN[J]R> but was:<AN[K]R> || Test [19]=Angier expected:<AN[J]R> but was:<AN[K]R>"
+  ],
+  "unlocated": [],
+  "lines": 71,
+  "seconds": 5.7,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-15T00:51:25Z",
+  "pare": "0.1.0",
+  "commit": "89e2de8"
+}

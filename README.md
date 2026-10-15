@@ -247,7 +247,10 @@ where the same cases gave 41%, 79% and 97% before any of these fixes.
 Its misses at 600, JUnit 3 assertion messages crowded out by framework
 stack frames and one-off build warnings, are fixed since (seed 4 is spent
 now: 100% at every budget, and Defects4J seeds 2 and 3 gain 6 to 11
-points at 600). With all tool-specific rules off, pare reaches 71% at 600 and 96%
+points at 600). A fifth sample drawn after that fix and never read
+(17 Defects4J bugs) gives 87%, 91% and 100% at 600, 1,000 and 2,000
+tokens, where the same cases gave 46%, 67% and 96% before any of these
+fixes; the JUnit 3 fix itself is worth 80 → 87% at 600 there. With all tool-specific rules off, pare reaches 71% at 600 and 96%
 at 2,000 on this corpus; on held-out Defects4J the rules change nothing
 and on held-out SWE-bench they are worth up to 18 points, almost all of
 it from the pytest markers and the blank-line-in-a-block rule

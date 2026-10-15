@@ -1,0 +1,2 @@
+testDoubleMetaphoneAlternate(org.apache.commons.codec.language.DoubleMetaphone2Test) || org.apache.commons.codec.language.DoubleMetaphone2Test.testDoubleMetaphoneAlternate || DoubleMetaphone2Test.testDoubleMetaphoneAlternate
+junit.framework.ComparisonFailure: Test [19]=Angier expected:<AN[J]R> but was:<AN[K]R> || Test [19]=Angier expected:<AN[J]R> but was:<AN[K]R>

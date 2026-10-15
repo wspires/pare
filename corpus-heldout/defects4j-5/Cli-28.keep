@@ -1,0 +1,2 @@
+testPropertyOptionFlags(org.apache.commons.cli.ValueTest) || org.apache.commons.cli.ValueTest.testPropertyOptionFlags || ValueTest.testPropertyOptionFlags
+junit.framework.AssertionFailedError

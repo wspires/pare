@@ -69,9 +69,17 @@ The gate for everything after it.
   91 %; seed 0 84 → 90 %; android-logcat +1 line; no case worse. Seed 4
   is spent. Details: `docs/DESIGN.md`, "JUnit 3 assertion messages".
   *Done.*
-- [ ] **Fifth fresh sample.** Defects4J seed 5 (and SWE-bench seed 3),
-  drawn with every earlier set excluded, to measure the two rules above
-  on data they were not chosen on.
+- [x] **Fifth fresh sample.** Defects4J seed 5 (17 bugs,
+  `corpus-heldout/defects4j-5/`), drawn with every earlier set excluded
+  and measured before reading: 87.0 / 91.3 / 100 % at 600 / 1,000 /
+  2,000 (45.7 / 67.4 / 95.7 % before any held-out fix). The JUnit 3 rules
+  hold on data they were not chosen on: 80.4 → 87.0 % at 600, no case
+  worse. Left: Gson-7's messages that differ in one word, Csv-3's long
+  assertion message. *Done; spent by the next change measured on it.*
+- [ ] **SWE-bench seed 3.** The last fresh SWE-bench sample (seed 2) was
+  drawn before the Maven chatter, tail-window and JUnit 3 changes; none
+  of them is aimed at pytest, so a fresh one would show whether they cost
+  anything there.
 - [ ] **Claude token rate.** `bench/tokens.py --anthropic claude-opus-5-5`
   on a machine with credentials. If the rate differs much from the 2.8
   bytes per token measured on cl100k and o200k, change the default.

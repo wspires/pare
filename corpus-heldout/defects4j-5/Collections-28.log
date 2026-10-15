@@ -1,0 +1,95 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --------------< org.apache.commons:commons-collections4 >---------------
+[INFO] Building Apache Commons Collections 4.2-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- enforcer:1.4.1:enforce (enforce-maven-3) @ commons-collections4 ---
+[INFO] Skipping Rule Enforcement.
+[INFO] 
+[INFO] --- build-helper:1.10:parse-version (parse-version) @ commons-collections4 ---
+[INFO] 
+[INFO] --- antrun:1.7:run (javadoc.resources) @ commons-collections4 ---
+[INFO] Executing tasks
+
+main:
+[INFO] Executed tasks
+[INFO] 
+[INFO] --- remote-resources:1.5:process (default) @ commons-collections4 ---
+[INFO] 
+[INFO] --- buildnumber:1.4:create (default) @ commons-collections4 ---
+[INFO] Executing: /bin/sh -c cd '/work' && 'svn' '--non-interactive' 'info'
+[INFO] Working directory: /work
+[WARNING] Cannot get the revision information from the scm repository, proceeding with revision of ?????? : 
+Exception while executing SCM command.
+[INFO] Storing buildNumber: ?????? at timestamp: 2026-10-15 00:51:39+0000
+[INFO] Executing: /bin/sh -c cd '/work' && 'svn' '--non-interactive' 'info'
+[INFO] Working directory: /work
+[WARNING] Cannot get the branch information from the scm repository, proceeding with UNKNOWN_BRANCH : 
+Exception while executing SCM command.
+[INFO] Storing buildScmBranch: UNKNOWN_BRANCH
+[INFO] 
+[INFO] --- resources:2.7:resources (default-resources) @ commons-collections4 ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory /work/src/main/resources
+[INFO] Copying 2 resources to META-INF
+[INFO] 
+[INFO] --- compiler:3.5.1:compile (default-compile) @ commons-collections4 ---
+[INFO] Changes detected - recompiling the module!
+[INFO] Compiling 319 source files to /work/target/classes
+[INFO] /work/src/main/java/org/apache/commons/collections4/MapUtils.java: Some input files use or override a deprecated API.
+[INFO] /work/src/main/java/org/apache/commons/collections4/MapUtils.java: Recompile with -Xlint:deprecation for details.
+[INFO] 
+[INFO] --- bundle:3.0.1:manifest (bundle-manifest) @ commons-collections4 ---
+[INFO] 
+[INFO] --- animal-sniffer:1.15:check (checkAPIcompatibility) @ commons-collections4 ---
+[INFO] Signature checking is skipped.
+[INFO] 
+[INFO] --- resources:2.7:testResources (default-testResources) @ commons-collections4 ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 176 resources
+[INFO] Copying 2 resources to META-INF
+[INFO] 
+[INFO] --- compiler:3.5.1:testCompile (default-testCompile) @ commons-collections4 ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- jacoco:0.7.6.201602180812:prepare-agent (prepare-agent) @ commons-collections4 ---
+[INFO] Skipping JaCoCo execution because property jacoco.skip is set.
+[INFO] argLine set to empty
+[INFO] 
+[INFO] --- surefire:2.19.1:test (default-test) @ commons-collections4 ---
+
+-------------------------------------------------------
+ T E S T S
+-------------------------------------------------------
+Running org.apache.commons.collections4.trie.PatriciaTrieTest
+Tests run: 550, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.383 sec <<< FAILURE! - in org.apache.commons.collections4.trie.PatriciaTrieTest
+testPrefixMapClear(org.apache.commons.collections4.trie.PatriciaTrieTest)  Time elapsed: 0.004 sec  <<< ERROR!
+java.lang.NullPointerException
+	at org.apache.commons.collections4.trie.PatriciaTrieTest.testPrefixMapClear(PatriciaTrieTest.java:386)
+
+
+Results :
+
+Tests in error: 
+  PatriciaTrieTest.testPrefixMapClear:386 » NullPointer
+
+Tests run: 550, Failures: 0, Errors: 1, Skipped: 0
+
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.292 s
+[INFO] Finished at: 2026-10-15T00:51:43Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.19.1:test (default-test) on project commons-collections4: There are test failures.
+[ERROR] 
+[ERROR] Please refer to /work/target/surefire-reports for the individual test results.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

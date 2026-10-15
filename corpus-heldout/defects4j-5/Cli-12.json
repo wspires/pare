@@ -1,0 +1,74 @@
+{
+  "bug": "Cli-12",
+  "project": "Cli",
+  "bug_id": 12,
+  "fixed_revision": "aa050a69b2395f496f953f4f9c4f63a475dcf430",
+  "report": "https://issues.apache.org/jira/browse/CLI-1",
+  "upstream": "https://github.com/apache/commons-cli",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=GnuParserTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.cli.GnuParserTest",
+      "method": "testShortWithEqual",
+      "exception": "junit.framework.ComparisonFailure: expected:<[]bar> but was:<[=]bar>"
+    },
+    {
+      "class": "org.apache.commons.cli.GnuParserTest",
+      "method": "testLongWithEqualSingleDash",
+      "exception": "junit.framework.ComparisonFailure: expected:<[]bar> but was:<[oo=]bar>"
+    },
+    {
+      "class": "org.apache.commons.cli.GnuParserTest",
+      "method": "testLongWithEqual",
+      "exception": "org.apache.commons.cli.UnrecognizedOptionException: Unrecognized option: --foo=bar"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.cli.GnuParserTest::testShortWithEqual",
+    "org.apache.commons.cli.GnuParserTest::testLongWithEqualSingleDash",
+    "org.apache.commons.cli.GnuParserTest::testLongWithEqual"
+  ],
+  "keep": [
+    "testShortWithEqual(org.apache.commons.cli.GnuParserTest) || org.apache.commons.cli.GnuParserTest.testShortWithEqual || GnuParserTest.testShortWithEqual",
+    "testLongWithEqualSingleDash(org.apache.commons.cli.GnuParserTest) || org.apache.commons.cli.GnuParserTest.testLongWithEqualSingleDash || GnuParserTest.testLongWithEqualSingleDash",
+    "testLongWithEqual(org.apache.commons.cli.GnuParserTest) || org.apache.commons.cli.GnuParserTest.testLongWithEqual || GnuParserTest.testLongWithEqual",
+    "org.apache.commons.cli.UnrecognizedOptionException: Unrecognized option: --foo=bar || Unrecognized option: --foo=bar"
+  ],
+  "unlocated": [
+    "exception: junit.framework.ComparisonFailure: expected:<[]bar> but was:<[=]bar>",
+    "exception: junit.framework.ComparisonFailure: expected:<[]bar> but was:<[oo=]bar>"
+  ],
+  "lines": 91,
+  "seconds": 5.7,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-15T00:51:19Z",
+  "pare": "0.1.0",
+  "commit": "89e2de8"
+}

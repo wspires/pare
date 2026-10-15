@@ -1,0 +1,111 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] -------------------< org.apache.commons:commons-csv >-------------------
+[INFO] Building Commons CSV 1.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- antrun:1.7:run (javadoc.resources) @ commons-csv ---
+[INFO] Executing tasks
+
+main:
+[INFO] Executed tasks
+[INFO] 
+[INFO] --- remote-resources:1.4:process (default) @ commons-csv ---
+[INFO] 
+[INFO] --- buildnumber:1.2:create (default) @ commons-csv ---
+[INFO] Checking for local modifications: skipped.
+[INFO] Updating project files from SCM: skipped.
+[INFO] Executing: /bin/sh -c cd /work && svn --non-interactive info
+[INFO] Working directory: /work
+[INFO] Storing buildNumber: ?????? at timestamp: 1792025521973
+[INFO] Executing: /bin/sh -c cd /work && svn --non-interactive info
+[INFO] Working directory: /work
+[INFO] Storing buildScmBranch: UNKNOWN_BRANCH
+[INFO] 
+[INFO] --- resources:2.6:resources (default-resources) @ commons-csv ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory /work/src/main/resources
+[INFO] Copying 2 resources to META-INF
+[INFO] 
+[INFO] --- compiler:3.0:compile (default-compile) @ commons-csv ---
+[INFO] Changes detected - recompiling the module!
+[INFO] Compiling 11 source files to /work/target/classes
+[INFO] 
+[INFO] --- bundle:2.3.7:manifest (bundle-manifest) @ commons-csv ---
+[INFO] 
+[INFO] --- resources:2.6:testResources (default-testResources) @ commons-csv ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 10 resources
+[INFO] Copying 2 resources to META-INF
+[INFO] 
+[INFO] --- compiler:3.0:testCompile (default-testCompile) @ commons-csv ---
+[INFO] Changes detected - recompiling the module!
+[INFO] Compiling 17 source files to /work/target/test-classes
+[INFO] 
+[INFO] --- surefire:2.13:test (default-test) @ commons-csv ---
+[INFO] Surefire report directory: /work/target/surefire-reports
+
+-------------------------------------------------------
+ T E S T S
+-------------------------------------------------------
+Running org.apache.commons.csv.CSVLexerTest
+Tests run: 21, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 0.036 sec <<< FAILURE!
+testEscapedMySqlNullValue(org.apache.commons.csv.CSVLexerTest)  Time elapsed: 0.003 sec  <<< FAILURE!
+java.lang.AssertionError: 
+Expected: token has content "character\NEscaped"
+     but: token content is "characterNEscaped"
+	at org.hamcrest.MatcherAssert.assertThat(MatcherAssert.java:20)
+	at org.junit.Assert.assertThat(Assert.java:865)
+	at org.junit.Assert.assertThat(Assert.java:832)
+	at org.apache.commons.csv.CSVLexerTest.testEscapedMySqlNullValue(CSVLexerTest.java:335)
+
+testEscapedCharacter(org.apache.commons.csv.CSVLexerTest)  Time elapsed: 0 sec  <<< FAILURE!
+java.lang.AssertionError: 
+Expected: token has content "character\aEscaped"
+     but: token content is "characteraEscaped"
+	at org.hamcrest.MatcherAssert.assertThat(MatcherAssert.java:20)
+	at org.junit.Assert.assertThat(Assert.java:865)
+	at org.junit.Assert.assertThat(Assert.java:832)
+	at org.apache.commons.csv.CSVLexerTest.testEscapedCharacter(CSVLexerTest.java:341)
+
+Running org.apache.commons.csv.CSVParserTest
+Tests run: 33, Failures: 1, Errors: 0, Skipped: 1, Time elapsed: 0.011 sec <<< FAILURE!
+testBackslashEscaping(org.apache.commons.csv.CSVParserTest)  Time elapsed: 0.001 sec  <<< FAILURE!
+org.junit.internal.ArrayComparisonFailure: Records do not match expected result (entry 8): arrays first differed at element [1]; expected:<   "quoted "" [/]" / string"   > but was:<   "quoted "" []" / string"   >
+	at org.junit.internal.ComparisonCriteria.arrayEquals(ComparisonCriteria.java:50)
+	at org.junit.Assert.internalArrayEquals(Assert.java:473)
+	at org.junit.Assert.assertArrayEquals(Assert.java:265)
+	at org.apache.commons.csv.Utils.compare(Utils.java:59)
+	at org.apache.commons.csv.CSVParserTest.testBackslashEscaping(CSVParserTest.java:322)
+
+
+Results :
+
+Failed tests: 
+  CSVLexerTest.testEscapedMySqlNullValue:335 
+Expected: token has content "character\NEscaped"
+     but: token content is "characterNEscaped"
+  CSVLexerTest.testEscapedCharacter:341 
+Expected: token has content "character\aEscaped"
+     but: token content is "characteraEscaped"
+  CSVParserTest.testBackslashEscaping:322 Records do not match expected result (entry 8): arrays first differed at element [1]; expected:<   "quoted "" [/]" / string"   > but was:<   "quoted "" []" / string"   >
+
+Tests run: 54, Failures: 3, Errors: 0, Skipped: 1
+
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  2.353 s
+[INFO] Finished at: 2026-10-15T00:52:03Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.13:test (default-test) on project commons-csv: There are test failures.
+[ERROR] 
+[ERROR] Please refer to /work/target/surefire-reports for the individual test results.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

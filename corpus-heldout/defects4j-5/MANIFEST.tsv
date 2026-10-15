@@ -1,0 +1,18 @@
+name	collected	pare	commit	sha256	lines	bytes	exit	command	source	labels
+Cli-28	2026-10-15T00:49:14Z	0.1.0	89e2de8		80	3985	1	mvn -B -Dtest=ValueTest test	dataset	dataset trigger tests
+Codec-5	2026-10-15T00:49:25Z	0.1.0	89e2de8		85	4426	1	mvn -B -Dtest=Base64InputStreamTest,Base64OutputStreamTest test	dataset	dataset trigger tests
+Compress-11	2026-10-15T00:49:40Z	0.1.0	89e2de8		114	6601	1	mvn -B -Dtest=ArchiveStreamFactoryTest test	dataset	dataset trigger tests
+Csv-6	2026-10-15T00:49:52Z	0.1.0	89e2de8		82	3718	1	mvn -B -Dtest=CSVRecordTest test	dataset	dataset trigger tests
+Gson-4	2026-10-15T00:50:02Z	0.1.0	89e2de8		161	10465	1	mvn -B -Dtest=JsonReaderTest,JsonWriterTest test	dataset	dataset trigger tests
+JacksonCore-19	2026-10-15T00:50:12Z	0.1.0	89e2de8		73	3766	1	mvn -B -Dtest=TestNumericValues test	dataset	dataset trigger tests
+JacksonDatabind-41	2026-10-15T00:50:27Z	0.1.0	89e2de8		75	4231	1	mvn -B -Dtest=DeprecatedTypeHandling1102Test test	dataset	dataset trigger tests
+Jsoup-58	2026-10-15T00:50:44Z	0.1.0	89e2de8		145	8247	1	mvn -B -Dtest=CleanerTest test	dataset	dataset trigger tests
+JxPath-22	2026-10-15T00:50:52Z	0.1.0	89e2de8		80	4140	1	mvn -B -Dtest=JXPath154Test test	dataset	dataset trigger tests
+Lang-24	2026-10-15T00:51:02Z	0.1.0	89e2de8		103	5729	1	mvn -B -Dtest=NumberUtilsTest test	dataset	dataset trigger tests
+Math-101	2026-10-15T00:51:11Z	0.1.0	89e2de8		135	8387	1	mvn -B -Dtest=ComplexFormatTest,FrenchComplexFormatTest test	dataset	dataset trigger tests
+Cli-12	2026-10-15T00:51:19Z	0.1.0	89e2de8		91	4767	1	mvn -B -Dtest=GnuParserTest test	dataset	dataset trigger tests
+Codec-3	2026-10-15T00:51:25Z	0.1.0	89e2de8		71	3680	1	mvn -B -Dtest=DoubleMetaphone2Test test	dataset	dataset trigger tests
+Collections-28	2026-10-15T00:51:44Z	0.1.0	89e2de8		95	4683	1	mvn -B -Dtest=PatriciaTrieTest test	dataset	dataset trigger tests
+Compress-22	2026-10-15T00:51:53Z	0.1.0	89e2de8		88	4774	1	mvn -B -Dtest=PythonTruncatedBzip2Test test	dataset	dataset trigger tests
+Csv-3	2026-10-15T00:52:03Z	0.1.0	89e2de8		111	5509	1	mvn -B -Dtest=CSVLexerTest,CSVParserTest test	dataset	dataset trigger tests
+Gson-7	2026-10-15T00:52:14Z	0.1.0	89e2de8		197	12888	1	mvn -B -Dtest=JsonReaderTest,MapTest test	dataset	dataset trigger tests

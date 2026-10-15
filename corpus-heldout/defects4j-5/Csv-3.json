@@ -1,0 +1,74 @@
+{
+  "bug": "Csv-3",
+  "project": "Csv",
+  "bug_id": 3,
+  "fixed_revision": "2c6120826245f89fedf2f936ab4a0c3edd8717f3",
+  "report": "https://issues.apache.org/jira/browse/CSV-58",
+  "upstream": "https://github.com/apache/commons-csv",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=CSVLexerTest,CSVParserTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.csv.CSVLexerTest",
+      "method": "testEscapedMySqlNullValue",
+      "exception": "junit.framework.AssertionFailedError:"
+    },
+    {
+      "class": "org.apache.commons.csv.CSVLexerTest",
+      "method": "testEscapedCharacter",
+      "exception": "junit.framework.AssertionFailedError:"
+    },
+    {
+      "class": "org.apache.commons.csv.CSVParserTest",
+      "method": "testBackslashEscaping",
+      "exception": "junit.framework.AssertionFailedError: Records do not match expected result (entry 8): arrays first differed at element [1]; expected:<   \"quoted \"\" [/]\" / string\"   > but was:<   \"quoted \"\" []\" / string\"   >"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.csv.CSVLexerTest::testEscapedMySqlNullValue",
+    "org.apache.commons.csv.CSVLexerTest::testEscapedCharacter",
+    "org.apache.commons.csv.CSVParserTest::testBackslashEscaping"
+  ],
+  "keep": [
+    "testEscapedMySqlNullValue(org.apache.commons.csv.CSVLexerTest) || org.apache.commons.csv.CSVLexerTest.testEscapedMySqlNullValue || CSVLexerTest.testEscapedMySqlNullValue",
+    "testEscapedCharacter(org.apache.commons.csv.CSVLexerTest) || org.apache.commons.csv.CSVLexerTest.testEscapedCharacter || CSVLexerTest.testEscapedCharacter",
+    "testBackslashEscaping(org.apache.commons.csv.CSVParserTest) || org.apache.commons.csv.CSVParserTest.testBackslashEscaping || CSVParserTest.testBackslashEscaping",
+    "Records do not match expected result (entry 8): arrays first differed at element [1]; expected:<   \"quoted \"\" [/]\" / string\"   > but was:<   \"quoted \"\" []\" / string\"   >"
+  ],
+  "unlocated": [
+    "exception: junit.framework.AssertionFailedError:",
+    "exception: junit.framework.AssertionFailedError:"
+  ],
+  "lines": 111,
+  "seconds": 7.3,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-15T00:52:03Z",
+  "pare": "0.1.0",
+  "commit": "89e2de8"
+}

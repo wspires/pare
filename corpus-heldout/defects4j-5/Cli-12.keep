@@ -1,0 +1,4 @@
+testShortWithEqual(org.apache.commons.cli.GnuParserTest) || org.apache.commons.cli.GnuParserTest.testShortWithEqual || GnuParserTest.testShortWithEqual
+testLongWithEqualSingleDash(org.apache.commons.cli.GnuParserTest) || org.apache.commons.cli.GnuParserTest.testLongWithEqualSingleDash || GnuParserTest.testLongWithEqualSingleDash
+testLongWithEqual(org.apache.commons.cli.GnuParserTest) || org.apache.commons.cli.GnuParserTest.testLongWithEqual || GnuParserTest.testLongWithEqual
+org.apache.commons.cli.UnrecognizedOptionException: Unrecognized option: --foo=bar || Unrecognized option: --foo=bar

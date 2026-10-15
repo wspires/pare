@@ -1,0 +1,88 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ----------------< org.apache.commons:commons-compress >-----------------
+[INFO] Building Apache Commons Compress 1.8-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- antrun:1.7:run (javadoc.resources) @ commons-compress ---
+[INFO] Executing tasks
+
+main:
+[INFO] Executed tasks
+[INFO] 
+[INFO] --- remote-resources:1.4:process (default) @ commons-compress ---
+[INFO] 
+[INFO] --- buildnumber:1.2:create (default) @ commons-compress ---
+[INFO] Checking for local modifications: skipped.
+[INFO] Updating project files from SCM: skipped.
+[INFO] Executing: /bin/sh -c cd /work && svn --non-interactive info
+[INFO] Working directory: /work
+[INFO] Storing buildNumber: ?????? at timestamp: 1792025512352
+[INFO] Executing: /bin/sh -c cd /work && svn --non-interactive info
+[INFO] Working directory: /work
+[INFO] Storing buildScmBranch: UNKNOWN_BRANCH
+[INFO] 
+[INFO] --- resources:2.6:resources (default-resources) @ commons-compress ---
+[INFO] Using 'iso-8859-1' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory /work/src/main/resources
+[INFO] Copying 2 resources to META-INF
+[INFO] 
+[INFO] --- compiler:3.1:compile (default-compile) @ commons-compress ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- bundle:2.4.0:manifest (bundle-manifest) @ commons-compress ---
+[INFO] 
+[INFO] --- resources:2.6:testResources (default-testResources) @ commons-compress ---
+[INFO] Using 'iso-8859-1' encoding to copy filtered resources.
+[INFO] Copying 126 resources
+[INFO] Copying 2 resources to META-INF
+[INFO] 
+[INFO] --- compiler:3.1:testCompile (default-testCompile) @ commons-compress ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- surefire:2.15:test (default-test) @ commons-compress ---
+[INFO] Surefire report directory: /work/target/surefire-reports
+
+-------------------------------------------------------
+ T E S T S
+-------------------------------------------------------
+Running org.apache.commons.compress.compressors.bzip2.PythonTruncatedBzip2Test
+Attempt to read the whole thing in, should throw ...
+Tests run: 2, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.033 sec <<< FAILURE! - in org.apache.commons.compress.compressors.bzip2.PythonTruncatedBzip2Test
+testPartialReadTruncatedData(org.apache.commons.compress.compressors.bzip2.PythonTruncatedBzip2Test)  Time elapsed: 0.009 sec  <<< ERROR!
+java.io.IOException: unexpected end of stream
+	at org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream.bsR(BZip2CompressorInputStream.java:384)
+	at org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream.bsGetUByte(BZip2CompressorInputStream.java:419)
+	at org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream.initBlock(BZip2CompressorInputStream.java:276)
+	at org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream.setupNoRandPartA(BZip2CompressorInputStream.java:878)
+	at org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream.setupNoRandPartB(BZip2CompressorInputStream.java:928)
+	at org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream.read0(BZip2CompressorInputStream.java:222)
+	at org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream.read(BZip2CompressorInputStream.java:174)
+	at java.nio.channels.Channels$ReadableByteChannelImpl.read(Channels.java:385)
+	at org.apache.commons.compress.compressors.bzip2.PythonTruncatedBzip2Test.testPartialReadTruncatedData(PythonTruncatedBzip2Test.java:92)
+
+
+Results :
+
+Tests in error: 
+  PythonTruncatedBzip2Test.testPartialReadTruncatedData:92 » IO unexpected end o...
+
+Tests run: 2, Failures: 0, Errors: 1, Skipped: 0
+
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  1.883 s
+[INFO] Finished at: 2026-10-15T00:51:53Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.15:test (default-test) on project commons-compress: There are test failures.
+[ERROR] 
+[ERROR] Please refer to /work/target/surefire-reports for the individual test results.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

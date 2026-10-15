@@ -1,0 +1,3 @@
+testForgottenImaginaryCharacter(org.apache.commons.math.complex.ComplexFormatTest)
+java.lang.StringIndexOutOfBoundsException: String index out of range: 6 || String index out of range: 6
+testForgottenImaginaryCharacter(org.apache.commons.math.complex.FrenchComplexFormatTest)

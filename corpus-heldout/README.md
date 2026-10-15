@@ -136,6 +136,50 @@ cases, as `bench/run.py` prints it); "full" counts the cases where pare
 kept every keep line. tidyout keeps everything on every source, at 96 to
 100 % of the input size.
 
+### Latest fresh sample: the current honest number
+
+Defects4J seed 5, drawn after the JUnit 3 change (`89e2de8`) with
+`--exclude` every earlier Defects4J set, and measured before anyone read
+it. It is the first fresh test of that change, whose weights were chosen
+on seed 4.
+
+```
+python3 bench/defects4j_cases.py run --sample 20 --seed 5 --exclude corpus-heldout/defects4j --exclude corpus-heldout/defects4j-2 --exclude corpus-heldout/defects4j-3 --exclude corpus-heldout/defects4j-4 --exclude corpus-dev/defects4j --out corpus-heldout/defects4j-5
+```
+
+17 of 20 bugs gave a case (Collections-1 has no Maven build at that
+revision, JacksonXml-5's build failed before any test ran, and Time-22's
+compile fix did not apply). 46 keep lines, labelled with alternative
+forms. Seven exceptions were left unlabelled because the log never shows
+them as Defects4J recorded them: messageless `AssertionFailedError`s
+(Jsoup-58, Csv-3) and `ComparisonFailure` messages that JUnit prints in
+another form (Cli-12, JxPath-22). No log fits in 600 or 1,000 tokens; 11
+of 17 fit in 2,000 and pass through.
+
+| version | 600 | 1,000 | 2,000 |
+|---|---|---|---|
+| before any held-out fix (`d730e86`) | 45.7 % (min 0) | 67.4 % (min 0) | 95.7 % |
+| failing-test lists, rare failures first (`2f13edb`) | 65.2 % | 78.3 % | 100 % |
+| + Maven chatter fix (`3d36efa`) | 82.6 % | 89.1 % | 100 % |
+| + head and tail windows skip chatter (`821097f`) | 80.4 % | 91.3 % | 100 % |
+| + JUnit 3 assertion messages (`89e2de8`) | **87.0 %** (min 33) | **91.3 %** (min 50) | 100 % |
+
+Same numbers with `--strict`. Output is 28 %, 47 % and 77 % of the input.
+One case got worse along the way and recovered: Cli-12 at 600 lost a line
+to the tail-window change (4 → 3 of 4) and got it back with the JUnit 3
+change. That change gained Codec-5, Math-101 and Cli-12 one line each at
+600 and changed nothing at 1,000 or 2,000; no case got worse.
+
+What is still missed (from the miss list only; no code changed on it):
+
+- **Gson-7**, 6 keep lines: at 600 two failing tests and their two
+  `JsonSyntaxException` messages (`Expected a long but was STRING …`,
+  `Expected an int but was STRING …`); at 1,000 one test and the two
+  messages. Messages that differ in one word, under one template.
+- **Csv-3**: a long `Records do not match expected result (entry 8): …`
+  assertion message, at 600 and 1,000.
+- **Gson-4**: one of five failing tests at 600.
+
 ### Fourth fresh sample: Defects4J seed 4
 
 Defects4J seed 4, drawn after the tail-window change (`b163491`) with

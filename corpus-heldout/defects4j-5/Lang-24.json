@@ -1,0 +1,60 @@
+{
+  "bug": "Lang-24",
+  "project": "Lang",
+  "bug_id": 24,
+  "fixed_revision": "8e2f4ddb9a1ecd7a1bf7d752c2c891d630287036",
+  "report": "https://issues.apache.org/jira/browse/LANG-664",
+  "upstream": "https://github.com/apache/commons-lang",
+  "image": "mirror.gcr.io/library/maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=NumberUtilsTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.lang3.math.NumberUtilsTest",
+      "method": "testIsNumber",
+      "exception": "junit.framework.AssertionFailedError: isNumber(String) LANG-664 failed"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.lang3.math.NumberUtilsTest::testIsNumber"
+  ],
+  "keep": [
+    "testIsNumber(org.apache.commons.lang3.math.NumberUtilsTest) || org.apache.commons.lang3.math.NumberUtilsTest.testIsNumber || NumberUtilsTest.testIsNumber",
+    "junit.framework.AssertionFailedError: isNumber(String) LANG-664 failed || isNumber(String) LANG-664 failed"
+  ],
+  "unlocated": [],
+  "lines": 103,
+  "seconds": 8.0,
+  "fixes_applied": [
+    "locale-19-35.diff",
+    "test-5-27.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-15T00:51:02Z",
+  "pare": "0.1.0",
+  "commit": "89e2de8"
+}

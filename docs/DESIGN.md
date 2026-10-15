@@ -934,8 +934,11 @@ quarters (`WARN_RARITY`): a singleton warning (2.25 + 1.5) ranks below an
 error seen twice (3.0 + 1.0). Half was tried first; it gained the same
 Defects4J lines but cost android-logcat a real warning at 1,000 (`note 117
 has no 'updated' field, skipping`), and three quarters gains them all
-without that loss. The value was chosen on these sets, so it is a training
-number until a fresh sample says otherwise.
+without that loss. The value was chosen on these sets, so it was a
+training number until a fresh sample said otherwise. Defects4J seed 5,
+drawn afterwards and measured before reading, says it holds: 80.4 → 87.0 %
+at 600 (Codec-5, Math-101 and Cli-12 one line each), nothing changed at
+1,000 or 2,000, no case worse (`corpus-heldout/README.md`).
 
 Gains per set, before → after (pare `821097f` → this change); no case lost
 a line anywhere, at any budget:
