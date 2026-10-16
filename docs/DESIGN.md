@@ -1072,11 +1072,46 @@ compression competes. Observations, recorded rather than fixed:
 
 ## Performance
 
-About 1.4 s on the 750 KB / 17,832-line CI log. Clustering itself is
-under 0.05 s of that (the built-in Drain over every line of the log;
-drain3 took 0.065 s); the rest is masking and the vocabulary and severity
-regexes, one pass per class per line. Start-up, with nothing to read, is
-about 0.08 s (0.12 s while pare imported drain3).
+About 0.9 s on the 750 KB / 17,832-line CI log (1.5 s before the
+shortcuts below). Clustering itself is under 0.05 s of that (the built-in
+Drain over every line of the log; drain3 took 0.065 s); the rest is
+masking, the vocabulary and severity checks, and Python's per-line
+overhead. Start-up, with nothing to read, is about 0.08 s (0.12 s while
+pare imported drain3).
+
+**Shortcuts in the per-line checks.** Each line was searched by about
+twenty regexes: one per vocabulary class (a case-insensitive alternation
+of its words, tried at every position, was the slowest), the severity
+forms, the zero-count rule, and on record heads twelve masks. Most lines
+match almost none of them, so each now has a cheap test that must pass
+before the regex runs, and every test is a necessary condition, so no
+result changes:
+
+- A class's plain words: a word matches only where the line has a whole
+  run of letters equal to the word's first run (a non-letter on each side),
+  so the line's runs of letters are collected once and a class none of
+  whose first runs is among them is skipped.
+- Each built-in `/regex/` entry, the HTTP status, exit code and level-key
+  forms and the zero-count rule: a short list of lowercase strings one of
+  which the line must contain (`REGEX_NEEDS`, `HTTP_NEEDS`, ...).
+- A bare level token is a whole run of letters in the scanned head.
+- Each mask: a character the line must contain, mostly a digit (none of
+  the placeholders adds one, so a check on the input holds for each step).
+- ANSI stripping only on lines with an escape character.
+
+The letter-run and lowercase tests hold for lines whose non-ASCII
+characters cannot match an ASCII letter case-insensitively and are not
+whitespace (`plain_text`: a ✓ is fine, the Kelvin sign, ſ, ß and ligatures
+are not, judged per character by the running Python); other lines take
+every regex as before. A user vocabulary's `/regex/` entries have no
+strings listed and always run. `test_pare.py` checks every test against its
+regex on sampled corpus lines and on random awkward lines, and checks that
+every class and the severity come out as without shortcuts, with and
+without a user vocabulary; every log in the repository, at four budgets,
+with `--only` and in follow mode, gives byte-identical output before and
+after. The random lines found one crash, now fixed: case-insensitive
+matching takes the Turkish İ for an i, so `İNFO:` matched a level token
+whose uppercase form is not a level, and pare stopped with a `KeyError`.
 
 **Memory.** The prototype makes a single pass over stdin. Each chunk is
 written to the spool (the run file, or a temporary file under `--no-tee`)
@@ -1087,7 +1122,8 @@ size, score) and per record, plus the templates; a line's text is read
 back from the spool only when the allocator looks at it, through a small
 cache of materialised lines. The output is byte-identical to the earlier
 all-in-memory design (checked against it on every corpus file, budget and
-flag combination). Measured on the CI log concatenated to size:
+flag combination). Measured on the CI log concatenated to size, when the
+single pass was built:
 
 | input | wall time | peak memory | before (all in memory) |
 |---|---|---|---|
@@ -1095,8 +1131,25 @@ flag combination). Measured on the CI log concatenated to size:
 | 7.5 MB | 13.6 s | 41 MB | 19 s, 231 MB |
 | 30 MB | 54 s | 65 MB | 76 s, 849 MB |
 
-Time is still linear in the input, about 1.8 s per MB, and that is now
-the limit on large files rather than memory. The candidate list for the
+With the shortcuts, on a 30.8 MB log of real corpus logs (CI, service,
+logcat, pytest) repeated with each copy's digits rotated, so fewer lines
+repeat exactly, and its first 7.5 MB:
+
+| input | wall time | peak memory | before the shortcuts |
+|---|---|---|---|
+| 0.75 MB (CI log) | 0.9 s | 30 MB | 1.5 s, 29 MB |
+| 7.5 MB | 6.6 s | 40 MB | 12.8 s, 40 MB |
+| 30.8 MB | 27.7 s | 64 MB | 54.7 s, 63 MB |
+
+Time is still linear in the input, now about 0.9 s per MB, and it is
+spent as the input arrives: of the 27.7 s on 30.8 MB, 0.3 s comes after
+end of input (the summary itself). A command that prints slower than
+about 1 MB/s, most builds and test runs, gets its summary a fraction of
+a second after it exits; the whole time shows when the input is already
+on disk (`pare < big.log`) or arrives faster than that. What remains is
+Python per line: the masks on record heads, the substring tests, and the
+bookkeeping in the pass. A native port is where the next large factor
+is. The candidate list for the
 allocator holds every non-blank line scoring at or above the floor, as
 one integer per line, which is the one structure still proportional to
 line count; the raw bytes are never held in memory beyond one chunk.

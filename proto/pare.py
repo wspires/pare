@@ -166,7 +166,8 @@ def clean_line(raw: str) -> str:
     if "\r" in raw:
         parts = [p for p in raw.split("\r") if p != ""]
         raw = parts[-1] if parts else ""
-    raw = ANSI_RE.sub("", raw)
+    if "\x1b" in raw:
+        raw = ANSI_RE.sub("", raw)
     return raw.rstrip()
 
 
@@ -212,12 +213,29 @@ MASKS = [
 ]
 
 
+DIGIT_RX = re.compile(r"\d")
+# What a line must contain for each mask to change it: "digit", or one of
+# these strings (test_pare.py checks them).
+MASK_NEEDS = {
+    "RULE": tuple(c * 3 for c in "=_-*#~."), "TS": "digit", "DATE": "digit", "TIME": "digit", "UUID": ("-",),
+    "IP": "digit", "URL": ("://",), "HEX": "digit", "VER": "digit", "PATH": ("/",), "NUM": "digit",
+    "WORDNUM": "digit",
+}
+
+
 def mask(text: str, words: bool = True) -> str:
     """Mask the variable parts of a line. words=False leaves identifiers
     with digits whole (test_case_3, testIssue635): for telling names apart,
     not for clustering."""
     t = text.strip()
+    # Each mask needs a character the line may not have (most need a digit);
+    # none of the placeholders adds one, so a check on the input holds for
+    # every step.
+    has_digit = DIGIT_RX.search(t) is not None
     for name, rx in MASKS:
+        need = MASK_NEEDS[name]
+        if need is not None and not (has_digit if need == "digit" else any(map(t.__contains__, need))):
+            continue
         if name == "WORDNUM":
             if not words:
                 continue
@@ -503,7 +521,54 @@ DEFAULT_VOCAB: dict[str, list[str]] = {
 }
 
 
+# For each built-in /regex/ entry: lowercase strings at least one of which an
+# ASCII line must contain for the entry to match it, so Vocab.has can skip the
+# regex on the many lines that hold none. Each must be a necessary condition
+# (test_pare.py checks them on the corpus and on random lines); an entry
+# missing here, such as one from a --vocab file, is always run.
+_SPACE_AFTER = lambda s: tuple(s + c for c in map(chr, range(128)) if c.isspace())  # what \s can be
+_EXTS = "py|ts|tsx|js|jsx|mjs|go|rs|c|cc|cpp|h|hpp|java|kt|rb|cs|swift|php|scala|ex|exs".split("|")
+REGEX_NEEDS: dict[str, tuple[str, ...]] = {
+    r"/[A-Z]\w*(?:Error|Exception|Fault|Panic|Failure)\b/": ("error", "exception", "fault", "panic", "failure"),
+    "/✗|✘|❌/": ("✗", "✘", "❌"),
+    r"/(?<![A-Za-z])FAIL(?:ED|URE|S)?\b/": ("fail",),
+    r"/^\s*[-+]?\s*(?:Expected|Received|Actual|Got|Want)\b\s*[:+-]/": ("expected", "received", "actual", "got", "want"),
+    r"/(?i)(?<![a-z])vulnerab\w*/": ("vulnerab",),
+    "/⚠/": ("⚠",),
+    r"/(?i)(?<![a-z])ran \d+/": ("ran ",),
+    r"/^\s*={3,}/": ("===",),
+    r"/^\s*-{3,}/": ("---",),
+    r"/^\s*_{3,}/": ("___",),
+    r"/^\s*#{1,3}\s/": ("#",),
+    r"/^\s*\*{3,}/": ("***",),
+    r"/^\s*at\s/": ("at",),
+    r'/^\s*File "/': ('file "',),
+    r"/^\s*-->/": ("-->",),
+    r"/^\s*>\s*\d+\s*\|/": ("|",),
+    r"/[\w./-]+\.(?:py|ts|tsx|js|jsx|mjs|go|rs|c|cc|cpp|h|hpp|java|kt|rb|cs|swift|php|scala|ex|exs)[:(]\d+/":
+        tuple(f".{e}{c}" for e in _EXTS for c in ":("),
+    "/✓|✔/": ("✓", "✔"),
+    r"/\bPASS(?:ED)?\b/": ("pass",),
+    r"/^\s*ok\b/": ("ok",),
+    r"/\bok\s*$/": ("ok",),
+    r"/\d+%/": ("%",),
+    r"/\.{3,}/": ("...",),
+    "/[▏▎▍▌▋▊▉█░▒▓]/": tuple("▏▎▍▌▋▊▉█░▒▓"),
+    r"/\b(?:200|204|304) (?:OK|No Content|Not Modified)\b/": ("200 ", "204 ", "304 "),
+    r"/(?i)\brun with --/": ("run with --",),
+    r"/\[Help \d+\]/": ("[help ",),
+    r"/(?i)\b\w*(?:error|exception)\b/": ("error", "exception"),
+    r"/(?i)\bpanic/": ("panic",),
+    r"/(?i)\btraceback\b/": ("traceback",),
+    r"/(?i)\bassert\w*\b/": ("assert",),
+    r"/(?i)\bfatal\b/": ("fatal",),
+    r"/(?i)\bfail(?:ed|ure|s)?\b/": ("fail",),
+    r"/^\s*E\s{2,}/": _SPACE_AFTER("e"),
+    "/✕|✗|FAIL/": ("✕", "✗", "fail"),
+}
+
 _GLOBAL_FLAGS = re.compile(r"^\(\?([aimsux]+)\)")
+ZERO_COUNT_NEEDS = ("0 ", "no ", "zero ")  # one is in any line ZERO_COUNT_RX changes (plain lines, lowercased)
 ZERO_COUNT_RX = re.compile(  # a zero count before an error noun is a summary, not an error
     r"(?i)\b(?:0|no|zero) (?:errors?|failures?|failed|failing|problems?|issues?|warnings?|vulnerabilit(?:y|ies))\b"
 )
@@ -529,12 +594,43 @@ def _entry_regex(entry: str) -> str:
     return r"(?i:(?<![a-z-])" + re.escape(entry) + r"(?![a-z-]))"
 
 
+WORD_RUN_RX = re.compile(r"[a-z]+")
+NON_ASCII_RX = re.compile(r"[^\x00-\x7f]")
+_PLAIN_CHAR: dict[str, bool] = {}
+
+
+def plain_text(text: str) -> bool:
+    """Whether the vocabulary shortcuts hold for this line: every non-ASCII
+    character in it (a ✓, an arrow) neither matches an ASCII letter case-
+    insensitively nor lowercases or uppercases to one (the Kelvin sign, the
+    long s, ß, ligatures), and is not whitespace, which \\s matches. Judged
+    per character by the running Python, and remembered."""
+    if text.isascii():
+        return True
+    for ch in set(NON_ASCII_RX.findall(text)):
+        ok = _PLAIN_CHAR.get(ch)
+        if ok is None:
+            ok = _PLAIN_CHAR[ch] = not (re.match(r"(?i)[a-z]", ch) or ch.isspace()
+                                        or any(c.isascii() for c in ch.lower() + ch.upper()))
+        if not ok:
+            return False
+    return True
+
+
 class Vocab:
     """Compiled vocabulary: one regex per class, or None for an empty class."""
 
     def __init__(self, entries: dict[str, list[str]]):
         self.entries = entries
-        self.rx: dict[str, re.Pattern | None] = {}
+        self.rx: dict[str, re.Pattern | None] = {}  # the whole class
+        self.word_rx: dict[str, re.Pattern | None] = {}  # its plain words and phrases
+        self.word_first: dict[str, frozenset[str] | None] = {}  # their first runs of letters, lowercased
+        self.other_rx: dict[str, re.Pattern | None] = {}  # its /regex/ entries
+        self.other_needs: dict[str, tuple[str, ...] | None] = {}  # one of these is in any line they match
+        self._text: str | None = None  # the last line has() saw, and what it worked out for it
+        self._zeroed = ""
+        self._runs: frozenset[str] | None = None
+        self._lower = self._zlower = ""
         for cls in VOCAB_CLASSES:
             if cls in LEVEL_CLASSES:
                 continue
@@ -544,9 +640,20 @@ class Vocab:
             # is several times faster to scan than a branch per word.
             words = [e for e in items if not _is_regex_entry(e)]
             parts = [_entry_regex(e) for e in items if _is_regex_entry(e)]
+            self.other_rx[cls] = re.compile("|".join(f"(?:{p})" for p in parts)) if parts else None
+            needs = [REGEX_NEEDS.get(e) for e in items if _is_regex_entry(e)]
+            self.other_needs[cls] = tuple(n for ns in needs for n in ns) if parts and all(needs) else None
             if words:
                 alt = "|".join(re.escape(w) for w in sorted(words, key=len, reverse=True))
-                parts.insert(0, r"(?i:(?<![a-z-])(?:" + alt + r")(?![a-z-]))")
+                word = r"(?i:(?<![a-z-])(?:" + alt + r")(?![a-z-]))"
+                self.word_rx[cls] = re.compile(word)
+                parts.insert(0, word)
+                # A word can only match where an ASCII line has a whole run
+                # of letters equal to the word's first run (see has()).
+                firsts = [WORD_RUN_RX.match(w.lower()) for w in words]
+                self.word_first[cls] = frozenset(m.group(0) for m in firsts) if all(firsts) else None
+            else:
+                self.word_rx[cls] = self.word_first[cls] = None
             self.rx[cls] = re.compile("|".join(f"(?:{p})" for p in parts)) if parts else None
         # Level tokens, longest first so WARNING wins over WARN.
         self.level_of: dict[str, int] = {}
@@ -554,6 +661,8 @@ class Vocab:
             for tok in entries.get(cls, []):
                 self.level_of[tok.upper()] = sev
         alt = "|".join(re.escape(t) for t in sorted(self.level_of, key=len, reverse=True)) or "(?!x)x"
+        self.level_tokens = (frozenset(t.lower() for t in self.level_of)
+                             if all(re.fullmatch(r"[A-Za-z]+", t) for t in self.level_of) else None)
         # key=value forms anywhere on the line: level=error, "level": "warn", severity=INFO
         self.level_key_rx = re.compile(
             r"(?i)\b(?:level|lvl|loglevel|log_level|severity|sev|priority)\b\s*[\"']?\s*[=:]\s*[\"']?(" + alt + r")(?![A-Za-z])"
@@ -578,22 +687,65 @@ class Vocab:
         # Built from the rule switches when the vocabulary is built.
         self.level_letter_rx = re.compile(letters)
 
+    def _prep(self, text: str) -> None:
+        """What has() and severity() work out once per line: a line is asked
+        about several classes in a row."""
+        if text != self._text:
+            self._text = text
+            self._lower = low = text.lower()
+            plain = plain_text(text)
+            self._runs = frozenset(WORD_RUN_RX.findall(low)) if plain else None
+            if plain and not any(map(low.__contains__, ZERO_COUNT_NEEDS)):
+                self._zeroed, self._zlower = text, low
+            else:
+                self._zeroed = ZERO_COUNT_RX.sub(" ", text)  # "0 errors", "no errors": a summary, not an error
+                self._zlower = self._zeroed.lower()
+
     def has(self, cls: str, text: str) -> bool:
-        rx = self.rx[cls]
+        self._prep(text)
+        low = self._lower
+        if cls in ("error", "warn", "strong-error"):
+            text, low = self._zeroed, self._zlower
+        rx = self.other_rx[cls]
+        if rx is not None:
+            needs = self.other_needs[cls]
+            if (needs is None or self._runs is None or any(map(low.__contains__, needs))) and rx.search(text):
+                return True
+        rx = self.word_rx[cls]
         if rx is None:
             return False
-        if cls in ("error", "warn", "strong-error"):
-            text = ZERO_COUNT_RX.sub(" ", text)  # "0 errors", "no errors": a summary, not an error
+        # Most lines hold none of a class's words, and one alternation of
+        # them tried at every position is the slowest part of the pass. A
+        # match is preceded by a non-letter and starts with the word's first
+        # run of letters, which the line then has as a whole run (the next
+        # character is a non-letter in the word, or ends it), so a line with
+        # none of those runs cannot match. Removing zero counts only removes
+        # runs. Lines that are not ASCII skip the shortcut: case-insensitive
+        # matching of a few non-ASCII letters (the Kelvin sign) is wider.
+        first = self.word_first[cls]
+        if first is not None and self._runs is not None and self._runs.isdisjoint(first):
+            return False
         return bool(rx.search(text))
 
     def detect_level(self, text: str) -> int | None:
         """Severity 0-4 of an explicit log-level token, or None. Structural:
         the token must be in a level form, not just a word in the message."""
-        m = self.level_key_rx.search(text)
-        if m:
-            return self.level_of[m.group(1).upper()]
+        self._prep(text)
+        ascii_ = self._runs is not None  # the shortcuts below hold for plain lines (see plain_text)
+        low = self._lower
+        if not ascii_ or any(map(low.__contains__, LEVEL_KEY_NEEDS)):
+            m = self.level_key_rx.search(text)
+            # Case-insensitive matching takes the Turkish İ for an i, so the
+            # token may not be one of ours once uppercased: not a level.
+            if m and m.group(1).upper() in self.level_of:
+                return self.level_of[m.group(1).upper()]
         head = text[:LEVEL_SCAN_CHARS]
-        for m in self.level_bare_rx.finditer(head):
+        # A bare level token is a whole run of letters (a non-letter on each
+        # side, or the end of the scanned head), so a head without one of
+        # those runs has none.
+        bare = (not ascii_ or self.level_tokens is None
+                or not self.level_tokens.isdisjoint(WORD_RUN_RX.findall(low[:LEVEL_SCAN_CHARS])))
+        for m in self.level_bare_rx.finditer(head) if bare else ():
             tok = m.group(1)
             start, end = m.start(1), m.end(1)
             nxt = head[end : end + 1]
@@ -603,7 +755,7 @@ class Vocab:
                 or (nxt == ":" and start <= 60)  # error: ..., Warning: ...
                 or (tool_rule(TOOL_RUSTC) and start == 0 and nxt == "[")  # rustc error[E0308]:
             )
-            if ok:
+            if ok and tok.upper() in self.level_of:  # İNFO matches, but is not INFO
                 return self.level_of[tok.upper()]
         m = self.level_letter_rx.search(text[:80])
         if m:
@@ -613,11 +765,22 @@ class Vocab:
     def severity(self, text: str) -> int | None:
         """Strongest structural signal on the line: log level, HTTP status
         code, or exit code. None when the line carries none of them."""
-        found = [s for s in (self.detect_level(text), http_severity(text), exit_severity(text)) if s is not None]
+        level = self.detect_level(text)  # also prepares the line
+        low, ascii_ = self._lower, self._runs is not None
+        http = http_severity(text) if not ascii_ or any(map(low.__contains__, HTTP_NEEDS)) else None
+        code = exit_severity(text) if not ascii_ or any(map(low.__contains__, EXIT_NEEDS)) else None
+        found = [s for s in (level, http, code) if s is not None]
         return max(found) if found else None
 
 
 LEVEL_SCAN_CHARS = 120
+# Lowercase strings one of which an ASCII line must contain for the regex to
+# match (test_pare.py checks them): the level key names, the request and
+# status words before an HTTP status, the words of an exit code.
+LEVEL_KEY_NEEDS = ("level", "lvl", "sev", "priority")
+HTTP_NEEDS = ("get", "post", "put", "patch", "delete", "head", "options", "status", "code", "http", "responded",
+              "returned")
+EXIT_NEEDS = ("exit", "return", "rc")
 
 
 def parse_vocab(text: str, base: dict[str, list[str]], source: str = "vocab") -> dict[str, list[str]]:
