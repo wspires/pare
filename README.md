@@ -280,7 +280,8 @@ sqz-cli` (not `pip install sqz`, which fetches a pinned 0.1.0 binary).
 
 1. **Tee** stdin to a content-hashed run file, in one pass with the steps
    below: pare keeps about 40 bytes per line in memory, not the lines,
-   so a 30 MB log runs in 65 MB.
+   so a 30 MB log runs in 65 MB, in about 28 s spent as the input
+   arrives (0.3 s of it after the end).
 2. **Segment** lines into records: indented continuations, stack frames and
    compiler gutters join the line above.
 3. **Mask** timestamps, IPs, hashes, paths and numbers, then **cluster** the
@@ -309,7 +310,8 @@ the reference for the built-in Drain (`.[dev]`), tidyout (`.[bench]`) and
 the SWE-bench package (`.[datasets]`). Extras combine:
 `pip install -e '.[dev,bench,datasets]'`.
 
-256 tests: severity forms and their false positives, vocabulary files, the
+263 tests: severity forms and their false positives, vocabulary files, the
+shortcuts in the per-line checks against the regexes they skip, the
 built-in Drain against drain3, the hard budget limit on every corpus file
 at several sizes, determinism,
 pass-through, the selection flags, memory on a large input, follow mode

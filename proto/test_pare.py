@@ -239,6 +239,143 @@ def test_vocab_level_tokens_extend(tmp_path):
     assert " E " in tpl_line
 
 
+# --- shortcuts in the per-line checks -------------------------------------
+# The pass skips a regex when a cheap test says it cannot match. Each such
+# test must be a necessary condition, or output changes; these check them on
+# corpus lines and on random lines built to be awkward (case, the Kelvin sign
+# and other letters that fold to ASCII, non-breaking spaces, zero counts).
+
+_AWKWARD = ["error", "ERROR", "Error:", "[warn]", "level=error", '"level": "WARN"', "sev=info", "FAIL", "XFAIL",
+            "failed", "0 errors", "no failures", "zero warnings", "exit code 1", "exited with status 137", "rc=2",
+            "returncode: 3", "GET /api 503", "status=404", "HTTP/1.1 502", "responded with 500", "returned HTTP 500",
+            "File \"x.py\", line 3", "  at foo(Bar.java:12)", "src/a.ts:4:2", "lib.rs(9)", "-->", "> 12 |", "E   ",
+            "E  x", "===", "---", "___", "## x", "***", "[Help 1]", "re-run", "run with --debug", "ran 12",
+            "200 OK", "45%", "...", "▓", "✓", "✗", "⚠", "PASSED", "ok", "Expected:", "-Received", "vulnerable",
+            "Kill", "ſkip", "ﬁle", "İnfo", "straße", " ", "　", "é", "→", "can't",
+            "timed out", "not found", "0x1f", "deadbeef-dead-beef-dead-beefdeadbeef", "10.0.0.1:80", "v1.2.3",
+            "http://x", "/usr/lib", "2026-10-07T09:00:00Z", "12:00:01", "worker3", "\x1b[31m", "-", ":", "(", "."]
+
+
+def _awkward_lines(n=6000, seed=11):
+    import random
+    rng = random.Random(seed)
+    words = _AWKWARD + [w for c in ("error", "warn", "summary", "noise", "advice", "level-error", "level-info")
+                        for w in pare.DEFAULT_VOCAB[c] if not pare._is_regex_entry(w)]
+    seps = [" ", "", "-", "_", ":", "(", ")", "[", "]", "/", ".", "\t", " ", "=", '"', "2"]
+    out = []
+    for _ in range(n):
+        parts = []
+        for _ in range(rng.randint(1, 7)):
+            w = rng.choice(words)
+            w = rng.choice([w, w.upper(), w.lower(), w.title()])
+            parts += [w, rng.choice(seps)]
+        out.append(("" if rng.random() < 0.7 else rng.choice(["  ", "E  ", "\t"])) + "".join(parts))
+    return out
+
+
+def _sample_corpus_lines(step=5):
+    lines = []
+    for path in _corpus_logs():
+        with open(path, encoding="utf-8", errors="replace") as f:
+            lines += [pare.clean_line(ln) for i, ln in enumerate(f) if i % step == 0 and ln.strip()]
+    return lines
+
+
+@pytest.fixture(scope="module")
+def shortcut_lines():
+    return _sample_corpus_lines() + _awkward_lines()
+
+
+def test_every_builtin_regex_entry_has_needs():
+    for cls, items in pare.DEFAULT_VOCAB.items():
+        for e in items:
+            if pare._is_regex_entry(e):
+                assert e in pare.REGEX_NEEDS, e
+    assert set(pare.MASK_NEEDS) == {name for name, _ in pare.MASKS}
+
+
+def _necessary(rx, needs, lines, plain_only=True):
+    for ln in lines:
+        if plain_only and not pare.plain_text(ln):
+            continue
+        if rx.search(ln):
+            low = ln.lower()
+            assert any(n in low for n in needs), (rx.pattern[:60], ln)
+
+
+def test_regex_entry_needs_are_necessary(shortcut_lines):
+    for e, needs in pare.REGEX_NEEDS.items():
+        _necessary(re.compile(pare._entry_regex(e)), needs, shortcut_lines)
+    _necessary(pare.HTTP_STATUS_RX, pare.HTTP_NEEDS, shortcut_lines)
+    _necessary(pare.EXIT_CODE_RX, pare.EXIT_NEEDS, shortcut_lines)
+    _necessary(pare.VOCAB.level_key_rx, pare.LEVEL_KEY_NEEDS, shortcut_lines)
+    _necessary(pare.ZERO_COUNT_RX, pare.ZERO_COUNT_NEEDS, shortcut_lines)
+
+
+def test_mask_needs_are_necessary(shortcut_lines):
+    for name, rx in pare.MASKS:
+        need = pare.MASK_NEEDS[name]
+        for ln in shortcut_lines:
+            if need is not None and rx.search(ln):
+                assert (pare.DIGIT_RX.search(ln) if need == "digit" else any(n in ln for n in need)), (name, ln)
+
+
+def _reference_has(v, cls, text):
+    """Vocab.has without shortcuts, as it was before them."""
+    rx = v.rx[cls]
+    if rx is None:
+        return False
+    if cls in ("error", "warn", "strong-error"):
+        text = pare.ZERO_COUNT_RX.sub(" ", text)
+    return bool(rx.search(text))
+
+
+def _reference_level(v, text):
+    m = v.level_key_rx.search(text)
+    if m and m.group(1).upper() in v.level_of:
+        return v.level_of[m.group(1).upper()]
+    head = text[:pare.LEVEL_SCAN_CHARS]
+    for m in v.level_bare_rx.finditer(head):
+        tok, start, end = m.group(1), m.start(1), m.end(1)
+        nxt = head[end:end + 1]
+        if (tok.isupper() or (start > 0 and head[start - 1] in "[(<|") or (nxt == ":" and start <= 60)
+                or (pare.tool_rule(pare.TOOL_RUSTC) and start == 0 and nxt == "[")) and tok.upper() in v.level_of:
+            return v.level_of[tok.upper()]
+    m = v.level_letter_rx.search(text[:80])
+    return pare.LETTER_LEVEL[next(g for g in m.groups() if g)] if m else None
+
+
+def _reference_severity(v, text):
+    found = [x for x in (_reference_level(v, text), pare.http_severity(text), pare.exit_severity(text)) if x is not None]
+    return max(found) if found else None
+
+
+@pytest.mark.parametrize("vocab_text", [None, "[error]\nfehler\nüberlauf\n404 page\n[level-error]\nFEHLER\nE1\n"])
+def test_vocab_shortcuts_agree_with_the_regexes(shortcut_lines, vocab_text):
+    """Every class and the severity, with and without a user vocabulary
+    (whose entries get no shortcut), on every sampled line."""
+    v = pare.Vocab(pare.parse_vocab(vocab_text, pare.DEFAULT_VOCAB, "t") if vocab_text else pare.DEFAULT_VOCAB)
+    classes = [c for c in pare.VOCAB_CLASSES if c not in pare.LEVEL_CLASSES]
+    for ln in shortcut_lines:
+        for cls in classes:
+            assert v.has(cls, ln) == _reference_has(v, cls, ln), (cls, ln)
+        assert v.severity(ln) == _reference_severity(v, ln), ln
+
+
+def test_level_token_that_uppercases_to_no_level():
+    # Case-insensitive matching takes İ (U+0130) for i; this crashed pare.
+    assert pare.VOCAB.detect_level("\u0130NFO: started") is None
+    assert pare.VOCAB.detect_level("level=\u0130nfo x") is None
+    assert "\u0130NFO: started" in run(["--budget", "2000"], "\u0130NFO: started\nERROR boom\n".encode()).decode()
+
+
+def test_plain_text_rejects_letters_that_fold_to_ascii():
+    for ch in "Kſßﬁİı 　":
+        assert not pare.plain_text("x " + ch)
+    for text in ("plain ascii", "ok ✓ done", "café → ●"):
+        assert pare.plain_text(text)
+
+
 # --- the built-in Drain ------------------------------------------------------
 
 def test_drain_merges_and_parametrizes():
