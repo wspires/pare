@@ -1009,6 +1009,34 @@ def score_templates(store: Store) -> None:
             tpl.marker = "."
 
 
+DUMP_VERSION = 1
+
+
+def write_dump(store: Store, path: str) -> None:
+    """$PARE_DUMP=FILE: the pass's per-line and per-template results as
+    tab-separated rows, for comparing another implementation with this one
+    line by line (bench/parity.py). Not a stable interface; the version on
+    the first line changes with the format.
+
+        L  no  record  depth  severity  blank  template  score  rendered-bytes  stripped-chars
+        T  id  records  lines  total  best-severity  marker  salience  vocab  exemplar-line  levels  text
+
+    Scores are written with six decimals, a format both languages print
+    alike; -1 or - stands for none."""
+    tids = [t.tid for t in store.templates]
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(f"# pare dump v{DUMP_VERSION}\n")
+        for i in range(len(store)):
+            r = store.rec[i]
+            f.write(f"L\t{store.base + i + 1}\t{r}\t{store.depth[i]}\t{store.sev[i]}\t{store.blank[i]}\t"
+                    f"{tids[store.rtpl[r]] if r >= 0 else '-'}\t{store.score[i]:.6f}\t{store.rlen[i]}\t{store.slen[i]}\n")
+        for t in store.templates:
+            levels = ",".join(f"{k}:{v}" for k, v in sorted(t.levels.items(), reverse=True)) or "-"
+            text = t.text.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n")
+            f.write(f"T\t{t.tid}\t{t.count}\t{t.lines}\t{t.total}\t{t.best_sev}\t{t.marker}\t{t.salience:.6f}\t"
+                    f"{t.vocab:.6f}\t{store.base + store.rstart[t.exemplar] + 1}\t{levels}\t{text}\n")
+
+
 TOKEN_RE = re.compile(r"[A-Za-z0-9_]+")
 NEAR_DUP_MIN_TOKENS = 4
 NEAR_DUP_CONTAINMENT = 0.8
@@ -2876,6 +2904,8 @@ def main(argv: list[str] | None = None) -> int:
                 run.write_meta(run_path, lines=len(store), nbytes=store.total_bytes)
         store.open()
         score_templates(store)
+        if os.environ.get("PARE_DUMP"):
+            write_dump(store, os.environ["PARE_DUMP"])
 
         if selecting:
             out = select(

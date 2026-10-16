@@ -247,19 +247,54 @@ Decisions, not code. *Maintainer.*
 - [ ] **Version.** What 0.2 means, and the compatibility promise for
   template ids (`--only T7 < runfile` must keep working).
 
-## 5. Native port
+## 5. Rust port
 
-- [ ] **Rust implementation** of the single pass and the allocator. The
-  design maps directly: chunked reads, typed per-line arrays, text read
-  back from the run file by offset.
-- [ ] **Differential tests.** The randomized follow-versus-batch test and
-  the batch equivalence sweep carry over unchanged, run against the Python
-  prototype as the oracle.
-- [ ] **Template id compatibility.** Decide whether the port must
-  reproduce drain3 0.9.11's clustering exactly, or whether new ids are a
-  breaking version. The Python prototype carries that clustering itself
-  now (`Drain` in `proto/pare.py`, tested against drain3), so the port
-  has a small reference to match.
+Decided: pare moves to Rust for a single-binary install, speed on large
+logs (an estimated 15 to 50 times the Python version), and as a way to
+learn Rust from C++. The Python version is the reference until the Rust
+one matches it byte for byte, then it is kept as `reference/pare.py`,
+unmaintained. The rules are frozen during the port: no tuning until the
+two agree, so the target does not move. Template ids stay identical
+(Drain as drain3 0.9.11 clusters), which is what makes the comparison
+meaningful.
+
+The code is written to be read: `//!` module docs that name the Python
+counterpart, `///` docs with compiled examples on public items, and
+`// Rust note:` comments where a choice is Rust-specific, written for a
+C++ reader. `docs/ARCHITECTURE.md` (crate layout, data flow, memory
+model, module map) and `docs/RUST.md` (Rust for C++ developers, through
+pare) come with the crate. `#![forbid(unsafe_code)]`, rustfmt and clippy
+with warnings as errors, few dependencies, each one justified.
+
+- [x] **0. Comparison tooling.** `bench/parity.py` runs a reference and a
+  candidate over every corpus log and 13 generated edge cases (empty
+  input, CRLF, ANSI, invalid UTF-8, NUL bytes, a 20,000-character line,
+  letters that case-fold to ASCII, ...) under 13 flag sets (budgets,
+  width, token rate, template cap, windows, every selection flag, follow
+  mode) and compares outputs and exit codes byte for byte. With `--dump`
+  it also compares the pass's per-line and per-template results
+  (`$PARE_DUMP`, `write_dump` in `proto/pare.py`) and reports the first
+  row that differs, so a divergence is found at the line where it starts.
+  *Done.*
+- [ ] **1. Crate skeleton.** Command-line options, reading input, the run
+  file and its hash, pass-through of input that fits. CI: fmt, clippy,
+  tests, parity on the cases that pass so far; release binaries (static
+  Linux musl, macOS, Windows) built on each tag from the start.
+- [ ] **2. Masking and Drain.** Template ids match on every line (the dump's
+  template column).
+- [ ] **3. Vocabulary, severity, scoring.** The whole per-line dump matches.
+  Starts with `fancy-regex` (it accepts Python's lookarounds) for correct
+  output first; hot patterns then move to the `regex` crate with their
+  boundaries checked in code, and parity says whether anything moved.
+- [ ] **4. Summary and allocation.** Full output identical on every run.
+- [ ] **5. The rest.** Selection flags, command mode, follow mode, prune,
+  stats.
+- [ ] **6. Distribution.** GitHub release binaries, a Homebrew tap,
+  `cargo install`; optionally PyPI wheels (maturin) so `pipx install pare`
+  gets the binary. The Python version moves to `reference/`.
+- [ ] **Later, if needed.** Per-line checks on worker threads: they depend
+  only on the line's text, so the pass is written to keep them a pure
+  function from the start.
 
 ## 6. Deferred
 
