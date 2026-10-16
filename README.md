@@ -160,24 +160,27 @@ on stdin with `select`.
 
 ## Install
 
-The only dependency is [drain3](https://github.com/logpai/Drain3) (pinned).
-Python 3.10 or newer.
+pare is one file, `proto/pare.py`, with no dependencies beyond Python 3.10
+or newer: copy it anywhere on your PATH and run it.
 
 ```
-# a `pare` command on your PATH (add --editable to track the checkout)
-uv tool install .            # or: pipx install .
+# the file alone
+cp proto/pare.py ~/.local/bin/pare
 pytest -v 2>&1 | pare --budget 2000
 
-# or run the script directly; it declares its dependency inline (PEP 723)
-pytest -v 2>&1 | uv run proto/pare.py --budget 2000
+# or as an installed tool (add --editable to track the checkout)
+uv tool install .            # or: pipx install .
 
 # or a virtualenv
 python3 -m venv .venv && .venv/bin/pip install -e '.[dev,bench]'
 pytest -v 2>&1 | .venv/bin/pare --budget 2000
 ```
 
-`proto/pare.py` is executable; a bare `python3 proto/pare.py` without
-drain3 stops with these options rather than a traceback.
+Template clustering uses the Drain algorithm, built in: a copy of the
+core of [drain3](https://github.com/logpai/Drain3) 0.9.11 (MIT), which
+pare depended on until it was vendored. A test checks it clusters exactly
+as drain3 does on every log in the repository, so template ids from
+either version mean the same thing.
 
 ## Benchmark
 
@@ -191,8 +194,8 @@ default and the measured cl100k/o200k rate for this text
 (`bench/tokens.py`), so a budget of 2000 is 2,000 real tokens. Eight logs (a ninth, a synthetic Android logcat capture, was added later
 and is reported in `docs/DESIGN.md`), 488k input tokens: real pytest, go test,
 cargo, make and npm runs, plus three seeded synthetic logs (a Jest run, a
-535 KB service outage, a 750 KB CI job). Versions: pare 0.1.0 / drain3
-0.9.11, sqz 1.9.0, tidyout-cli 0.2.0; sqz runs one-shot
+535 KB service outage, a 750 KB CI job). Versions: pare 0.1.0 (Drain as in
+drain3 0.9.11), sqz 1.9.0, tidyout-cli 0.2.0; sqz runs one-shot
 (`compress --no-cache`), tidyout with a fake command on PATH that replays
 the log.
 
@@ -263,7 +266,7 @@ it from the pytest markers and the blank-line-in-a-block rule
 (`docs/DESIGN.md`, "Tool-specific rules").
 
 ```
-python3 -m venv .venv && .venv/bin/pip install -r proto/requirements.txt -r bench/requirements.txt
+python3 -m venv .venv && .venv/bin/pip install -r bench/requirements.txt
 .venv/bin/python bench/run.py [--budget 2000] [--corpus DIR] [--show-misses] [--json out.json]
 .venv/bin/python bench/ablate.py        # recall with each heuristic switched off, or a removed one back on
 .venv/bin/python bench/tokens.py        # the byte proxy vs tiktoken counts (needs tiktoken)
@@ -281,7 +284,7 @@ sqz-cli` (not `pip install sqz`, which fetches a pinned 0.1.0 binary).
 2. **Segment** lines into records: indented continuations, stack frames and
    compiler gutters join the line above.
 3. **Mask** timestamps, IPs, hashes, paths and numbers, then **cluster** the
-   masked head lines into templates with drain3.
+   masked head lines into templates with Drain (built in).
 4. **Score** each line by its structural severity (log level, HTTP status,
    exit code) and vocabulary (error, warning, summary, frame, pass, noise),
    and each template by its head line plus its rarity.
@@ -297,16 +300,18 @@ for a native port are in [docs/DESIGN.md](docs/DESIGN.md).
 ## Tests
 
 ```
-.venv/bin/pip install -e '.[dev]'       # pare itself and pytest (the `dev` extra)
+.venv/bin/pip install -e '.[dev]'       # pare itself, pytest and drain3 (the `dev` extra)
 .venv/bin/python -m pytest -q proto/
 ```
 
-A few tests skip themselves when an optional tool is missing: tidyout
-(`.[bench]`) and the SWE-bench package (`.[datasets]`). Extras combine:
+A few tests skip themselves when an optional tool is missing: drain3,
+the reference for the built-in Drain (`.[dev]`), tidyout (`.[bench]`) and
+the SWE-bench package (`.[datasets]`). Extras combine:
 `pip install -e '.[dev,bench,datasets]'`.
 
-253 tests: severity forms and their false positives, vocabulary files, the
-hard budget limit on every corpus file at several sizes, determinism,
+256 tests: severity forms and their false positives, vocabulary files, the
+built-in Drain against drain3, the hard budget limit on every corpus file
+at several sizes, determinism,
 pass-through, the selection flags, memory on a large input, follow mode
 (including a randomized differential test against the batch pass),
 command mode, the collection, harvest, SWE-bench and Defects4J helpers, and the Claude Code hook.
@@ -314,7 +319,7 @@ command mode, the collection, harvest, SWE-bench and Defects4J helpers, and the 
 ## Layout
 
 ```
-proto/pare.py          the prototype (drain3 is its only dependency)
+proto/pare.py          the prototype (one file, standard library only)
 proto/test_pare.py     pytest suite
 proto/vocab.example    example vocabulary extension (German)
 bench/run.py           benchmark runner

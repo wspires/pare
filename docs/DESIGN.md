@@ -77,8 +77,9 @@ cluster and it degrades to head, tail and whatever matches the word lists.
 ## How this differs from Drain
 
 Drain ([He et al., 2017](https://jiemingzhu.github.io/pub/pjhe_icws2017.pdf);
-[drain3](https://github.com/logpai/Drain3) is the Python implementation
-pare uses) is a *log parser*: given a stream of lines it decides, online,
+pare carries its own copy of the core of
+[drain3](https://github.com/logpai/Drain3) 0.9.11, the Python
+implementation, MIT-licensed) is a *log parser*: given a stream of lines it decides, online,
 which template each line belongs to and which tokens are parameters. Its
 output is the complete set of templates and a cluster id per line. It has
 no notion of which templates matter, no budget, and no output format
@@ -93,13 +94,20 @@ pare uses Drain for exactly step 4 above and supplies everything around it:
 - **Masking before Drain, on pare's terms.** drain3 has its own masking
   hooks; pare masks first with placeholders chosen for developer-tool
   output (paths that must contain a letter, versions, units, rule runs)
-  and then hands Drain the masked text with drain3's masking disabled.
-  This keeps the shapes under pare's control and the clustering
+  and hands Drain the masked text. The built-in copy has no masking of
+  its own (nor drain3's persistence, cluster limit or extra delimiters),
+  which keeps the shapes under pare's control and the clustering
   deterministic.
 - **Stable ids.** Drain numbers clusters in creation order; pare renumbers
   them by first appearance, takes each cluster's final template text after
-  all records are in, and pins the drain3 version so `T9` means the same
-  thing across runs of the same input.
+  all records are in, and clusters exactly as drain3 0.9.11 does so `T9`
+  means the same thing across runs of the same input and across pare
+  versions. pare depended on drain3 until the core was vendored (a single
+  file with no dependencies is easier to install); `test_pare.py` checks
+  the copy against drain3 on every line of every log in the repository
+  and on random messages that fill a tree node past its child limit, and
+  the summaries of every log, at several budgets and in follow mode, were
+  byte-identical before and after.
 - **Salience and allocation.** Everything from step 5 on is pare: the
   structural severity, the vocabulary, the exemplar choice (the
   highest-severity record of each template), the priority queue, the
@@ -209,11 +217,11 @@ exists to make explicit.
    `<PATH>`, `<NUM>`, `<N>` and so on. Paths must contain a letter, so
    `1/30` is not a path.
 4. **Cluster.** The masked head line of each record (first 40 tokens) goes
-   through [drain3](https://github.com/logpai/Drain3) with similarity 0.5,
-   depth 4, max 100 children. Clusters are renumbered `T1, T2, …` in order
-   of first appearance; a cluster's final template text is taken after all
-   records are in. drain3 is pinned to 0.9.11 because template ids depend on
-   its exact clustering and `--only T3 < runfile` relies on them.
+   through Drain (built in, as drain3 0.9.11 implements it) with
+   similarity 0.5, depth 4, max 100 children. Clusters are renumbered `T1,
+   T2, …` in order of first appearance; a cluster's final template text is
+   taken after all records are in. The clustering must not change, because
+   template ids depend on it and `--only T3 < runfile` relies on them.
 5. **Score.** See **Scoring model**.
 6. **Allocate.** See **Allocation**.
 7. **Ledger.** The output ends with how many lines were omitted and from
@@ -597,7 +605,7 @@ is the prior by design and outside this switch.
 
 ## Benchmark detail
 
-Methodology is in the README. Versions: pare 0.1.0 with drain3 0.9.11, sqz
+Methodology is in the README. Versions: pare 0.1.0 with drain3 0.9.11 (now built in), sqz
 1.9.0, tidyout-cli 0.2.0. Modes: pare `--no-tee`; sqz
 `compress --no-cache --cmd <name>`, one-shot, so its session-level dedup is
 not exercised; tidyout `<cmd>` with a fake `<cmd>` on PATH that replays the
@@ -1064,9 +1072,11 @@ compression competes. Observations, recorded rather than fixed:
 
 ## Performance
 
-About 1.7 s on the 750 KB / 17,832-line CI log. drain3 is 0.35 s of that;
-the rest is the vocabulary and severity regexes, one pass per class per
-line.
+About 1.4 s on the 750 KB / 17,832-line CI log. Clustering itself is
+under 0.05 s of that (the built-in Drain over every line of the log;
+drain3 took 0.065 s); the rest is masking and the vocabulary and severity
+regexes, one pass per class per line. Start-up, with nothing to read, is
+about 0.08 s (0.12 s while pare imported drain3).
 
 **Memory.** The prototype makes a single pass over stdin. Each chunk is
 written to the spool (the run file, or a temporary file under `--no-tee`)
@@ -1169,7 +1179,7 @@ unattributed in the window already printed, since that block is out. It
 moves that line between the ledger's record count and its blank count,
 nothing else.
 
-**What carries across windows.** The drain3 miner, one small record per
+**What carries across windows.** The Drain miner, one small record per
 template (`GlobalTemplate`: id, cluster, cumulative count, first window),
 the line counter, the spool position, and the run file. The run file is
 named up front (`follow-<date>-<pid>.log` under the run directory, or
@@ -1218,8 +1228,10 @@ is still the exact one.
 ## Notes for a native port
 
 - Template ids must stay stable across versions, or `--only T3 < runfile`
-  breaks: a native Drain must match drain3 0.9.11's clustering exactly, or
-  the change is a breaking one and should say so.
+  breaks: a native Drain must match the built-in one (drain3 0.9.11's
+  clustering) exactly, or the change is a breaking one and should say so.
+  The built-in `Drain` class, about 100 lines, is the reference, and its
+  test against drain3 is the template for the port's.
 - The single pass is already the streaming shape a native port needs:
   tee, segment, cluster and score on arrival, keep per-line numbers and
   per-template statistics, read line text back from the run file by

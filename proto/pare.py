@@ -2,7 +2,7 @@
 """pare - summarize noisy command output (tests, builds, logs) to a token budget.
 
 Pipeline
-    stdin -> one pass: tee to the run file, split, segment, mask, drain3
+    stdin -> one pass: tee to the run file, split, segment, mask, Drain
              templates, line scores -> budget allocation -> summary on stdout
 
 The pass keeps a few bytes per line and reads line text back from the run
@@ -19,13 +19,8 @@ Output is deterministic for a given input and flags: template ids (T1, T2,
 ...) are numbered in order of first appearance, and the run file name is a
 content hash, so a later `pare --only T3 < runfile` sees the same ids.
 
-Install: `uv run proto/pare.py` picks up the dependency block below, or
-`python3 -m venv .venv && .venv/bin/pip install -r proto/requirements.txt`.
+One file, standard library only: run it with any Python 3.10 or newer.
 """
-# /// script
-# requires-python = ">=3.10"
-# dependencies = ["drain3==0.9.11"]
-# ///
 
 from __future__ import annotations
 
@@ -34,7 +29,6 @@ import array
 import hashlib
 import heapq
 import json
-import logging
 import math
 import os
 import re
@@ -46,19 +40,6 @@ import tempfile
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
-
-logging.getLogger("drain3").setLevel(logging.ERROR)
-
-try:
-    from drain3 import TemplateMiner
-    from drain3.template_miner_config import TemplateMinerConfig
-except ModuleNotFoundError:
-    sys.exit(
-        "pare: the 'drain3' package is not installed for this Python.\n"
-        "  run it with uv (installs drain3 into a cached env):  uv run proto/pare.py\n"
-        "  or in a venv:  python3 -m venv .venv && .venv/bin/pip install -r proto/requirements.txt\n"
-        "                 .venv/bin/python proto/pare.py"
-    )
 
 __version__ = "0.1.0"
 DEBUG = bool(os.environ.get("PARE_DEBUG"))  # trace the allocation to stderr
@@ -161,7 +142,7 @@ class Record:
 class Template:
     idx: int  # 0-based index in its store
     text: str
-    cluster_id: int = -1  # drain3's id for the cluster
+    cluster_id: int = -1  # Drain's id for the cluster
     gid: int = -1  # global id, shown as T{gid+1}; equals idx except in a follow window
     count: int = 0  # records (in this store: the whole input, or one follow window)
     total: int = 0  # records seen so far in the whole input (rarity uses this)
@@ -255,15 +236,127 @@ def mask(text: str, words: bool = True) -> str:
 DRAIN_MAX_TOKENS = 40
 
 
-def new_miner() -> TemplateMiner:
-    cfg = TemplateMinerConfig()
-    cfg.masking_instructions = []
-    cfg.profiling_enabled = False
-    cfg.drain_sim_th = 0.5  # 0.4 merges lines that share only a timestamp+level prefix
-    cfg.drain_depth = 4
-    cfg.drain_max_children = 100
-    cfg.parametrize_numeric_tokens = True
-    return TemplateMiner(None, cfg)
+DRAIN_SIM = 0.5  # 0.4 merges lines that share only a timestamp+level prefix
+DRAIN_DEPTH = 4
+DRAIN_MAX_CHILDREN = 100
+WILDCARD = "<*>"
+
+
+class Cluster:
+    """One Drain template: its tokens (wildcards as <*>), drain's id, its size."""
+    __slots__ = ("tokens", "cluster_id", "size")
+
+    def __init__(self, tokens: list[str], cluster_id: int):
+        self.tokens = tuple(tokens)
+        self.cluster_id = cluster_id
+        self.size = 1
+
+    def get_template(self) -> str:
+        return " ".join(self.tokens)
+
+
+class _Node:
+    __slots__ = ("children", "cluster_ids")
+
+    def __init__(self):
+        self.children: dict[str, _Node] = {}
+        self.cluster_ids: list[int] = []
+
+
+class Drain:
+    """The Drain log-template miner (He et al., 2017), as drain3 0.9.11
+    implements it (MIT; github.com/logpai/Drain3, drain3/drain.py), cut to
+    what pare uses: no masking, persistence, cluster limit or extra
+    delimiters. A prefix tree keyed on token count and the first tokens
+    leads to candidate clusters; a message joins the most similar one at
+    or above the similarity threshold, its differing tokens becoming <*>,
+    or starts a new one. Template ids depend on clustering exactly as
+    drain3 does, so a change here is a change to every T<n>; test_pare.py
+    checks it against drain3 when drain3 is installed."""
+
+    def __init__(self, depth: int = DRAIN_DEPTH, sim_th: float = DRAIN_SIM, max_children: int = DRAIN_MAX_CHILDREN):
+        self.max_node_depth = depth - 2  # the root is level 1, the token count level 2
+        self.sim_th = sim_th
+        self.max_children = max_children
+        self.root = _Node()
+        self.clusters: dict[int, Cluster] = {}
+
+    def add(self, message: str) -> Cluster:
+        """Cluster one message (tokens split on whitespace) and return its cluster."""
+        tokens = message.split()
+        cluster = self._tree_search(tokens)
+        if cluster is None:
+            cluster = Cluster(tokens, len(self.clusters) + 1)
+            self.clusters[cluster.cluster_id] = cluster
+            self._add_to_tree(cluster)
+        else:
+            new = tuple(t if t == m else WILDCARD for t, m in zip(cluster.tokens, tokens))
+            if new != cluster.tokens:
+                cluster.tokens = new
+            cluster.size += 1
+        return cluster
+
+    def _tree_search(self, tokens: list[str]) -> Cluster | None:
+        n = len(tokens)
+        node = self.root.children.get(str(n))
+        if node is None:
+            return None
+        if n == 0:
+            return self.clusters.get(node.cluster_ids[0])
+        depth = 1
+        for token in tokens:
+            if depth >= self.max_node_depth or depth == n:
+                break
+            nxt = node.children.get(token)
+            if nxt is None:
+                nxt = node.children.get(WILDCARD)
+            if nxt is None:
+                return None
+            node = nxt
+            depth += 1
+        # The most similar candidate (ties: more wildcards); wildcards do not count as matches.
+        best, best_sim, best_params = None, -1.0, -1
+        for cid in node.cluster_ids:
+            c = self.clusters[cid]
+            same = params = 0
+            for t, m in zip(c.tokens, tokens):
+                if t == WILDCARD:
+                    params += 1
+                elif t == m:
+                    same += 1
+            sim = same / len(c.tokens)
+            if sim > best_sim or (sim == best_sim and params > best_params):
+                best, best_sim, best_params = c, sim, params
+        return best if best_sim >= self.sim_th else None
+
+    def _add_to_tree(self, cluster: Cluster) -> None:
+        n = len(cluster.tokens)
+        node = self.root.children.setdefault(str(n), _Node())
+        if n == 0:
+            node.cluster_ids = [cluster.cluster_id]
+            return
+        depth = 1
+        for token in cluster.tokens:
+            if depth >= self.max_node_depth or depth >= n:
+                node.cluster_ids.append(cluster.cluster_id)
+                break
+            children = node.children
+            if token in children:
+                node = children[token]
+            elif any(ch.isdigit() for ch in token):  # a token with a digit is a parameter
+                node = children.setdefault(WILDCARD, _Node())
+            elif WILDCARD in children:
+                if len(children) < self.max_children:
+                    node = children[token] = _Node()
+                else:
+                    node = children[WILDCARD]
+            elif len(children) + 1 < self.max_children:
+                node = children[token] = _Node()
+            elif len(children) + 1 == self.max_children:
+                node = children[WILDCARD] = _Node()
+            else:
+                node = children[WILDCARD]
+            depth += 1
 
 
 def drain_message(head_text: str) -> str:
@@ -1047,7 +1140,7 @@ class Pass:
     """The single pass as an object: feed it chunks, cut windows off it.
 
     Batch mode feeds the whole input and cuts one window at the end. Follow
-    mode cuts a window at each flush. The drain3 miner, the cumulative
+    mode cuts a window at each flush. The Drain miner, the cumulative
     per-template counts, the line counter and the spool position carry
     across windows; the per-line arrays live in the current window's Store.
     """
@@ -1057,7 +1150,7 @@ class Pass:
         self.spool = spool
         self.spool_path = spool_path
         self.hasher = hasher
-        self.miner = new_miner()
+        self.drain = Drain()
         self.by_cluster: dict[int, GlobalTemplate] = {}
         self.globals: list[GlobalTemplate] = []
         self.total_bytes = 0
@@ -1148,7 +1241,7 @@ class Pass:
         store.total_bytes = (self.pos - store.off[0]) if len(store) else 0
         for tpl in store.templates:
             g = self.globals[tpl.gid]
-            c = self.miner.drain.id_to_cluster.get(tpl.cluster_id)
+            c = self.drain.clusters.get(tpl.cluster_id)
             if c is not None:
                 tpl.text = c.get_template()
             tpl.total = g.total
@@ -1327,8 +1420,8 @@ class Pass:
             self.head_indent = indent_of(message) if logcat is not None else indent
             self.head_text, self.head_no, self.head_sev = text, store.base + i + 1, sev
             # Cluster the masked head line.
-            res = self.miner.add_log_message(drain_message(text))
-            cid = res["cluster_id"]
+            cluster = self.drain.add(drain_message(text))
+            cid = cluster.cluster_id
             g = self.by_cluster.get(cid)
             if g is None:
                 g = GlobalTemplate(gid=len(self.globals), cluster_id=cid, first_window=self.window_no)
@@ -1337,7 +1430,7 @@ class Pass:
             g.total += 1
             tpl = self.window_tpl.get(g.gid)
             if tpl is None:
-                tpl = Template(idx=len(store.templates), text=res["template_mined"], cluster_id=cid, gid=g.gid,
+                tpl = Template(idx=len(store.templates), text=cluster.get_template(), cluster_id=cid, gid=g.gid,
                                exemplar=cur, new=g.first_window == self.window_no)
                 store.templates.append(tpl)
                 self.window_tpl[g.gid] = tpl
