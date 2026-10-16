@@ -257,7 +257,9 @@ Decisions, not code. *Maintainer.*
   prototype as the oracle.
 - [ ] **Template id compatibility.** Decide whether the port must
   reproduce drain3 0.9.11's clustering exactly, or whether new ids are a
-  breaking version.
+  breaking version. The Python prototype carries that clustering itself
+  now (`Drain` in `proto/pare.py`, tested against drain3), so the port
+  has a small reference to match.
 
 ## 6. Deferred
 

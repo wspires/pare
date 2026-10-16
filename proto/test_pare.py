@@ -239,6 +239,76 @@ def test_vocab_level_tokens_extend(tmp_path):
     assert " E " in tpl_line
 
 
+# --- the built-in Drain ------------------------------------------------------
+
+def test_drain_merges_and_parametrizes():
+    d = pare.Drain()
+    a = d.add("<TS> ERROR worker <N> crashed")
+    b = d.add("<TS> ERROR worker <N> exited")
+    c = d.add("one two three")
+    assert a is b and a.size == 2 and a.get_template() == "<TS> ERROR worker <N> <*>"
+    assert c.cluster_id == 2 and c.get_template() == "one two three"
+    assert d.add("<TS> INFO started up").cluster_id == 3  # under the similarity threshold
+
+
+def _corpus_logs():
+    out = []
+    for d, subdirs, files in os.walk(ROOT):
+        rel = os.path.relpath(d, ROOT)
+        if rel.split(os.sep)[0] not in ("corpus", "corpus-generated", "corpus-dev", "corpus-heldout"):
+            subdirs[:] = [s for s in subdirs if s.startswith("corpus")] if rel == "." else []
+            continue
+        out += [os.path.join(d, f) for f in files if f.endswith(".log")]
+    return sorted(out)
+
+
+def _drain3_miner():
+    drain3 = pytest.importorskip("drain3")
+    from drain3.template_miner_config import TemplateMinerConfig
+    cfg = TemplateMinerConfig()
+    cfg.masking_instructions = []
+    cfg.profiling_enabled = False
+    cfg.drain_sim_th = pare.DRAIN_SIM
+    cfg.drain_depth = pare.DRAIN_DEPTH
+    cfg.drain_max_children = pare.DRAIN_MAX_CHILDREN
+    cfg.parametrize_numeric_tokens = True
+    return drain3.TemplateMiner(None, cfg)
+
+
+def _assert_same_clustering(messages):
+    ref, ours = _drain3_miner(), pare.Drain()
+    for msg in messages:
+        r = ref.add_log_message(msg)
+        c = ours.add(msg)
+        assert (c.cluster_id, c.get_template()) == (r["cluster_id"], r["template_mined"]), msg
+    assert {i: c.get_template() for i, c in ours.clusters.items()} == \
+        {c.cluster_id: c.get_template() for c in ref.drain.clusters}
+
+
+def test_drain_matches_drain3_on_every_corpus_log():
+    """Template ids are a public interface (pare --only T7 < runfile), so the
+    built-in Drain must cluster exactly as drain3 0.9.11, which pare used
+    before: every line of every log in the repository, masked as pare masks
+    a record head, gets the same cluster and template from both."""
+    logs = _corpus_logs()
+    assert len(logs) > 150
+    for path in logs:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            _assert_same_clustering([pare.drain_message(pare.clean_line(ln)) for ln in f if ln.strip()])
+
+
+def test_drain_matches_drain3_on_random_messages():
+    """Shapes the corpus rarely has: more than DRAIN_MAX_CHILDREN distinct
+    first tokens of one length, literal wildcards, digits, one-token lines."""
+    import random
+    rng = random.Random(7)
+    words = [f"w{chr(97 + i % 26)}{chr(97 + i // 26)}" for i in range(260)] + ["<*>", "x1", "2", "ERROR", "at"]
+    for trial in range(5):
+        msgs = [" ".join(rng.choice(words[: rng.choice((8, 40, 265))]) for _ in range(rng.randint(1, 6)))
+                for _ in range(3000)]
+        _assert_same_clustering(msgs)
+
+
 # --- budget, determinism, selection -----------------------------------------
 
 @pytest.mark.parametrize("name", LOGS)

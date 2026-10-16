@@ -56,16 +56,11 @@ def which(name: str) -> str | None:
 
 
 def pare_cmd() -> list[str]:
-    """How to run proto/pare.py: the repo venv if there is one, else `uv run`
-    (which installs drain3 from the script's inline metadata), else the
-    current interpreter."""
+    """How to run proto/pare.py: the repo venv if there is one, else the
+    current interpreter (pare needs nothing beyond the standard library)."""
     script = os.path.join(ROOT, "proto", "pare.py")
     venv = os.path.join(ROOT, ".venv", "bin", "python")
-    if os.path.exists(venv):
-        return [venv, script]
-    if shutil.which("uv"):
-        return ["uv", "run", "--quiet", script]
-    return [sys.executable, script]
+    return [venv if os.path.exists(venv) else sys.executable, script]
 
 
 class Tool:
@@ -95,11 +90,7 @@ class Pare(Tool):
 
     def version(self) -> str:
         p = subprocess.run(pare_cmd() + ["--version"], capture_output=True, text=True)
-        drain = subprocess.run(pare_cmd()[:-1] + ["-c", "import importlib.metadata as m; print(m.version('drain3'))"]
-                               if pare_cmd()[0] != "uv" else ["uv", "run", "--quiet", "--with", "drain3", "python", "-c",
-                                                             "import importlib.metadata as m; print(m.version('drain3'))"],
-                               capture_output=True, text=True)
-        return f"{p.stdout.strip().replace('pare ', '')} (drain3 {drain.stdout.strip() or '?'})"
+        return p.stdout.strip().replace("pare ", "")
 
     def run(self, log_path, cmd, budget, work):
         with open(log_path, "rb") as f:
