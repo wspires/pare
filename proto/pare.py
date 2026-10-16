@@ -214,12 +214,24 @@ MASKS = [
 
 
 DIGIT_RX = re.compile(r"\d")
-# What a line must contain for each mask to change it: "digit", or one of
-# these strings (test_pare.py checks them).
-MASK_NEEDS = {
-    "RULE": tuple(c * 3 for c in "=_-*#~."), "TS": "digit", "DATE": "digit", "TIME": "digit", "UUID": ("-",),
-    "IP": "digit", "URL": ("://",), "HEX": "digit", "VER": "digit", "PATH": ("/",), "NUM": "digit",
-    "WORDNUM": "digit",
+_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+# What a line must contain for each mask to change it: (a digit?, one of
+# these strings, or None for no such test). Checked against the line as the
+# earlier masks left it, so a TIME pass is skipped once TS took the colons.
+# test_pare.py checks them.
+MASK_NEEDS: dict[str, tuple[bool, tuple[str, ...] | None]] = {
+    "RULE": (False, tuple(c * 3 for c in "=_-*#~.")),
+    "TS": (True, ("-",)),
+    "DATE": (True, ("-", "/") + _MONTHS),  # 2026-10-07, 10/7/26, or Tue Oct 7 / Oct 7, 2026
+    "TIME": (True, (":",)),
+    "UUID": (False, ("-",)),
+    "IP": (True, (".",)),
+    "URL": (False, ("://",)),
+    "HEX": (True, None),
+    "VER": (True, (".",)),
+    "PATH": (False, ("/",)),
+    "NUM": (True, None),
+    "WORDNUM": (True, None),
 }
 
 
@@ -228,22 +240,26 @@ def mask(text: str, words: bool = True) -> str:
     with digits whole (test_case_3, testIssue635): for telling names apart,
     not for clustering."""
     t = text.strip()
-    # Each mask needs a character the line may not have (most need a digit);
-    # none of the placeholders adds one, so a check on the input holds for
-    # every step.
-    has_digit = DIGIT_RX.search(t) is not None
+    digit = None  # whether t has a digit, worked out when a mask needs it
     for name, rx in MASKS:
-        need = MASK_NEEDS[name]
-        if need is not None and not (has_digit if need == "digit" else any(map(t.__contains__, need))):
+        need_digit, need = MASK_NEEDS[name]
+        if need is not None and not any(map(t.__contains__, need)):
             continue
+        if need_digit:
+            if digit is None:
+                digit = DIGIT_RX.search(t) is not None
+            if not digit:
+                continue
         if name == "WORDNUM":
             if not words:
                 continue
-            t = rx.sub(lambda m: re.sub(r"\d+", "<N>", m.group(0)), t)
+            new = rx.sub(lambda m: re.sub(r"\d+", "<N>", m.group(0)), t)
         elif name == "RULE":
-            t = rx.sub(lambda m: m.group(1) * 3, t)
+            new = rx.sub(lambda m: m.group(1) * 3, t)
         else:
-            t = rx.sub(f"<{name}>", t)
+            new = rx.sub(f"<{name}>", t)
+        if new is not t:
+            t, digit = new, None
     return t
 
 
@@ -631,6 +647,7 @@ class Vocab:
         self._zeroed = ""
         self._runs: frozenset[str] | None = None
         self._lower = self._zlower = ""
+        self._found: dict[str, bool] = {}
         for cls in VOCAB_CLASSES:
             if cls in LEVEL_CLASSES:
                 continue
@@ -692,6 +709,7 @@ class Vocab:
         about several classes in a row."""
         if text != self._text:
             self._text = text
+            self._found = {}  # class -> has()
             self._lower = low = text.lower()
             plain = plain_text(text)
             self._runs = frozenset(WORD_RUN_RX.findall(low)) if plain else None
@@ -703,6 +721,12 @@ class Vocab:
 
     def has(self, cls: str, text: str) -> bool:
         self._prep(text)
+        found = self._found.get(cls)
+        if found is None:
+            found = self._found[cls] = self._has(cls, text)
+        return found
+
+    def _has(self, cls: str, text: str) -> bool:
         low = self._lower
         if cls in ("error", "warn", "strong-error"):
             text, low = self._zeroed, self._zlower
@@ -744,7 +768,8 @@ class Vocab:
         # side, or the end of the scanned head), so a head without one of
         # those runs has none.
         bare = (not ascii_ or self.level_tokens is None
-                or not self.level_tokens.isdisjoint(WORD_RUN_RX.findall(low[:LEVEL_SCAN_CHARS])))
+                or not self.level_tokens.isdisjoint(self._runs if len(low) <= LEVEL_SCAN_CHARS
+                                                    else WORD_RUN_RX.findall(low[:LEVEL_SCAN_CHARS])))
         for m in self.level_bare_rx.finditer(head) if bare else ():
             tok = m.group(1)
             start, end = m.start(1), m.end(1)
@@ -1509,14 +1534,10 @@ class Pass:
             self.pending_blank = i if self.cur != -1 else -1
             return
         store.blank.append(0)
-        memo: dict[str, bool] = {}
         vocab_has = VOCAB.has
 
-        def has(cls: str, _text: str = "") -> bool:  # Vocab.has, memoised for this line
-            v = memo.get(cls)
-            if v is None:
-                v = memo[cls] = vocab_has(cls, text)
-            return v
+        def has(cls: str, _text: str = "") -> bool:  # Vocab.has for this line (it remembers the answers)
+            return vocab_has(cls, text)
 
         cur = self.cur
         rstart, rend, rtpl = store.rstart, store.rend, store.rtpl
@@ -1559,7 +1580,6 @@ class Pass:
                 text = message
                 sev = VOCAB.severity(text)
                 store.sev[i] = -1 if sev is None else sev
-                memo.clear()
             tpl = store.templates[rtpl[cur]]
             if self.pending_blank != -1:
                 store.rec[self.pending_blank] = cur

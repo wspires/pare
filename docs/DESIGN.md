@@ -1095,8 +1095,10 @@ result changes:
   forms and the zero-count rule: a short list of lowercase strings one of
   which the line must contain (`REGEX_NEEDS`, `HTTP_NEEDS`, ...).
 - A bare level token is a whole run of letters in the scanned head.
-- Each mask: a character the line must contain, mostly a digit (none of
-  the placeholders adds one, so a check on the input holds for each step).
+- Each mask: a digit, a character or a word the line must contain (a `:`
+  for a time, a `.` for an IP or a version, `-`, `/` or a month name for a
+  date), checked against the line as the earlier masks left it, so a time
+  pass is skipped once the timestamp mask took the colons.
 - ANSI stripping only on lines with an escape character.
 
 The letter-run and lowercase tests hold for lines whose non-ASCII
@@ -1146,10 +1148,20 @@ spent as the input arrives: of the 27.7 s on 30.8 MB, 0.3 s comes after
 end of input (the summary itself). A command that prints slower than
 about 1 MB/s, most builds and test runs, gets its summary a fraction of
 a second after it exits; the whole time shows when the input is already
-on disk (`pare < big.log`) or arrives faster than that. What remains is
-Python per line: the masks on record heads, the substring tests, and the
-bookkeeping in the pass. A native port is where the next large factor
-is. The candidate list for the
+on disk (`pare < big.log`) or arrives faster than that.
+
+What remains is Python per line, and most of it is regex work on lines
+that do hold a candidate: record heads nearly all carry a timestamp, so
+most masks run on them, and sharper mask tests saved 8 % of mask time.
+File I/O is small: reading 30 MB in 1 MB chunks, writing the run file,
+hashing it and splitting it into lines takes about 1.4 s, 5 % of the
+total, and reading lines back for the summary is part of the 0.3 s after
+end of input. Two larger levers are left. The per-line checks (severity,
+vocabulary, masks: about two thirds of the time) depend only on a line's
+text, so worker processes could compute them in parallel ahead of the
+sequential pass; that helps only input arriving faster than pare reads
+it, at the cost of a second code path. And a native port, where the
+next large factor is. The candidate list for the
 allocator holds every non-blank line scoring at or above the floor, as
 one integer per line, which is the one structure still proportional to
 line count; the raw bytes are never held in memory beyond one chunk.
