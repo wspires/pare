@@ -312,12 +312,37 @@ def test_regex_entry_needs_are_necessary(shortcut_lines):
     _necessary(pare.ZERO_COUNT_RX, pare.ZERO_COUNT_NEEDS, shortcut_lines)
 
 
-def test_mask_needs_are_necessary(shortcut_lines):
+def _reference_mask(text, words=True):
+    """mask() without its shortcuts."""
+    t = text.strip()
     for name, rx in pare.MASKS:
-        need = pare.MASK_NEEDS[name]
-        for ln in shortcut_lines:
-            if need is not None and rx.search(ln):
-                assert (pare.DIGIT_RX.search(ln) if need == "digit" else any(n in ln for n in need)), (name, ln)
+        if name == "WORDNUM":
+            if words:
+                t = rx.sub(lambda m: re.sub(r"\d+", "<N>", m.group(0)), t)
+        elif name == "RULE":
+            t = rx.sub(lambda m: m.group(1) * 3, t)
+        else:
+            t = rx.sub(f"<{name}>", t)
+    return t
+
+
+def test_mask_needs_are_necessary(shortcut_lines):
+    """Each mask's needs hold on the line as the earlier masks left it,
+    wherever the mask matches, and mask() equals the plain sequence."""
+    for ln in shortcut_lines:
+        t = ln.strip()
+        for name, rx in pare.MASKS:
+            need_digit, need = pare.MASK_NEEDS[name]
+            if rx.search(t):
+                assert not need_digit or pare.DIGIT_RX.search(t), (name, t)
+                assert need is None or any(n in t for n in need), (name, t)
+            if name == "WORDNUM":
+                t = rx.sub(lambda m: re.sub(r"\d+", "<N>", m.group(0)), t)
+            elif name == "RULE":
+                t = rx.sub(lambda m: m.group(1) * 3, t)
+            else:
+                t = rx.sub(f"<{name}>", t)
+        assert pare.mask(ln) == _reference_mask(ln) and pare.mask(ln, words=False) == _reference_mask(ln, False), ln
 
 
 def _reference_has(v, cls, text):
