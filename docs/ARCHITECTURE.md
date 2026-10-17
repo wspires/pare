@@ -4,7 +4,8 @@ How the Rust code is organised, how data flows through it, and how it
 maps onto the Python reference (`proto/pare.py`). What the algorithm does
 and why is in [DESIGN.md](DESIGN.md); what is Rust-specific, explained for
 a C++ reader, is in [RUST.md](RUST.md). The port's plan and its stages are
-in [ROADMAP.md](../ROADMAP.md), stage 5.
+in [ROADMAP.md](../ROADMAP.md), stage 5; setting up, building and
+testing are in [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Status
 

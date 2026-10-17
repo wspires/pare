@@ -163,7 +163,8 @@ on stdin with `select`.
 pare is being ported to Rust for a single-binary install and speed on
 large logs ([docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) has its status).
 Until the Rust version matches this one byte for byte, the Python
-version below is the one to use.
+version below is the one to use. Building and testing the Rust version:
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 pare is one file, `proto/pare.py`, with no dependencies beyond Python 3.10
 or newer: copy it anywhere on your PATH and run it.
@@ -305,6 +306,9 @@ for a native port are in [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Tests
 
+Setting up, building and testing both versions, and the checks CI runs,
+are in [CONTRIBUTING.md](CONTRIBUTING.md). For the Python version:
+
 ```
 .venv/bin/pip install -e '.[dev]'       # pare itself, pytest and drain3 (the `dev` extra)
 .venv/bin/python -m pytest -q proto/
@@ -351,4 +355,5 @@ Cargo.toml, src/       the Rust port, in progress (ROADMAP.md, stage 5)
 tests/cli.rs           end-to-end tests of the Rust binary
 .github/workflows/     CI (Rust checks, Python tests, parity) and release builds
 ROADMAP.md             what comes next, in order, and who can do it
+CONTRIBUTING.md        setting up, building and testing (Rust and Python), the CI checks, parity
 ```
