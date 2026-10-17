@@ -1111,6 +1111,41 @@ def test_command_mode_with_follow():
     assert last.startswith("# pare: end of input · 251 lines") and last.endswith(" · exit 2")
 
 
+# --- $PARE_DUMP and bench/parity.py ------------------------------------------------
+
+def test_dump_has_a_row_per_line_and_template(tmp_path):
+    dump = tmp_path / "d.tsv"
+    data = open(os.path.join(CORPUS, "pytest-fail.log"), "rb").read()
+    p = subprocess.run([sys.executable, os.path.join(HERE, "pare.py"), "--no-tee", "--budget", "600"],
+                       input=data, capture_output=True, check=True, env=dict(os.environ, PARE_DUMP=str(dump)))
+    rows = dump.read_text(encoding="utf-8").splitlines()
+    assert rows[0] == f"# pare dump v{pare.DUMP_VERSION}"
+    lines = [r.split("\t") for r in rows if r.startswith("L\t")]
+    tpls = [r.split("\t") for r in rows if r.startswith("T\t")]
+    assert len(lines) == data.count(b"\n") and all(len(r) == 10 for r in lines)
+    assert [r[1] for r in lines[:3]] == ["1", "2", "3"]
+    ntpl = int(re.search(rb"(\d+) templates", p.stdout).group(1))
+    assert len(tpls) == ntpl and all(len(r) == 12 for r in tpls)
+    assert {r[6] for r in lines} <= {t[1] for t in tpls} | {"-"}  # every line's template is listed
+
+
+def test_parity_passes_on_itself_and_catches_a_change(tmp_path):
+    parity = os.path.join(ROOT, "bench", "parity.py")
+    ref = f"{sys.executable} {os.path.join(HERE, 'pare.py')}"
+    logs = [os.path.join(CORPUS, "go-test.log")]
+    same = subprocess.run([sys.executable, parity, "--candidate", ref, "--dump", "--quick", "--no-edge", "--logs", *logs],
+                          capture_output=True, text=True)
+    assert same.returncode == 0, same.stdout
+    assert "0 differ" in same.stdout
+    mutant = tmp_path / "pare.py"
+    src = open(os.path.join(HERE, "pare.py"), encoding="utf-8").read()
+    mutant.write_text(src.replace("LOCATION_BONUS = 1.5 ", "LOCATION_BONUS = 1.4 ", 1), encoding="utf-8")
+    diff = subprocess.run([sys.executable, parity, "--candidate", f"{sys.executable} {mutant}", "--dump", "--quick",
+                           "--no-edge", "--logs", *logs], capture_output=True, text=True)
+    assert diff.returncode == 1
+    assert "per-line dump" in diff.stdout and "-L\t229\t" in diff.stdout
+
+
 # --- bench/collect.py -------------------------------------------------------------
 
 def collect(args, **kw):

@@ -1292,6 +1292,13 @@ is still the exact one.
 
 ## Notes for a native port
 
+`bench/parity.py --candidate CMD [--dump]` is the check for a port: every
+corpus log and a set of generated edge cases under 13 flag sets, outputs
+and exit codes byte for byte, and with `--dump` the pass's per-line and
+per-template results (`$PARE_DUMP`), reported from the first row that
+differs. The plan and its stages are in `ROADMAP.md`, stage 5.
+
+
 - Template ids must stay stable across versions, or `--only T3 < runfile`
   breaks: a native Drain must match the built-in one (drain3 0.9.11's
   clustering) exactly, or the change is a breaking one and should say so.

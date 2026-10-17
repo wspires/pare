@@ -310,13 +310,14 @@ the reference for the built-in Drain (`.[dev]`), tidyout (`.[bench]`) and
 the SWE-bench package (`.[datasets]`). Extras combine:
 `pip install -e '.[dev,bench,datasets]'`.
 
-263 tests: severity forms and their false positives, vocabulary files, the
+265 tests: severity forms and their false positives, vocabulary files, the
 shortcuts in the per-line checks against the regexes they skip, the
 built-in Drain against drain3, the hard budget limit on every corpus file
 at several sizes, determinism,
 pass-through, the selection flags, memory on a large input, follow mode
 (including a randomized differential test against the batch pass),
-command mode, the collection, harvest, SWE-bench and Defects4J helpers, and the Claude Code hook.
+command mode, the per-line dump and the parity check, the collection,
+harvest, SWE-bench and Defects4J helpers, and the Claude Code hook.
 
 ## Layout
 
@@ -332,6 +333,7 @@ bench/collect.py       turn run files into held-out cases (never shows pare's ou
 bench/harvest.py       harvest held-out candidates from Claude Code transcripts (scrubbed, staged for review)
 bench/swebench_cases.py held-out cases from SWE-bench tasks, labelled by their failing tests (needs Docker)
 bench/defects4j_cases.py held-out Java cases from Defects4J bugs, labelled by their trigger tests (needs Docker)
+bench/parity.py        compare two pare implementations byte for byte (the Rust port against proto/pare.py)
 integrations/          agent instructions and a Claude Code hook (integrations/README.md)
 corpus/                dev corpus: *.log, *.keep, *.cmd
 corpus-generated/      real Maven, tsc, Terraform and kubectl output from small projects in src/ (a second dev corpus, not held-out)
