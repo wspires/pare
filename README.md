@@ -160,6 +160,11 @@ on stdin with `select`.
 
 ## Install
 
+pare is being ported to Rust for a single-binary install and speed on
+large logs ([docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) has its status).
+Until the Rust version matches this one byte for byte, the Python
+version below is the one to use.
+
 pare is one file, `proto/pare.py`, with no dependencies beyond Python 3.10
 or newer: copy it anywhere on your PATH and run it.
 
@@ -310,7 +315,7 @@ the reference for the built-in Drain (`.[dev]`), tidyout (`.[bench]`) and
 the SWE-bench package (`.[datasets]`). Extras combine:
 `pip install -e '.[dev,bench,datasets]'`.
 
-265 tests: severity forms and their false positives, vocabulary files, the
+266 tests: severity forms and their false positives, vocabulary files, the
 shortcuts in the per-line checks against the regexes they skip, the
 built-in Drain against drain3, the hard budget limit on every corpus file
 at several sizes, determinism,
@@ -322,7 +327,7 @@ harvest, SWE-bench and Defects4J helpers, and the Claude Code hook.
 ## Layout
 
 ```
-proto/pare.py          the prototype (one file, standard library only)
+proto/pare.py          the prototype (one file, standard library only); the reference for the Rust port
 proto/test_pare.py     pytest suite
 proto/vocab.example    example vocabulary extension (German)
 bench/run.py           benchmark runner
@@ -340,5 +345,10 @@ corpus-generated/      real Maven, tsc, Terraform and kubectl output from small 
 corpus-dev/defects4j/  Defects4J development sample (seed 1), used to tune the failing-test fix
 corpus-heldout/        protocol and held-out cases: SWE-bench, Defects4J (results in its README)
 docs/DESIGN.md         design notes, full results, port notes
+docs/ARCHITECTURE.md   the Rust port: crate layout, data flow, memory model, Python-to-Rust map, status
+docs/RUST.md           Rust for C++ developers, through pare's code
+Cargo.toml, src/       the Rust port, in progress (ROADMAP.md, stage 5)
+tests/cli.rs           end-to-end tests of the Rust binary
+.github/workflows/     CI (Rust checks, Python tests, parity) and release builds
 ROADMAP.md             what comes next, in order, and who can do it
 ```

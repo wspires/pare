@@ -17,6 +17,10 @@ results ($PARE_DUMP, see write_dump in proto/pare.py), and a difference is
 reported as the first row that differs, which says where two
 implementations part ways long before the summaries show it.
 
+With --skip-unported, a candidate run that exits with status 70 and says
+"not yet ported" counts as skipped rather than as a difference, so a port
+can be checked on what it does so far.
+
 Exits 1 if anything differs.
 """
 
@@ -51,6 +55,8 @@ CASES = [
 ]
 QUICK = [CASES[0], CASES[2], CASES[7], CASES[11]]
 SELECTING = ("--only", "--except", "--min-severity", "--since", "--until", "--follow")
+NOT_PORTED = 70  # the Rust port's status for what it does not do yet (src/error.rs)
+SKIPPED = "skipped"
 
 
 def corpus_logs() -> list[str]:
@@ -110,8 +116,10 @@ def first_difference(a: bytes, b: bytes, label: str, context: int = 3) -> str:
     return f"  {label}:\n" + "\n".join("    " + d for d in diff[:40]) + ("\n    ..." if len(diff) > 40 else "")
 
 
-def compare(job) -> tuple[str, list[str]] | None:
-    ref, cand, log, args, use_dump, tmp = job
+def compare(job) -> tuple[str, list[str]] | str | None:
+    """None if the runs agree, SKIPPED for an unported candidate run under
+    --skip-unported, else (name, problems)."""
+    ref, cand, log, args, use_dump, skip_unported, tmp = job
     name = f"{os.path.relpath(log, ROOT) if log.startswith(ROOT) else os.path.basename(log)} {' '.join(args)}"
     want_dump = use_dump and not any(a in SELECTING for a in args)
     dumps = [None, None]
@@ -122,6 +130,11 @@ def compare(job) -> tuple[str, list[str]] | None:
         os.close(fd)
     r = run(ref, args, log, dumps[0])
     c = run(cand, args, log, dumps[1])
+    if skip_unported and c[0] == NOT_PORTED and b"not yet ported" in c[2]:
+        for d in dumps:
+            if d:
+                os.unlink(d)
+        return SKIPPED
     problems = []
     if r[0] != c[0]:
         problems.append(f"  exit code: reference {r[0]}, candidate {c[0]}"
@@ -149,6 +162,8 @@ def main() -> int:
     ap.add_argument("--quick", action="store_true", help=f"{len(QUICK)} flag sets instead of {len(CASES)}")
     ap.add_argument("--logs", nargs="*", help="these logs instead of the corpora")
     ap.add_argument("--no-edge", action="store_true", help="leave out the generated edge cases")
+    ap.add_argument("--skip-unported", action="store_true",
+                    help=f"count candidate runs that exit {NOT_PORTED} as 'not yet ported' as skipped")
     ap.add_argument("--jobs", type=int, default=os.cpu_count() or 2)
     ap.add_argument("--show", type=int, default=5, help="differences to print in full (default 5)")
     args = ap.parse_args()
@@ -160,11 +175,14 @@ def main() -> int:
         logs = [os.path.abspath(p) for p in args.logs] if args.logs else corpus_logs()
         if not args.no_edge:
             logs += edge_cases(tmp)
-        jobs = [(ref, cand, log, case, args.dump, tmp) for log in logs for case in cases]
+        jobs = [(ref, cand, log, case, args.dump, args.skip_unported, tmp) for log in logs for case in cases]
         failures = []
+        skipped = 0
         with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
             for res in pool.map(compare, jobs):
-                if res:
+                if res == SKIPPED:
+                    skipped += 1
+                elif res:
                     failures.append(res)
         for name, problems in failures[: args.show]:
             print(f"DIFF {name}")
@@ -172,7 +190,8 @@ def main() -> int:
         for name, _ in failures[args.show:]:
             print(f"DIFF {name}")
         print(f"# parity: {len(jobs)} runs ({len(logs)} inputs x {len(cases)} flag sets), "
-              f"{len(failures)} differ" + (" (per-line dumps compared)" if args.dump else ""))
+              f"{len(failures)} differ" + (f", {skipped} skipped (not yet ported)" if args.skip_unported else "")
+              + (" (per-line dumps compared)" if args.dump else ""))
     return 1 if failures else 0
 
 

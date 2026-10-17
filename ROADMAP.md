@@ -276,10 +276,18 @@ with warnings as errors, few dependencies, each one justified.
   (`$PARE_DUMP`, `write_dump` in `proto/pare.py`) and reports the first
   row that differs, so a divergence is found at the line where it starts.
   *Done.*
-- [ ] **1. Crate skeleton.** Command-line options, reading input, the run
-  file and its hash, pass-through of input that fits. CI: fmt, clippy,
-  tests, parity on the cases that pass so far; release binaries (static
-  Linux musl, macOS, Windows) built on each tag from the start.
+- [x] **1. Crate skeleton.** A library crate with a thin binary
+  (`src/`): every Python option with its default (`clap`), the checks and
+  messages of Python's `main()`, chunked reading and line splitting, the
+  spool and run file named by SHA-256, and pass-through of input that
+  fits the budget, cleaned as `clean_line()` cleans it. What is not ported
+  exits 70 and `bench/parity.py --skip-unported` skips it: 170 of 2,496
+  runs compare, all identical, including every generated edge case that
+  fits. Unit, doc and end-to-end tests (`tests/cli.rs`); CI runs fmt,
+  clippy, tests, docs, the Python suite and parity; `release.yml` builds
+  static Linux (musl), macOS (both) and Windows archives on version tags.
+  `docs/ARCHITECTURE.md` and `docs/RUST.md` started. Not ported with it:
+  run-file pruning and the command-mode `.json` record (stage 5). *Done.*
 - [ ] **2. Masking and Drain.** Template ids match on every line (the dump's
   template column).
 - [ ] **3. Vocabulary, severity, scoring.** The whole per-line dump matches.

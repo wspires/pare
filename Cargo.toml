@@ -1,0 +1,40 @@
+[package]
+name = "pare"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Summarize noisy command output (test runs, builds, logs) to a token budget, for AI agents and humans"
+repository = "https://github.com/wspires/pare"
+readme = "README.md"
+keywords = ["logs", "summarization", "token-budget", "cli"]
+categories = ["command-line-utilities", "development-tools"]
+# No license is declared yet (ROADMAP stage 4); until there is one, nothing
+# may be published to crates.io by accident.
+publish = false
+
+# Each dependency is justified in docs/ARCHITECTURE.md ("Dependencies").
+[dependencies]
+clap = { version = "4.5", features = ["derive", "env"] }
+memchr = "2"
+regex = "1.11"
+sha2 = "0.10"
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+# A few pedantic lints that catch real mistakes in this kind of code.
+cast_lossless = "warn"
+cast_possible_truncation = "warn"
+cast_sign_loss = "warn"
+needless_pass_by_value = "warn"
+redundant_closure_for_method_calls = "warn"
+
+[profile.release]
+# One codegen unit and link-time optimisation: a smaller, faster binary for
+# a slower build, which only release builds pay.
+lto = true
+codegen-units = 1
+strip = true

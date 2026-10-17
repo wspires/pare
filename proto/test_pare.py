@@ -1146,6 +1146,18 @@ def test_parity_passes_on_itself_and_catches_a_change(tmp_path):
     assert "per-line dump" in diff.stdout and "-L\t229\t" in diff.stdout
 
 
+def test_parity_skips_unported_runs_only_when_asked(tmp_path):
+    parity = os.path.join(ROOT, "bench", "parity.py")
+    stub = tmp_path / "stub.py"  # a candidate that ports nothing yet
+    stub.write_text("import sys\nsys.stderr.write('pare: not yet ported to Rust: x\\n')\nsys.exit(70)\n")
+    cmd = [sys.executable, parity, "--candidate", f"{sys.executable} {stub}", "--quick", "--no-edge",
+           "--logs", os.path.join(CORPUS, "cargo-build.log")]
+    skipped = subprocess.run(cmd + ["--skip-unported"], capture_output=True, text=True)
+    assert skipped.returncode == 0 and "0 differ, 4 skipped" in skipped.stdout, skipped.stdout
+    counted = subprocess.run(cmd, capture_output=True, text=True)
+    assert counted.returncode == 1 and "4 differ" in counted.stdout
+
+
 # --- bench/collect.py -------------------------------------------------------------
 
 def collect(args, **kw):

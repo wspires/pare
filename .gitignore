@@ -19,3 +19,6 @@ corpus-heldout/inbox/
 corpus-heldout/swebench/_failed/
 # full build logs of Defects4J bugs that did not produce a case (debugging only)
 corpus-heldout/defects4j/_failed/
+
+# Rust build output
+/target/
