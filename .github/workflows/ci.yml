@@ -37,7 +37,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - run: pip install -e '.[dev]'
       - run: python -m pytest -q proto/
 
@@ -50,8 +50,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
+      # The Unicode tables must be Python 3.13's (the reference's) classes.
+      - run: python bench/gen_pyunicode.py | diff - src/pyunicode.rs
       - run: cargo build --release
-      # Byte-for-byte on everything the port does so far; runs it does not
-      # do yet (status 70) are counted as skipped.
-      - run: python bench/parity.py --candidate target/release/pare --skip-unported --show 10
+      # Byte for byte on everything the port does so far, and the per-line
+      # results line by line; output it does not produce yet (status 70) is
+      # skipped, and dump fields it does not compute yet ("?") are too.
+      - run: python bench/parity.py --candidate target/release/pare --skip-unported --dump --show 10

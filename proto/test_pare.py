@@ -1129,6 +1129,15 @@ def test_dump_has_a_row_per_line_and_template(tmp_path):
     assert {r[6] for r in lines} <= {t[1] for t in tpls} | {"-"}  # every line's template is listed
 
 
+def test_deep_indentation_does_not_overflow_depth():
+    # A continuation 300 columns deeper than its head overflowed the depth
+    # column when it was a signed byte (OverflowError); found porting to Rust.
+    data = ("ERROR head\n" + " " * 300 + "deep line\n" + "INFO next\n" * 400).encode()
+    store, _ = pare.analyze(io.BytesIO(data), width=200, spool_path=os.devnull)
+    assert store.depth[1] == 150
+    assert run(["--budget", "600"], data).startswith(b"# pare:")
+
+
 def test_parity_passes_on_itself_and_catches_a_change(tmp_path):
     parity = os.path.join(ROOT, "bench", "parity.py")
     ref = f"{sys.executable} {os.path.join(HERE, 'pare.py')}"
@@ -1143,7 +1152,8 @@ def test_parity_passes_on_itself_and_catches_a_change(tmp_path):
     diff = subprocess.run([sys.executable, parity, "--candidate", f"{sys.executable} {mutant}", "--dump", "--quick",
                            "--no-edge", "--logs", *logs], capture_output=True, text=True)
     assert diff.returncode == 1
-    assert "per-line dump" in diff.stdout and "-L\t229\t" in diff.stdout
+    assert "per-line dump" in diff.stdout and "at L 229:" in diff.stdout
+    assert "reference L\t229\t" in diff.stdout
 
 
 def test_parity_skips_unported_runs_only_when_asked(tmp_path):
@@ -1153,9 +1163,41 @@ def test_parity_skips_unported_runs_only_when_asked(tmp_path):
     cmd = [sys.executable, parity, "--candidate", f"{sys.executable} {stub}", "--quick", "--no-edge",
            "--logs", os.path.join(CORPUS, "cargo-build.log")]
     skipped = subprocess.run(cmd + ["--skip-unported"], capture_output=True, text=True)
-    assert skipped.returncode == 0 and "0 differ, 4 skipped" in skipped.stdout, skipped.stdout
+    assert skipped.returncode == 0 and "0 differ, 4 with output not yet ported" in skipped.stdout, skipped.stdout
     counted = subprocess.run(cmd, capture_output=True, text=True)
     assert counted.returncode == 1 and "4 differ" in counted.stdout
+
+
+def test_parity_compares_partial_dumps_of_unported_runs(tmp_path):
+    """A candidate that dumps the pass but cannot summarise yet (status 70),
+    writing "?" for what it does not compute: its dump is still compared,
+    the "?" fields are not, and a wrong field is still caught."""
+    parity = os.path.join(ROOT, "bench", "parity.py")
+    stub = tmp_path / "stub.py"
+    stub.write_text(f"""import os, subprocess, sys
+dump = os.environ.get("PARE_DUMP")
+subprocess.run([sys.executable, {os.path.join(HERE, 'pare.py')!r}, *sys.argv[1:]], stdout=subprocess.DEVNULL)
+if dump:
+    rows = open(dump).read().splitlines()
+    out = []
+    for r in rows:
+        f = r.split("\\t")
+        if f[0] == "L":
+            f[4] = f[7] = "?"          # severity, score: not computed yet
+            if os.environ.get("BREAK") and f[1] == "3":
+                f[3] = "9"             # a wrong depth
+        out.append("\\t".join(f))
+    open(dump, "w").write("\\n".join(out) + "\\n")
+sys.stderr.write("pare: not yet ported to Rust: summaries\\n")
+sys.exit(70)
+""")
+    cmd = [sys.executable, parity, "--candidate", f"{sys.executable} {stub}", "--quick", "--no-edge", "--dump",
+           "--skip-unported", "--logs", os.path.join(CORPUS, "pytest-fail.log")]
+    ok = subprocess.run(cmd, capture_output=True, text=True)
+    assert ok.returncode == 0, ok.stdout
+    assert "0 differ" in ok.stdout and "dumps compared on 2 runs" in ok.stdout and "not computed" in ok.stdout
+    broken = subprocess.run(cmd, capture_output=True, text=True, env=dict(os.environ, BREAK="1"))
+    assert broken.returncode == 1 and "at L 3:" in broken.stdout, broken.stdout
 
 
 # --- bench/collect.py -------------------------------------------------------------

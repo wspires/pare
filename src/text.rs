@@ -22,38 +22,7 @@ static ANSI_RE: LazyLock<Regex> = LazyLock::new(|| {
         .expect("ANSI pattern is valid")
 });
 
-/// Whether Python's `str.isspace()` is true for `c`.
-///
-/// Rust's `char::is_whitespace` follows Unicode's `White_Space` property;
-/// Python's `isspace` also counts U+001C to U+001F (the ASCII file, group,
-/// record and unit separators), so `str.rstrip()` would strip them and
-/// `str::trim_end()` would not. The list was generated from Python 3.13:
-/// `[c for c in range(0x110000) if chr(c).isspace()]`.
-///
-/// ```
-/// use pare::text::py_isspace;
-/// assert!(py_isspace('\u{1f}') && !'\u{1f}'.is_whitespace());
-/// assert!(py_isspace('\u{3000}') && !py_isspace('x'));
-/// ```
-// Rust note: `matches!` tests a value against a pattern, here a set of
-// ranges, and compiles to the same comparisons a hand-written switch would.
-#[must_use]
-pub fn py_isspace(c: char) -> bool {
-    matches!(
-        c,
-        '\t'..='\r'
-            | '\u{1c}'..='\u{20}'
-            | '\u{85}'
-            | '\u{a0}'
-            | '\u{1680}'
-            | '\u{2000}'..='\u{200a}'
-            | '\u{2028}'
-            | '\u{2029}'
-            | '\u{202f}'
-            | '\u{205f}'
-            | '\u{3000}'
-    )
-}
+pub use crate::pyclass::py_isspace;
 
 /// The cleaned text of one raw line (without its `\n`).
 ///
@@ -103,6 +72,70 @@ pub fn clean_line(raw: &[u8]) -> Cow<'_, str> {
     }
 }
 
+/// Indentation in columns: a space counts 1, a tab 4, up to the first
+/// other character. As `indent_of()` in Python.
+///
+/// ```
+/// assert_eq!(pare::text::indent_of("\t  at x"), 6);
+/// ```
+#[must_use]
+pub fn indent_of(text: &str) -> i64 {
+    let mut n = 0;
+    for c in text.chars() {
+        match c {
+            ' ' => n += 1,
+            '\t' => n += 4,
+            _ => break,
+        }
+    }
+    n
+}
+
+/// The first `stop` characters of `s`, with Python's slice semantics for
+/// `s[:stop]`: a negative `stop` counts from the end, and out-of-range
+/// values are clamped.
+fn py_prefix(s: &str, stop: i64) -> &str {
+    // Rust note: `chars().count()` is O(n): a `str` is UTF-8 bytes, so the
+    // number of characters is not stored, unlike Python's `len()`. And a
+    // slice must end on a character boundary, so the byte offset of the
+    // n-th character is looked up with `char_indices`.
+    let n = i64::try_from(s.chars().count()).unwrap_or(i64::MAX);
+    let keep = if stop < 0 {
+        (n + stop).max(0)
+    } else {
+        stop.min(n)
+    };
+    let keep = usize::try_from(keep).unwrap_or(0);
+    match s.char_indices().nth(keep) {
+        Some((byte, _)) => &s[..byte],
+        None => s,
+    }
+}
+
+/// A line cut to `width` characters with a marker saying how much went:
+/// `clip()` in Python. The line stays whole when it fits, or when the
+/// marker would be no shorter than what it replaces.
+///
+/// ```
+/// use pare::text::clip;
+/// assert_eq!(clip("héllo wörld", 5), "héll…(+7c)");
+/// assert_eq!(clip("short", 200), "short");
+/// ```
+#[must_use]
+pub fn clip(text: &str, width: i64) -> Cow<'_, str> {
+    let len = i64::try_from(text.chars().count()).unwrap_or(i64::MAX);
+    if len <= width {
+        return Cow::Borrowed(text);
+    }
+    let cut = len - width + 1;
+    let marker = format!("…(+{cut}c)");
+    if i64::try_from(marker.chars().count()).unwrap_or(0) >= cut {
+        return Cow::Borrowed(text);
+    }
+    let head = py_prefix(text, width - 1).trim_end_matches(py_isspace);
+    Cow::Owned(format!("{head}{marker}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -136,6 +169,36 @@ mod tests {
         assert!(matches!(clean_line(b"plain line"), Cow::Borrowed(_)));
         assert!(matches!(clean_line(b"trailing   "), Cow::Borrowed(_)));
         assert!(matches!(clean_line(b"cr\rhere"), Cow::Owned(_)));
+    }
+
+    #[test]
+    fn clip_like_python() {
+        // Values from proto/pare.py's clip().
+        let x300 = "abcdefghij".repeat(30);
+        let cases: [(&str, i64, String); 7] = [
+            ("xxxxxxxxxx", 10, "xxxxxxxxxx".into()),
+            ("xxxxxxxxxxx", 10, "xxxxxxxxxxx".into()), // the marker would be longer than the cut
+            (&x300, 200, format!("{}…(+101c)", &x300[..199])),
+            ("héllo wörld", 5, "héll…(+7c)".into()),
+            (
+                "aaaaaaaaaaaaaaaaaaaa",
+                0,
+                format!("{}…(+21c)", "a".repeat(19)),
+            ), // Python's text[:-1]
+            (
+                "aaaaaaaaaaaaaaaaaaaa",
+                -3,
+                format!("{}…(+24c)", "a".repeat(16)),
+            ),
+            (&"a".repeat(300)[..], 1, "…(+300c)".into()),
+        ];
+        for (text, width, want) in cases {
+            assert_eq!(clip(text, width), want, "{width}");
+        }
+        assert_eq!(
+            clip(&format!("abc   {}", "d".repeat(300)), 8),
+            "abc   d…(+299c)"
+        );
     }
 
     #[test]

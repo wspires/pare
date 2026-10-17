@@ -16,8 +16,10 @@ Contents: [Tooling](#tooling) · [Crates and modules](#crates-and-modules)
 · [Strings](#strings-bytes-and-utf-8) · [Cow](#cow-borrow-when-you-can-own-when-you-must)
 · [Errors](#errors-are-values) · [Enums and match](#enums-and-match)
 · [Generics and traits](#generics-and-traits) · [Closures](#closures)
+· [Iterators](#iterators) · [Collections and indices](#collections-and-indices)
 · [Numbers](#numbers-no-implicit-conversions) · [Statics](#statics-and-initialisation)
-· [Macros](#macros) · [I/O details](#io-details) · [Tests](#tests)
+· [Macros](#macros) · [Regular expressions](#regular-expressions-two-engines)
+· [Generated code](#generated-code) · [I/O details](#io-details) · [Tests](#tests)
 · [Performance](#performance-notes)
 
 ## Tooling
@@ -108,18 +110,19 @@ value meanwhile). At any moment a value has any number of `&T` or exactly
 one `&mut T`, never both. This one rule is what makes iterator
 invalidation, aliasing bugs and data races compile errors.
 
-Where: `add_line` in `src/pass.rs` is a free function taking
-`&mut Store`, not a `&mut self` method on `Pass`. In `feed`, the line
-being added can be a borrow of `self.rest`; a `&mut self` method would
-need all of `self` exclusively while part of it is borrowed. Borrowing
-two *different fields* (`&mut self.store` and `&self.rest`) is allowed,
-because the compiler can see they do not overlap.
+Where: in `Pass::feed` (`src/pass.rs`), `self.seg.add_line(&self.rest)`
+borrows two *different fields* of `self`, one mutably and one not. That
+is allowed, because the compiler can see they do not overlap. A
+`&mut self` method on `Pass` taking `&self.rest` would need all of
+`self` exclusively while part of it is borrowed, and would not compile.
+`Drain::add_to_tree` (`src/drain.rs`) borrows the tree mutably and a
+cluster's tokens immutably at once for the same reason: different fields.
 
 Pitfall: fighting the borrow checker with clones or `Rc<RefCell<...>>`.
 The usual fix is structural: split the borrow by field, pass the piece
 that is needed, or use indices into a vector instead of references
-between elements. Later stages use indices for records and templates,
-as the Python version does.
+between elements. pare does that for records, templates and Drain's
+clusters (see [Collections and indices](#collections-and-indices)).
 
 ## Slices and lifetimes
 
@@ -158,9 +161,17 @@ Pitfall, met in this port: Unicode is not one definition of "whitespace".
 Python's `str.isspace()` counts U+001C to U+001F; Rust's
 `char::is_whitespace()` does not. Porting `rstrip()` as `trim_end()`
 would have changed the output for lines ending in those characters, so
-`text::py_isspace` lists Python's set explicitly. String indexing is by
-byte, not character, and `s.len()` is bytes: Python's `len(s)` is
-`s.chars().count()`.
+`pyclass::py_isspace` uses Python's set. The same goes for `\w`, `\d` and
+`isdigit()` (see [Generated code](#generated-code)): `py_strip` and
+`py_split` are `strip()` and `split()` on Python's whitespace.
+
+Indexing is by byte, never by character: `s[i]` does not exist for a
+`str`, `s.len()` is bytes, and a slice `&s[a..b]` must start and end on
+character boundaries or it panics. Python's `len(s)` is
+`s.chars().count()`, which is O(n) because UTF-8 does not store it.
+`text::clip` needs Python's `s[:n]` with its negative-index rules, so
+`py_prefix` counts characters and finds the n-th one's byte offset with
+`char_indices()`.
 
 ## Cow: borrow when you can, own when you must
 
@@ -245,6 +256,51 @@ writes each line to `out`; it captures `out` by mutable reference, so it
 is `FnMut`. Iterator adapters (`filter`, `map`, `rfind`, `zip`) take
 closures too: `default_run_dir` and `clean_line` use them.
 
+## Iterators
+
+Rust's iterators are lazy, like C++20 ranges: adapters (`map`, `filter`,
+`zip`, `take`, `enumerate`) build a pipeline that does nothing until
+something consumes it (`for`, `collect`, `count`, `any`). They compile to
+the loop you would have written, usually without bounds checks.
+
+Where:
+- `py_split` returns `impl Iterator<Item = &str>`: some iterator type,
+  unnamed, producing slices of the input on demand. `drain_message` takes
+  the first 40 with `.take(40)` and joins them; nothing else is built.
+- Drain's loops use `(1..).zip(tokens)` for a counter starting at 1
+  instead of a `depth += 1` at the bottom (clippy's
+  `explicit_counter_loop`), and `cluster.tokens.iter_mut().zip(&tokens)`
+  to update a template in place.
+- `std::array::from_fn(|g| ...)` builds a fixed-size array from a closure
+  (the logcat header's eight capture groups).
+- `chars().peekable()` gives one character of look-ahead (`py_pattern`,
+  `rules`).
+
+## Collections and indices
+
+`Vec<T>` is `std::vector`, `HashMap<K, V>` is `std::unordered_map`. Two
+patterns from the port:
+
+- **A tree that owns its children.** Drain's prefix tree is
+  `struct Node { children: HashMap<String, Node>, ... }`: each node owns
+  its children by value, inside the map's heap storage, so no pointers or
+  reference counting are needed for a tree walked only from the root
+  down. (A struct cannot contain itself directly, which would make it
+  infinitely large; through a `HashMap`, `Vec` or `Box` it can.)
+  `entry(key).or_default()` is "find or insert", one lookup.
+- **Indices instead of references.** Records refer to templates by index
+  (`Store::rtpl`), Drain's tree refers to clusters by id, and the
+  segmenter maps cluster ids to templates with a `Vec` indexed by id. A
+  reference into a `Vec` that is still growing would be invalidated when
+  it reallocates, which in C++ is a dangling pointer and in Rust a
+  compile error. Indices sidestep it, and are what the Python version
+  uses too.
+- **`Option` instead of a sentinel.** Python keeps -1 for "no record";
+  `Store::rec` is a `Vec<Option<u32>>`, and the compiler makes each use
+  handle `None`. It costs 8 bytes a line instead of 4. A `u32` with a
+  sentinel, or `Option<NonZeroU32>` (which is 4 bytes, since 0 can mean
+  `None`), would halve that if memory mattered.
+
 ## Numbers: no implicit conversions
 
 No integer promotions, no implicit narrowing, no signed/unsigned mixing:
@@ -261,6 +317,15 @@ Where: `Store::push` (`u32::try_from` for a line length), `Budget::bytes`
 `summary::passthrough` (`i64::try_from` before comparing a byte count
 with the budget). Clippy's `cast_*` lints, enabled in Cargo.toml, ask for
 a reason (`#[allow(...)]`) wherever `as` could lose information.
+
+**Division rounds like C++, not like Python.** `/` on integers truncates
+toward zero (`-3 / 2 == -1`); Python's `//` rounds toward minus infinity
+(`-3 // 2 == -2`). `div_euclid` is Python's behaviour for a positive
+divisor. The segmenter's depth, `(indent - head_indent + 1) // 2` in
+Python, is `div_euclid(2)` in `Segmenter::add_line`. There a `.max(1)`
+happens to make the two agree, but the faithful translation keeps it
+right if the clamp ever changes. `%` likewise follows the dividend's sign,
+like C++; `rem_euclid` is Python's `%`.
 
 ## Statics and initialisation
 
@@ -289,6 +354,52 @@ they cannot capture names by accident or break operator precedence.
   argument parser, with the doc comments as help text. The generated code
   is ordinary type-checked Rust.
 
+## Regular expressions: two engines
+
+| crate | engine | supports | cost |
+|---|---|---|---|
+| `regex` | finite automata (RE2-style) | classes, alternation, repetition, captures, `^ $ \b` | linear in the text, guaranteed |
+| `fancy-regex` | backtracking (like Python's `re`, PCRE, `std::regex`) | all that, plus lookahead, lookbehind, back-references, `\G` | can be much slower; pare sets a backtracking limit |
+
+`std::regex` in C++ is a backtracking engine, and slow. Rust's standard
+choice, `regex`, deliberately leaves out the features that need
+backtracking so that matching can never take exponential time. pare's
+masks need lookaround (`\b` on Python's word characters, `(?<![\w.])`),
+so they need `fancy-regex`. Scanning whole lines with it made the pass
+*slower* than Python.
+
+The fix (`mask::Mask::replace_all`): `regex` scans for the leftmost
+position where a relaxed version of the pattern matches (assertions
+erased), and `fancy-regex` tries the real pattern only there, anchored
+with `\G`. Erasing an assertion only removes a condition, so the relaxed
+pattern matches wherever the real one can, and no match is missed. The
+unit test `fast_patterns_cover_exact` checks that on corpus lines.
+Masking got 14 times faster, and the result is Python's exactly (a golden
+file of 4,045 of Python's results checks every row).
+
+Two smaller points:
+- Compiling a regex is expensive, so each one is compiled once, in a
+  `LazyLock` static.
+- Replacement: `fancy-regex` and `regex` expand `$name` in a replacement
+  string; `NoExpand(&s)` or a closure avoids surprises. `replace_all`
+  returns a `Cow`: borrowed when nothing matched.
+
+## Generated code
+
+`src/pyunicode.rs` is generated by `bench/gen_pyunicode.py` from Python
+and checked in, like a generated header. It holds Python's character
+classes as `const` arrays of `(u32, u32)` ranges, baked into the binary,
+with no allocation or start-up cost. `pyclass::in_table` looks a
+character up with `binary_search_by`. CI regenerates the file and fails
+if it differs, so it cannot drift from the Python version it describes.
+`#[rustfmt::skip]` keeps `cargo fmt` from reflowing the tables.
+
+The alternative, a `build.rs` build script that generates code at
+compile time, would make every build depend on Python; a checked-in file
+does not. Another option is a crate that ships Unicode tables (as
+`regex-syntax` does internally), but none ships *Python's* definitions,
+which are the point here.
+
 ## I/O details
 
 - **Interrupted reads.** `read` can fail with `ErrorKind::Interrupted`
@@ -310,7 +421,12 @@ they cannot capture names by accident or break operator precedence.
   provides as `env!("CARGO_BIN_EXE_pare")`.
 - Examples in `///` doc comments are compiled and run by `cargo test`, so
   the documentation cannot drift from the code (`Budget::tokens_in`,
-  `clean_line`, `py_isspace`).
+  `clean_line`, `py_isspace`, `mask`, `Drain::add`).
+- Golden files: `tests/data/mask.tsv` holds Python's results, and a unit
+  test reads it with `concat!(env!("CARGO_MANIFEST_DIR"), "/tests/...")`,
+  a path fixed at compile time so the test works from any directory.
+- A test that checks the tests: breaking a fast mask pattern on purpose
+  makes four tests fail; that is how the superset test was checked.
 
 ## Performance notes
 
@@ -323,4 +439,14 @@ they cannot capture names by accident or break operator precedence.
   iterators avoid them entirely. pare keeps them and forbids `unsafe`.
 - **Release profile.** `lto = true` and `codegen-units = 1` let the
   optimiser see the whole program at the cost of build time; `strip`
-  drops symbols from the binary (2.3 MB).
+  drops symbols from the binary.
+- **Measure before guessing.** The first masking code was slower than
+  Python's. A small benchmark binary (a scratch crate depending on `pare`
+  by path, timing one function on real lines) showed the Python classes
+  were not the cost, the backtracking engine was, which led to the
+  two-engine design. After it: the whole pass over a 30 MB log takes 2.1 s
+  and 31 MB of memory, against Python's 28.5 s and 65 MB for its full run
+  (which also does severity and scoring, stage 3).
+- **ASCII first.** `py_isspace` and friends answer for ASCII characters
+  with a `match` before falling back to a binary search in the tables;
+  nearly every character in a log is ASCII.

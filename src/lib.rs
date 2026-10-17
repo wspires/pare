@@ -23,8 +23,13 @@
 // order of declarations does not matter.
 pub mod budget;
 pub mod cli;
+pub mod drain;
+pub mod dump;
 pub mod error;
+pub mod mask;
 pub mod pass;
+pub mod pyclass;
+pub mod pyunicode;
 pub mod runfile;
 pub mod store;
 pub mod summary;

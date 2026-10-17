@@ -319,7 +319,7 @@ the reference for the built-in Drain (`.[dev]`), tidyout (`.[bench]`) and
 the SWE-bench package (`.[datasets]`). Extras combine:
 `pip install -e '.[dev,bench,datasets]'`.
 
-266 tests: severity forms and their false positives, vocabulary files, the
+268 tests: severity forms and their false positives, vocabulary files, the
 shortcuts in the per-line checks against the regexes they skip, the
 built-in Drain against drain3, the hard budget limit on every corpus file
 at several sizes, determinism,

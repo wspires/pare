@@ -13,6 +13,7 @@ use std::process::ExitCode;
 use clap::Parser;
 
 use crate::budget::{Budget, DEFAULT_CHARS_PER_TOKEN};
+use crate::dump;
 use crate::error::{Error, Result};
 use crate::pass;
 use crate::runfile::{Spool, default_run_dir};
@@ -241,8 +242,8 @@ fn batch(args: &Args) -> Result<()> {
     };
 
     let stdin = io::stdin().lock();
-    let (store, digest, _) =
-        pass::read_all(stdin, spool.file()).map_err(|e| Error::io("reading the input", e))?;
+    let (store, digest, _) = pass::read_all(stdin, spool.file(), args.width)
+        .map_err(|e| Error::io("reading the input", e))?;
 
     let stdout = io::stdout().lock();
     let mut out = io::BufWriter::new(stdout);
@@ -265,6 +266,13 @@ fn batch(args: &Args) -> Result<()> {
     } else {
         (spool.path().to_path_buf(), Some(spool))
     };
+
+    // The pass's results for bench/parity.py --dump, as Python writes them
+    // before summarising (and so even when the summary is not ported yet).
+    if let Some(path) = std::env::var_os("PARE_DUMP").filter(|p| !p.is_empty()) {
+        dump::write_dump(&store, std::path::Path::new(&path))
+            .map_err(|e| Error::io("writing $PARE_DUMP", e))?;
+    }
 
     let wrote = summary::passthrough(&store, &spool_path, budget, &mut out)
         .map_err(|e| Error::io("writing the output", e))?;

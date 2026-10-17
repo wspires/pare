@@ -1,23 +1,263 @@
 //! The single pass over the input: the `Pass` class and `analyze()` of
-//! `proto/pare.py`, so far without segmentation, clustering or scoring.
+//! `proto/pare.py`, so far without severity and scoring.
 //!
 //! Input arrives in chunks (1 MiB from a file or pipe, less from a slow
 //! command). Each chunk is written to the spool and fed to the hash as it
 //! is, then split into lines; a line cut by the end of a chunk is carried
 //! over and completed by the next one. Each complete line is cleaned
-//! ([`crate::text::clean_line`]) and recorded in the [`Store`].
+//! ([`crate::text::clean_line`]) and handed to the [`Segmenter`], which
+//! groups lines into records and clusters each record's head line.
+//!
+//! Records: a stack trace is one unit, as is a compiler diagnostic with its
+//! code snippet. A line indented deeper than its record's head, or shaped
+//! like a continuation (a stack frame, a caret marker, `Caused by:`, ...),
+//! joins the record above; any other line starts a record. One blank line
+//! inside an indented block does not end it; two do.
 
 use std::io::{self, Read, Write};
+use std::sync::LazyLock;
 
+use regex::Regex;
 use sha2::{Digest, Sha256};
 
-use crate::store::Store;
-use crate::text::clean_line;
+use crate::drain::Drain;
+use crate::mask::drain_message;
+use crate::pyclass::{py_pattern, py_strip};
+use crate::store::{Store, Template};
+use crate::text::{clean_line, clip, indent_of};
 
 /// Bytes read per chunk, as `CHUNK` in Python.
 pub const CHUNK: usize = 1 << 20;
 
-/// The pass in progress.
+/// Records are capped at this many lines; the next line starts a new one.
+pub const MAX_RECORD_LINES: u32 = 400;
+
+/// Tool-specific rules, all on (the Python version has a switch per rule
+/// for `bench/ablate.py`; the port keeps them as constants).
+const TOOL_PYTEST: bool = true;
+const TOOL_RUSTC: bool = true;
+const TOOL_LOGCAT: bool = true;
+const TOOL_BLANK_IN_BLOCK: bool = true;
+
+/// Lines that continue the record above whatever their indentation:
+/// `CONT_GENERIC`, `CONT_RUSTC` and `CONT_PYTEST` in Python.
+static CONTINUATION: LazyLock<Regex> = LazyLock::new(|| {
+    let mut p = String::from(concat!(
+        r#"^\s+at\s"#,                                         // JS/Java stack frame
+        r#"|^\s*File "[^"]+", line \d+"#,                      // Python frame
+        r#"|^\s*\^+\s*$"#,                                     // caret marker
+        r#"|^\s*~+\s*$"#,                                      // tilde underline
+        r#"|^Caused by:"#,                                     // Java/Rust cause chain
+        r#"|^\s*\.\.\. \d+ more"#,                             // Java elided frames
+        r#"|^\s*(?:Expected|Received|Actual|Got|Want|Diff):"#, // assertion detail
+        r#"|^\s*[+-]{3}\s"#,                                   // diff headers
+        r#"|^\s*@@ "#,                                         // diff hunk
+    ));
+    if TOOL_RUSTC {
+        p.push_str(r#"|^\s*\d*\s*\|(?:\s|$)|^\s*-->\s|^\s*= (?:note|help|warning):|^\s*::: "#);
+    }
+    if TOOL_PYTEST {
+        p.push_str(r#"|^E\s{2,}|^>\s{2,}"#); // pytest failure detail and source marker lines
+    }
+    Regex::new(&py_pattern(&p)).expect("continuation pattern is valid")
+});
+
+/// A logcat line's header, threadtime (`10-13 09:12:31.620  4321  4321 E
+/// AndroidRuntime: ...`) or time format (`... E/AndroidRuntime( 4321): ...`).
+/// One Log call printed over several lines repeats the same header, the
+/// timestamp included, on each.
+static LOGCAT_HEADER: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(&py_pattern(concat!(
+        r"^(\d\d-\d\d \d\d:\d\d:\d\d\.\d{3})\s+(?:(\d+)\s+(\d+)\s+([VDIWEF])\s+([^:]*?)\s*:",
+        r"|([VDIWEF])/([^(]*)\(\s*(\d+)\):)",
+    )))
+    .expect("logcat pattern is valid")
+});
+
+/// The fields of a logcat header, compared to tell whether two lines belong
+/// to one log entry (Python compares the match's group tuple).
+type LogcatKey = [Option<String>; 8];
+
+/// Groups lines into records and clusters each record's head: the
+/// segmentation part of `Pass._add()` in Python.
+pub struct Segmenter {
+    store: Store,
+    drain: Drain,
+    width: i64,
+    /// Drain cluster id − 1 → index of its template in `store.templates`.
+    // Rust note: a `Vec` indexed by id rather than a `HashMap`: Drain's ids
+    // are dense (1, 2, 3, ...), so the lookup is an array access.
+    tpl_of_cluster: Vec<Option<u32>>,
+    /// The open record, if any.
+    cur: Option<u32>,
+    /// A single blank line that may turn out to sit inside the open record.
+    pending_blank: Option<u32>,
+    /// Indentation of the open record's head line.
+    head_indent: i64,
+    /// The logcat header of the last non-blank line, if it had one.
+    logcat_key: Option<LogcatKey>,
+}
+
+impl Segmenter {
+    /// A segmenter that clips rendered lines at `width` characters.
+    #[must_use]
+    pub fn new(width: i64) -> Self {
+        Segmenter {
+            store: Store::new(),
+            drain: Drain::new(),
+            width,
+            tpl_of_cluster: Vec::new(),
+            cur: None,
+            pending_blank: None,
+            head_indent: 0,
+            logcat_key: None,
+        }
+    }
+
+    /// Whether a line continues the open record, by its shape: deeper
+    /// indentation or a continuation form. A logcat line is judged by its
+    /// message, and only within one entry (same header).
+    fn joins(&self, text: &str, indent: i64, logcat: Option<&LogcatKey>, message: &str) -> bool {
+        match logcat {
+            Some(key) => {
+                self.logcat_key.as_ref() == Some(key)
+                    && (indent_of(message) > self.head_indent || CONTINUATION.is_match(message))
+            }
+            None => indent > self.head_indent || CONTINUATION.is_match(text),
+        }
+    }
+
+    /// Takes one raw line (without its newline).
+    #[allow(clippy::too_many_lines)] // one step of the pass, kept whole as in Python
+    pub fn add_line(&mut self, raw: &[u8]) {
+        let text = clean_line(raw);
+        let indent = indent_of(&text);
+        let stripped = py_strip(&text);
+        let mut logcat: Option<LogcatKey> = None;
+        let mut message: &str = &text;
+        if TOOL_LOGCAT {
+            if let Some(caps) = LOGCAT_HEADER.captures(&text) {
+                // Rust note: `std::array::from_fn` builds the fixed-size
+                // array element by element from a closure; each element is
+                // an `Option<String>` because a group that did not take
+                // part in the match is `None`, as in Python.
+                logcat = Some(std::array::from_fn(|g| {
+                    caps.get(g + 1).map(|m| m.as_str().to_owned())
+                }));
+                let end = caps.get(0).map_or(0, |m| m.end());
+                message = text[end..].strip_prefix(' ').unwrap_or(&text[end..]);
+            }
+        }
+
+        let store = &mut self.store;
+        let i = u32::try_from(store.len()).expect("fewer than 4 billion lines");
+        store.push(raw.len(), text.len());
+        let no = i + 1;
+        let rendered = format!("{no}: {}", clip(&text, self.width));
+        store
+            .rlen
+            .push(u32::try_from(rendered.len() + 1).unwrap_or(u32::MAX));
+        store
+            .slen
+            .push(u32::try_from(stripped.chars().count()).unwrap_or(u32::MAX));
+
+        if stripped.is_empty() {
+            // Blank lines end a record and belong to none, except that a
+            // single blank line may sit inside an indented block.
+            self.logcat_key = None;
+            store.blank.push(true);
+            store.rec.push(None);
+            store.depth.push(0);
+            if self.pending_blank.is_some() || self.cur.is_none() || !TOOL_BLANK_IN_BLOCK {
+                self.cur = None;
+            }
+            self.pending_blank = self.cur.map(|_| i);
+            return;
+        }
+        store.blank.push(false);
+
+        let is_cont = self.cur.is_some_and(|cur| {
+            let c = cur as usize;
+            self.store.rend[c] - self.store.rstart[c] < MAX_RECORD_LINES
+                && self.joins(&text, indent, logcat.as_ref(), message)
+        });
+        let store = &mut self.store;
+        if let (true, Some(cur)) = (is_cont, self.cur) {
+            let c = cur as usize;
+            let t = store.rtpl[c] as usize;
+            if let Some(pb) = self.pending_blank {
+                // The blank line before this one turned out to be inside
+                // the block: it joins the record too.
+                store.rec[pb as usize] = Some(cur);
+                store.depth[pb as usize] = 1;
+                store.templates[t].lines += 1;
+            }
+            store.rend[c] = i + 1;
+            let own_indent = if logcat.is_some() {
+                indent_of(message)
+            } else {
+                indent
+            };
+            // Rust note: `div_euclid` rounds toward minus infinity, as
+            // Python's `//` does; Rust's `/` truncates toward zero, as C++
+            // does. They differ for negative values (a line indented less
+            // than its head, joined by its shape), though `.max(1)` then
+            // makes both 1: `div_euclid` is the faithful translation, and
+            // stays right if the clamp ever changes.
+            let d = (own_indent - self.head_indent + 1).div_euclid(2).max(1);
+            store.rec.push(Some(cur));
+            store.depth.push(u32::try_from(d).unwrap_or(u32::MAX));
+            store.templates[t].lines += 1;
+        } else {
+            let cur = u32::try_from(store.rstart.len()).expect("fewer than 4 billion records");
+            self.cur = Some(cur);
+            store.rstart.push(i);
+            store.rend.push(i + 1);
+            self.head_indent = if logcat.is_some() {
+                indent_of(message)
+            } else {
+                indent
+            };
+            // Cluster the masked head line.
+            let cluster = self.drain.add(&drain_message(&text));
+            if self.tpl_of_cluster.len() < cluster {
+                self.tpl_of_cluster.resize(cluster, None);
+            }
+            let t = *self.tpl_of_cluster[cluster - 1].get_or_insert_with(|| {
+                let t =
+                    u32::try_from(store.templates.len()).expect("fewer than 4 billion templates");
+                store.templates.push(Template {
+                    text: String::new(),
+                    cluster_id: cluster,
+                    count: 0,
+                    lines: 0,
+                    total: 0,
+                });
+                t
+            });
+            store.rtpl.push(t);
+            let tpl = &mut store.templates[t as usize];
+            tpl.count += 1;
+            tpl.lines += 1;
+            store.rec.push(Some(cur));
+            store.depth.push(0);
+        }
+        self.logcat_key = logcat;
+        self.pending_blank = None;
+    }
+
+    /// Ends the pass: each template takes its cluster's final text.
+    #[must_use]
+    pub fn finish(mut self) -> Store {
+        for tpl in &mut self.store.templates {
+            tpl.text = self.drain.cluster(tpl.cluster_id).template();
+            tpl.total = tpl.count;
+        }
+        self.store
+    }
+}
+
+/// The pass in progress: reading, spooling and hashing, then segmenting.
 // Rust note: `Pass<W: Write>` is generic over where the spool goes: a
 // `File` in pare, a `Vec<u8>` in the tests. As with a C++ template, the
 // compiler makes one copy per type, so the calls are direct, not virtual;
@@ -25,19 +265,22 @@ pub const CHUNK: usize = 1 << 20;
 pub struct Pass<W: Write> {
     spool: W,
     hasher: Sha256,
+    total_bytes: u64,
     /// The start of a line that the last chunk cut off.
     rest: Vec<u8>,
-    store: Store,
+    seg: Segmenter,
 }
 
 impl<W: Write> Pass<W> {
-    /// A pass that writes the input to `spool`.
-    pub fn new(spool: W) -> Self {
+    /// A pass that writes the input to `spool` and clips rendered lines at
+    /// `width` characters.
+    pub fn new(spool: W, width: i64) -> Self {
         Pass {
             spool,
             hasher: Sha256::new(),
+            total_bytes: 0,
             rest: Vec::new(),
-            store: Store::new(),
+            seg: Segmenter::new(width),
         }
     }
 
@@ -49,7 +292,7 @@ impl<W: Write> Pass<W> {
     pub fn feed(&mut self, chunk: &[u8]) -> io::Result<()> {
         self.spool.write_all(chunk)?;
         self.hasher.update(chunk);
-        self.store.total_bytes += chunk.len() as u64;
+        self.total_bytes += chunk.len() as u64;
 
         let mut start = 0;
         // Rust note: `memchr_iter` finds every newline with SIMD, the way
@@ -59,10 +302,15 @@ impl<W: Write> Pass<W> {
         for nl in memchr::memchr_iter(b'\n', chunk) {
             let line = &chunk[start..nl];
             if self.rest.is_empty() {
-                add_line(&mut self.store, line);
+                self.seg.add_line(line);
             } else {
                 self.rest.extend_from_slice(line);
-                add_line(&mut self.store, &self.rest);
+                // Rust note: `self.seg.add_line(&self.rest)` borrows two
+                // different fields of `self`, one mutably and one not, which
+                // the borrow checker allows. A `&mut self` method on `Pass`
+                // taking `&self.rest` would need all of `self` mutably while
+                // part of it is borrowed, and would not compile.
+                self.seg.add_line(&self.rest);
                 self.rest.clear();
             }
             start = nl + 1;
@@ -80,25 +328,15 @@ impl<W: Write> Pass<W> {
     /// If flushing the spool fails.
     pub fn finish(mut self) -> io::Result<(Store, String, W)> {
         if !self.rest.is_empty() {
-            add_line(&mut self.store, &self.rest);
+            self.seg.add_line(&self.rest);
         }
         self.spool.flush()?;
         let digest = self.hasher.finalize();
         let hex: String = digest.iter().take(6).map(|b| format!("{b:02x}")).collect();
-        Ok((self.store, hex, self.spool))
+        let mut store = self.seg.finish();
+        store.total_bytes = self.total_bytes;
+        Ok((store, hex, self.spool))
     }
-}
-
-// Rust note: this is a free function taking the store, not a method taking
-// `&mut self`, because of the borrow rules. In `feed`, the line can be a
-// borrow of `self.rest`; a `&mut self` method would need all of `self`
-// mutably while part of it is borrowed, which the compiler refuses.
-// Passing just `&mut self.store` borrows a different field, and disjoint
-// fields can be borrowed separately. In C++ this would compile either way
-// and be correct only as long as nobody later makes the method touch `rest`.
-fn add_line(store: &mut Store, raw: &[u8]) {
-    let clean = clean_line(raw);
-    store.push(raw.len(), clean.len());
 }
 
 /// Reads all of `input` through a pass that writes it to `spool`.
@@ -106,8 +344,12 @@ fn add_line(store: &mut Store, raw: &[u8]) {
 /// # Errors
 ///
 /// If reading the input or writing the spool fails.
-pub fn read_all<R: Read, W: Write>(mut input: R, spool: W) -> io::Result<(Store, String, W)> {
-    let mut pass = Pass::new(spool);
+pub fn read_all<R: Read, W: Write>(
+    mut input: R,
+    spool: W,
+    width: i64,
+) -> io::Result<(Store, String, W)> {
+    let mut pass = Pass::new(spool, width);
     let mut buf = vec![0u8; CHUNK];
     loop {
         // Rust note: `read` returns how many bytes it filled; 0 means end
@@ -129,7 +371,7 @@ mod tests {
     use super::*;
 
     fn run(chunks: &[&[u8]]) -> (Store, String, Vec<u8>) {
-        let mut pass = Pass::new(Vec::new());
+        let mut pass = Pass::new(Vec::new(), 200);
         for c in chunks {
             pass.feed(c).unwrap();
         }
@@ -152,6 +394,72 @@ mod tests {
         assert_eq!(run(&[b"a\nb"]).0.len(), 2);
         assert_eq!(run(&[b"\n\n"]).0.len(), 2);
         assert_eq!(run(&[b""]).0.len(), 0);
+    }
+
+    /// Segments `text` and returns, per line, (record, depth), with -1 for none.
+    fn segment(text: &str) -> (Vec<(i64, u32)>, Store) {
+        let mut seg = Segmenter::new(200);
+        for line in text.split('\n') {
+            seg.add_line(line.as_bytes());
+        }
+        let store = seg.finish();
+        let rows = (0..store.len())
+            .map(|i| (store.rec[i].map_or(-1, i64::from), store.depth[i]))
+            .collect();
+        (rows, store)
+    }
+
+    #[test]
+    fn indented_lines_and_frames_continue_a_record() {
+        let (rows, store) =
+            segment("ERROR boom\n  detail\nCaused by: x\nat_col0\n    at f(A.java:1)");
+        assert_eq!(rows, [(0, 0), (0, 1), (0, 1), (1, 0), (1, 2)]);
+        assert_eq!(store.nrecords(), 2);
+    }
+
+    #[test]
+    fn one_blank_line_inside_a_block_is_kept_two_end_it() {
+        let (rows, _) = segment("ERROR x\n  a\n\n  b\n\n\n  c");
+        // The single blank joins record 0; after two blanks "  c" starts a record.
+        assert_eq!(
+            rows,
+            [(0, 0), (0, 1), (0, 1), (0, 1), (-1, 0), (-1, 0), (1, 0)]
+        );
+    }
+
+    #[test]
+    fn records_are_capped() {
+        let text = format!("head\n{}", "  more\n".repeat(MAX_RECORD_LINES as usize));
+        let (rows, store) = segment(text.trim_end());
+        assert_eq!(store.rend[0] - store.rstart[0], MAX_RECORD_LINES);
+        assert_eq!(rows.last(), Some(&(1, 0))); // line 401 starts a new record
+    }
+
+    #[test]
+    fn logcat_entries_split_on_a_new_header() {
+        let line = |ts: &str, msg: &str| {
+            format!("10-13 09:12:31.{ts}  4321  4321 E AndroidRuntime: {msg}")
+        };
+        let text = [
+            line("620", "FATAL EXCEPTION: main"),
+            line("620", "java.lang.NullPointerException: x"),
+            line("620", "\tat a.B.c(B.java:1)"),
+            line("621", "\tat a.B.d(B.java:2)"), // a new header: a new record
+        ]
+        .join("\n");
+        let (rows, _) = segment(&text);
+        // The exception heads a record within the entry and its frame
+        // continues it; the frame under a new header does not.
+        assert_eq!(rows, [(0, 0), (1, 0), (1, 2), (2, 0)]);
+    }
+
+    #[test]
+    fn heads_cluster_into_templates() {
+        let (_, store) = segment("ERROR worker 3 crashed\nERROR worker 5 crashed\nINFO started");
+        assert_eq!(store.templates.len(), 2);
+        assert_eq!(store.templates[0].text, "ERROR worker <NUM> crashed");
+        assert_eq!((store.templates[0].count, store.templates[0].total), (2, 2));
+        assert_eq!(store.rtpl, [0, 0, 1]);
     }
 
     #[test]

@@ -1241,7 +1241,7 @@ class Store:
         self.off = array.array("q")  # byte offset of the raw line in the spool
         self.raw_len = array.array("i")  # its length, without the newline
         self.rec = array.array("i")  # record index; -1 for a blank line outside any record
-        self.depth = array.array("b")
+        self.depth = array.array("i")  # "i", not "b": a line indented 256 columns past its head overflowed a byte
         self.sev = array.array("b")  # structural severity; -1 for none
         self.blank = array.array("b")
         self.rlen = array.array("i")  # bytes of the rendered line (fmt_line) plus its newline
