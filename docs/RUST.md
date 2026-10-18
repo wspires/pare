@@ -199,7 +199,7 @@ let file = File::create(&path).map_err(|e| Error::io("cannot create ...", e))?;
 ```
 
 Where: `src/error.rs` defines one `Error` enum with a variant per kind of
-failure (`Usage`, `Io`, `NotPorted`). Everything returns
+failure (`Usage`, `Io`). Everything returns
 `error::Result<T>`, and `cli::run` is the one place that prints an error
 and picks the exit status. `Display` (the `{}` format, like
 `operator<<`) gives the message; `std::error::Error` makes it usable
@@ -460,6 +460,36 @@ writes `-1` for "no severity" and compares integers, Rust compares
 `Option<u8>` directly: `sev > tpl.best_sev`, and
 `detect_level(t).max(http_severity(t))` is Python's `max` over the
 signals that are present. The type keeps "none" distinct from 0 (debug).
+
+## Threads and channels instead of `select()`
+
+Python's follow and command modes wait on a file descriptor with
+`select()` and a timeout, so they can flush on time or notice that the
+command exited while the stream is quiet. Rust's std has no `select()`
+on pipes. The idiomatic replacement (`command::read_in_background`): a
+thread does the blocking `read` and sends each chunk over a channel
+(`std::sync::mpsc`, a thread-safe queue), and the main thread waits on
+the channel with `recv_timeout`. The channel is bounded (`sync_channel`),
+so a fast input waits for the pass instead of piling up in memory. Moving
+the reader into the thread (`move ||`) transfers its ownership: the
+compiler checks that nothing else still uses it, and that what crosses
+the thread boundary is `Send`, which is how data races are ruled out at
+compile time.
+
+A callback that needs to cut a window from inside the pass is passed as
+`&mut dyn FnMut(&mut Segmenter)` (`Pass::feed_with`): a closure behind a
+pointer, called through a vtable, like a `std::function&`. A flush that
+fails inside the callback cannot return the error through the pass, so it
+records it, and the caller checks after the pass returns.
+
+## Signals without `unsafe`
+
+A signal handler may only do async-signal-safe things, and installing one
+is `unsafe` in Rust (it is `sigaction`). The `signal-hook` crate does the
+unsafe part once, correctly, and hands the signals to an ordinary thread
+as an iterator; there command mode passes SIGTERM and SIGHUP on to the
+command with `nix::sys::signal::kill`. Registering SIGINT and doing
+nothing with it is how it is ignored. pare keeps `#![forbid(unsafe_code)]`.
 
 ## Generated code
 

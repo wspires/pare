@@ -50,7 +50,7 @@ Notes:
   `arm64`, and `rustup show` should list `aarch64-apple-darwin`. A
   terminal set to "Open using Rosetta", or an Intel Homebrew carried over
   from an older Mac, can make it `x86_64` instead.
-- **Version.** The crate needs Rust 1.85 or newer (`rust-version` in
+- **Version.** The crate needs Rust 1.87 or newer (`rust-version` in
   Cargo.toml). CI uses the latest stable, so a new clippy lint shows up
   there and on an up-to-date machine at the same time.
 - **Editor.** rust-analyzer (the VS Code extension, or JetBrains
@@ -78,27 +78,19 @@ that:
 
 ```
 cargo run --release -- --no-tee --budget 2000 < corpus/cargo-build.log
-cargo run --release -- --budget 2000 -- make test     # once command mode is ported
+cargo run --release -- --budget 2000 -- make test     # command mode
 ```
 
-What the Rust version does so far is listed in docs/ARCHITECTURE.md
-("Status"): batch summaries are complete. Anything not ported yet stops
-with status 70 and says so:
-
-```
-$ target/release/pare --no-tee --follow < corpus/ci-pipeline.log
-pare: not yet ported to Rust: --follow (proto/pare.py does it meanwhile)
-```
+The Rust version does everything the Python version does, with the
+same output (docs/ARCHITECTURE.md, "Status").
 
 Without `--no-tee`, pare saves its input as a run file, as the Python
 version does: in `$PARE_RUN_DIR`, else `~/.cache/pare/runs`.
 
 **Installing it on your PATH.** `cargo install --path .` builds a release
 binary into `~/.cargo/bin/pare` (`cargo uninstall pare` removes it). It
-summarises piped input exactly as the Python version does, but command
-mode (`pare -- CMD`), `--follow` and the selection flags are not ported
-yet, and it shadows a Python `pare` in `~/.local/bin` if `~/.cargo/bin`
-comes first on your PATH; wait for stage 5 if you use those.
+shadows a Python `pare` in `~/.local/bin` if `~/.cargo/bin` comes first
+on your PATH, which is the point once you switch.
 
 ### Test
 
@@ -139,17 +131,17 @@ character classes are 3.13's) and nothing else: `proto/pare.py` and
 
 ```
 cargo build --release
-python3 bench/parity.py --candidate target/release/pare --skip-unported --dump
-python3 bench/parity.py --candidate target/release/pare --skip-unported --dump --quick --show 3   # a faster subset
+python3 bench/parity.py --candidate target/release/pare --dump
+python3 bench/parity.py --candidate target/release/pare --dump --quick --show 3   # a faster subset
 ```
 
 The full run takes about two minutes on four cores and must end with
-`0 differ`. `--skip-unported` counts runs the port does not handle yet as
-skipped; `--dump` also compares the per-line results (record, depth,
+`0 differ`. `--dump` also compares the per-line results (record, depth,
 severity, template, score, sizes, and each template's salience and
 marker) and points at the first line where the two versions part ways.
-A field written as `?` is not compared (for a later stage's port that
-does not compute it yet).
+(`--skip-unported`, for a candidate that exits 70 on what it does not do
+yet, and `?` for a dump field it does not compute, served the port while
+it was partial.)
 
 Use Python 3.13 for parity, as CI does: the Rust port's character classes
 are Python 3.13's (next section).

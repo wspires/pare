@@ -351,7 +351,7 @@ corpus-heldout/        protocol and held-out cases: SWE-bench, Defects4J (result
 docs/DESIGN.md         design notes, full results, port notes
 docs/ARCHITECTURE.md   the Rust port: crate layout, data flow, memory model, Python-to-Rust map, status
 docs/RUST.md           Rust for C++ developers, through pare's code
-Cargo.toml, src/       the Rust port, in progress (ROADMAP.md, stage 5)
+Cargo.toml, src/       the Rust port: complete, identical to proto/pare.py (ROADMAP.md, stage 5)
 tests/cli.rs           end-to-end tests of the Rust binary
 .github/workflows/     CI (Rust checks, Python tests, parity) and release builds
 ROADMAP.md             what comes next, in order, and who can do it

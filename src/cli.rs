@@ -1,9 +1,10 @@
-//! The command line: the options of `main()` in `proto/pare.py`, and the
-//! dispatch to what the port supports so far.
+//! The command line: the options of `main()` in `proto/pare.py`, its
+//! checks in the same order, and the dispatch to batch mode, command mode,
+//! follow mode, the selection flags, `--prune`, `--stats` and
+//! `--dump-vocab`.
 //!
 //! Every Python option is accepted with the same name, default and meaning,
-//! so scripts and the agent hook work unchanged; options whose behaviour is
-//! not ported yet stop with [`Error::NotPorted`] (status 70).
+//! so scripts and the agent hook work unchanged.
 
 use std::ffi::OsString;
 use std::io::{self, Write};
@@ -13,11 +14,15 @@ use std::process::ExitCode;
 use clap::Parser;
 
 use crate::budget::{Budget, DEFAULT_CHARS_PER_TOKEN};
+use crate::command::CommandRun;
 use crate::dump;
 use crate::error::{Error, Result};
+use crate::follow;
 use crate::pass;
 use crate::runfile::{Spool, default_run_dir};
+use crate::runs;
 use crate::score;
+use crate::select;
 use crate::summary;
 use crate::vocab::{self, Vocab};
 
@@ -152,7 +157,7 @@ pub fn run(argv: Vec<OsString>) -> ExitCode {
         }
     };
     match dispatch(&args, command.as_deref()) {
-        Ok(()) => ExitCode::SUCCESS,
+        Ok(status) => ExitCode::from(status),
         Err(e) => {
             eprintln!("{e}");
             ExitCode::from(e.exit_status())
@@ -165,7 +170,9 @@ pub fn run(argv: Vec<OsString>) -> ExitCode {
 // function only looks at it. Clippy's `needless_pass_by_value` flags the
 // by-value version, the Rust counterpart of passing a `std::vector` by
 // value where a `const&` would do.
-fn dispatch(args: &Args, command: Option<&[OsString]>) -> Result<()> {
+/// Runs what the arguments ask for and returns the exit status: 0, or the
+/// command's own in command mode.
+fn dispatch(args: &Args, command: Option<&[OsString]>) -> Result<u8> {
     // The same checks, in the same order, as Python's main().
     if command.is_some_and(<[OsString]>::is_empty) {
         return Err(Error::Usage(
@@ -180,28 +187,33 @@ fn dispatch(args: &Args, command: Option<&[OsString]>) -> Result<()> {
         Some(path) => load_vocab(path)?,
         None => Vocab::builtin(),
     };
+    let run_dir = || args.run_dir.clone().unwrap_or_else(default_run_dir);
     if args.stats {
-        return Err(Error::NotPorted("--stats"));
+        runs::stats(&run_dir(), &mut io::stdout().lock())
+            .map_err(|e| Error::io("writing the output", e))
+            .or_else(ignore_broken_pipe)?;
+        return Ok(0);
     }
     if args.dry_run && !args.prune {
         return Err(Error::Usage("--dry-run goes with --prune".into()));
     }
     if args.prune {
-        return Err(Error::NotPorted("--prune"));
+        runs::prune_command(&run_dir(), args.dry_run, &mut io::stdout().lock())
+            .map_err(|e| Error::io("writing the output", e))
+            .or_else(ignore_broken_pipe)?;
+        return Ok(0);
     }
     if args.dump_vocab {
-        return write_out(
+        write_out(
             &mut io::stdout().lock(),
             vocab::dump_vocab(vocab.entries()).as_bytes(),
-        );
+        )?;
+        return Ok(0);
     }
     if command.is_some() && args.selecting() {
         return Err(Error::Usage(
             "-- runs a command to summarise; --only/--except/--since/--until/--min-severity read a run file".into(),
         ));
-    }
-    if command.is_some() {
-        return Err(Error::NotPorted("command mode (pare -- CMD)"));
     }
     if args.follow {
         if args.selecting() {
@@ -212,14 +224,86 @@ fn dispatch(args: &Args, command: Option<&[OsString]>) -> Result<()> {
         if args.every < 1 {
             return Err(Error::Usage("--every must be at least 1".into()));
         }
-        return Err(Error::NotPorted("--follow"));
     }
-    if args.selecting() {
-        return Err(Error::NotPorted(
-            "--only/--except/--since/--until/--min-severity",
-        ));
+    let mut run = match command {
+        Some(command) => match CommandRun::start(command) {
+            Ok(run) => Some(run),
+            Err(e) => {
+                // Could not start it; the reason goes to stderr, the status
+                // is the shell's.
+                eprintln!("{}", e.message);
+                return Ok(e.status);
+            }
+        },
+        None => None,
+    };
+    if args.follow {
+        return follow_mode(args, &vocab, run.as_mut());
     }
-    batch(args, &vocab)
+    batch(args, &vocab, run.as_mut())
+}
+
+/// Follow mode: the spool is named up front and kept (or temporary under
+/// `--no-tee`), and the stream is summarised window by window.
+fn follow_mode(args: &Args, vocab: &Vocab, run: Option<&mut CommandRun>) -> Result<u8> {
+    let tee = !args.no_tee;
+    let mut spool = if !tee {
+        Spool::temporary()?
+    } else if let Some(file) = &args.run_file {
+        if let Some(dir) = file.parent().filter(|d| !d.as_os_str().is_empty()) {
+            create_dir(dir)?;
+        }
+        Spool::create(file.clone())?
+    } else {
+        let dir = args.run_dir.clone().unwrap_or_else(default_run_dir);
+        create_dir(&dir)?;
+        runs::maybe_prune(&dir);
+        // Named by the time it started. Python uses local time; std has no
+        // time zones, so this is UTC.
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0.0, |d| d.as_secs_f64());
+        let stamp: String = runs::utc_stamp(now)
+            .chars()
+            .filter(|c| c.is_ascii_digit() || *c == 'T')
+            .map(|c| if c == 'T' { '-' } else { c })
+            .collect();
+        Spool::create(dir.join(format!("follow-{stamp}-{}.log", std::process::id())))?
+    };
+    if tee {
+        spool.keep();
+    }
+    let path = spool.path().to_path_buf();
+    let run_path = tee.then(|| py_abspath(&path));
+    let settings = follow::Settings {
+        budget: Budget {
+            tokens: args.budget,
+            chars_per_token: args.chars_per_token,
+        },
+        head: args.head,
+        tail: args.tail,
+        width: args.width,
+        max_templates: args.max_templates,
+        every: usize::try_from(args.every).unwrap_or(usize::MAX),
+        interval: args.interval,
+        flush_sev: match args.flush_on.as_str() {
+            "error" => Some(3),
+            "fatal" => Some(4),
+            _ => None,
+        },
+        settle: args.settle,
+        min_interval: args.min_interval,
+        quiet: args.quiet,
+    };
+    follow::follow(
+        &settings,
+        vocab,
+        spool.file(),
+        &path,
+        run_path.as_deref(),
+        run,
+    )
+    .or_else(|e| ignore_broken_pipe(e).map(|()| 0))
 }
 
 /// The vocabulary of `--vocab FILE`: the built-in one with the file
@@ -241,8 +325,11 @@ fn load_vocab(path: &std::path::Path) -> Result<Vocab> {
     Vocab::new(entries).map_err(|e| Error::Usage(format!("{source}: {e}")))
 }
 
-/// Batch mode: read all of stdin, save it, and write the summary.
-fn batch(args: &Args, vocab: &Vocab) -> Result<()> {
+/// Batch mode: read all of the input (stdin, or the command's output),
+/// save it, and write the summary. Returns the exit status: the command's
+/// in command mode, else 0.
+#[allow(clippy::too_many_lines)] // the batch path of Python's main(), kept whole
+fn batch(args: &Args, vocab: &Vocab, mut run: Option<&mut CommandRun>) -> Result<u8> {
     let budget = Budget {
         tokens: args.budget,
         chars_per_token: args.chars_per_token,
@@ -262,19 +349,34 @@ fn batch(args: &Args, vocab: &Vocab) -> Result<()> {
     } else {
         let dir = args.run_dir.clone().unwrap_or_else(default_run_dir);
         create_dir(&dir)?;
+        runs::maybe_prune(&dir);
         let tmp = dir.join(format!(".pare-{}.tmp", std::process::id()));
         (Spool::create(tmp)?, Some(dir))
     };
 
-    let stdin = io::stdin().lock();
-    let (mut store, digest, _) = pass::read_all(stdin, spool.file(), vocab, args.width)
-        .map_err(|e| Error::io("reading the input", e))?;
+    let read = match run.as_deref_mut() {
+        Some(r) => pass::read_all(r.output(), spool.file(), vocab, args.width),
+        None => pass::read_all(io::stdin().lock(), spool.file(), vocab, args.width),
+    };
+    let (mut store, digest, _) = read.map_err(|e| Error::io("reading the input", e))?;
+    let exit_code = match run.as_deref_mut() {
+        Some(r) => r
+            .wait()
+            .map_err(|e| Error::io("waiting for the command", e))?,
+        None => 0,
+    };
+    let note = run.as_ref().map(|_| format!("exit {exit_code}"));
 
     let stdout = io::stdout().lock();
     let mut out = io::BufWriter::new(stdout);
     if store.total_bytes == 0 {
         // The spool is dropped, and with it removed, on the way out.
-        return write_out(&mut out, b"# pare: empty input\n");
+        let msg = match &note {
+            Some(note) => format!("# pare: no output · {note}\n"),
+            None => "# pare: empty input\n".to_owned(),
+        };
+        write_out(&mut out, msg.as_bytes())?;
+        return Ok(exit_code);
     }
 
     // Rust note: `_temp` keeps a `--no-tee` spool alive until the end of
@@ -291,39 +393,109 @@ fn batch(args: &Args, vocab: &Vocab) -> Result<()> {
     } else {
         (spool.path().to_path_buf(), Some(spool))
     };
+    let run_path = tee.then(|| py_abspath(&spool_path));
+    if let (Some(r), true) = (run.as_deref(), tee) {
+        r.write_meta(&spool_path, store.len(), store.total_bytes, None);
+    }
 
     score::score_templates(&mut store, vocab, &spool_path)
         .map_err(|e| Error::io("reading the run file back", e))?;
 
     // The pass's results for bench/parity.py --dump, as Python writes them
-    // before summarising (and so even when the summary is not ported yet).
+    // before summarising.
     if let Some(path) = std::env::var_os("PARE_DUMP").filter(|p| !p.is_empty()) {
         dump::write_dump(&store, std::path::Path::new(&path))
             .map_err(|e| Error::io("writing $PARE_DUMP", e))?;
     }
 
-    let wrote = summary::passthrough(&store, &spool_path, budget, &mut out)
-        .map_err(|e| Error::io("writing the output", e))?;
-    if !wrote {
-        let opts = summary::Options {
-            budget,
-            head: args.head,
-            tail: args.tail,
-            width: args.width,
-            max_templates: args.max_templates,
-            run_path: tee.then(|| py_abspath(&spool_path)),
-            in_bytes: store.total_bytes,
-            note: None,
+    if args.selecting() {
+        // Checked in Python's order, after the input is read and saved.
+        let ntpl = store.templates.len();
+        let sel = select::Selection {
+            only: select::parse_tids(args.only.as_deref(), ntpl).map_err(Error::Usage)?,
+            exclude: select::parse_tids(args.exclude.as_deref(), ntpl).map_err(Error::Usage)?,
+            min_severity: args.min_severity.as_deref().map(severity_by_name),
+            since: select::parse_lineno(args.since.as_deref(), store.len(), "--since")
+                .map_err(Error::Usage)?,
+            until: select::parse_lineno(args.until.as_deref(), store.len(), "--until")
+                .map_err(Error::Usage)?,
         };
-        let text = summary::summarize(&store, vocab, &spool_path, &opts)
-            .map_err(|e| Error::io("reading the run file back", e))?;
-        out.write_all(text.as_bytes())
-            .map_err(|e| Error::io("writing the output", e))
-            .or_else(ignore_broken_pipe)?;
+        let text = select::select(
+            &store,
+            &sel,
+            budget,
+            args.width,
+            run_path.as_deref(),
+            &spool_path,
+        )
+        .map_err(|e| match e {
+            Ok(msg) => Error::Usage(msg),
+            Err(e) => Error::io("reading the run file back", e),
+        })?;
+        write_out(&mut out, text.as_bytes())?;
+        return Ok(exit_code);
     }
+    // A whole run that fits is the output, byte for byte; only a failing
+    // exit status is added.
+    let verbatim_end = note
+        .as_deref()
+        .filter(|n| *n != "exit 0")
+        .map(|n| format!("## {n}"));
+    let wrote = summary::passthrough(
+        &store,
+        &spool_path,
+        budget,
+        verbatim_end.as_deref(),
+        &mut out,
+    )
+    .map_err(|e| Error::io("writing the output", e))
+    .or_else(|e| ignore_broken_pipe(e).map(|()| Some(0)))?;
+    let out_bytes = match wrote {
+        Some(n) => n,
+        None => {
+            let opts = summary::Options {
+                budget,
+                head: args.head,
+                tail: args.tail,
+                width: args.width,
+                max_templates: args.max_templates,
+                run_path,
+                in_bytes: store.total_bytes,
+                note,
+                follow: None,
+            };
+            let text = summary::summarize(&store, vocab, &spool_path, &opts)
+                .map_err(|e| Error::io("reading the run file back", e))?;
+            out.write_all(text.as_bytes())
+                .map_err(|e| Error::io("writing the output", e))
+                .or_else(ignore_broken_pipe)?;
+            text.len() as u64
+        }
+    };
     out.flush()
         .map_err(|e| Error::io("writing the output", e))
-        .or_else(ignore_broken_pipe)
+        .or_else(ignore_broken_pipe)?;
+    if let (Some(r), true) = (run.as_deref(), tee) {
+        // What the command printed against what pare printed, for --stats.
+        r.write_meta(
+            &spool_path,
+            store.len(),
+            store.total_bytes,
+            Some((out_bytes, args.budget, args.chars_per_token)),
+        );
+    }
+    Ok(exit_code)
+}
+
+/// `SEVERITY_BY_NAME`: a `--min-severity` level (clap has checked it).
+fn severity_by_name(name: &str) -> u8 {
+    match name {
+        "debug" => 0,
+        "info" => 1,
+        "warn" => 2,
+        "error" => 3,
+        _ => 4,
+    }
 }
 
 /// Python's `os.path.abspath()`: the path made absolute against the

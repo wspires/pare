@@ -42,12 +42,12 @@ pub fn write_dump(store: &Store, path: &Path) -> io::Result<()> {
         let rec_text = rec.map_or_else(|| "-1".to_owned(), |r| r.to_string());
         let tid = rec.map_or_else(
             || "-".to_owned(),
-            |r| format!("T{}", store.rtpl[r as usize] + 1),
+            |r| store.templates[store.rtpl[r as usize] as usize].tid(),
         );
         writeln!(
             f,
             "L\t{}\t{rec_text}\t{}\t{}\t{}\t{tid}\t{:.6}\t{}\t{}",
-            i + 1,
+            store.base + i + 1,
             store.depth[i],
             sev_text(store.sev[i]),
             u8::from(store.blank[i]),
@@ -56,7 +56,7 @@ pub fn write_dump(store: &Store, path: &Path) -> io::Result<()> {
             store.slen[i],
         )?;
     }
-    for (idx, t) in store.templates.iter().enumerate() {
+    for t in &store.templates {
         let text = t
             .text
             .replace('\\', "\\\\")
@@ -75,8 +75,8 @@ pub fn write_dump(store: &Store, path: &Path) -> io::Result<()> {
         };
         writeln!(
             f,
-            "T\tT{}\t{}\t{}\t{}\t{}\t{}\t{:.6}\t{:.6}\t{}\t{levels}\t{text}",
-            idx + 1,
+            "T\t{}\t{}\t{}\t{}\t{}\t{}\t{:.6}\t{:.6}\t{}\t{levels}\t{text}",
+            t.tid(),
             t.count,
             t.lines,
             t.total,
@@ -84,7 +84,7 @@ pub fn write_dump(store: &Store, path: &Path) -> io::Result<()> {
             t.marker,
             t.salience,
             t.vocab,
-            store.rstart[t.exemplar as usize] + 1,
+            store.base + store.rstart[t.exemplar as usize] as usize + 1,
         )?;
     }
     f.flush()

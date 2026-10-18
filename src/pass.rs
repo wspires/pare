@@ -18,9 +18,11 @@
 //! its vocabulary ([`crate::vocab`]), and for a continuation line a share
 //! of its record head's score ([`crate::score`]).
 
-use std::collections::HashSet;
+use std::borrow::Cow;
+use std::collections::{HashMap, HashSet};
 use std::io::{self, Read, Write};
 use std::sync::LazyLock;
+use std::time::Instant;
 
 use regex::Regex;
 use sha2::{Digest, Sha256};
@@ -29,8 +31,9 @@ use crate::drain::Drain;
 use crate::mask::drain_message;
 use crate::pyclass::{py_lstrip, py_pattern, py_strip};
 use crate::pyre::PyRegex;
+use crate::runs::py_format_g;
 use crate::score::{DEPTH_PENALTY, INHERIT, LOCATION_BONUS, py_max0};
-use crate::store::{HeadClasses, Store, Template};
+use crate::store::{CarriedHead, HeadClasses, Store, Template};
 use crate::text::{clean_line, clip, indent_of};
 use crate::vocab::{Class, Vocab, vocab_score};
 
@@ -92,8 +95,64 @@ static LOGCAT_DEATH: LazyLock<PyRegex> = LazyLock::new(|| {
 /// to one log entry (Python compares the match's group tuple).
 type LogcatKey = [Option<String>; 8];
 
+/// What a template is across follow windows: its cluster and how many
+/// records it has had in the whole input so far. `GlobalTemplate` in
+/// Python; its index is the template's id (`gid`).
+struct Global {
+    first_window: usize,
+    total: u32,
+}
+
+/// A raw line cleaned and taken apart: what segmenting it needs.
+struct Parsed<'a> {
+    text: Cow<'a, str>,
+    indent: i64,
+    logcat: Option<LogcatKey>,
+    /// Where the message starts in `text`: after the logcat header, or 0.
+    message_at: usize,
+}
+
+impl Parsed<'_> {
+    fn message(&self) -> &str {
+        &self.text[self.message_at..]
+    }
+}
+
+fn parse(raw: &[u8]) -> Parsed<'_> {
+    let text = clean_line(raw);
+    let indent = indent_of(&text);
+    let mut logcat: Option<LogcatKey> = None;
+    let mut message_at = 0;
+    if TOOL_LOGCAT {
+        if let Some(caps) = LOGCAT_HEADER.captures(&text) {
+            // Rust note: `std::array::from_fn` builds the fixed-size array
+            // element by element from a closure; each element is an
+            // `Option<String>` because a group that did not take part in
+            // the match is `None`, as in Python.
+            logcat = Some(std::array::from_fn(|g| {
+                caps.get(g + 1).map(|m| m.as_str().to_owned())
+            }));
+            let end = caps.get(0).map_or(0, |m| m.end());
+            message_at = end + usize::from(text[end..].starts_with(' '));
+        }
+    }
+    Parsed {
+        text,
+        indent,
+        logcat,
+        message_at,
+    }
+}
+
 /// Groups lines into records, clusters each record's head, and scores each
-/// line: `Pass._add()` in Python.
+/// line: `Pass._add()`, `Pass.cut()` and the segmentation state of `Pass`
+/// in Python.
+///
+/// Batch mode cuts one window, at the end of the input. Follow mode cuts a
+/// window at each flush: Drain, the templates' ids and cumulative counts,
+/// the line counter and the spool offset carry across windows, and a
+/// record open at a cut is carried into the next window, whose first lines
+/// may continue it.
 // Rust note: `<'v>` is a lifetime parameter: a `Segmenter` holds a
 // reference to a `Vocab` it does not own, and the compiler checks that the
 // vocabulary outlives every segmenter using it. Python reads a global
@@ -101,13 +160,25 @@ type LogcatKey = [Option<String>; 8];
 // their own.
 pub struct Segmenter<'v> {
     vocab: &'v Vocab,
+    /// The current window's lines, records and templates.
     store: Store,
     drain: Drain,
     width: i64,
-    /// Drain cluster id − 1 → index of its template in `store.templates`.
+    /// Drain cluster id − 1 → the template's id across windows.
     // Rust note: a `Vec` indexed by id rather than a `HashMap`: Drain's ids
     // are dense (1, 2, 3, ...), so the lookup is an array access.
-    tpl_of_cluster: Vec<Option<u32>>,
+    by_cluster: Vec<Option<usize>>,
+    globals: Vec<Global>,
+    /// Template id → its index in this window's templates.
+    window_tpl: HashMap<usize, u32>,
+    window_no: usize,
+    /// Lines so far, in all windows.
+    nlines: usize,
+    /// Spool offset of the next line.
+    pos: u64,
+    /// Follow mode: the window cap in lines (0: none). See
+    /// [`Segmenter::window_full`].
+    pub every: usize,
     /// The open record, if any.
     cur: Option<u32>,
     /// A single blank line that may turn out to sit inside the open record.
@@ -124,6 +195,27 @@ pub struct Segmenter<'v> {
     armed: bool,
     /// Logcat pids that printed a `FATAL EXCEPTION`.
     crashed_pids: HashSet<String>,
+    /// The open record's head: its text, line number and severity, for
+    /// carrying it over a cut.
+    head_text: String,
+    head_no: usize,
+    head_sev: Option<u8>,
+    /// The record open at the last cut, until a line ends it, and how many
+    /// lines it already had.
+    carry: Option<CarriedHead>,
+    carry_len: u32,
+    /// A blank line at the end of the last window that may sit inside the
+    /// carried record (one more ends it).
+    pending_carried: bool,
+    /// What the cut saw of the open record, for the next window.
+    pending_blank_at_cut: bool,
+    store_prev_len: u32,
+    carry_gid: usize,
+    carry_cid: usize,
+    /// The highest severity seen in the current window (follow triggers).
+    pub worst_sev: Option<u8>,
+    started: Instant,
+    window_started: Instant,
 }
 
 impl<'v> Segmenter<'v> {
@@ -131,12 +223,19 @@ impl<'v> Segmenter<'v> {
     /// `width` characters.
     #[must_use]
     pub fn new(vocab: &'v Vocab, width: i64) -> Self {
+        let now = Instant::now();
         Segmenter {
             vocab,
             store: Store::new(),
             drain: Drain::new(),
             width,
-            tpl_of_cluster: Vec::new(),
+            by_cluster: Vec::new(),
+            globals: Vec::new(),
+            window_tpl: HashMap::new(),
+            window_no: 0,
+            nlines: 0,
+            pos: 0,
+            every: 0,
             cur: None,
             pending_blank: None,
             head_indent: 0,
@@ -144,57 +243,105 @@ impl<'v> Segmenter<'v> {
             head_vocab: 0.0,
             armed: false,
             crashed_pids: HashSet::new(),
+            head_text: String::new(),
+            head_no: 0,
+            head_sev: None,
+            carry: None,
+            carry_len: 0,
+            pending_carried: false,
+            pending_blank_at_cut: false,
+            store_prev_len: 0,
+            carry_gid: 0,
+            carry_cid: 0,
+            worst_sev: None,
+            started: now,
+            window_started: now,
         }
+    }
+
+    /// The current window's lines so far.
+    #[must_use]
+    pub fn window_len(&self) -> usize {
+        self.store.len()
+    }
+
+    /// Whether the current window holds a non-blank line.
+    #[must_use]
+    pub fn has_content(&self) -> bool {
+        self.store.blank.iter().any(|&b| !b)
+    }
+
+    /// Lines so far, in all windows.
+    #[must_use]
+    pub fn nlines(&self) -> usize {
+        self.nlines
+    }
+
+    /// Templates so far, in all windows.
+    #[must_use]
+    pub fn ntemplates(&self) -> usize {
+        self.globals.len()
     }
 
     /// Whether a line continues the open record, by its shape: deeper
     /// indentation or a continuation form. A logcat line is judged by its
     /// message, and only within one entry (same header).
-    fn joins(&self, text: &str, indent: i64, logcat: Option<&LogcatKey>, message: &str) -> bool {
-        match logcat {
+    fn joins(&self, p: &Parsed<'_>) -> bool {
+        match &p.logcat {
             Some(key) => {
+                let message = p.message();
                 self.logcat_key.as_ref() == Some(key)
                     && (indent_of(message) > self.head_indent || CONTINUATION.is_match(message))
             }
-            None => indent > self.head_indent || CONTINUATION.is_match(text),
+            None => p.indent > self.head_indent || CONTINUATION.is_match(&p.text),
         }
+    }
+
+    /// Follow mode: whether the window is full and `raw` starts a record,
+    /// so the window should be cut before it. Cutting only where a record
+    /// starts keeps the segmentation, and with it the template ids, what a
+    /// batch pass over the run file finds. A window can exceed `every` by
+    /// one record.
+    #[must_use]
+    pub fn window_full(&self, raw: &[u8]) -> bool {
+        if self.every == 0 || self.store.len() < self.every {
+            return false;
+        }
+        let p = parse(raw);
+        if py_strip(&p.text).is_empty() {
+            return false;
+        }
+        let continues = self.cur.is_some_and(|cur| {
+            let c = cur as usize;
+            self.store.rend[c] - self.store.rstart[c] < MAX_RECORD_LINES && self.joins(&p)
+        });
+        !continues
     }
 
     /// Takes one raw line (without its newline).
     #[allow(clippy::too_many_lines)] // one step of the pass, kept whole as in Python
     pub fn add_line(&mut self, raw: &[u8]) {
-        let text = clean_line(raw);
-        let indent = indent_of(&text);
-        let stripped = py_strip(&text);
-        let mut logcat: Option<LogcatKey> = None;
-        let mut message: &str = &text;
-        if TOOL_LOGCAT {
-            if let Some(caps) = LOGCAT_HEADER.captures(&text) {
-                // Rust note: `std::array::from_fn` builds the fixed-size
-                // array element by element from a closure; each element is
-                // an `Option<String>` because a group that did not take
-                // part in the match is `None`, as in Python.
-                logcat = Some(std::array::from_fn(|g| {
-                    caps.get(g + 1).map(|m| m.as_str().to_owned())
-                }));
-                let end = caps.get(0).map_or(0, |m| m.end());
-                message = text[end..].strip_prefix(' ').unwrap_or(&text[end..]);
-            }
-        }
+        let p = parse(raw);
+        let text: &str = &p.text;
+        let indent = p.indent;
+        let message = p.message();
+        let stripped = py_strip(text);
 
+        let i = u32::try_from(self.store.len()).expect("fewer than 4 billion lines");
+        let base = self.store.base;
         let store = &mut self.store;
-        let i = u32::try_from(store.len()).expect("fewer than 4 billion lines");
         store.push(raw.len(), text.len());
-        let no = i + 1;
-        let rendered = format!("{no}: {}", clip(&text, self.width));
+        self.pos += raw.len() as u64 + 1;
+        self.nlines += 1;
+        let rendered = format!("{}: {}", base + i as usize + 1, clip(text, self.width));
         store
             .rlen
             .push(u32::try_from(rendered.len() + 1).unwrap_or(u32::MAX));
         store
             .slen
             .push(u32::try_from(stripped.chars().count()).unwrap_or(u32::MAX));
-        let mut sev = self.vocab.severity(&text);
-        if let Some(key) = &logcat {
+        let mut sev = self.vocab.severity(text);
+        if let Some(key) = &p.logcat {
             // Threadtime or time format: the pid is group 2 or group 8.
             let pid = key[1]
                 .as_ref()
@@ -213,6 +360,9 @@ impl<'v> Segmenter<'v> {
             }
         }
         store.sev.push(sev);
+        if sev > self.worst_sev {
+            self.worst_sev = sev;
+        }
 
         if stripped.is_empty() {
             // Blank lines end a record and belong to none, except that a
@@ -222,6 +372,15 @@ impl<'v> Segmenter<'v> {
             store.rec.push(None);
             store.depth.push(0);
             store.score.push(0.0);
+            if self.carry.is_some() && self.cur.is_none() {
+                // Same rule for the carried record: one blank keeps it open.
+                if self.pending_carried || !TOOL_BLANK_IN_BLOCK {
+                    self.carry = None;
+                } else {
+                    self.pending_carried = true;
+                }
+                return;
+            }
             if self.pending_blank.is_some() || self.cur.is_none() || !TOOL_BLANK_IN_BLOCK {
                 self.cur = None;
             }
@@ -230,20 +389,37 @@ impl<'v> Segmenter<'v> {
         }
         store.blank.push(false);
 
+        if self.cur.is_none() {
+            if let Some(mut carry) = self.carry.take() {
+                // The first non-blank line of a window after a cut that left
+                // a record open: does it continue that record? The same test
+                // as below, against the carried head and the record's length
+                // so far.
+                if self.carry_len < MAX_RECORD_LINES && self.joins(&p) {
+                    self.continue_carried(&mut carry, i);
+                }
+            }
+        }
+        // Segmentation: a deeper indent or a known continuation shape joins
+        // the line to the record above.
         let is_cont = self.cur.is_some_and(|cur| {
             let c = cur as usize;
-            self.store.rend[c] - self.store.rstart[c] < MAX_RECORD_LINES
-                && self.joins(&text, indent, logcat.as_ref(), message)
+            let carried = if c == 0 && self.store.carry.is_some() {
+                self.carry_len
+            } else {
+                0
+            };
+            self.store.rend[c] - self.store.rstart[c] + carried < MAX_RECORD_LINES && self.joins(&p)
         });
         // The text the line is scored by: a logcat continuation line is
         // judged by its message alone (a frame is a frame, not an error
         // line), and gets the entry's weight by inheritance.
-        let scored: &str = if is_cont && logcat.is_some() {
+        let scored: &str = if is_cont && p.logcat.is_some() {
             sev = self.vocab.severity(message);
             *self.store.sev.last_mut().expect("pushed above") = sev;
             message
         } else {
-            &text
+            text
         };
         let mut line = self.vocab.line(scored);
         let store = &mut self.store;
@@ -259,7 +435,7 @@ impl<'v> Segmenter<'v> {
                 store.templates[t].lines += 1;
             }
             store.rend[c] = i + 1;
-            let own_indent = if logcat.is_some() {
+            let own_indent = if p.logcat.is_some() {
                 indent_of(message)
             } else {
                 indent
@@ -288,21 +464,36 @@ impl<'v> Segmenter<'v> {
             self.cur = Some(cur);
             store.rstart.push(i);
             store.rend.push(i + 1);
-            self.head_indent = if logcat.is_some() {
+            self.head_indent = if p.logcat.is_some() {
                 indent_of(message)
             } else {
                 indent
             };
+            self.head_text = text.to_owned();
+            self.head_no = base + i as usize + 1;
+            self.head_sev = sev;
             // Cluster the masked head line.
-            let cluster = self.drain.add(&drain_message(&text));
-            if self.tpl_of_cluster.len() < cluster {
-                self.tpl_of_cluster.resize(cluster, None);
+            let cluster = self.drain.add(&drain_message(text));
+            if self.by_cluster.len() < cluster {
+                self.by_cluster.resize(cluster, None);
             }
+            let window_no = self.window_no;
+            let globals = &mut self.globals;
+            let gid = *self.by_cluster[cluster - 1].get_or_insert_with(|| {
+                globals.push(Global {
+                    first_window: window_no,
+                    total: 0,
+                });
+                globals.len() - 1
+            });
+            let g = &mut self.globals[gid];
+            g.total += 1;
+            let new = g.first_window == window_no;
             let mut exemplar = false;
-            let t = *self.tpl_of_cluster[cluster - 1].get_or_insert_with(|| {
+            let t = *self.window_tpl.entry(gid).or_insert_with(|| {
                 let t =
                     u32::try_from(store.templates.len()).expect("fewer than 4 billion templates");
-                store.templates.push(Template::new(cluster, cur));
+                store.templates.push(Template::new(cluster, gid, cur, new));
                 exemplar = true;
                 t
             });
@@ -330,12 +521,7 @@ impl<'v> Segmenter<'v> {
                 // What score_templates needs of the exemplar head, while
                 // its facts are at hand.
                 tpl.vocab = s;
-                tpl.head = HeadClasses {
-                    error: line.has(Class::Error),
-                    warn: line.has(Class::Warn),
-                    summary: line.has(Class::Summary),
-                    pass: line.has(Class::Pass),
-                };
+                tpl.head = head_classes(&mut line);
             }
         }
         // The first source location after an error line within a record
@@ -350,20 +536,151 @@ impl<'v> Segmenter<'v> {
             self.armed = true;
         }
         store.score.push(s);
-        self.logcat_key = logcat;
+        self.logcat_key = p.logcat;
         self.pending_blank = None;
     }
 
-    /// Ends the pass: each template takes its cluster's final text.
-    #[must_use]
-    pub fn finish(mut self) -> Store {
-        for tpl in &mut self.store.templates {
-            tpl.text = self.drain.cluster(tpl.cluster_id).template();
-            tpl.total = tpl.count;
+    /// Record 0 of this window continues the carried record, starting at
+    /// line `i`; its template is the carried head's.
+    fn continue_carried(&mut self, carry: &mut CarriedHead, i: u32) {
+        let store = &mut self.store;
+        let t = *self.window_tpl.entry(carry.gid).or_insert_with(|| {
+            let t = u32::try_from(store.templates.len()).expect("fewer than 4 billion templates");
+            let mut tpl = Template::new(carry.cluster_id, carry.gid, 0, false);
+            // What score_templates needs of the exemplar head, the carried
+            // one: Python reads it from the carried head.
+            let mut line = self.vocab.line(&carry.text);
+            tpl.vocab = vocab_score(&mut line, true, carry.sev);
+            tpl.head = head_classes(&mut line);
+            store.templates.push(tpl);
+            t
+        });
+        carry.tpl_idx = t as usize;
+        store.carry = Some(carry.clone());
+        self.cur = Some(u32::try_from(store.rstart.len()).expect("fewer than 4 billion records"));
+        store.rstart.push(i);
+        store.rend.push(i); // the continuation extends it
+        store.rtpl.push(t);
+        let tpl = &mut store.templates[t as usize];
+        // A record this window touches; the cumulative total is unchanged.
+        tpl.count += 1;
+        if let Some(level) = carry.sev {
+            tpl.levels[usize::from(level)] += 1;
         }
-        self.store
+        tpl.best_sev = carry.sev;
+    }
+
+    /// Closes the current window and returns it, ready to score and
+    /// summarise: each template takes its cluster's text and its total so
+    /// far. `Pass.cut()`.
+    pub fn cut(&mut self) -> Store {
+        if let Some(cur) = self.cur {
+            let store = &self.store;
+            let c = cur as usize;
+            self.store_prev_len = store.rend[c] - store.rstart[c] + self.carry_len;
+            let tpl = &store.templates[store.rtpl[c] as usize];
+            self.carry_gid = tpl.gid;
+            self.carry_cid = tpl.cluster_id;
+        }
+        self.pending_blank_at_cut = self.pending_blank.is_some();
+        let next = Store::starting_at(self.nlines, self.pos);
+        let mut store = std::mem::replace(&mut self.store, next);
+        store.total_bytes = if store.is_empty() {
+            0
+        } else {
+            self.pos - store.first_offset()
+        };
+        for tpl in &mut store.templates {
+            tpl.text = self.drain.cluster(tpl.cluster_id).template();
+            tpl.total = self.globals[tpl.gid].total;
+        }
+        self.window_no += 1;
+        self.rate_notes(&mut store);
+        self.new_window();
+        store
+    }
+
+    /// A template arriving much faster than its running average is what an
+    /// outage looks like before the first ERROR line. Needs real time on
+    /// both sides (a replayed file gets no notes). `Pass._rate_notes()`.
+    fn rate_notes(&self, store: &mut Store) {
+        let now = Instant::now();
+        let window_s = now.duration_since(self.window_started).as_secs_f64();
+        let before_s = self
+            .window_started
+            .duration_since(self.started)
+            .as_secs_f64();
+        if window_s < 1.0 || before_s < 1.0 {
+            return;
+        }
+        for tpl in &mut store.templates {
+            let before = tpl.total - tpl.count;
+            if tpl.count < RATE_MIN_COUNT || before < 1 {
+                continue;
+            }
+            let (now_r, before_r) = (
+                f64::from(tpl.count) / window_s,
+                f64::from(before) / before_s,
+            );
+            if now_r >= RATE_FACTOR * before_r {
+                tpl.rate_note = format!(
+                    " (rate {}/s → {}/s)",
+                    py_format_g(before_r, 2),
+                    py_format_g(now_r, 2)
+                );
+            }
+        }
+    }
+
+    /// `Pass._new_window()`: the state a new window starts with. A record
+    /// open at the cut is carried: its head's indentation, vocabulary score
+    /// and the location bonus's state keep their values, and only `cur` is
+    /// reset, since its lines so far belong to the previous window.
+    fn new_window(&mut self) {
+        self.window_tpl.clear();
+        self.window_started = Instant::now();
+        self.worst_sev = None;
+        if self.cur.is_some() {
+            self.carry = Some(CarriedHead {
+                no: self.head_no,
+                text: self.head_text.clone(),
+                sev: self.head_sev,
+                tpl_idx: 0,
+                gid: self.carry_gid,
+                cluster_id: self.carry_cid,
+            });
+            self.carry_len = self.store_prev_len;
+            self.pending_carried = self.pending_blank_at_cut;
+        } else if self.carry.is_some() {
+            // No line of the window ended the carried record (the window
+            // held only the blank line that keeps it open): carry on
+            // unchanged, length and pending-blank state included.
+        } else {
+            self.carry_len = 0;
+            self.head_indent = 0;
+            self.head_vocab = 0.0;
+            self.armed = false;
+            self.pending_carried = false;
+        }
+        self.cur = None;
+        self.pending_blank = None;
     }
 }
+
+/// The classes of a template's exemplar head that its marker depends on.
+fn head_classes(line: &mut crate::vocab::Line<'_, '_>) -> HeadClasses {
+    HeadClasses {
+        error: line.has(Class::Error),
+        warn: line.has(Class::Warn),
+        summary: line.has(Class::Summary),
+        pass: line.has(Class::Pass),
+    }
+}
+
+/// A rate note needs this many records in the window...
+const RATE_MIN_COUNT: u32 = 20;
+/// ...arriving at least this many times the running rate.
+const RATE_FACTOR: f64 = 3.0;
 
 /// The pass in progress: reading, spooling and hashing, then segmenting.
 // Rust note: `Pass<W: Write>` is generic over where the spool goes: a
@@ -398,6 +715,24 @@ impl<'v, W: Write> Pass<'v, W> {
     ///
     /// If writing to the spool fails.
     pub fn feed(&mut self, chunk: &[u8]) -> io::Result<()> {
+        self.feed_with(chunk, &mut |_| {})
+    }
+
+    /// Takes the next chunk of input, calling `on_full` with the segmenter
+    /// before a line that should start a new window (follow mode; see
+    /// [`Segmenter::window_full`]).
+    ///
+    /// # Errors
+    ///
+    /// If writing to the spool fails.
+    // Rust note: `&mut dyn FnMut(...)` is a closure behind a pointer, called
+    // through a vtable like a `std::function&`: one compiled `feed_with` for
+    // every caller, which is all this per-line callback needs.
+    pub fn feed_with(
+        &mut self,
+        chunk: &[u8],
+        on_full: &mut dyn FnMut(&mut Segmenter<'v>),
+    ) -> io::Result<()> {
         self.spool.write_all(chunk)?;
         self.hasher.update(chunk);
         self.total_bytes += chunk.len() as u64;
@@ -410,15 +745,15 @@ impl<'v, W: Write> Pass<'v, W> {
         for nl in memchr::memchr_iter(b'\n', chunk) {
             let line = &chunk[start..nl];
             if self.rest.is_empty() {
-                self.seg.add_line(line);
+                take_line(&mut self.seg, line, on_full);
             } else {
                 self.rest.extend_from_slice(line);
-                // Rust note: `self.seg.add_line(&self.rest)` borrows two
-                // different fields of `self`, one mutably and one not, which
-                // the borrow checker allows. A `&mut self` method on `Pass`
-                // taking `&self.rest` would need all of `self` mutably while
-                // part of it is borrowed, and would not compile.
-                self.seg.add_line(&self.rest);
+                // Rust note: `take_line(&mut self.seg, &self.rest, ..)`
+                // borrows two different fields of `self`, one mutably and one
+                // not, which the borrow checker allows. A `&mut self` method
+                // on `Pass` taking `&self.rest` would need all of `self`
+                // mutably while part of it is borrowed, and would not compile.
+                take_line(&mut self.seg, &self.rest, on_full);
                 self.rest.clear();
             }
             start = nl + 1;
@@ -435,16 +770,55 @@ impl<'v, W: Write> Pass<'v, W> {
     ///
     /// If flushing the spool fails.
     pub fn finish(mut self) -> io::Result<(Store, String, W)> {
-        if !self.rest.is_empty() {
-            self.seg.add_line(&self.rest);
-        }
+        self.finish_lines(&mut |_| {});
         self.spool.flush()?;
         let digest = self.hasher.finalize();
         let hex: String = digest.iter().take(6).map(|b| format!("{b:02x}")).collect();
-        let mut store = self.seg.finish();
+        let mut store = self.seg.cut();
         store.total_bytes = self.total_bytes;
         Ok((store, hex, self.spool))
     }
+
+    /// End of input without ending the pass (follow mode): a last line
+    /// without a newline is still a line.
+    pub fn finish_lines(&mut self, on_full: &mut dyn FnMut(&mut Segmenter<'v>)) {
+        if !self.rest.is_empty() {
+            let rest = std::mem::take(&mut self.rest);
+            take_line(&mut self.seg, &rest, on_full);
+        }
+    }
+
+    /// The segmenter, for follow mode's flushes.
+    pub fn segmenter(&mut self) -> &mut Segmenter<'v> {
+        &mut self.seg
+    }
+
+    /// Bytes of input so far.
+    #[must_use]
+    pub fn total_bytes(&self) -> u64 {
+        self.total_bytes
+    }
+
+    /// Flushes the spool, so a window's lines can be read back.
+    ///
+    /// # Errors
+    ///
+    /// If flushing fails.
+    pub fn flush_spool(&mut self) -> io::Result<()> {
+        self.spool.flush()
+    }
+}
+
+/// One line into the segmenter, cutting the window first if it is full.
+fn take_line<'v>(
+    seg: &mut Segmenter<'v>,
+    line: &[u8],
+    on_full: &mut dyn FnMut(&mut Segmenter<'v>),
+) {
+    if seg.window_full(line) {
+        on_full(seg);
+    }
+    seg.add_line(line);
 }
 
 /// Reads all of `input` through a pass that writes it to `spool`.
@@ -513,7 +887,7 @@ mod tests {
         for line in text.split('\n') {
             seg.add_line(line.as_bytes());
         }
-        let store = seg.finish();
+        let store = seg.cut();
         let rows = (0..store.len())
             .map(|i| (store.rec[i].map_or(-1, i64::from), store.depth[i]))
             .collect();
@@ -571,6 +945,50 @@ mod tests {
         assert_eq!(store.templates[0].text, "ERROR worker <NUM> crashed");
         assert_eq!((store.templates[0].count, store.templates[0].total), (2, 2));
         assert_eq!(store.rtpl, [0, 0, 1]);
+    }
+
+    /// Per line: (template id, depth) of its record, or `None` for a blank
+    /// line outside any record, over all of `stores`.
+    fn by_line(stores: &[Store]) -> Vec<Option<(usize, u32)>> {
+        let mut out = Vec::new();
+        for st in stores {
+            for i in 0..st.len() {
+                out.push(
+                    st.rec[i]
+                        .map(|r| (st.templates[st.rtpl[r as usize] as usize].gid, st.depth[i])),
+                );
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn follow_windows_segment_as_batch_does() {
+        // A window is cut only where a record starts, and a record open at a
+        // cut is carried, so every line ends up in the same template at the
+        // same depth as in one pass over the whole input.
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/corpus/android-logcat.log");
+        let data = std::fs::read(path).unwrap();
+        let (batch, _, _) = run(&[&data]);
+        for every in [1, 7, 50] {
+            let mut pass = Pass::new(Vec::new(), &VOCAB, 200);
+            pass.segmenter().every = every;
+            let mut windows = Vec::new();
+            for chunk in data.chunks(4096) {
+                pass.feed_with(chunk, &mut |seg| windows.push(seg.cut()))
+                    .unwrap();
+            }
+            pass.finish_lines(&mut |seg| windows.push(seg.cut()));
+            windows.push(pass.segmenter().cut());
+            assert!(windows.len() > 2, "every {every}");
+            assert_eq!(
+                by_line(&windows),
+                by_line(std::slice::from_ref(&batch)),
+                "every {every}"
+            );
+            let lines: usize = windows.iter().map(Store::len).sum();
+            assert_eq!(lines, batch.len());
+        }
     }
 
     #[test]

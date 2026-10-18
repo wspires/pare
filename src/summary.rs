@@ -41,8 +41,9 @@ use crate::store::Store;
 use crate::text::{clean_line, clip};
 use crate::vocab::{Class, NWORD_CLASSES, Vocab, level_only};
 
-/// Writes the input to `out` verbatim, one cleaned line per line, if it
-/// fits the budget. Returns whether it did.
+/// Writes the input to `out` verbatim, one cleaned line per line, and then
+/// `end` if given (command mode: a failing exit status), if it all fits
+/// the budget. Returns the bytes written, or `None` if it did not fit.
 ///
 /// A whole run that fits is the output, byte for byte: no header, and no
 /// run-file line (the run file holds nothing more). The cleaned text is
@@ -56,22 +57,30 @@ pub fn passthrough(
     store: &Store,
     spool: &Path,
     budget: Budget,
+    end: Option<&str>,
     out: &mut impl Write,
-) -> io::Result<bool> {
+) -> io::Result<Option<u64>> {
     // Rust note: comparing an unsigned byte count with a signed budget
     // needs an explicit conversion; Rust has no implicit integer promotions
     // and no signed/unsigned mixing. `i64::try_from` fails instead of
     // wrapping, so a count past i64::MAX (impossible here) counts as not
     // fitting rather than as a negative number that fits.
-    let fits = i64::try_from(store.verbatim_bytes).is_ok_and(|v| v <= budget.bytes());
+    let end_bytes = end.map_or(0, |e| e.len() as u64 + 1);
+    let fits = i64::try_from(store.verbatim_bytes + end_bytes).is_ok_and(|v| v <= budget.bytes());
     if !fits {
-        return Ok(false);
+        return Ok(None);
     }
+    let mut written = 0u64;
     store.for_each_raw(spool, |raw| {
-        out.write_all(clean_line(raw).as_bytes())?;
+        let line = clean_line(raw);
+        written += line.len() as u64 + 1;
+        out.write_all(line.as_bytes())?;
         out.write_all(b"\n")
     })?;
-    Ok(true)
+    if let Some(end) = end {
+        writeln!(out, "{end}")?;
+    }
+    Ok(Some(written + end_bytes))
 }
 
 // The allocation's constants, as in Python. Each one survived
@@ -79,6 +88,8 @@ pub fn passthrough(
 // the output at the same recall. (The position bonuses that ablation
 // removed are 0 in Python and left out here.)
 
+/// Follow mode: salience added to a template first seen in this window.
+const NOVELTY_BONUS: f64 = 1.0;
 /// Head and tail windows skip lines of templates this common...
 const WINDOW_SKIP_COUNT: u32 = 5;
 /// ...looking at most this many window-lengths into the file.
@@ -160,7 +171,7 @@ pub fn fmt_int(n: i64) -> String {
         out.push('-');
     }
     for (k, c) in digits.chars().enumerate() {
-        if k > 0 && (digits.len() - k) % 3 == 0 {
+        if k > 0 && (digits.len() - k).is_multiple_of(3) {
             out.push(',');
         }
         out.push(c);
@@ -191,7 +202,9 @@ fn all_digits(t: &str) -> bool {
     !t.is_empty() && t.chars().all(py_isdigit)
 }
 
-fn gap_marker(gap: usize) -> String {
+/// `gap_marker()`: the marker between non-adjacent lines.
+#[must_use]
+pub fn gap_marker(gap: usize) -> String {
     format!(
         "  ┆ ({} line{})",
         fmt_int(gap as i64),
@@ -235,7 +248,9 @@ struct Facts {
 }
 
 /// Lines read back from the spool, and their facts: `Store.line()` and the
-/// `line_*` helpers of Python.
+/// `line_*` helpers of Python. Keyed by line number in the input, so a
+/// follow window's carried head (numbered before the window) is a line
+/// like any other.
 struct Lines<'a> {
     store: &'a Store,
     vocab: &'a Vocab,
@@ -247,35 +262,46 @@ struct Lines<'a> {
 }
 
 impl Lines<'_> {
-    fn facts(&mut self, i: usize) -> &mut Facts {
-        // Rust note: the `entry` API looks the key up once, and inserts
-        // only when it is missing; the closure runs only then. A C++
-        // `try_emplace` with a lazily built value.
-        if !self.facts.contains_key(&i) {
-            let text = match self.store.read_raw(&mut self.file, i) {
-                Ok(raw) => Rc::from(&*clean_line(&raw)),
-                Err(e) => {
-                    self.error.get_or_insert(e);
-                    Rc::from("")
+    /// The line number of the store's first line.
+    fn b1(&self) -> usize {
+        self.store.base + 1
+    }
+
+    fn facts(&mut self, no: usize) -> &mut Facts {
+        if !self.facts.contains_key(&no) {
+            let b1 = self.b1();
+            let text = if no < b1 {
+                Rc::from(self.store.carry.as_ref().map_or("", |c| c.text.as_str()))
+            } else {
+                // Rust note: `b1` is read into a local first: the call
+                // below borrows `self.file` mutably, and calling a `&self`
+                // method in its arguments would borrow all of `self` too.
+                match self.store.read_raw(&mut self.file, no - b1) {
+                    Ok(raw) => Rc::from(&*clean_line(&raw)),
+                    Err(e) => {
+                        self.error.get_or_insert(e);
+                        Rc::from("")
+                    }
                 }
             };
             self.facts.insert(
-                i,
+                no,
                 Facts {
                     text,
                     ..Facts::default()
                 },
             );
         }
-        self.facts.get_mut(&i).expect("inserted above")
+        self.facts.get_mut(&no).expect("inserted above")
     }
 
-    /// Line `i`'s cleaned text.
-    fn text(&mut self, i: usize) -> Rc<str> {
-        self.facts(i).text.clone()
+    /// Line `no`'s cleaned text.
+    fn text(&mut self, no: usize) -> Rc<str> {
+        self.facts(no).text.clone()
     }
 
-    /// Calls `f` with the index and text of each line `lo..hi`, read in
+    /// Calls `f` with the store index and text of each line `lo..hi`
+    /// (indices), read in
     /// large pieces and not kept: for scans over many lines.
     fn scan(&mut self, lo: usize, hi: usize, mut f: impl FnMut(usize, &str)) {
         let mut start = lo;
@@ -296,10 +322,10 @@ impl Lines<'_> {
         }
     }
 
-    /// `line_has()`: whether line `i` has an entry of class `c`.
-    fn has(&mut self, i: usize, c: Class) -> bool {
+    /// `line_has()`: whether line `no` has an entry of class `c`.
+    fn has(&mut self, no: usize, c: Class) -> bool {
         let vocab = self.vocab;
-        let facts = self.facts(i);
+        let facts = self.facts(no);
         if let Some(found) = facts.has[c as usize] {
             return found;
         }
@@ -308,49 +334,53 @@ impl Lines<'_> {
         found
     }
 
-    fn sev(&self, i: usize) -> Option<u8> {
-        self.store.sev[i]
+    fn sev(&self, no: usize) -> Option<u8> {
+        if no < self.b1() {
+            self.store.carry.as_ref().and_then(|c| c.sev)
+        } else {
+            self.store.sev[no - self.b1()]
+        }
     }
 
     /// `is_chatter()`: a line that says nothing about what happened: a
     /// build tool's closing advice or a level with no message.
-    fn is_chatter(&mut self, i: usize) -> bool {
-        self.has(i, Class::Advice) || (self.sev(i).is_some() && level_only(&self.text(i)))
+    fn is_chatter(&mut self, no: usize) -> bool {
+        self.has(no, Class::Advice) || (self.sev(no).is_some() && level_only(&self.text(no)))
     }
 
     /// `is_error_line()`: error level or above, or, with no level, error
     /// vocabulary and no pass marker.
-    fn is_error(&mut self, i: usize) -> bool {
-        match self.sev(i) {
+    fn is_error(&mut self, no: usize) -> bool {
+        match self.sev(no) {
             Some(sev) => sev >= 3,
-            None => self.has(i, Class::Error) && !self.has(i, Class::Pass),
+            None => self.has(no, Class::Error) && !self.has(no, Class::Pass),
         }
     }
 
     /// `line_params()`: the bracketed parameters of a name on the line
     /// that hold a digit.
-    fn params(&mut self, i: usize) -> Rc<[String]> {
-        if let Some(p) = &self.facts(i).params {
+    fn params(&mut self, no: usize) -> Rc<[String]> {
+        if let Some(p) = &self.facts(no).params {
             return p.clone();
         }
-        let text = self.text(i);
+        let text = self.text(no);
         let params: Rc<[String]> = PARAMS
             .captures_iter(&text)
             .filter_map(|g| g[1].map(|(s, e)| &text[s..e]))
             .filter(|p| p.chars().any(py_isdigit))
             .map(str::to_owned)
             .collect();
-        self.facts(i).params = Some(params.clone());
+        self.facts(no).params = Some(params.clone());
         params
     }
 
     /// The severity and parameters a key adds to a masked shape.
-    fn key_suffix(&mut self, i: usize) -> String {
+    fn key_suffix(&mut self, no: usize) -> String {
         let mut out = String::new();
-        if let Some(sev) = self.sev(i) {
+        if let Some(sev) = self.sev(no) {
             out.push_str(&format!(" ·sev{sev}"));
         }
-        let params = self.params(i);
+        let params = self.params(no);
         if !params.is_empty() {
             out.push_str(&format!(" ·[{}]", params.join("][")));
         }
@@ -359,26 +389,26 @@ impl Lines<'_> {
 
     /// `name_key()`: the masked shape with identifiers left whole, plus
     /// severity and parameters.
-    fn name_key(&mut self, i: usize) -> Rc<str> {
-        if let Some(k) = &self.facts(i).name {
+    fn name_key(&mut self, no: usize) -> Rc<str> {
+        if let Some(k) = &self.facts(no).name {
             return k.clone();
         }
-        let key: Rc<str> = format!("{}{}", mask(&self.text(i), false), self.key_suffix(i)).into();
-        self.facts(i).name = Some(key.clone());
+        let key: Rc<str> = format!("{}{}", mask(&self.text(no), false), self.key_suffix(no)).into();
+        self.facts(no).name = Some(key.clone());
         key
     }
 
     /// `shape_key()`: the masked shape plus severity and parameters.
-    fn shape_key(&mut self, i: usize) -> String {
-        let masked = match &self.facts(i).mask {
+    fn shape_key(&mut self, no: usize) -> String {
+        let masked = match &self.facts(no).mask {
             Some(m) => m.clone(),
             None => {
-                let m: Rc<str> = mask(&self.text(i), true).into();
-                self.facts(i).mask = Some(m.clone());
+                let m: Rc<str> = mask(&self.text(no), true).into();
+                self.facts(no).mask = Some(m.clone());
                 m
             }
         };
-        format!("{masked}{}", self.key_suffix(i))
+        format!("{masked}{}", self.key_suffix(no))
     }
 }
 
@@ -435,6 +465,18 @@ pub struct Options {
     pub in_bytes: u64,
     /// Added to the run line (command mode: the exit status).
     pub note: Option<String>,
+    /// Follow mode: which window this is, and whether a window with
+    /// nothing new is left out.
+    pub follow: Option<Follow>,
+}
+
+/// A follow window: `FollowInfo` in Python.
+#[derive(Clone, Copy, Debug)]
+pub struct Follow {
+    /// The window's number, from 1.
+    pub k: usize,
+    /// `--quiet`: no heartbeat line for a window with nothing new.
+    pub quiet: bool,
 }
 
 /// The state of one summary: `summarize()`'s locals and the closures'
@@ -449,6 +491,15 @@ struct Summarizer<'a> {
     lines: Lines<'a>,
     opts: &'a Options,
     total: usize,
+    /// Line number of the store's first line (1, or a follow window's).
+    b1: usize,
+    /// Follow mode, a window after the first: the head of the input was
+    /// shown before, and a template first seen in this window is news.
+    later_window: bool,
+    /// Template salience, with follow mode's novelty bonus.
+    sal: Vec<f64>,
+    /// Templates first seen in this window, in a later window.
+    new_count: usize,
     budget_bytes: i64,
     compact: bool,
     run_line: String,
@@ -488,12 +539,15 @@ struct Summarizer<'a> {
 }
 
 /// Summarises the input in `store` (its lines in the spool at `spool`)
-/// to `opts.budget`. The caller has already passed through input that
-/// fits ([`passthrough`]). `summarize()` in Python, batch mode.
+/// to `opts.budget`. `summarize()` in Python. In batch mode the caller has
+/// already passed through input that fits ([`passthrough`]); a follow
+/// window is passed through here, and a later window with nothing new is
+/// one line, or nothing with `--quiet`.
 ///
 /// # Errors
 ///
 /// If the spool cannot be read back.
+#[allow(clippy::too_many_lines)] // summarize()'s set-up, kept in Python's order
 pub fn summarize(store: &Store, vocab: &Vocab, spool: &Path, opts: &Options) -> io::Result<String> {
     let lines = Lines {
         store,
@@ -503,22 +557,120 @@ pub fn summarize(store: &Store, vocab: &Vocab, spool: &Path, opts: &Options) -> 
         error: None,
     };
     let budget_bytes = opts.budget.bytes();
+    let later_window = opts.follow.is_some_and(|f| f.k > 1);
+    // A shape first seen in this window is news; the batch summary has no
+    // "before" to be new against, so this is follow-only.
+    let sal: Vec<f64> = store
+        .templates
+        .iter()
+        .map(|t| {
+            if later_window && t.new {
+                t.salience + NOVELTY_BONUS
+            } else {
+                t.salience
+            }
+        })
+        .collect();
     let mut by_sal: Vec<usize> = (0..store.templates.len()).collect();
     // Rust note: `sort_by` is stable, like Python's `sorted`; the index is
     // part of the key anyway.
     by_sal.sort_by(|&a, &b| {
-        let (ta, tb) = (&store.templates[a], &store.templates[b]);
-        tb.salience
-            .partial_cmp(&ta.salience)
+        sal[b]
+            .partial_cmp(&sal[a])
             .unwrap_or(Ordering::Equal)
             .then(a.cmp(&b))
     });
-    let mut run_line = match &opts.run_path {
-        Some(p) => format!("## raw: {p}"),
-        None => "## raw: (not saved)".to_owned(),
+    let new_count = store.templates.iter().filter(|t| t.new).count();
+    let (b1, last) = (store.base + 1, store.base + store.len());
+    let mut run_line = match (&opts.run_path, opts.follow) {
+        (Some(p), Some(_)) => format!("## raw: {p} --since L{b1} --until L{last}"),
+        (Some(p), None) => format!("## raw: {p}"),
+        (None, _) => "## raw: (not saved)".to_owned(),
     };
     if let Some(note) = &opts.note {
         run_line.push_str(&format!(" · {note}"));
+    }
+    if let Some(f) = opts.follow {
+        let total = store.len();
+        let lines_word = if total == 1 { "line" } else { "lines" };
+        // A window with nothing above the salience floor and no new shape is
+        // one line, so a quiet stream costs almost nothing to watch.
+        let anything = (0..total)
+            .any(|i| store.rec[i].is_some() && !store.blank[i] && store.score[i] >= FILL_FLOOR);
+        if later_window && new_count == 0 && !anything {
+            if f.quiet {
+                return Ok(String::new());
+            }
+            let mut top: Vec<usize> = (0..store.templates.len()).collect();
+            top.sort_by_key(|&t| (Reverse(store.templates[t].count), t));
+            top.truncate(5);
+            let counts: Vec<String> = top
+                .iter()
+                .map(|&t| {
+                    format!(
+                        "{} ×{}",
+                        store.templates[t].tid(),
+                        fmt_int(i64::from(store.templates[t].count))
+                    )
+                })
+                .collect();
+            let more = if store.templates.len() > top.len() {
+                format!(" · +{} more", store.templates.len() - top.len())
+            } else {
+                String::new()
+            };
+            return Ok(format!(
+                "# pare #{}: L{}–L{} · {} {lines_word}, nothing new · {}{more}\n",
+                f.k,
+                fmt_int(b1 as i64),
+                fmt_int(last as i64),
+                fmt_int(total as i64),
+                counts.join(", ")
+            ));
+        }
+        // Small input: never make it bigger. A follow window keeps its
+        // header line so blocks stay delimited, and its run line.
+        let mut verbatim = vec![format!(
+            "# pare #{}: L{}–L{} · {} {lines_word}, verbatim",
+            f.k,
+            fmt_int(b1 as i64),
+            fmt_int(last as i64),
+            fmt_int(total as i64)
+        )];
+        if let Some(c) = &store.carry {
+            // The window starts inside a record: say what its first lines
+            // belong to.
+            verbatim.push(format!(
+                "  ↳ continues L{}: {}",
+                c.no,
+                clip(py_strip(&c.text), opts.width)
+            ));
+        }
+        let end = match (&opts.run_path, &opts.note) {
+            (Some(_), _) => Some(run_line.clone()),
+            (None, Some(note)) => Some(format!("## {note}")),
+            (None, None) => None,
+        };
+        let size = store.verbatim_bytes as i64
+            + nbytes(&verbatim)
+            + end.as_ref().map_or(0, |e| e.len() as i64 + 1);
+        if size <= budget_bytes {
+            let mut lines = lines;
+            let mut text = verbatim.join("\n");
+            text.push('\n');
+            for no in b1..=last {
+                text.push_str(&lines.text(no));
+                text.push('\n');
+            }
+            if let Some(end) = end {
+                text.push_str(&end);
+                text.push('\n');
+            }
+            return match lines.error.take() {
+                Some(e) => Err(e),
+                None => Ok(text),
+            };
+        }
     }
     let tokens = opts.budget.tokens;
     let divisor = if tokens < COMPACT_BUDGET { 16 } else { 12 };
@@ -527,10 +679,14 @@ pub fn summarize(store: &Store, vocab: &Vocab, spool: &Path, opts: &Options) -> 
         lines,
         opts,
         total: store.len(),
+        b1,
+        later_window,
+        sal,
+        new_count,
         budget_bytes,
         compact: tokens < COMPACT_BUDGET,
         run_line,
-        show_hint: tokens >= HINT_BUDGET,
+        show_hint: tokens >= HINT_BUDGET && !later_window,
         // Rust note: `div_euclid` floors like Python's `//` (the budget can
         // be negative).
         ledger_reserve: budget_bytes.div_euclid(divisor).clamp(120, 400),
@@ -567,6 +723,15 @@ pub fn summarize(store: &Store, vocab: &Vocab, spool: &Path, opts: &Options) -> 
 }
 
 impl Summarizer<'_> {
+    /// The record's head line number; a carried record's head is in the
+    /// previous window. `Store.head_of()`.
+    fn head_no(&self, ri: usize) -> usize {
+        match &self.store.carry {
+            Some(c) if ri == 0 => c.no,
+            _ => self.rstart(ri) + self.b1,
+        }
+    }
+
     /// Signed `tokens()`: the header quotes negative budgets as they are.
     fn tokens(&self, nbytes: i64) -> i64 {
         // Rust note: `as` from f64 to i64 truncates and saturates; the value
@@ -576,9 +741,38 @@ impl Summarizer<'_> {
         t
     }
 
+    /// `"L1–L300 · 300 lines"`: a follow window's span.
+    fn span(&self) -> String {
+        let total = self.total as i64;
+        format!(
+            "L{}–L{} · {} line{}",
+            fmt_int(self.b1 as i64),
+            fmt_int((self.store.base + self.total) as i64),
+            fmt_int(total),
+            if total == 1 { "" } else { "s" }
+        )
+    }
+
     fn header(&self, out_bytes: i64) -> String {
         let total = self.total as i64;
         let in_bytes = i64::try_from(self.opts.in_bytes).unwrap_or(i64::MAX);
+        if let Some(f) = &self.opts.follow {
+            let news = if self.later_window && self.new_count > 0 {
+                format!(", {} new", self.new_count)
+            } else {
+                String::new()
+            };
+            return format!(
+                "# pare #{}: {}, {} B (~{} tok) → ~{} tok (budget {}) · {} templates{news}",
+                f.k,
+                self.span(),
+                fmt_int(in_bytes),
+                fmt_int(self.tokens(in_bytes)),
+                fmt_int(self.tokens(out_bytes)),
+                fmt_int(self.opts.budget.tokens),
+                self.store.templates.len(),
+            );
+        }
         format!(
             "# pare: {} line{}, {} B (~{} tok) → ~{} tok (budget {}) · {} templates",
             fmt_int(total),
@@ -609,12 +803,12 @@ impl Summarizer<'_> {
 
     /// The line number of a template's exemplar head.
     fn exemplar_no(&self, t: usize) -> usize {
-        self.rstart(self.store.templates[t].exemplar as usize) + 1
+        self.head_no(self.store.templates[t].exemplar as usize)
     }
 
     /// `fmt_line()`: a line as the summary shows it, `"223: text"`.
     fn fmt_line(&mut self, no: usize) -> String {
-        let text = self.lines.text(no - 1);
+        let text = self.lines.text(no);
         format!("{no}: {}", clip(&text, self.opts.width))
     }
 
@@ -644,18 +838,19 @@ impl Summarizer<'_> {
                 break;
             }
             let ri = self.rec(i);
-            if ri.is_some() && self.lines.is_chatter(i) {
+            let no = i + self.b1;
+            if ri.is_some() && self.lines.is_chatter(no) {
                 continue; // advice or a bare level says nothing, even first or last
             }
-            let Some(ri) = ri.filter(|_| i + 1 != keep_no) else {
-                out.push(i + 1);
+            let Some(ri) = ri.filter(|_| no != keep_no) else {
+                out.push(no);
                 continue;
             };
             let frequent = self.store.templates[self.rtpl(ri)].count >= WINDOW_SKIP_COUNT;
             let long_body = self.store.depth[i] > 0
                 && self.rend(ri) - self.rstart(ri) >= WINDOW_SKIP_COUNT as usize;
             if !frequent && !long_body {
-                out.push(i + 1);
+                out.push(no);
             }
         }
         out
@@ -687,7 +882,7 @@ impl Summarizer<'_> {
         let heads = self.records_of(t);
         let mut shapes: HashSet<Rc<str>> = HashSet::new();
         for &ri in &heads {
-            let h = self.rstart(ri);
+            let h = self.head_no(ri);
             shapes.insert(self.lines.name_key(h));
         }
         let l = shapes.len() as f64 >= LIST_DISTINCT * heads.len() as f64;
@@ -703,7 +898,7 @@ impl Summarizer<'_> {
             return a.clone();
         }
         let tpl = &self.store.templates[t];
-        let (count, marker, ex) = (tpl.count, tpl.marker, self.exemplar_no(t) - 1);
+        let (count, marker, ex) = (tpl.count, tpl.marker, self.exemplar_no(t));
         let mut form = None;
         if count >= LIST_MIN_COUNT
             && marker == 'E'
@@ -714,7 +909,7 @@ impl Summarizer<'_> {
             let texts: Vec<Rc<str>> = recs
                 .iter()
                 .map(|&ri| {
-                    let text = self.lines.text(self.rstart(ri));
+                    let text = self.lines.text(self.head_no(ri));
                     Rc::from(py_strip(&text))
                 })
                 .collect();
@@ -742,13 +937,16 @@ impl Summarizer<'_> {
         if let Some(item) = self.items.get(&no) {
             return item.clone();
         }
-        let i = no - 1;
+        if no < self.b1 {
+            return None; // the carried head: the previous window's line
+        }
+        let i = no - self.b1;
         let item = self
             .rec(i)
             .filter(|&ri| self.rstart(ri) == i)
             .and_then(|ri| {
                 let (pre, suf) = self.list_affixes(self.rtpl(ri))?;
-                let text = self.lines.text(i);
+                let text = self.lines.text(no);
                 let text = py_strip(&text);
                 let (n, np, ns) = (
                     text.chars().count(),
@@ -792,7 +990,7 @@ impl Summarizer<'_> {
         let mut names: HashMap<String, Vec<usize>> = HashMap::new();
         let mut params: HashMap<usize, Rc<[String]>> = HashMap::new();
         for &h in &heads {
-            let item = self.item_of(h + 1).unwrap_or_default();
+            let item = self.item_of(h + self.b1).unwrap_or_default();
             // Python's `max(toks, key=len)`: the first of the longest.
             let mut best: Option<&str> = None;
             for tk in tokens(&item).filter(|tk| !all_digits(tk)) {
@@ -802,7 +1000,7 @@ impl Summarizer<'_> {
             }
             if let Some(name) = best {
                 names.entry(name.to_owned()).or_default().push(h);
-                params.insert(h, self.lines.params(h));
+                params.insert(h, self.lines.params(h + self.b1));
             }
         }
         if names.len() < RARE_FAILURE_MIN {
@@ -846,9 +1044,9 @@ impl Summarizer<'_> {
                 if rj.is_some()
                     && self.store.depth[j] == 0
                     && !self.store.blank[j]
-                    && self.lines.is_error(j)
+                    && self.lines.is_error(j + self.b1)
                 {
-                    way = Some(self.lines.shape_key(j));
+                    way = Some(self.lines.shape_key(j + self.b1));
                 }
             }
             if let Some(w) = way {
@@ -866,7 +1064,7 @@ impl Summarizer<'_> {
         let limit = ((ways.len() as f64 * RARE_FAILURE_SHARE) as usize).max(1);
         ways.iter()
             .filter(|(_, w)| sizes[w.as_str()] <= limit)
-            .map(|(&h, _)| h + 1)
+            .map(|(&h, _)| h + self.b1)
             .collect()
     }
 
@@ -878,7 +1076,7 @@ impl Summarizer<'_> {
         if self.list_affixes(t).is_none() {
             return 0.0;
         }
-        if self.rare_failures(t).contains(&(i + 1)) {
+        if self.rare_failures(t).contains(&(i + self.b1)) {
             RARE_FAILURE_BONUS
         } else {
             0.0
@@ -892,7 +1090,10 @@ impl Summarizer<'_> {
 
     /// `as_item()`: whether a line renders as an item of its placed list.
     fn as_item(&mut self, no: usize) -> bool {
-        let Some(ri) = self.rec(no - 1) else {
+        if no < self.b1 {
+            return false;
+        }
+        let Some(ri) = self.rec(no - self.b1) else {
             return false;
         };
         self.placed.contains_key(&self.rtpl(ri)) && self.item_of(no).is_some()
@@ -901,28 +1102,35 @@ impl Summarizer<'_> {
     /// `repeat_key()`: what counts as another one of these, for
     /// diminishing returns.
     fn repeat_key(&mut self, no: usize) -> String {
-        let i = no - 1;
+        let i = no - self.b1;
         if self.store.depth[i] == 0 {
             if let Some(ri) = self.rec(i) {
                 let t = self.rtpl(ri);
-                if !(self.lines.is_error(i) && self.lists_items(t)) {
+                if !(self.lines.is_error(no) && self.lists_items(t)) {
                     let sev =
                         self.store.sev[i].map_or_else(|| "None".to_owned(), |s| s.to_string());
                     return format!("tpl{t}·sev{sev}");
                 }
                 // An error line of a template whose records each name
                 // something different repeats only its own name.
-                return self.lines.name_key(i).to_string();
+                return self.lines.name_key(no).to_string();
             }
         }
-        self.lines.shape_key(i) // a continuation line: its masked shape
+        self.lines.shape_key(no) // a continuation line: its masked shape
     }
 
     fn key_of(&mut self, no: usize) -> String {
         if let Some(k) = self.keys.get(&no) {
             return k.clone();
         }
-        let k = self.repeat_key(no);
+        let k = match &self.store.carry {
+            // The carried head: its line is in the previous window.
+            Some(c) if no < self.b1 => {
+                let sev = c.sev.map_or_else(|| "None".to_owned(), |s| s.to_string());
+                format!("tpl{}·sev{sev}", c.tpl_idx)
+            }
+            _ => self.repeat_key(no),
+        };
         self.keys.insert(no, k.clone());
         k
     }
@@ -931,7 +1139,7 @@ impl Summarizer<'_> {
         self.shown.insert(no);
         let key = self.key_of(no);
         *self.taken.entry(key).or_default() += 1;
-        let text = self.lines.text(no - 1);
+        let text = self.lines.text(no);
         self.shown_tokens.push(token_set(&text));
     }
 
@@ -959,9 +1167,9 @@ impl Summarizer<'_> {
     }
 
     /// The tokens of a line's name parameters.
-    fn name_toks(&mut self, i: usize) -> HashSet<String> {
+    fn name_toks(&mut self, no: usize) -> HashSet<String> {
         self.lines
-            .params(i)
+            .params(no)
             .iter()
             .flat_map(|p| tokens(p).map(str::to_owned).collect::<Vec<_>>())
             .collect()
@@ -980,7 +1188,7 @@ impl Summarizer<'_> {
         match where_ {
             Some(w) => format!("L{no} (in {w})"),
             None => {
-                let text = self.lines.text(no - 1);
+                let text = self.lines.text(no);
                 format!("L{no}: {}", clip(py_strip(&text), self.opts.width))
             }
         }
@@ -995,7 +1203,7 @@ impl Summarizer<'_> {
         }
         let tpl = &self.store.templates[t];
         let (count, exemplar) = (tpl.count, tpl.exemplar as usize);
-        let ex = self.exemplar_no(t) - 1;
+        let ex = self.exemplar_no(t);
         let mut other = None;
         if PAIR_MEMBERS
             && count == 2
@@ -1008,9 +1216,9 @@ impl Summarizer<'_> {
                 .filter(|&ri| ri != exemplar)
                 .collect();
             if let [ri] = rs[..] {
-                let h = self.rstart(ri);
-                if py_strip(&self.lines.text(h)) != py_strip(&self.lines.text(ex)) {
-                    other = Some(h + 1);
+                let h = self.head_no(ri);
+                if h >= self.b1 && py_strip(&self.lines.text(h)) != py_strip(&self.lines.text(ex)) {
+                    other = Some(h);
                 }
             }
         }
@@ -1023,11 +1231,14 @@ impl Summarizer<'_> {
         let ex_no = self.exemplar_no(t);
         let tpl = &self.store.templates[t];
         let count = tpl.count;
-        let tid = format!("T{}", t + 1);
+        let tid = tpl.tid();
         let marker = tpl.marker;
         let mut extra = String::new();
         if tpl.lines != count {
             extra.push_str(&format!(" ({} lines)", fmt_int(i64::from(tpl.lines))));
+        }
+        if ex_no < self.b1 {
+            extra.push_str(" (cont.)"); // the record began in the previous window
         }
         let levels: Vec<usize> = (0..5).rev().filter(|&k| tpl.levels[k] > 0).collect();
         if levels.len() > 1 {
@@ -1038,6 +1249,10 @@ impl Summarizer<'_> {
                 .collect();
             extra.push_str(&format!(" [{}]", hist.join(" ")));
         }
+        if self.later_window && tpl.new {
+            extra.push_str(" new");
+        }
+        extra.push_str(&tpl.rate_note);
         let head = format!("{tid:<4} ×{}{extra} {marker}", fmt_int(i64::from(count)));
         if let Some((pre, suf)) = self.list_affixes(t) {
             // A list of failures: the shared text once, the items under it,
@@ -1062,7 +1277,7 @@ impl Summarizer<'_> {
             return vec![format!("{head} {a}"), format!("     {b}")];
         }
         let tpl = &self.store.templates[t];
-        if count == 1 || self.compact || tpl.text == drain_message(&self.lines.text(ex_no - 1)) {
+        if count == 1 || self.compact || tpl.text == drain_message(&self.lines.text(ex_no)) {
             // One line: a singleton, a small budget, or a template with no
             // variables, whose text would only repeat the exemplar.
             return vec![format!("{head} {ex_ref}")];
@@ -1082,7 +1297,7 @@ impl Summarizer<'_> {
     /// `effective()`: a line's priority now, less for each repeat of its
     /// shape already shown; an item of a placed list costs only its part.
     fn effective(&mut self, no: usize) -> f64 {
-        let i = no - 1;
+        let i = no - self.b1;
         let key = self.key_of(no);
         let taken = f64::from(self.taken.get(&key).copied().unwrap_or(0));
         let mut e = (self.store.score[i] + self.rare_bonus(i)) / (1.0 + FILL_PENALTY * taken);
@@ -1102,10 +1317,11 @@ impl Summarizer<'_> {
     /// `next_item()`: the queue's next item, from the heap or from the
     /// stream of raw-line candidates, whichever comes first.
     fn next_item(&mut self) -> Item {
+        let b1 = self.b1;
         let next = self.order.get(self.stream_pos).map(|&(i, p)| Item {
             negp: -p,
             kind: 1,
-            id: i + 1,
+            id: i + b1,
         });
         if let Some(Reverse(top)) = self.heap.peek() {
             if next.is_none_or(|n| *top < n) {
@@ -1128,18 +1344,18 @@ impl Summarizer<'_> {
                 if max != 0 && self.placed.len() as i64 >= max {
                     continue;
                 }
-                if tpl.salience < TEMPLATE_FLOOR && !self.placed.is_empty() {
+                if self.sal[t] < TEMPLATE_FLOOR && !self.placed.is_empty() {
                     continue; // low-salience shape: the ledger's count is enough
                 }
                 let ex = tpl.exemplar as usize;
                 let (ex_start, ex_end) = (self.rstart(ex), self.rend(ex));
-                let ex_no = ex_start + 1;
+                let ex_no = self.exemplar_no(t);
                 let count = tpl.count;
                 let marker = tpl.marker;
                 if count == 1
                     && (ex_start..ex_end)
                         .filter(|&j| !self.store.blank[j])
-                        .all(|j| self.window_nos.contains(&(j + 1)))
+                        .all(|j| self.window_nos.contains(&(j + self.b1)))
                 {
                     continue; // a singleton the head or tail window already prints whole
                 }
@@ -1149,9 +1365,9 @@ impl Summarizer<'_> {
                 {
                     // A rare one-line record that restates something already
                     // on screen stays in the ledger.
-                    let toks = token_set(&self.lines.text(ex_start));
-                    let names = self.lines.is_error(ex_start);
-                    let name_toks = self.name_toks(ex_start);
+                    let toks = token_set(&self.lines.text(ex_no));
+                    let names = self.lines.is_error(ex_no);
+                    let name_toks = self.name_toks(ex_no);
                     if self.is_near_duplicate(&toks, names, &name_toks) {
                         continue;
                     }
@@ -1180,7 +1396,7 @@ impl Summarizer<'_> {
                     } else if self.picked_nos.remove(&no) {
                         // The entry now shows this line.
                         self.picked.retain(|&(_, n)| n != no);
-                        avail += i64::from(self.store.rlen[no - 1]) + 20;
+                        avail += i64::from(self.store.rlen[no - self.b1]) + 20;
                     }
                 }
                 if is_list {
@@ -1188,7 +1404,8 @@ impl Summarizer<'_> {
                     let picked: Vec<usize> = self.picked.iter().map(|&(_, n)| n).collect();
                     for n in picked {
                         if self.as_item(n) {
-                            avail += i64::from(self.store.rlen[n - 1]) + 20 - self.item_cost(n);
+                            avail +=
+                                i64::from(self.store.rlen[n - self.b1]) + 20 - self.item_cost(n);
                         }
                     }
                 }
@@ -1211,7 +1428,7 @@ impl Summarizer<'_> {
             if cur < FILL_FLOOR || self.shown.contains(&no) {
                 continue; // below the floor a line never pads the output
             }
-            let i = no - 1;
+            let i = no - self.b1;
             let ri = self.rec(i).expect("candidates are in records");
             if self.exemplar_nos.contains(&no) && self.placed.contains_key(&self.rtpl(ri)) {
                 continue; // its template entry already shows it
@@ -1225,10 +1442,10 @@ impl Summarizer<'_> {
                 self.deferred.push(item);
                 continue;
             }
-            let toks = token_set(&self.lines.text(i));
+            let toks = token_set(&self.lines.text(no));
             if self.store.depth[i] == 0 {
-                let names = self.lines.is_error(i);
-                let name_toks = self.name_toks(i);
+                let names = self.lines.is_error(no);
+                let name_toks = self.name_toks(no);
                 if self.is_near_duplicate(&toks, names, &name_toks) {
                     continue;
                 }
@@ -1251,12 +1468,15 @@ impl Summarizer<'_> {
     /// exemplar record, and a marker for the rest.
     fn body_of(&mut self, t: usize) -> (Vec<String>, HashSet<usize>) {
         let ex = self.store.templates[t].exemplar as usize;
-        let (lo, end) = (self.rstart(ex) + 1, self.rend(ex));
+        // `Store.body_range()`: a carried record's lines here are all body.
+        let carried = ex == 0 && self.store.carry.is_some();
+        let (lo, end) = (self.rstart(ex) + usize::from(!carried), self.rend(ex));
+        let b1 = self.b1;
         let mut nos: Vec<usize> = self
             .picked
             .iter()
             .map(|&(_, n)| n)
-            .filter(|&n| (lo..end).contains(&(n - 1)))
+            .filter(|&n| n >= b1 && (lo..end).contains(&(n - b1)))
             .collect();
         nos.sort_unstable();
         let mut out = if nos.is_empty() {
@@ -1265,7 +1485,7 @@ impl Summarizer<'_> {
             self.render_ranges(&nos)
         };
         let unseen = (lo..end)
-            .filter(|&j| !self.store.blank[j] && !self.window_nos.contains(&(j + 1)))
+            .filter(|&j| !self.store.blank[j] && !self.window_nos.contains(&(j + b1)))
             .count();
         if unseen > nos.len() {
             out.push(format!(
@@ -1280,11 +1500,14 @@ impl Summarizer<'_> {
     fn ledger(&self, shown_set: &HashSet<usize>) -> String {
         let store = self.store;
         let tpl_omitted = store.templates.len() - self.placed.len();
-        let omitted_total = self.total - shown_set.len();
+        let omitted_total = self.total - shown_set.iter().filter(|&&no| no >= self.b1).count();
         let mut shown_in: HashMap<usize, i64> = HashMap::new();
         let mut blank_shown = 0;
         for &no in shown_set {
-            let j = no - 1;
+            if no < self.b1 {
+                continue; // a carried head is the previous window's line
+            }
+            let j = no - self.b1;
             if store.blank[j] {
                 blank_shown += 1;
             }
@@ -1332,7 +1555,7 @@ impl Summarizer<'_> {
         let mut shown_parts: Vec<String> = Vec::new();
         let mut used = head.chars().count() as i64 + 2;
         for &(om, t) in &per_tpl {
-            let p = format!("T{} ×{}", t + 1, fmt_int(om));
+            let p = format!("{} ×{}", store.templates[t].tid(), fmt_int(om));
             let len = p.chars().count() as i64;
             if !self.ledger_detail || used + len + 2 > self.ledger_reserve - 40 {
                 break;
@@ -1376,7 +1599,7 @@ impl Summarizer<'_> {
                     let mut items: Vec<usize> = Vec::new();
                     for (_, n) in self.picked.clone() {
                         if self.as_item(n)
-                            && self.rtpl(self.rec(n - 1).expect("an item is a head")) == t
+                            && self.rtpl(self.rec(n - self.b1).expect("an item is a head")) == t
                         {
                             items.push(n);
                         }
@@ -1398,8 +1621,10 @@ impl Summarizer<'_> {
                         .window_nos
                         .iter()
                         .filter(|&&n| {
-                            self.rec(n - 1)
-                                .is_some_and(|ri| self.rtpl(ri) == t && self.rstart(ri) == n - 1)
+                            n >= self.b1
+                                && self.rec(n - self.b1).is_some_and(|ri| {
+                                    self.rtpl(ri) == t && self.rstart(ri) == n - self.b1
+                                })
                         })
                         .count() as i64;
                     let ex_extra =
@@ -1531,6 +1756,9 @@ impl Summarizer<'_> {
         if tokens < COMPACT_BUDGET {
             head_n = head_n.min(3); // a small budget gets a smaller head (the tail keeps the verdicts)
         }
+        if self.later_window {
+            head_n = 0; // the head of the input was shown in the first window
+        }
         let tail_n = self.opts.tail;
         let head_span = head_n.max(WINDOW_SCAN_FACTOR * head_n);
         let tail_span = tail_n.max(WINDOW_SCAN_FACTOR * tail_n);
@@ -1543,8 +1771,8 @@ impl Summarizer<'_> {
         let head_idxs: Vec<usize> = (0..head_end).collect();
         let tail_start = usize::try_from((total_i - 1 - tail_span).max(-1) + 1).unwrap_or(0);
         let tail_idxs: Vec<usize> = (tail_start..total).rev().collect();
-        let mut head_nos = self.windowed(&head_idxs, head_n, 1);
-        let mut tail_nos = self.windowed(&tail_idxs, tail_n, total);
+        let mut head_nos = self.windowed(&head_idxs, head_n, self.b1);
+        let mut tail_nos = self.windowed(&tail_idxs, tail_n, self.store.base + total);
         tail_nos.sort_unstable();
         tail_nos.retain(|n| !head_nos.contains(n));
         while !head_nos.is_empty() || !tail_nos.is_empty() {
@@ -1571,7 +1799,7 @@ impl Summarizer<'_> {
         let mut sorted_shown: Vec<usize> = self.shown.iter().copied().collect();
         sorted_shown.sort_unstable();
         for no in sorted_shown {
-            let text = self.lines.text(no - 1);
+            let text = self.lines.text(no);
             self.shown_tokens.push(token_set(&text));
         }
         self.exemplar_nos = (0..self.store.templates.len())
@@ -1583,7 +1811,7 @@ impl Summarizer<'_> {
         // appear when its entry does not make the cut.
         let mut order: Vec<(usize, f64)> = Vec::new();
         for i in 0..total {
-            if !self.shown.contains(&(i + 1))
+            if !self.shown.contains(&(i + self.b1))
                 && self.store.rec[i].is_some()
                 && !self.store.blank[i]
                 && self.store.score[i] >= FILL_FLOOR
@@ -1595,9 +1823,9 @@ impl Summarizer<'_> {
         // Stable: ties stay in line order.
         order.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
         self.order = order;
-        for (t, tpl) in self.store.templates.iter().enumerate() {
+        for (t, &sal) in self.sal.iter().enumerate() {
             self.heap.push(Reverse(Item {
-                negp: -tpl.salience,
+                negp: -sal,
                 kind: 0,
                 id: t,
             }));

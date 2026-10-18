@@ -17,14 +17,22 @@ use std::fs::File;
 use std::io::{self, BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
 
-/// One template (a Drain cluster) as this input uses it.
+/// One template (a Drain cluster) as this input, or this follow window,
+/// uses it.
 #[derive(Debug, Clone)]
 pub struct Template {
-    /// The template text, final once the pass is over.
+    /// The template text, final once the window is cut.
     pub text: String,
     /// Drain's id for the cluster.
     pub cluster_id: usize,
-    /// Records of this template.
+    /// Its id across follow windows, shown as `T<gid+1>`; in batch mode its
+    /// index in `templates`.
+    pub gid: usize,
+    /// Follow mode: first seen in this window.
+    pub new: bool,
+    /// Follow mode: `" (rate 0.2/s → 11/s)"` when the template bursts.
+    pub rate_note: String,
+    /// Records of this template (in this window).
     pub count: u32,
     /// Lines in those records (heads, continuations, adopted blank lines).
     pub lines: u32,
@@ -50,12 +58,15 @@ pub struct Template {
 }
 
 impl Template {
-    /// A template first seen at record `exemplar`.
+    /// A template first seen (in this window) at record `exemplar`.
     #[must_use]
-    pub fn new(cluster_id: usize, exemplar: u32) -> Self {
+    pub fn new(cluster_id: usize, gid: usize, exemplar: u32, new: bool) -> Self {
         Template {
             text: String::new(),
             cluster_id,
+            gid,
+            new,
+            rate_note: String::new(),
             count: 0,
             lines: 0,
             total: 0,
@@ -68,6 +79,30 @@ impl Template {
             marker: '.',
         }
     }
+
+    /// Its name in the output: `T3`.
+    #[must_use]
+    pub fn tid(&self) -> String {
+        format!("T{}", self.gid + 1)
+    }
+}
+
+/// The head of a record that a follow cut left open: what the next window
+/// needs to attribute its continuation lines and to show the entry.
+#[derive(Debug, Clone)]
+pub struct CarriedHead {
+    /// Its line number in the input.
+    pub no: usize,
+    /// Its text.
+    pub text: String,
+    /// Its severity.
+    pub sev: Option<u8>,
+    /// Its template's index in the new window's templates, once known.
+    pub tpl_idx: usize,
+    /// Its template's id across windows.
+    pub gid: usize,
+    /// Its template's Drain cluster.
+    pub cluster_id: usize,
 }
 
 /// The vocabulary classes of a template's exemplar head that its marker
@@ -85,9 +120,14 @@ pub struct HeadClasses {
     pub pass: bool,
 }
 
-/// Per-line, per-record and per-template results for one input.
+/// Per-line, per-record and per-template results for one input, or one
+/// follow window of it.
 #[derive(Debug, Default)]
 pub struct Store {
+    /// Index of the first line in the input: 0, or a follow window's start.
+    pub base: usize,
+    /// Follow mode: record 0 continues a record cut by the previous window.
+    pub carry: Option<CarriedHead>,
     /// Byte offset of each raw line in the spool.
     off: Vec<u64>,
     /// Length of each raw line, without its newline.
@@ -138,6 +178,29 @@ impl Store {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// An empty store for the lines from index `base` on, the first of
+    /// which starts at byte `offset` of the spool.
+    #[must_use]
+    pub fn starting_at(base: usize, offset: u64) -> Self {
+        Store {
+            base,
+            end: offset,
+            ..Self::default()
+        }
+    }
+
+    /// The spool offset of the first line (the next line's, if none).
+    #[must_use]
+    pub fn first_offset(&self) -> u64 {
+        self.off.first().copied().unwrap_or(self.end)
+    }
+
+    /// The spool offset after the last line and its newline.
+    #[must_use]
+    pub fn end_offset(&self) -> u64 {
+        self.end
     }
 
     /// Number of lines.

@@ -2,7 +2,7 @@
 name = "pare"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.87"
 description = "Summarize noisy command output (test runs, builds, logs) to a token budget, for AI agents and humans"
 repository = "https://github.com/wspires/pare"
 readme = "README.md"
@@ -18,7 +18,12 @@ clap = { version = "4.5", features = ["derive", "env"] }
 fancy-regex = "0.19"
 memchr = "2"
 regex = "1.11"
+serde_json = { version = "1", features = ["preserve_order"] }
 sha2 = "0.10"
+
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.30", default-features = false, features = ["signal"] }
+signal-hook = "0.3"
 
 [lints.rust]
 unsafe_code = "forbid"
