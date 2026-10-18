@@ -11,7 +11,8 @@
 use std::borrow::Cow;
 use std::sync::LazyLock;
 
-use crate::pyclass::{py_isdecimal, py_pattern, py_split, py_strip};
+use crate::pyclass::{py_isdecimal, py_split, py_strip};
+use crate::pyre::PyRegex;
 
 /// One mask's definition.
 struct Spec {
@@ -19,12 +20,6 @@ struct Spec {
     name: &'static str,
     /// Python's pattern, as written in `proto/pare.py`.
     exact: &'static str,
-    /// The same pattern with its assertions (`\b`, lookahead, lookbehind)
-    /// erased, for the fast engine; `None` when the pattern has none.
-    /// Erasing assertions only removes conditions, so this matches wherever
-    /// `exact` can, and more (the `fast_patterns_cover_exact` test checks
-    /// it on corpus lines).
-    fast: Option<&'static str>,
     /// The line must contain a decimal digit for the mask to apply.
     needs_digit: bool,
     /// ... and one of these strings (empty: no such test).
@@ -45,7 +40,6 @@ const SPECS: &[Spec] = &[
     Spec {
         name: "TS",
         exact: r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?(?:Z|[+-]\d{2}:?\d{2})?",
-        fast: None,
         needs_digit: true,
         needs_any: &["-"],
     },
@@ -56,53 +50,42 @@ const SPECS: &[Spec] = &[
             r"|\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),? (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) +\d{1,2}\b",
             r"|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) +\d{1,2},? \d{4}\b",
         ),
-        fast: Some(concat!(
-            r"\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{2,4}",
-            r"|(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),? (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) +\d{1,2}",
-            r"|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) +\d{1,2},? \d{4}",
-        )),
         needs_digit: true,
         needs_any: MONTHS_AND_SEPARATORS,
     },
     Spec {
         name: "TIME",
         exact: r"\b\d{1,2}:\d{2}:\d{2}(?:[.,]\d+)?\b",
-        fast: Some(r"\d{1,2}:\d{2}:\d{2}(?:[.,]\d+)?"),
         needs_digit: true,
         needs_any: &[":"],
     },
     Spec {
         name: "UUID",
         exact: r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b",
-        fast: Some(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"),
         needs_digit: false,
         needs_any: &["-"],
     },
     Spec {
         name: "IP",
         exact: r"\b\d{1,3}(?:\.\d{1,3}){3}(?::\d{1,5})?\b",
-        fast: Some(r"\d{1,3}(?:\.\d{1,3}){3}(?::\d{1,5})?"),
         needs_digit: true,
         needs_any: &["."],
     },
     Spec {
         name: "URL",
         exact: r#"\b[a-z][a-z0-9+.-]*://[^\s'"<>]+"#,
-        fast: Some(r#"[a-z][a-z0-9+.-]*://[^\s'"<>]+"#),
         needs_digit: false,
         needs_any: &["://"],
     },
     Spec {
         name: "HEX",
         exact: r"\b0[xX][0-9a-fA-F]+\b|\b(?=[0-9a-f]*\d)[0-9a-f]{7,64}\b",
-        fast: Some(r"0[xX][0-9a-fA-F]+|[0-9a-f]{7,64}"),
         needs_digit: true,
         needs_any: &[],
     },
     Spec {
         name: "VER",
         exact: r"\bv?\d+\.\d+(?:\.\d+)+(?:[-+][\w.]+)?\b",
-        fast: Some(r"v?\d+\.\d+(?:\.\d+)+(?:[-+][\w.]+)?"),
         needs_digit: true,
         needs_any: &["."],
     },
@@ -113,7 +96,6 @@ const SPECS: &[Spec] = &[
             r"(?:(?:~|\.{1,2})?(?:/[\w.+@%~-]+)+/?", // absolute or ./relative
             r"|\b[\w.+-]+(?:/[\w.+@%~-]+)+\b)", // a/b/c
         ),
-        fast: Some(r"(?:~|\.{1,2})?(?:/[\w.+@%~-]+)+/?|[\w.+-]+(?:/[\w.+@%~-]+)+"),
         needs_digit: false,
         needs_any: &["/"],
     },
@@ -123,14 +105,12 @@ const SPECS: &[Spec] = &[
             r"(?<![\w.])[-+]?\d+(?:[.,]\d+)*",
             r"(?:\s?(?:ms|us|µs|ns|secs?|s|mins?|m|h|[KMGT]i?B|[kKMG]?b|B|%|px|x))?(?![\w.])",
         ),
-        fast: Some(r"[-+]?\d+"),
         needs_digit: true,
         needs_any: &[],
     },
     Spec {
         name: "WORDNUM",
         exact: r"\b[A-Za-z_]+\d+[A-Za-z0-9_]*\b",
-        fast: Some(r"[A-Za-z_]+\d+"),
         needs_digit: true,
         needs_any: &[],
     },
@@ -139,84 +119,21 @@ const SPECS: &[Spec] = &[
 /// A compiled mask.
 struct Mask {
     spec: &'static Spec,
-    /// Finds candidate positions: the leftmost place the pattern could
-    /// match, ignoring its assertions. Linear time.
-    fast: regex::Regex,
-    /// Python's pattern, anchored with `\G` to the position it is tried
-    /// at, for the backtracking engine; `None` when `fast` is exact.
-    exact: Option<fancy_regex::Regex>,
+    rx: PyRegex,
 }
 
-// Rust note: two regex crates, for two jobs. `regex` (RE2-style) runs in
-// time linear in the text and is very fast, but has no lookaround or
-// back-references, so Python's `\b` and `(?<![\w.])` cannot be written in
-// it. `fancy-regex` adds them with a backtracking engine like Python's,
-// and is much slower when it has to scan a line itself. So `regex` scans
-// and finds where a match could start, and `fancy-regex` decides, at that
-// one position only, whether Python's pattern matches there and where it
-// ends. Every position where the exact pattern can match is one where the
-// relaxed one does, so no match is missed, and the result is Python's.
+// Rust note: `LazyLock` compiles the masks on first use, once, thread-safely
+// (like a function-local `static` in C++). See `crate::pyre` for how a
+// Python pattern with lookaround runs fast.
 static MASKS: LazyLock<Vec<Mask>> = LazyLock::new(|| {
     SPECS
         .iter()
         .map(|spec| Mask {
             spec,
-            fast: regex::Regex::new(&py_pattern(spec.fast.unwrap_or(spec.exact)))
-                .expect("built-in mask patterns are valid"),
-            exact: spec.fast.map(|_| {
-                fancy_regex::RegexBuilder::new(&format!(r"\G(?:{})", py_pattern(spec.exact)))
-                    // Python's re has no backtracking limit; these patterns
-                    // never backtrack far, so a generous one only guards bugs.
-                    .backtrack_limit(100_000_000)
-                    .build()
-                    .expect("built-in mask patterns are valid")
-            }),
+            rx: PyRegex::new(spec.exact).expect("built-in mask patterns are valid"),
         })
         .collect()
 });
-
-impl Mask {
-    /// Python's `rx.sub(replace, text)`: every non-overlapping match, left
-    /// to right, replaced. `None` when nothing matched.
-    fn replace_all(
-        &self,
-        text: &str,
-        replace: impl Fn(&str) -> Cow<'static, str>,
-    ) -> Option<String> {
-        let mut out: Option<String> = None;
-        let mut last = 0;
-        let mut pos = 0;
-        while pos <= text.len() {
-            let Some(candidate) = self.fast.find_at(text, pos) else {
-                break;
-            };
-            let start = candidate.start();
-            let end = match &self.exact {
-                None => Some(candidate.end()),
-                Some(exact) => exact
-                    .find_from_pos(text, start)
-                    .expect("mask patterns stay within the backtracking limit")
-                    .map(|m| m.end()),
-            };
-            match end {
-                Some(end) => {
-                    let o = out.get_or_insert_with(|| String::with_capacity(text.len()));
-                    o.push_str(&text[last..start]);
-                    o.push_str(&replace(&text[start..end]));
-                    last = end;
-                    // Matches are never empty, so this always advances.
-                    pos = end.max(start + 1);
-                }
-                // No match starting here: try from the next character.
-                None => pos = start + text[start..].chars().next().map_or(1, char::len_utf8),
-            }
-        }
-        out.map(|mut o| {
-            o.push_str(&text[last..]);
-            o
-        })
-    }
-}
 
 /// Rule runs (`=====`, `_____`, `-----`, ...) shrink to three characters,
 /// so banners of different widths share a template. Python does this with
@@ -307,10 +224,10 @@ pub fn mask(text: &str, words: bool) -> String {
             if !words {
                 continue;
             }
-            m.replace_all(&t, |s| Cow::Owned(digits_to_n(s)))
+            m.rx.replace_all(&t, |s| Cow::Owned(digits_to_n(s)))
         } else {
             let placeholder = format!("<{}>", spec.name);
-            m.replace_all(&t, |_| Cow::Owned(placeholder.clone()))
+            m.rx.replace_all(&t, |_| Cow::Owned(placeholder.clone()))
         };
         if let Some(changed) = new {
             t = changed;
@@ -399,30 +316,34 @@ mod tests {
     }
 
     #[test]
-    fn fast_patterns_cover_exact() {
-        // Wherever Python's pattern matches, the relaxed pattern must match
-        // at the same position, or `replace_all` would skip a match. Checked
-        // on what each mask actually sees: the line as the earlier masks
-        // left it.
+    fn two_engines_match_as_backtracking_alone() {
+        // Each mask, scanned with candidates from the fast engine, finds
+        // what Python's pattern finds scanned by the backtracking engine
+        // alone, on what the mask actually sees: the line as the earlier
+        // masks left it.
+        let slow: Vec<fancy_regex::Regex> = SPECS
+            .iter()
+            .map(|s| fancy_regex::Regex::new(&crate::pyclass::py_pattern(s.exact)).unwrap())
+            .collect();
         for (input, _, _) in golden().iter().take(1500) {
             let mut t = rules(py_strip(input)).into_owned();
-            for m in MASKS.iter() {
-                if let Some(exact) = &m.exact {
-                    for (p, _) in t.char_indices() {
-                        if exact.find_from_pos(&t, p).unwrap().is_some() {
-                            let fast = m.fast.find_at(&t, p).map(|f| f.start());
-                            assert_eq!(fast, Some(p), "{} at {p} in {t:?}", m.spec.name);
-                        }
-                    }
+            for (m, slow) in MASKS.iter().zip(&slow) {
+                let want: Vec<_> = slow
+                    .find_iter(&t)
+                    .map(|f| {
+                        let f = f.unwrap();
+                        (f.start(), f.end())
+                    })
+                    .collect();
+                let mut got = Vec::new();
+                let mut pos = 0;
+                while let Some((s, e)) = m.rx.find_at(&t, pos) {
+                    got.push((s, e));
+                    pos = e.max(s + 1);
                 }
+                assert_eq!(got, want, "{} in {t:?}", m.spec.name);
                 let placeholder = format!("<{}>", m.spec.name);
-                if let Some(changed) = m.replace_all(&t, |s| {
-                    if m.spec.name == "WORDNUM" {
-                        Cow::Owned(digits_to_n(s))
-                    } else {
-                        Cow::Owned(placeholder.clone())
-                    }
-                }) {
+                if let Some(changed) = m.rx.replace_all(&t, |_| Cow::Owned(placeholder.clone())) {
                     t = changed;
                 }
             }

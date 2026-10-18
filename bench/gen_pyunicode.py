@@ -25,6 +25,7 @@ CLASSES = [
     ("DECIMAL", r"re's \d in a str pattern: decimal digits (Nd)", lambda c, d=re.compile(r"\d"): bool(d.match(c))),
     ("SPACE", r"re's \s in a str pattern, and str.isspace()", lambda c, s=re.compile(r"\s"): bool(s.match(c))),
     ("DIGIT", "str.isdigit(): decimal digits and other digits (superscripts, circled)", str.isdigit),
+    ("PRINTABLE", "str.isprintable(), which repr() uses to decide what to escape", str.isprintable),
 ]
 
 

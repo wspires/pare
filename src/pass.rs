@@ -1,5 +1,5 @@
 //! The single pass over the input: the `Pass` class and `analyze()` of
-//! `proto/pare.py`, so far without severity and scoring.
+//! `proto/pare.py`.
 //!
 //! Input arrives in chunks (1 MiB from a file or pipe, less from a slow
 //! command). Each chunk is written to the spool and fed to the hash as it
@@ -13,7 +13,12 @@
 //! like a continuation (a stack frame, a caret marker, `Caused by:`, ...),
 //! joins the record above; any other line starts a record. One blank line
 //! inside an indented block does not end it; two do.
+//!
+//! Each line is also scored as it goes by: its structural severity and
+//! its vocabulary ([`crate::vocab`]), and for a continuation line a share
+//! of its record head's score ([`crate::score`]).
 
+use std::collections::HashSet;
 use std::io::{self, Read, Write};
 use std::sync::LazyLock;
 
@@ -22,9 +27,12 @@ use sha2::{Digest, Sha256};
 
 use crate::drain::Drain;
 use crate::mask::drain_message;
-use crate::pyclass::{py_pattern, py_strip};
-use crate::store::{Store, Template};
+use crate::pyclass::{py_lstrip, py_pattern, py_strip};
+use crate::pyre::PyRegex;
+use crate::score::{DEPTH_PENALTY, INHERIT, LOCATION_BONUS, py_max0};
+use crate::store::{HeadClasses, Store, Template};
 use crate::text::{clean_line, clip, indent_of};
+use crate::vocab::{Class, Vocab, vocab_score};
 
 /// Bytes read per chunk, as `CHUNK` in Python.
 pub const CHUNK: usize = 1 << 20;
@@ -34,9 +42,9 @@ pub const MAX_RECORD_LINES: u32 = 400;
 
 /// Tool-specific rules, all on (the Python version has a switch per rule
 /// for `bench/ablate.py`; the port keeps them as constants).
-const TOOL_PYTEST: bool = true;
-const TOOL_RUSTC: bool = true;
-const TOOL_LOGCAT: bool = true;
+pub(crate) const TOOL_PYTEST: bool = true;
+pub(crate) const TOOL_RUSTC: bool = true;
+pub(crate) const TOOL_LOGCAT: bool = true;
 const TOOL_BLANK_IN_BLOCK: bool = true;
 
 /// Lines that continue the record above whatever their indentation:
@@ -74,13 +82,25 @@ static LOGCAT_HEADER: LazyLock<Regex> = LazyLock::new(|| {
     .expect("logcat pattern is valid")
 });
 
+/// A logcat line saying a process died: after its `FATAL EXCEPTION`, part
+/// of the failure, not routine.
+static LOGCAT_DEATH: LazyLock<PyRegex> = LazyLock::new(|| {
+    PyRegex::new(r"Process \S+ \(pid (\d+)\) has died").expect("logcat death pattern is valid")
+});
+
 /// The fields of a logcat header, compared to tell whether two lines belong
 /// to one log entry (Python compares the match's group tuple).
 type LogcatKey = [Option<String>; 8];
 
-/// Groups lines into records and clusters each record's head: the
-/// segmentation part of `Pass._add()` in Python.
-pub struct Segmenter {
+/// Groups lines into records, clusters each record's head, and scores each
+/// line: `Pass._add()` in Python.
+// Rust note: `<'v>` is a lifetime parameter: a `Segmenter` holds a
+// reference to a `Vocab` it does not own, and the compiler checks that the
+// vocabulary outlives every segmenter using it. Python reads a global
+// `VOCAB`; passing it in makes the dependency visible and lets tests use
+// their own.
+pub struct Segmenter<'v> {
+    vocab: &'v Vocab,
     store: Store,
     drain: Drain,
     width: i64,
@@ -96,13 +116,23 @@ pub struct Segmenter {
     head_indent: i64,
     /// The logcat header of the last non-blank line, if it had one.
     logcat_key: Option<LogcatKey>,
+    /// The open record's head's vocabulary score, which its continuation
+    /// lines inherit a share of.
+    head_vocab: f64,
+    /// An error line was seen in the open record and no source location
+    /// since: the next one gets [`LOCATION_BONUS`].
+    armed: bool,
+    /// Logcat pids that printed a `FATAL EXCEPTION`.
+    crashed_pids: HashSet<String>,
 }
 
-impl Segmenter {
-    /// A segmenter that clips rendered lines at `width` characters.
+impl<'v> Segmenter<'v> {
+    /// A segmenter that scores with `vocab` and clips rendered lines at
+    /// `width` characters.
     #[must_use]
-    pub fn new(width: i64) -> Self {
+    pub fn new(vocab: &'v Vocab, width: i64) -> Self {
         Segmenter {
+            vocab,
             store: Store::new(),
             drain: Drain::new(),
             width,
@@ -111,6 +141,9 @@ impl Segmenter {
             pending_blank: None,
             head_indent: 0,
             logcat_key: None,
+            head_vocab: 0.0,
+            armed: false,
+            crashed_pids: HashSet::new(),
         }
     }
 
@@ -160,6 +193,26 @@ impl Segmenter {
         store
             .slen
             .push(u32::try_from(stripped.chars().count()).unwrap_or(u32::MAX));
+        let mut sev = self.vocab.severity(&text);
+        if let Some(key) = &logcat {
+            // Threadtime or time format: the pid is group 2 or group 8.
+            let pid = key[1]
+                .as_ref()
+                .filter(|p| !p.is_empty())
+                .or(key[7].as_ref());
+            if message.starts_with("FATAL EXCEPTION") {
+                self.crashed_pids.extend(pid.cloned());
+            } else if !self.crashed_pids.is_empty() {
+                if let Some(groups) = LOGCAT_DEATH.captures_at(message, 0) {
+                    let (s, e) = groups[1].expect("the pid group is not optional");
+                    if self.crashed_pids.contains(&message[s..e]) {
+                        // The crashed process is gone: part of the failure.
+                        sev = Some(sev.unwrap_or(0).max(3));
+                    }
+                }
+            }
+        }
+        store.sev.push(sev);
 
         if stripped.is_empty() {
             // Blank lines end a record and belong to none, except that a
@@ -168,6 +221,7 @@ impl Segmenter {
             store.blank.push(true);
             store.rec.push(None);
             store.depth.push(0);
+            store.score.push(0.0);
             if self.pending_blank.is_some() || self.cur.is_none() || !TOOL_BLANK_IN_BLOCK {
                 self.cur = None;
             }
@@ -181,7 +235,19 @@ impl Segmenter {
             self.store.rend[c] - self.store.rstart[c] < MAX_RECORD_LINES
                 && self.joins(&text, indent, logcat.as_ref(), message)
         });
+        // The text the line is scored by: a logcat continuation line is
+        // judged by its message alone (a frame is a frame, not an error
+        // line), and gets the entry's weight by inheritance.
+        let scored: &str = if is_cont && logcat.is_some() {
+            sev = self.vocab.severity(message);
+            *self.store.sev.last_mut().expect("pushed above") = sev;
+            message
+        } else {
+            &text
+        };
+        let mut line = self.vocab.line(scored);
         let store = &mut self.store;
+        let mut s;
         if let (true, Some(cur)) = (is_cont, self.cur) {
             let c = cur as usize;
             let t = store.rtpl[c] as usize;
@@ -208,6 +274,15 @@ impl Segmenter {
             store.rec.push(Some(cur));
             store.depth.push(u32::try_from(d).unwrap_or(u32::MAX));
             store.templates[t].lines += 1;
+            // Its own vocabulary, plus a share of its record head's, less a
+            // little per level of depth.
+            // Rust note: `as f64` converts the integer exactly (it is at
+            // most 4); Python multiplies the float by the int the same way.
+            s = vocab_score(&mut line, false, sev);
+            s -= DEPTH_PENALTY * d.min(4) as f64;
+            if !(line.has(Class::Pass) && !line.has(Class::Error)) {
+                s += INHERIT * py_max0(self.head_vocab);
+            }
         } else {
             let cur = u32::try_from(store.rstart.len()).expect("fewer than 4 billion records");
             self.cur = Some(cur);
@@ -223,25 +298,58 @@ impl Segmenter {
             if self.tpl_of_cluster.len() < cluster {
                 self.tpl_of_cluster.resize(cluster, None);
             }
+            let mut exemplar = false;
             let t = *self.tpl_of_cluster[cluster - 1].get_or_insert_with(|| {
                 let t =
                     u32::try_from(store.templates.len()).expect("fewer than 4 billion templates");
-                store.templates.push(Template {
-                    text: String::new(),
-                    cluster_id: cluster,
-                    count: 0,
-                    lines: 0,
-                    total: 0,
-                });
+                store.templates.push(Template::new(cluster, cur));
+                exemplar = true;
                 t
             });
             store.rtpl.push(t);
             let tpl = &mut store.templates[t as usize];
             tpl.count += 1;
             tpl.lines += 1;
+            if let Some(level) = sev {
+                tpl.levels[usize::from(level)] += 1;
+            }
+            // Rust note: `Option<u8>` compares with `None` below any
+            // `Some`, which is Python's `(sev or -1) > best_sev` with -1
+            // for none.
+            if sev > tpl.best_sev {
+                tpl.best_sev = sev;
+                tpl.exemplar = cur;
+                exemplar = true;
+            }
             store.rec.push(Some(cur));
             store.depth.push(0);
+            self.armed = false;
+            s = vocab_score(&mut line, true, sev);
+            self.head_vocab = s;
+            if exemplar {
+                // What score_templates needs of the exemplar head, while
+                // its facts are at hand.
+                tpl.vocab = s;
+                tpl.head = HeadClasses {
+                    error: line.has(Class::Error),
+                    warn: line.has(Class::Warn),
+                    summary: line.has(Class::Summary),
+                    pass: line.has(Class::Pass),
+                };
+            }
         }
+        // The first source location after an error line within a record
+        // (the `at file:line` under an exception, the `-->` under a rustc
+        // error) says where the failure is; the frames after it say how it
+        // got there.
+        let is_loc = line.has(Class::Frame) && !py_lstrip(scored).starts_with('>');
+        if self.armed && is_loc {
+            s += LOCATION_BONUS;
+            self.armed = false;
+        } else if sev.is_some_and(|l| l >= 3) || (line.has(Class::Error) && !is_loc) {
+            self.armed = true;
+        }
+        store.score.push(s);
         self.logcat_key = logcat;
         self.pending_blank = None;
     }
@@ -262,25 +370,25 @@ impl Segmenter {
 // `File` in pare, a `Vec<u8>` in the tests. As with a C++ template, the
 // compiler makes one copy per type, so the calls are direct, not virtual;
 // unlike a template, the bound (`Write`) is checked here, once.
-pub struct Pass<W: Write> {
+pub struct Pass<'v, W: Write> {
     spool: W,
     hasher: Sha256,
     total_bytes: u64,
     /// The start of a line that the last chunk cut off.
     rest: Vec<u8>,
-    seg: Segmenter,
+    seg: Segmenter<'v>,
 }
 
-impl<W: Write> Pass<W> {
-    /// A pass that writes the input to `spool` and clips rendered lines at
-    /// `width` characters.
-    pub fn new(spool: W, width: i64) -> Self {
+impl<'v, W: Write> Pass<'v, W> {
+    /// A pass that writes the input to `spool`, scores with `vocab`, and
+    /// clips rendered lines at `width` characters.
+    pub fn new(spool: W, vocab: &'v Vocab, width: i64) -> Self {
         Pass {
             spool,
             hasher: Sha256::new(),
             total_bytes: 0,
             rest: Vec::new(),
-            seg: Segmenter::new(width),
+            seg: Segmenter::new(vocab, width),
         }
     }
 
@@ -347,9 +455,10 @@ impl<W: Write> Pass<W> {
 pub fn read_all<R: Read, W: Write>(
     mut input: R,
     spool: W,
+    vocab: &Vocab,
     width: i64,
 ) -> io::Result<(Store, String, W)> {
-    let mut pass = Pass::new(spool, width);
+    let mut pass = Pass::new(spool, vocab, width);
     let mut buf = vec![0u8; CHUNK];
     loop {
         // Rust note: `read` returns how many bytes it filled; 0 means end
@@ -370,8 +479,10 @@ pub fn read_all<R: Read, W: Write>(
 mod tests {
     use super::*;
 
+    static VOCAB: LazyLock<Vocab> = LazyLock::new(Vocab::builtin);
+
     fn run(chunks: &[&[u8]]) -> (Store, String, Vec<u8>) {
-        let mut pass = Pass::new(Vec::new(), 200);
+        let mut pass = Pass::new(Vec::new(), &VOCAB, 200);
         for c in chunks {
             pass.feed(c).unwrap();
         }
@@ -398,7 +509,7 @@ mod tests {
 
     /// Segments `text` and returns, per line, (record, depth), with -1 for none.
     fn segment(text: &str) -> (Vec<(i64, u32)>, Store) {
-        let mut seg = Segmenter::new(200);
+        let mut seg = Segmenter::new(&VOCAB, 200);
         for line in text.split('\n') {
             seg.add_line(line.as_bytes());
         }
