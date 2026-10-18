@@ -1,0 +1,48 @@
+# pare: 116 lines, 3,778 B (~1,350 tok) → ~669 tok (budget 1,000) · 10 templates
+## head (L1–L3)
+1:     Updating crates.io index
+2:      Locking 64 packages to latest compatible versions
+3:  Downloading crates ...
+## templates (by salience)
+T3   ×1 (7 lines) E L69: error[E0308]: mismatched types
+70:   --> src/main.rs:24:18
+71:    |
+72: 24 |     let t: u32 = total(&items);
+73:    |            ---   ^^^^^^^^^^^^^ expected `u32`, found `f64`
+74:    |            |
+75:    |            expected due to this
+T4   ×1 (5 lines) E L77: error[E0425]: cannot find function `undefined_function` in this scope
+78:   --> src/main.rs:26:19
+  ┆ (1 line)
+80: 26 |     let missing = undefined_function(3);
+81:    |                   ^^^^^^^^^^^^^^^^^^ not found in this scope
+  ┆ (+1 more lines)
+T6   ×1 (9 lines) W L91 (in tail)
+94: 11 |     let mut count = 0;
+  ┆ (4 lines)
+99:    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+  ┆ (+6 more lines)
+## selected lines
+83: warning: unused variable: `y`
+  ┆ (2 lines)
+86: 7 | fn unused_helper(x: i32) -> i32 { let y = 3; x * 2 }
+  ┆ (2 lines)
+89:   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+## tail (L90–L116)
+90: 
+91: warning: variable does not need to be mutable
+  ┆ (8 lines)
+100: 
+101: warning: unused variable: `count`
+  ┆ (4 lines)
+106: 
+107: warning: unused variable: `re`
+  ┆ (4 lines)
+112: 
+113: Some errors have detailed explanations: E0308, E0425.
+  ┆ (1 line)
+115: warning: `inventory` (bin "inventory") generated 4 warnings
+116: error: could not compile `inventory` (bin "inventory") due to 2 previous errors…(+20c)
+## omitted 87/116 lines (75.0%): T2 ×65, T5 ×12, T6 ×6, T4 ×1, T8 ×1 · 7 templates not listed; 2 blank
+## raw: (not saved)
+   expand with: pare --only T<n> < raw   ·   drop noise: pare --except T<n>,T<m> < raw

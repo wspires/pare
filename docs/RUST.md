@@ -256,6 +256,12 @@ writes each line to `out`; it captures `out` by mutable reference, so it
 is `FnMut`. Iterator adapters (`filter`, `map`, `rfind`, `zip`) take
 closures too: `default_run_dir` and `clean_line` use them.
 
+A closure that changes what it captures borrows it mutably, and only one
+mutable borrow can exist at a time. Python's `summarize()` has a dozen
+closures that call each other and change shared locals; in Rust that is
+a struct with methods taking `&mut self` (`summary::Summarizer`), the
+usual translation of "functions sharing mutable state".
+
 ## Iterators
 
 Rust's iterators are lazy, like C++20 ranges: adapters (`map`, `filter`,
@@ -397,6 +403,22 @@ Two smaller points:
 - Replacement: `fancy-regex` and `regex` expand `$name` in a replacement
   string; `NoExpand(&s)` or a closure avoids surprises. `replace_all`
   returns a `Cow`: borrowed when nothing matched.
+
+## Ordering floats for a heap
+
+`BinaryHeap` (a max-heap, like `std::priority_queue`) needs `Ord`, a
+total order, and `f64` has only `PartialOrd`, because NaN compares with
+nothing. The summary's queue item (`summary::Item`) implements `Ord` by
+hand: the priority with `partial_cmp`, then the kind and id, as Python
+compares its `(-priority, kind, id)` tuples, and `Reverse` turns the
+max-heap into Python's min-heap. `f64::total_cmp` would be the usual
+choice for a total order, but it puts `-0.0` before `0.0`, where Python
+(and `partial_cmp`) treat them as equal.
+
+`Rc<str>` is a shared, reference-counted string (`shared_ptr<const
+string>` without atomics): the line cache hands out clones of a line's
+text, an increment rather than a copy, so a caller keeps the text while
+the cache changes.
 
 ## Floating point: the same bits
 

@@ -1,0 +1,67 @@
+# pare: 308 lines, 19,046 B (~6,803 tok) → ~1,240 tok (budget 2,000) · 35 templates
+## head (L1–L5)
+1: ============================= test session starts ==============================
+2: platform linux -- Python 3.13.16, pytest-9.1.1, pluggy-1.6.0 -- /home/dev/proj/.venv/bin/python
+3: rootdir: /home/dev/proj
+4: collecting ... collected 170 items
+5: 
+## templates (by salience)
+T17  ×1 E L177: =================================== FAILURES ===================================
+T24  ×5 E <PATH>:<NUM>: <*>
+     e.g. L214: /usr/lib/python3.13/json/decoder.py:363: JSONDecodeError
+T13  ×1 W L171: tests/test_cart.py::test_skipped SKIPPED (flaky on CI)                   [ 97%]
+T14  ×1 W L172: tests/test_cart.py::test_xfail XFAIL (known bug #42)                     [ 98%]
+T19  ×4 S L183: tests/test_cart.py:14:
+T27  ×1 . L218: INFO     app.core:core.py:5 parsing 6 bytes
+T26  ×5 S L216: INFO     app.core:conftest.py:5 fixture setup for test
+T22  ×1 . L196: self = <json.decoder.JSONDecoder object at 0x7f7e97664590>, s = '{"a": '
+T23  ×1 (16 lines) E L197: idx = 0
+210:         except StopIteration as err:
+211: >           raise JSONDecodeError("Expecting value", s, err.value) from None
+212: E           json.decoder.JSONDecodeError: Expecting value: line 1 column 7 (char 6)
+  ┆ (+9 more lines)
+T18  ×5 (21 lines) S ___ <*> ___
+     e.g. L178: ________________________________ test_parse_bad ________________________________
+  ┆ (+2 more lines)
+T21  ×5 (15 lines) . <PATH>:<NUM>: in <*>
+     e.g. L185: app/core.py:6: in parse
+  ┆ (+2 more lines)
+T25  ×6 S --- Captured log <*> ---
+     e.g. L215: ------------------------------ Captured log setup ------------------------------
+## selected lines
+223: >       assert c.total() == 0.9
+224: E       assert 0.9000000000000001 == 0.9
+225: E        +  where 0.9000000000000001 = total()
+226: E        +    where total = <app.core.Cart object at 0x7f7e97197d40>.total
+  ┆ (1 line)
+228: tests/test_cart.py:18: AssertionError
+  ┆ (20 lines)
+249: E       ConnectionRefusedError: [Errno 111] Connection refused
+  ┆ (1 line)
+251: app/core.py:15: ConnectionRefusedError
+  ┆ (20 lines)
+272: E       TimeoutError: timed out
+  ┆ (1 line)
+274: app/core.py:15: TimeoutError
+  ┆ (12 lines)
+287: tests/test_net.py:9: in a
+  ┆ (7 lines)
+295: >   def c(): raise RuntimeError("deep failure at level 3")
+  ┆ (1 line)
+297: E   RuntimeError: deep failure at level 3
+## tail (L284–L308)
+284: 
+285: tests/test_net.py:12:
+  ┆ (12 lines)
+298: 
+  ┆ (3 lines)
+302: =========================== short test summary info ============================
+303: FAILED tests/test_cart.py::test_parse_bad - json.decoder.JSONDecodeError: Exp...
+304: FAILED tests/test_cart.py::test_total_wrong - assert 0.9000000000000001 == 0.9
+305: FAILED tests/test_net.py::test_connect[127.0.0.1] - ConnectionRefusedError: [...
+306: FAILED tests/test_net.py::test_connect[10.255.255.1] - TimeoutError: timed out
+307: FAILED tests/test_net.py::test_deep - RuntimeError: deep failure at level 3
+308: ============= 5 failed, 163 passed, 1 skipped, 1 xfailed in 0.51s ==============
+## omitted 266/308 lines (86.4%): T5 ×120, T28 ×24, T18 ×16, T21 ×13, T23 ×12, T6 ×10, T7 ×10, T8 ×10, T9 ×10, T20 ×8, T25 ×5, T26 ×4, T12 ×3, T15 ×2, T19 ×2, T10 ×1, T11 ×1, T16 ×1, T24 ×1 · 23 templates not listed; 24 blank
+## raw: (not saved)
+   expand with: pare --only T<n> < raw   ·   drop noise: pare --except T<n>,T<m> < raw

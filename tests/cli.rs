@@ -115,7 +115,6 @@ fn empty_input_leaves_no_run_file() {
 fn unported_work_exits_70_and_says_so() {
     let big = "ERROR something\n".repeat(2000);
     for args in [
-        vec!["--no-tee"],
         vec!["--no-tee", "--follow"],
         vec!["--no-tee", "--only", "T1"],
         vec!["--stats"],
@@ -225,4 +224,63 @@ fn bad_vocab_files_are_usage_errors() {
         missing.display()
     );
     assert_eq!(String::from_utf8_lossy(&out.stderr), want);
+}
+
+#[test]
+fn summaries_are_pythons() {
+    // tests/data/summary/: proto/pare.py's whole output for corpus logs at
+    // a few budgets (bench/gen_fixtures.py writes them).
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/summary");
+    let cases = fs::read_to_string(format!("{dir}/cases.tsv")).unwrap();
+    let mut n = 0;
+    for row in cases.lines().skip(1) {
+        let f: Vec<&str> = row.split('\t').collect();
+        let input = fs::read(format!("{}/corpus/{}", env!("CARGO_MANIFEST_DIR"), f[0])).unwrap();
+        let mut args = vec!["--no-tee"];
+        args.extend(f[1].split(' '));
+        let out = pare(&args, &input);
+        assert!(out.status.success(), "{row}");
+        let want = fs::read(format!("{dir}/{}", f[2])).unwrap();
+        assert!(
+            out.stdout == want,
+            "{row}: output differs from Python's\n--- python\n{}\n--- rust\n{}",
+            String::from_utf8_lossy(&want),
+            String::from_utf8_lossy(&out.stdout)
+        );
+        n += 1;
+    }
+    assert_eq!(n, 15);
+}
+
+#[test]
+fn summary_fits_the_budget_and_names_the_run_file() {
+    let input =
+        "INFO step\n".repeat(3000) + "ERROR disk full on /var\n" + &"INFO step\n".repeat(100);
+    // (At --budget 0 the Python version, and so the port, overshoots: its
+    // last-resort cut `[: budget_bytes - 1]` keeps all but one byte.)
+    for (budget, limit) in [("50", 140), ("300", 840), ("600", 1680), ("2000", 5600)] {
+        let out = pare(&["--no-tee", "--budget", budget], input.as_bytes());
+        assert!(out.status.success());
+        assert!(
+            out.stdout.len() <= limit.max(1),
+            "budget {budget}: {} bytes",
+            out.stdout.len()
+        );
+    }
+    let text = String::from_utf8(pare(&["--no-tee"], input.as_bytes()).stdout).unwrap();
+    assert!(text.starts_with("# pare: 3,101 lines"), "{text}");
+    assert!(text.contains("ERROR disk full on /var") && text.contains("## raw: (not saved)"));
+
+    let dir = TempDir::new("summary-run");
+    let out = pare(
+        &["--run-dir", dir.path().to_str().unwrap()],
+        input.as_bytes(),
+    );
+    let text = String::from_utf8(out.stdout).unwrap();
+    let run = entries(dir.path());
+    assert_eq!(run.len(), 1);
+    assert!(
+        text.contains(&format!("## raw: {}", dir.path().join(&run[0]).display())),
+        "{text}"
+    );
 }

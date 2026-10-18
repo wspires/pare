@@ -318,7 +318,19 @@ with warnings as errors, few dependencies, each one justified.
   6,032 lines and of `--dump-vocab`. The pass over 30 MB takes 5.4 s
   (Python: 28.5 s); start-up 50 ms, the `fancy-regex` halves compiled on
   first use. *Done.*
-- [ ] **4. Summary and allocation.** Full output identical on every run.
+- [x] **4. Summary and allocation.** Full output identical on every run.
+  Head and tail windows, the one queue of template entries and raw lines,
+  diminishing returns, near duplicates, pairs, lists of failures and the
+  ones that fail unlike the rest, the ledger, the exact fit and shedding.
+  Parity: 0 of 2,730 runs differ, and every batch run (1,560) now
+  compares its output, byte for byte. `summarize()` and its closures
+  became a struct with one method per closure. Whole summaries of five
+  corpus logs are golden files. The 30 MB log: 5.8 s for the whole run
+  (Python: 28.5 to 41 s on the same machine), 52 MB. Matched, not fixed:
+  at `--budget 0` the Python version's last-resort cut
+  (`[: budget_bytes - 1]`) keeps all but one byte, so the output overshoots
+  the budget; the port does the same until the reference changes.
+  *Done.*
 - [ ] **5. The rest.** Selection flags, command mode, follow mode, prune,
   stats.
 - [ ] **6. Distribution.** GitHub release binaries, a Homebrew tap,

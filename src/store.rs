@@ -209,6 +209,19 @@ impl Store {
         Ok(())
     }
 
+    /// The raw bytes of line `i` (without its newline), read from `file`,
+    /// the spool.
+    ///
+    /// # Errors
+    ///
+    /// If reading fails.
+    pub fn read_raw(&self, file: &mut File, i: usize) -> io::Result<Vec<u8>> {
+        let mut buf = vec![0u8; self.raw_len[i] as usize];
+        file.seek(SeekFrom::Start(self.off[i]))?;
+        file.read_exact(&mut buf)?;
+        Ok(buf)
+    }
+
     /// Calls `f` with each raw line of lines `start..end` (indices), read
     /// from `file`, the spool, in one go.
     ///

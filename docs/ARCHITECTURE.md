@@ -15,7 +15,7 @@ testing are in [CONTRIBUTING.md](../CONTRIBUTING.md).
 | 1 | crate, options, input, run file, pass-through, CI, release builds | done |
 | 2 | segmentation, masking, Drain: template ids | done |
 | 3 | vocabulary, severity, scoring | done |
-| 4 | summary and allocation | |
+| 4 | summary and allocation | done |
 | 5 | selection flags, command mode, follow mode, prune, stats | |
 | 6 | distribution; Python moves to `reference/` | |
 
@@ -23,10 +23,13 @@ What is not ported exits with status 70 and a message saying so
 (`Error::NotPorted`); `bench/parity.py --skip-unported` skips those runs'
 output, and `--dump` still compares the pass's per-line results.
 
-After stage 3, on 2,730 parity runs (195 inputs, 14 flag sets, one of
-them `--vocab proto/vocab.example`): input that fits the budget passes
-through identically, and on all 1,552 batch runs the whole dump is
-identical to the Python version's: every line's record, depth, severity,
+After stage 4, on 2,730 parity runs (195 inputs, 14 flag sets, one of
+them `--vocab proto/vocab.example`): the output of all 1,560 runs in
+batch mode is identical to the Python version's, byte for byte: summaries
+at budgets from 300 to 2,000 tokens, with a narrow width, the prose token
+rate, a template cap and small windows, and input that fits passed
+through. The 1,170 others are selection flags and follow mode (stage 5).
+On all 1,552 batch runs the whole dump is identical too: every line's record, depth, severity,
 blank flag, template, score, rendered size and stripped length, and every
 template's counts, best severity, marker, salience, vocabulary score,
 exemplar, levels and text. Scores match to the bit (the dump prints six
@@ -65,12 +68,13 @@ src/pyclass.rs      Python's \w, \d, \s, isdigit, strip, split, int, repr;
 src/pyunicode.rs    the tables behind them, generated from Python 3.13
 src/dump.rs         $PARE_DUMP, in the Python version's format
 src/runfile.rs      run directory, Spool (the file that becomes the run file)
-src/summary.rs      output; so far the verbatim pass-through
+src/summary.rs      output: verbatim pass-through, or the summary (allocation,
+                    rendering, the exact fit)
 tests/cli.rs        end-to-end tests of the binary
 tests/data/        golden files from the Python version: mask.tsv (mask() on
                     4,045 record heads), vocab.tsv (severity, classes and
                     scores of 6,032 lines), vocab.txt and vocab-example.txt
-                    (--dump-vocab)
+                    (--dump-vocab), summary/ (whole summaries of 5 logs)
 ```
 
 The library holds everything so that each piece has unit tests next to it
@@ -112,11 +116,17 @@ end of input ─▶ Pass::finish ─▶ Store + hash + spool
                          │
                summary::passthrough: fits the budget?
                   yes ─▶ read lines back by offset, clean, write
-                  no  ─▶ Error::NotPorted (stage 4 will summarise)
+                  no  ─▶ summary::summarize
+                           head and tail windows (at most 30 % of the budget)
+                           one queue: template entries at their salience,
+                             raw lines at their score per byte, less for
+                             each repeat of a shape already shown
+                           place greedily; offer what did not fit against
+                             the measured slack; render, measure, shed
+                             until it fits the budget exactly
 ```
 
-This is the Python version's single pass, in the same order, so the
-allocation (stage 4) slots into `summary` where the Python code has it.
+This is the Python version's single pass and summary, in the same order.
 
 The vocabulary is built once in `cli::dispatch` (the built-in one, or
 with `--vocab` applied) and lent to the pass: `Segmenter<'v>` holds a
@@ -159,6 +169,30 @@ match:
   shields Python's classes with `(?-i:...)`. The level token found must
   then also be one of the vocabulary's once uppercased (`İNFO` matches
   `info` case-insensitively but is not `INFO`), as in Python.
+
+## The summary: closures as a struct
+
+Python's `summarize()` is one function of about 750 lines whose
+closures (`place`, `effective`, `list_affixes`, `rare_failures`,
+`render`, `shed`, ...) share and change its locals: the queue, the lines
+shown, a dozen memo tables. Rust does not let two closures borrow the
+same variable mutably at once, so the port makes the locals the fields
+of a private `Summarizer` struct and each closure a method of the same
+name, in the same order; the two read side by side. Lines are read back
+from the spool when the summary looks at them and cached with what was
+worked out about them (`Facts`: vocabulary classes, masked shape, name
+key, parameters), as Python's `Line.memo`; a scan over many lines
+(`rare_failures` looks up to 200,000 lines back for a failure's section
+header) reads them in blocks and keeps none.
+
+The queue is Python's `heapq` of `(-priority, kind, id)` tuples: a
+`BinaryHeap` of `Reverse<Item>`, with `Item` ordered as the tuple is,
+`-0.0` and `0.0` equal. Every choice depends on exact float comparisons
+(a stale priority is detected by `!=`), which is why stage 3 made the
+scores bit-identical.
+
+A summary costs little next to the pass: on the 30 MB log the whole run
+takes 5.8 s, the pass alone 5.4 s.
 
 ## Memory model
 
@@ -203,6 +237,9 @@ version: 65 MB and 28.5 s); on a small log, 16 MB.
 | `default_run_dir()` | `runfile::default_run_dir` |
 | spool `.pare-<pid>.tmp`, `os.replace`, cleanup in `finally` | `runfile::Spool` (`persist`, `Drop`) |
 | `summarize()` pass-through branch | `summary::passthrough` |
+| `summarize()` and its closures | `summary::summarize`, `Summarizer` methods of the same names |
+| `Line.memo`, `line_has()`, `line_params()`, `name_key()`, `shape_key()`, `is_chatter()`, `is_error_line()` | `summary::Lines` and `Facts` |
+| `is_near_duplicate()`, `token_set()`, `fmt_int()`, `render_ranges()`, `nbytes()` | `Summarizer::is_near_duplicate`, `summary::token_set`, `fmt_int`, `Summarizer::render_ranges`, `nbytes` |
 
 ## Errors and exit statuses
 
@@ -223,7 +260,9 @@ status:
   tests`), and code examples in `///` docs are compiled and run as tests.
 - **Integration tests** in `tests/cli.rs` run the binary: pass-through,
   the run file and its name, empty input, usage errors, status 70, the
-  dump against Python's, `--dump-vocab`, bad vocabulary files.
+  dump against Python's, `--dump-vocab`, bad vocabulary files, whole
+  summaries against Python's (`tests/data/summary/`), the budget as a
+  hard limit, the run line.
 - **Golden files** in `tests/data/`, written by `bench/gen_fixtures.py`
   from the Python version: `mask()` on 4,045 real record heads and
   awkward Unicode lines; severity, vocabulary classes and both

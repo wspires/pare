@@ -108,6 +108,12 @@ pub fn py_split(s: &str) -> impl Iterator<Item = &str> + '_ {
     s.split(py_isspace).filter(|w| !w.is_empty())
 }
 
+/// Python's `str.rstrip()`.
+#[must_use]
+pub fn py_rstrip(s: &str) -> &str {
+    s.trim_end_matches(py_isspace)
+}
+
 /// Python's `str.lstrip()`.
 #[must_use]
 pub fn py_lstrip(s: &str) -> &str {

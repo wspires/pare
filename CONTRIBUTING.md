@@ -82,21 +82,23 @@ cargo run --release -- --budget 2000 -- make test     # once command mode is por
 ```
 
 What the Rust version does so far is listed in docs/ARCHITECTURE.md
-("Status"). Anything not ported yet stops with status 70 and says so:
+("Status"): batch summaries are complete. Anything not ported yet stops
+with status 70 and says so:
 
 ```
-$ target/release/pare --no-tee < corpus/ci-pipeline.log
-pare: not yet ported to Rust: summaries of input larger than the budget (proto/pare.py does it meanwhile)
+$ target/release/pare --no-tee --follow < corpus/ci-pipeline.log
+pare: not yet ported to Rust: --follow (proto/pare.py does it meanwhile)
 ```
 
 Without `--no-tee`, pare saves its input as a run file, as the Python
 version does: in `$PARE_RUN_DIR`, else `~/.cache/pare/runs`.
 
 **Installing it on your PATH.** `cargo install --path .` builds a release
-binary into `~/.cargo/bin/pare` (`cargo uninstall pare` removes it). Wait
-until the port is complete: until then it handles small inputs only, and
-it shadows a Python `pare` in `~/.local/bin` if `~/.cargo/bin` comes
-first on your PATH.
+binary into `~/.cargo/bin/pare` (`cargo uninstall pare` removes it). It
+summarises piped input exactly as the Python version does, but command
+mode (`pare -- CMD`), `--follow` and the selection flags are not ported
+yet, and it shadows a Python `pare` in `~/.local/bin` if `~/.cargo/bin`
+comes first on your PATH; wait for stage 5 if you use those.
 
 ### Test
 
@@ -164,7 +166,8 @@ the scripts after changing what they are made from:
 - `tests/data/*`, golden files for the unit tests: Python's `mask()` on
   4,045 real record heads (`mask.tsv`); severity, vocabulary classes and
   scores of 6,032 lines (`vocab.tsv`); `--dump-vocab` (`vocab.txt`, and
-  with `proto/vocab.example`, `vocab-example.txt`). All from
+  with `proto/vocab.example`, `vocab-example.txt`); whole summaries of
+  five corpus logs under three flag sets (`summary/`). All from
   `python3.13 bench/gen_fixtures.py`.
 
 ### Release builds
