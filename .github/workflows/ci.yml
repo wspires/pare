@@ -57,4 +57,4 @@ jobs:
       # Byte for byte on everything the port does so far, and the per-line
       # results line by line; output it does not produce yet (status 70) is
       # skipped, and dump fields it does not compute yet ("?") are too.
-      - run: python bench/parity.py --candidate target/release/pare --skip-unported --dump --show 10
+      - run: python bench/parity.py --candidate target/release/pare --dump --show 10

@@ -114,13 +114,6 @@ fn empty_input_leaves_no_run_file() {
 }
 
 #[test]
-fn unported_work_exits_70_and_says_so() {
-    let out = pare(&["--no-tee", "--follow"], b"ERROR something\n");
-    assert_eq!(out.status.code(), Some(70));
-    assert!(String::from_utf8_lossy(&out.stderr).contains("not yet ported to Rust"));
-}
-
-#[test]
 fn usage_errors_match_python() {
     for (args, msg) in [
         (vec!["--dry-run"], "pare: --dry-run goes with --prune"),
@@ -386,5 +379,45 @@ fn prune_removes_old_and_excess_run_files() {
     assert!(
         meta.starts_with("{\n  \"exit\": 1,\n  \"pruned\": \"") && meta.ends_with("Z\"\n}\n"),
         "{meta}"
+    );
+}
+
+#[test]
+fn follow_writes_a_block_per_window() {
+    let mut input = String::new();
+    for i in 0..30 {
+        input.push_str(&format!("INFO request {i} ok\n"));
+    }
+    input.push_str("ERROR worker crashed\n  at a.b(C.java:1)\n");
+    let out = pare(
+        &["--no-tee", "--follow", "--every", "10", "--budget", "300"],
+        input.as_bytes(),
+    );
+    assert!(out.status.success());
+    let text = String::from_utf8(out.stdout).unwrap();
+    let headers: Vec<&str> = text.lines().filter(|l| l.starts_with("# pare #")).collect();
+    assert_eq!(headers.len(), 4, "{text}");
+    assert!(
+        headers[0].starts_with("# pare #1: L1–L10 · 10 lines"),
+        "{text}"
+    );
+    // Windows after the first with nothing worth showing are one line.
+    assert!(headers[1].contains("nothing new"), "{text}");
+    assert!(
+        text.ends_with(
+            "# pare: end of input · 32 lines, 600 B (~215 tok) · 2 templates · raw: (not saved)\n"
+        ),
+        "{text}"
+    );
+    let quiet = pare(
+        &[
+            "--no-tee", "--follow", "--every", "10", "--budget", "300", "--quiet",
+        ],
+        input.as_bytes(),
+    );
+    let quiet = String::from_utf8(quiet.stdout).unwrap();
+    assert!(
+        !quiet.contains("nothing new") && quiet.contains("ERROR worker crashed"),
+        "{quiet}"
     );
 }

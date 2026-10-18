@@ -16,19 +16,20 @@ testing are in [CONTRIBUTING.md](../CONTRIBUTING.md).
 | 2 | segmentation, masking, Drain: template ids | done |
 | 3 | vocabulary, severity, scoring | done |
 | 4 | summary and allocation | done |
-| 5 | selection flags, command mode, follow mode, prune, stats | |
+| 5 | selection flags, command mode, follow mode, prune, stats | done |
 | 6 | distribution; Python moves to `reference/` | |
 
-What is not ported exits with status 70 and a message saying so
-(`Error::NotPorted`); `bench/parity.py --skip-unported` skips those runs'
-output, and `--dump` still compares the pass's per-line results.
-
-After stage 4, on 2,730 parity runs (195 inputs, 14 flag sets, one of
-them `--vocab proto/vocab.example`): the output of all 1,560 runs in
-batch mode is identical to the Python version's, byte for byte: summaries
-at budgets from 300 to 2,000 tokens, with a narrow width, the prose token
-rate, a template cap and small windows, and input that fits passed
-through. The 1,170 others are selection flags and follow mode (stage 5).
+Every mode and flag of the Python version is ported. After stage 5, on
+2,730 parity runs (195 inputs, 14 flag sets): the output of every run is
+identical to the Python version's, byte for byte, and so is its exit
+status: summaries at budgets from 300 to 2,000 tokens, with a narrow
+width, the prose token rate, a template cap, small windows and
+`--vocab proto/vocab.example`; input that fits, passed through; the
+selection flags; follow mode with 300- and 5,000-line windows. Command
+mode, `--prune`, `--stats` and follow mode's time-driven flushes are
+not in the parity runs (they depend on time, processes or the run
+directory); they were compared with the Python version by hand, output
+and `.json` records byte for byte, and have integration tests.
 On all 1,552 batch runs the whole dump is identical too: every line's record, depth, severity,
 blank flag, template, score, rendered size and stripped length, and every
 template's counts, best severity, marker, salience, vocabulary score,
@@ -51,7 +52,7 @@ Cargo.toml          dependencies, lints, release profile
 src/main.rs         the binary: hands the arguments to cli::run, nothing else
 src/lib.rs          the library root: module list and crate docs
 src/cli.rs          options (every Python flag), checks, dispatch, batch mode
-src/error.rs        Error (Usage, Io, NotPorted) and exit statuses
+src/error.rs        Error (Usage, Io) and exit statuses
 src/budget.rs       Budget: tokens <-> bytes, as tokens()/budget_bytes_for()
 src/pass.rs         Pass: chunks in, lines out, spool and hash on the way;
                     Segmenter: lines into records, heads into templates
@@ -68,6 +69,11 @@ src/pyclass.rs      Python's \w, \d, \s, isdigit, strip, split, int, repr;
 src/pyunicode.rs    the tables behind them, generated from Python 3.13
 src/dump.rs         $PARE_DUMP, in the Python version's format
 src/runfile.rs      run directory, Spool (the file that becomes the run file)
+src/runs.rs         --prune and automatic pruning, --stats
+src/command.rs      command mode: running CMD, its output, signals, the .json record
+src/follow.rs       follow mode: windows, flushes, the end line
+src/select.rs       --only, --except, --since, --until, --min-severity
+src/pyjson.rs       JSON as Python's json.dump(indent=2) writes it
 src/summary.rs      output: verbatim pass-through, or the summary (allocation,
                     rendering, the exact fit)
 tests/cli.rs        end-to-end tests of the binary
@@ -127,6 +133,34 @@ end of input ─▶ Pass::finish ─▶ Store + hash + spool
 ```
 
 This is the Python version's single pass and summary, in the same order.
+With a selection flag, `select::select` prints the chosen records' raw
+lines instead of the summary. In command mode the input is the command's
+merged stdout and stderr (`command::CommandRun`), read on a thread, and
+the exit status is the command's.
+
+## Follow mode
+
+`follow::follow` feeds the stream to the same pass and cuts a window at
+each flush (`Segmenter::cut`): after `--every` lines, but only where a
+record starts (`Segmenter::window_full`), after `--interval` seconds,
+`--settle` seconds after an error line (at most once per
+`--min-interval`), and at the end. Drain, the templates' ids (`gid`,
+shown as `T<n>`) and their cumulative counts, the line counter and the
+spool offset carry across windows; each window gets its own `Store`,
+numbered from its first line (`Store::base`). A record open at a cut is
+carried (`store::CarriedHead`): the next window's first lines may
+continue it, and the summary shows its head, from the previous window,
+as `(cont.)`. The windows therefore segment exactly as one batch pass
+does, which a unit test checks (`follow_windows_segment_as_batch_does`).
+Each window is scored and summarised like a batch input, with a novelty
+bonus for templates first seen in it; a window with nothing worth showing
+is one line, or none with `--quiet`.
+
+Python waits on stdin with `select()` and a timeout so it can flush on
+time while the stream is idle. Here a thread reads the stream into a
+bounded channel (`command::read_in_background`) and the main loop waits
+on the channel with `recv_timeout`: the same effect, with no
+platform-specific polling.
 
 The vocabulary is built once in `cli::dispatch` (the built-in one, or
 with `--vocab` applied) and lent to the pass: `Segmenter<'v>` holds a
@@ -237,6 +271,12 @@ version: 65 MB and 28.5 s); on a small log, 16 MB.
 | `default_run_dir()` | `runfile::default_run_dir` |
 | spool `.pare-<pid>.tmp`, `os.replace`, cleanup in `finally` | `runfile::Spool` (`persist`, `Drop`) |
 | `summarize()` pass-through branch | `summary::passthrough` |
+| `parse_lineno()`, `parse_tids()`, `select()` | `select::parse_lineno`, `select::parse_tids`, `select::select` |
+| `CommandRun`, `CommandOutput`, `write_meta()` | `command::CommandRun`, `command::CommandOutput`, `CommandRun::write_meta` |
+| `follow()`, `CountingWriter`, `FollowInfo` | `follow::follow`, `follow::Counting`, `summary::Follow` |
+| `Pass.cut()`, `_new_window()`, `_rate_notes()`, `CarriedHead`, `GlobalTemplate` | `Segmenter::cut`, `new_window`, `rate_notes`, `store::CarriedHead`, `pass::Global` |
+| `prune_runs()`, `maybe_prune()`, `prune_command()`, `stats()` | `runs::prune_runs`, `runs::maybe_prune`, `runs::prune_command`, `runs::stats` |
+| `json.dump(..., indent=2)`, `float.__repr__`, `format(x, "g")`, `time.strftime(..., gmtime())` | `pyjson::dumps`, `pyjson::py_float_repr`, `runs::py_format_g`, `runs::utc_stamp` |
 | `summarize()` and its closures | `summary::summarize`, `Summarizer` methods of the same names |
 | `Line.memo`, `line_has()`, `line_params()`, `name_key()`, `shape_key()`, `is_chatter()`, `is_error_line()` | `summary::Lines` and `Facts` |
 | `is_near_duplicate()`, `token_set()`, `fmt_int()`, `render_ranges()`, `nbytes()` | `Summarizer::is_near_duplicate`, `summary::token_set`, `fmt_int`, `Summarizer::render_ranges`, `nbytes` |
@@ -252,24 +292,24 @@ status:
 | 0 | success (also `--help`, `--version`, and a reader that closed the pipe) |
 | 1 | a usage error or an I/O error; messages match the Python version's |
 | 2 | the arguments could not be parsed (clap's message) |
-| 70 | not ported yet |
+| the command's | command mode: the command's own status (128 + n if a signal killed it; 127 not found, 126 not executable) |
 
 ## Testing
 
 - **Unit tests** sit at the bottom of each module (`#[cfg(test)] mod
   tests`), and code examples in `///` docs are compiled and run as tests.
 - **Integration tests** in `tests/cli.rs` run the binary: pass-through,
-  the run file and its name, empty input, usage errors, status 70, the
-  dump against Python's, `--dump-vocab`, bad vocabulary files, whole
+  the run file and its name, empty input, usage errors, the dump against
+  Python's, `--dump-vocab`, bad vocabulary files, whole
   summaries against Python's (`tests/data/summary/`), the budget as a
-  hard limit, the run line.
+  hard limit, the run line, command mode and its records, `--stats`,
+  `--prune`, follow mode.
 - **Golden files** in `tests/data/`, written by `bench/gen_fixtures.py`
   from the Python version: `mask()` on 4,045 real record heads and
   awkward Unicode lines; severity, vocabulary classes and both
   `vocab_score`s of 6,032 lines (the scores as `repr()` strings, compared
   bit for bit); `--dump-vocab` with and without `proto/vocab.example`.
-- **Parity** (`bench/parity.py --candidate target/release/pare
-  --skip-unported`) compares the binary with the Python version byte for
+- **Parity** (`bench/parity.py --candidate target/release/pare`) compares the binary with the Python version byte for
   byte over every corpus log and the generated edge cases, under 14 flag
   sets; `--dump` also compares the per-line results and reports the first
   row that differs.
@@ -304,3 +344,6 @@ makes the static build and cross-compilation trivial.
 | `fancy-regex` | backtracking regular expressions with lookaround and `\G`, like Python's `re`: the exact half of the masks, tried only at the positions `regex` finds |
 | `memchr` | SIMD byte search for line splitting; already a dependency of `regex`, so free |
 | `sha2` | SHA-256 for the run file's name, as `hashlib.sha256` |
+| `serde_json` (preserve_order) | reading the `.json` run records (`--stats`, `--prune`); writing them is `pyjson`, to match Python's format |
+| `signal-hook` (Unix) | command mode's signal handling without `unsafe`: SIGINT ignored, SIGTERM and SIGHUP received on a thread |
+| `nix` (Unix, `signal` only) | sending those signals on to the command (`kill(2)`), which std cannot |

@@ -92,6 +92,22 @@ pub fn utc_stamp(t: f64) -> String {
 /// ```
 #[must_use]
 pub fn py_g(x: f64) -> String {
+    py_format_g(x, 6)
+}
+
+/// Python's `format(x, ".<precision>g")`: `precision` significant digits
+/// (at least 1), trailing zeros dropped, scientific notation below 1e-4
+/// and from `10^precision`.
+///
+/// ```
+/// use pare::runs::py_format_g;
+/// assert_eq!(py_format_g(0.2345, 2), "0.23");
+/// assert_eq!(py_format_g(11.0, 2), "11");
+/// assert_eq!(py_format_g(123.0, 2), "1.2e+02");
+/// ```
+#[must_use]
+pub fn py_format_g(x: f64, precision: usize) -> String {
+    let p = precision.max(1);
     if x.is_nan() {
         return "nan".to_owned();
     }
@@ -101,7 +117,7 @@ pub fn py_g(x: f64) -> String {
     if x == 0.0 {
         return if x.is_sign_negative() { "-0" } else { "0" }.to_owned();
     }
-    let sci = format!("{x:.5e}");
+    let sci = format!("{x:.*e}", p - 1);
     let (mantissa, exp) = sci.split_once('e').expect("an exponent");
     let exp: i32 = exp.parse().expect("an integer exponent");
     let trim = |s: &str| {
@@ -111,8 +127,12 @@ pub fn py_g(x: f64) -> String {
             s.to_owned()
         }
     };
-    if (-4..6).contains(&exp) {
-        trim(&format!("{x:.*}", usize::try_from(5 - exp).unwrap_or(0)))
+    let p_i = i32::try_from(p).unwrap_or(i32::MAX);
+    if (-4..p_i).contains(&exp) {
+        trim(&format!(
+            "{x:.*}",
+            usize::try_from(p_i - 1 - exp).unwrap_or(0)
+        ))
     } else {
         format!(
             "{}e{}{:02}",

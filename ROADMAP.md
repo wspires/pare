@@ -331,8 +331,22 @@ with warnings as errors, few dependencies, each one justified.
   (`[: budget_bytes - 1]`) keeps all but one byte, so the output overshoots
   the budget; the port does the same until the reference changes.
   *Done.*
-- [ ] **5. The rest.** Selection flags, command mode, follow mode, prune,
-  stats.
+- [x] **5. The rest.** Selection flags, command mode, follow mode, prune,
+  stats: the port is complete. Parity: 0 of 2,730 runs differ and none
+  is skipped (CI no longer passes `--skip-unported`; status 70 is gone).
+  Follow mode needed the pass to cut windows: line numbers and spool
+  offsets continue across them, template ids are global, and a record
+  open at a cut is carried, so windows segment exactly as a batch pass
+  does (a unit test checks it). Python's `select()` with a timeout became
+  a reader thread and a bounded channel. Command mode merges stdout and
+  stderr through `std::io::pipe` (Rust 1.87), ignores SIGINT and passes
+  SIGTERM/SIGHUP on (`signal-hook`, `nix`, no `unsafe`); its `.json`
+  record is written as Python's `json.dump` writes it (`pyjson`).
+  Command mode, `--prune`, `--stats` and timed flushes were compared with
+  the Python version by hand and have integration tests. Differences
+  kept: a follow run file is named in UTC (Python: local time; std has
+  no time zones), and a bad `--vocab` regex is reported in the regex
+  engine's words. *Done.*
 - [ ] **6. Distribution.** GitHub release binaries, a Homebrew tap,
   `cargo install`; optionally PyPI wheels (maturin) so `pipx install pare`
   gets the binary. The Python version moves to `reference/`.

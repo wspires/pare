@@ -1,9 +1,10 @@
-//! The command line: the options of `main()` in `proto/pare.py`, and the
-//! dispatch to what the port supports so far.
+//! The command line: the options of `main()` in `proto/pare.py`, its
+//! checks in the same order, and the dispatch to batch mode, command mode,
+//! follow mode, the selection flags, `--prune`, `--stats` and
+//! `--dump-vocab`.
 //!
 //! Every Python option is accepted with the same name, default and meaning,
-//! so scripts and the agent hook work unchanged; options whose behaviour is
-//! not ported yet stop with [`Error::NotPorted`] (status 70).
+//! so scripts and the agent hook work unchanged.
 
 use std::ffi::OsString;
 use std::io::{self, Write};
@@ -16,6 +17,7 @@ use crate::budget::{Budget, DEFAULT_CHARS_PER_TOKEN};
 use crate::command::CommandRun;
 use crate::dump;
 use crate::error::{Error, Result};
+use crate::follow;
 use crate::pass;
 use crate::runfile::{Spool, default_run_dir};
 use crate::runs;
@@ -222,7 +224,6 @@ fn dispatch(args: &Args, command: Option<&[OsString]>) -> Result<u8> {
         if args.every < 1 {
             return Err(Error::Usage("--every must be at least 1".into()));
         }
-        return Err(Error::NotPorted("--follow"));
     }
     let mut run = match command {
         Some(command) => match CommandRun::start(command) {
@@ -236,7 +237,73 @@ fn dispatch(args: &Args, command: Option<&[OsString]>) -> Result<u8> {
         },
         None => None,
     };
+    if args.follow {
+        return follow_mode(args, &vocab, run.as_mut());
+    }
     batch(args, &vocab, run.as_mut())
+}
+
+/// Follow mode: the spool is named up front and kept (or temporary under
+/// `--no-tee`), and the stream is summarised window by window.
+fn follow_mode(args: &Args, vocab: &Vocab, run: Option<&mut CommandRun>) -> Result<u8> {
+    let tee = !args.no_tee;
+    let mut spool = if !tee {
+        Spool::temporary()?
+    } else if let Some(file) = &args.run_file {
+        if let Some(dir) = file.parent().filter(|d| !d.as_os_str().is_empty()) {
+            create_dir(dir)?;
+        }
+        Spool::create(file.clone())?
+    } else {
+        let dir = args.run_dir.clone().unwrap_or_else(default_run_dir);
+        create_dir(&dir)?;
+        runs::maybe_prune(&dir);
+        // Named by the time it started. Python uses local time; std has no
+        // time zones, so this is UTC.
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0.0, |d| d.as_secs_f64());
+        let stamp: String = runs::utc_stamp(now)
+            .chars()
+            .filter(|c| c.is_ascii_digit() || *c == 'T')
+            .map(|c| if c == 'T' { '-' } else { c })
+            .collect();
+        Spool::create(dir.join(format!("follow-{stamp}-{}.log", std::process::id())))?
+    };
+    if tee {
+        spool.keep();
+    }
+    let path = spool.path().to_path_buf();
+    let run_path = tee.then(|| py_abspath(&path));
+    let settings = follow::Settings {
+        budget: Budget {
+            tokens: args.budget,
+            chars_per_token: args.chars_per_token,
+        },
+        head: args.head,
+        tail: args.tail,
+        width: args.width,
+        max_templates: args.max_templates,
+        every: usize::try_from(args.every).unwrap_or(usize::MAX),
+        interval: args.interval,
+        flush_sev: match args.flush_on.as_str() {
+            "error" => Some(3),
+            "fatal" => Some(4),
+            _ => None,
+        },
+        settle: args.settle,
+        min_interval: args.min_interval,
+        quiet: args.quiet,
+    };
+    follow::follow(
+        &settings,
+        vocab,
+        spool.file(),
+        &path,
+        run_path.as_deref(),
+        run,
+    )
+    .or_else(|e| ignore_broken_pipe(e).map(|()| 0))
 }
 
 /// The vocabulary of `--vocab FILE`: the built-in one with the file
@@ -395,6 +462,7 @@ fn batch(args: &Args, vocab: &Vocab, mut run: Option<&mut CommandRun>) -> Result
                 run_path,
                 in_bytes: store.total_bytes,
                 note,
+                follow: None,
             };
             let text = summary::summarize(&store, vocab, &spool_path, &opts)
                 .map_err(|e| Error::io("reading the run file back", e))?;

@@ -4,10 +4,10 @@
 //! input is written to a spool file as it is read; once the content hash is
 //! known, the spool is renamed to `<run dir>/<first 12 hex digits of its
 //! SHA-256>.log`. Under `--no-tee` the spool is a temporary file, removed
-//! when pare exits. The Python version does the same in `main()`.
-//!
-//! Not ported yet: pruning old run files, and the `.json` record command
-//! mode writes beside the run file.
+//! when pare exits. Follow mode names its run file up front (the hash is
+//! not known while the stream runs) and keeps it. The Python version does
+//! the same in `main()`. Pruning and the `.json` records are in
+//! [`crate::runs`] and [`crate::command`].
 
 use std::env;
 use std::fs::{self, File, OpenOptions};
@@ -134,6 +134,11 @@ impl Spool {
         })?;
         self.keep = true;
         Ok(to.to_path_buf())
+    }
+
+    /// Keeps the spool where it is when dropped: follow mode's run file.
+    pub fn keep(&mut self) {
+        self.keep = true;
     }
 }
 

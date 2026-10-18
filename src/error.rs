@@ -8,10 +8,6 @@
 use std::fmt;
 use std::io;
 
-/// Status for a mode or flag the port does not support yet (EX_SOFTWARE).
-/// `bench/parity.py --skip-unported` counts these runs as skipped.
-pub const EXIT_NOT_PORTED: u8 = 70;
-
 /// Everything that can make pare stop early.
 // Rust note: an enum whose variants carry data, like a `std::variant` of
 // structs. A `match` on it must handle every variant or the code does not
@@ -27,8 +23,6 @@ pub enum Error {
         /// The operating system's error.
         source: io::Error,
     },
-    /// The Rust port does not do this yet; the Python version does.
-    NotPorted(&'static str),
 }
 
 impl Error {
@@ -37,7 +31,6 @@ impl Error {
     pub fn exit_status(&self) -> u8 {
         match self {
             Error::Usage(_) | Error::Io { .. } => 1,
-            Error::NotPorted(_) => EXIT_NOT_PORTED,
         }
     }
 
@@ -62,10 +55,6 @@ impl fmt::Display for Error {
         match self {
             Error::Usage(msg) => write!(f, "pare: {msg}"),
             Error::Io { context, source } => write!(f, "pare: {context}: {source}"),
-            Error::NotPorted(what) => write!(
-                f,
-                "pare: not yet ported to Rust: {what} (proto/pare.py does it meanwhile)"
-            ),
         }
     }
 }
@@ -77,7 +66,7 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Error::Io { source, .. } => Some(source),
-            Error::Usage(_) | Error::NotPorted(_) => None,
+            Error::Usage(_) => None,
         }
     }
 }
@@ -94,9 +83,9 @@ mod tests {
 
     #[test]
     fn statuses_and_messages() {
-        let e = Error::NotPorted("--follow");
-        assert_eq!(e.exit_status(), EXIT_NOT_PORTED);
-        assert!(e.to_string().contains("not yet ported to Rust: --follow"));
+        let e = Error::Usage("--dry-run goes with --prune".into());
+        assert_eq!(e.exit_status(), 1);
+        assert_eq!(e.to_string(), "pare: --dry-run goes with --prune");
         let e = Error::io("reading the input", io::Error::other("boom"));
         assert_eq!(e.exit_status(), 1);
         assert_eq!(e.to_string(), "pare: reading the input: boom");

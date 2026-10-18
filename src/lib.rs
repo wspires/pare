@@ -27,6 +27,7 @@ pub mod command;
 pub mod drain;
 pub mod dump;
 pub mod error;
+pub mod follow;
 pub mod mask;
 pub mod pass;
 pub mod pyclass;

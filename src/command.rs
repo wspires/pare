@@ -88,35 +88,7 @@ impl CommandRun {
         // The `Command` holds the parent's copies of the write end; until
         // they are closed, the pipe never reports end of file.
         drop(cmd);
-        let (tx, chunks) = mpsc::channel();
-        // Rust note: a blocking read on its own thread, handing chunks over a
-        // channel, stands in for Python's `select()` with a timeout: the
-        // main thread waits on the channel with `recv_timeout` and can look
-        // at the command in between. If a process the command left behind
-        // keeps the pipe open, this thread just stays blocked until pare
-        // exits.
-        thread::spawn(move || {
-            let mut reader = reader;
-            let mut buf = vec![0u8; CHUNK];
-            loop {
-                match reader.read(&mut buf) {
-                    Ok(0) => {
-                        let _ = tx.send(Ok(Vec::new()));
-                        return;
-                    }
-                    Ok(n) => {
-                        if tx.send(Ok(buf[..n].to_vec())).is_err() {
-                            return;
-                        }
-                    }
-                    Err(e) if e.kind() == io::ErrorKind::Interrupted => {}
-                    Err(e) => {
-                        let _ = tx.send(Err(e));
-                        return;
-                    }
-                }
-            }
-        });
+        let chunks = read_in_background(reader);
         let cwd = std::env::current_dir()
             .map_or_else(|_| String::new(), |d| d.to_string_lossy().into_owned());
         let mut run = CommandRun {
@@ -161,6 +133,25 @@ impl CommandRun {
     #[cfg(not(unix))]
     fn handle_signals(&mut self) {}
 
+    /// The next chunk of output, waiting at most `timeout`: `Ok(chunk)`, an
+    /// empty chunk at end of file, or `Err(Timeout)`.
+    ///
+    /// # Errors
+    ///
+    /// `Timeout` if nothing arrived in time; `Disconnected` after the end.
+    pub fn recv(&self, timeout: Duration) -> Result<io::Result<Vec<u8>>, RecvTimeoutError> {
+        self.chunks.recv_timeout(timeout)
+    }
+
+    /// Whether the command has exited.
+    ///
+    /// # Errors
+    ///
+    /// If its status cannot be read.
+    pub fn exited(&mut self) -> io::Result<bool> {
+        Ok(self.child.try_wait()?.is_some())
+    }
+
     /// The merged output as a reader for the pass.
     pub fn output(&mut self) -> CommandOutput<'_> {
         CommandOutput {
@@ -183,17 +174,7 @@ impl CommandRun {
         if let Some(handle) = self.signals.take() {
             handle.close();
         }
-        let code = status.code().unwrap_or_else(|| {
-            #[cfg(unix)]
-            {
-                use std::os::unix::process::ExitStatusExt;
-                128 + status.signal().unwrap_or(0)
-            }
-            #[cfg(not(unix))]
-            {
-                1
-            }
-        });
+        let code = status.code().unwrap_or_else(|| killed_status(status));
         // Rust note: a process status is 0 to 255 on Unix; `as u8` keeps the
         // low byte, as the shell does for a wider value on Windows.
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
@@ -243,6 +224,58 @@ impl CommandRun {
             dumps(&Value::Object(meta)) + "\n",
         );
     }
+}
+
+/// Reads `reader` on a thread of its own and hands over what it reads, in
+/// chunks of up to [`CHUNK`] bytes; an empty chunk means end of file.
+// Rust note: a blocking read on its own thread, handing chunks over a
+// channel, stands in for Python's `select()` with a timeout: the main
+// thread waits on the channel with `recv_timeout` and can do other things
+// (check a deadline, look at the command) in between. If a process the
+// command left behind keeps the pipe open, the thread just stays blocked
+// until pare exits. The channel is bounded, so a fast input waits for the
+// pass instead of piling up in memory.
+pub fn read_in_background(reader: impl Read + Send + 'static) -> Receiver<io::Result<Vec<u8>>> {
+    let (tx, rx) = mpsc::sync_channel(4);
+    thread::spawn(move || {
+        let mut reader = reader;
+        let mut buf = vec![0u8; CHUNK];
+        loop {
+            match reader.read(&mut buf) {
+                Ok(0) => {
+                    let _ = tx.send(Ok(Vec::new()));
+                    return;
+                }
+                Ok(n) => {
+                    if tx.send(Ok(buf[..n].to_vec())).is_err() {
+                        return;
+                    }
+                }
+                Err(e) if e.kind() == io::ErrorKind::Interrupted => {}
+                Err(e) => {
+                    let _ = tx.send(Err(e));
+                    return;
+                }
+            }
+        }
+    });
+    rx
+}
+
+/// The status of a process that has no exit code: on Unix, one killed by
+/// signal n, which a shell reports as 128 + n.
+// Rust note: `#[cfg(...)]` on whole functions picks one definition per
+// platform at compile time, like `#ifdef`, but each version is still
+// parsed and has to be valid Rust.
+#[cfg(unix)]
+fn killed_status(status: std::process::ExitStatus) -> i32 {
+    use std::os::unix::process::ExitStatusExt;
+    128 + status.signal().unwrap_or(0)
+}
+
+#[cfg(not(unix))]
+fn killed_status(_status: std::process::ExitStatus) -> i32 {
+    1
 }
 
 fn epoch(t: SystemTime) -> f64 {

@@ -60,11 +60,17 @@ pub fn score_templates(store: &mut Store, vocab: &Vocab, spool: &Path) -> io::Re
         let tpl = &store.templates[t];
         let ri = tpl.exemplar as usize;
         let head = store.rstart[ri] as usize;
-        let level = store.sev[head];
+        // A record carried from the previous follow window has its head
+        // there; all of its lines here are body.
+        let carried = if ri == 0 { store.carry.as_ref() } else { None };
+        let level = carried.map_or(store.sev[head], |c| c.sev);
         // Whether the exemplar's body (its lines after the head, as they
         // are, not as a logcat message) has a strong error word.
         let mut body_err = false;
-        let (start, end) = (head + 1, store.rend[ri] as usize);
+        let (start, end) = (
+            head + usize::from(carried.is_none()),
+            store.rend[ri] as usize,
+        );
         if start < end {
             // Rust note: the spool is opened on first need only. `if let
             // ... else` with `?` inside reads like the Python `if f is None:
