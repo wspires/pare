@@ -161,7 +161,7 @@ fn version() {
 }
 
 #[test]
-fn dump_has_python_format_with_todo_fields() {
+fn dump_has_python_format() {
     let dir = TempDir::new("dump");
     let dump = dir.path().join("d.tsv");
     let mut child = Command::new(env!("CARGO_BIN_EXE_pare"))
@@ -179,10 +179,50 @@ fn dump_has_python_format_with_todo_fields() {
         .unwrap();
     assert!(child.wait().unwrap().success());
     let text = fs::read_to_string(&dump).unwrap();
-    let rows: Vec<&str> = text.lines().collect();
-    assert_eq!(rows[0], "# pare dump v1");
-    // no, record, depth, severity (not yet), blank, template, score (not yet), sizes
-    assert_eq!(rows[1], "L\t1\t0\t0\t?\t0\tT1\t?\t13\t9");
-    assert_eq!(rows[3], "L\t3\t-1\t0\t?\t1\t-\t?\t4\t0");
-    assert_eq!(rows[5], "T\tT1\t2\t3\t2\t?\t?\t?\t?\t?\t?\tERROR a <NUM>");
+    // What proto/pare.py writes for the same input.
+    let want = [
+        "# pare dump v1",
+        // no, record, depth, severity, blank, template, score, sizes
+        "L\t1\t0\t0\t3\t0\tT1\t4.500000\t13\t9",
+        "L\t2\t0\t1\t-1\t0\tT1\t2.450000\t12\t6",
+        "L\t3\t-1\t0\t-1\t1\t-\t0.000000\t4\t0",
+        "L\t4\t1\t0\t3\t0\tT1\t4.500000\t13\t9",
+        // id, records, lines, total, best severity, marker, salience, vocab,
+        // exemplar line, levels, text
+        "T\tT1\t2\t3\t2\t3\tE\t5.500000\t4.500000\t1\t3:2\tERROR a <NUM>",
+    ];
+    assert_eq!(text.lines().collect::<Vec<_>>(), want);
+}
+
+#[test]
+fn dump_vocab_is_pythons() {
+    let golden =
+        |name: &str| fs::read(format!("{}/tests/data/{name}", env!("CARGO_MANIFEST_DIR"))).unwrap();
+    let out = pare(&["--dump-vocab"], b"");
+    assert!(out.status.success());
+    assert_eq!(out.stdout, golden("vocab.txt"));
+    let example = concat!(env!("CARGO_MANIFEST_DIR"), "/proto/vocab.example");
+    let out = pare(&["--vocab", example, "--dump-vocab"], b"");
+    assert_eq!(out.stdout, golden("vocab-example.txt"));
+}
+
+#[test]
+fn bad_vocab_files_are_usage_errors() {
+    let dir = TempDir::new("vocab");
+    let bad = dir.path().join("bad.vocab");
+    fs::write(&bad, "[error]\nok\n[level-warn]\n/W/\n").unwrap();
+    let out = pare(&["--vocab", bad.to_str().unwrap(), "--dump-vocab"], b"");
+    assert_eq!(out.status.code(), Some(1));
+    let want = format!(
+        "pare: {}:4: level classes take plain tokens, not regexes: '/W/'\n",
+        bad.display()
+    );
+    assert_eq!(String::from_utf8_lossy(&out.stderr), want);
+    let missing = dir.path().join("missing");
+    let out = pare(&["--vocab", missing.to_str().unwrap()], b"");
+    let want = format!(
+        "pare: cannot read vocab file {}: No such file or directory\n",
+        missing.display()
+    );
+    assert_eq!(String::from_utf8_lossy(&out.stderr), want);
 }

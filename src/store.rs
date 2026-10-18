@@ -1,5 +1,5 @@
 //! What the pass learned about each line, record and template: the `Store`
-//! class of `proto/pare.py`, so far without severity and scores.
+//! class of `proto/pare.py`.
 //!
 //! pare never keeps the input's text in memory. Every chunk is written to
 //! the spool file (the run file, or a temporary file under `--no-tee`) as it
@@ -30,6 +30,59 @@ pub struct Template {
     pub lines: u32,
     /// Records of this template in the whole input (in batch mode, `count`).
     pub total: u32,
+    /// Records of this template at each structural severity, 0 to 4.
+    pub levels: [u32; 5],
+    /// The record shown for this template: the first at the highest
+    /// severity its records have (or its first record, if none has one).
+    pub exemplar: u32,
+    /// That severity; `None` while no record has had one.
+    pub best_sev: Option<u8>,
+    /// What the exemplar's head line says: its `vocab_score` as a head.
+    pub vocab: f64,
+    /// Which vocabulary classes the exemplar's head has, for the marker.
+    pub head: HeadClasses,
+    /// Salience: `vocab` plus how rare the template is. Set by
+    /// [`crate::score::score_templates`].
+    pub salience: f64,
+    /// `E` error, `W` warning, `S` summary, `.` other. Set by
+    /// [`crate::score::score_templates`].
+    pub marker: char,
+}
+
+impl Template {
+    /// A template first seen at record `exemplar`.
+    #[must_use]
+    pub fn new(cluster_id: usize, exemplar: u32) -> Self {
+        Template {
+            text: String::new(),
+            cluster_id,
+            count: 0,
+            lines: 0,
+            total: 0,
+            levels: [0; 5],
+            exemplar,
+            best_sev: None,
+            vocab: 0.0,
+            head: HeadClasses::default(),
+            salience: 0.0,
+            marker: '.',
+        }
+    }
+}
+
+/// The vocabulary classes of a template's exemplar head that its marker
+/// depends on.
+#[derive(Debug, Clone, Copy, Default)]
+#[allow(clippy::struct_excessive_bools)] // one flag per class
+pub struct HeadClasses {
+    /// The error class.
+    pub error: bool,
+    /// The warn class.
+    pub warn: bool,
+    /// The summary class.
+    pub summary: bool,
+    /// The pass class.
+    pub pass: bool,
 }
 
 /// Per-line, per-record and per-template results for one input.
@@ -63,6 +116,11 @@ pub struct Store {
     pub rlen: Vec<u32>,
     /// Per line: characters of the text after `strip()`.
     pub slen: Vec<u32>,
+    /// Per line: structural severity, 0 (debug) to 4 (fatal), if any.
+    pub sev: Vec<Option<u8>>,
+    /// Per line: salience, its vocabulary score plus inheritance, depth
+    /// and location adjustments.
+    pub score: Vec<f64>,
 
     /// Per record: its first line.
     pub rstart: Vec<u32>,
@@ -147,6 +205,36 @@ impl Store {
             reader.read_exact(&mut buf)?;
             pos = off + u64::from(len);
             f(&buf)?;
+        }
+        Ok(())
+    }
+
+    /// Calls `f` with each raw line of lines `start..end` (indices), read
+    /// from `file`, the spool, in one go.
+    ///
+    /// # Errors
+    ///
+    /// If reading fails, or `f` does.
+    pub fn for_each_raw_in<F>(
+        &self,
+        file: &mut File,
+        start: usize,
+        end: usize,
+        mut f: F,
+    ) -> io::Result<()>
+    where
+        F: FnMut(&[u8]) -> io::Result<()>,
+    {
+        if start >= end {
+            return Ok(());
+        }
+        let from = self.off[start];
+        let to = self.off[end - 1] + u64::from(self.raw_len[end - 1]);
+        let mut buf = vec![0u8; usize::try_from(to - from).expect("a record fits in memory")];
+        file.seek(SeekFrom::Start(from))?;
+        file.read_exact(&mut buf)?;
+        for line in buf.split(|&b| b == b'\n') {
+            f(line)?;
         }
         Ok(())
     }

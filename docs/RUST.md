@@ -368,14 +368,28 @@ masks need lookaround (`\b` on Python's word characters, `(?<![\w.])`),
 so they need `fancy-regex`. Scanning whole lines with it made the pass
 *slower* than Python.
 
-The fix (`mask::Mask::replace_all`): `regex` scans for the leftmost
-position where a relaxed version of the pattern matches (assertions
-erased), and `fancy-regex` tries the real pattern only there, anchored
-with `\G`. Erasing an assertion only removes a condition, so the relaxed
-pattern matches wherever the real one can, and no match is missed. The
-unit test `fast_patterns_cover_exact` checks that on corpus lines.
-Masking got 14 times faster, and the result is Python's exactly (a golden
-file of 4,045 of Python's results checks every row).
+The fix (`pyre::PyRegex`, used by every Python pattern in pare): `regex`
+scans for the leftmost position where a relaxed version of the pattern
+matches (`pyclass::erase_assertions` removes `\b`, lookahead and
+lookbehind), and `fancy-regex` tries the real pattern only there,
+anchored with `\G`. Erasing an assertion only removes a condition, so
+the relaxed pattern matches wherever the real one can, and no match is
+missed. A pattern with no assertions runs on `regex` alone; one that
+`regex` cannot compile even relaxed (a back-reference in a vocabulary
+file) runs on `fancy-regex` alone. Each variant of the private
+`Engine` enum is one of those cases. The unit test
+`two_engines_match_as_backtracking_alone` checks that the masks find
+exactly what `fancy-regex` alone finds, on corpus lines. Masking got 14
+times faster, and the result is Python's exactly (golden files of
+Python's results check every row).
+
+Case-insensitivity is the other trap. Rust's `(?i)` folds the case of
+every member of a class, so `(?i)[\x{...}]` with Python's word table
+gains characters such as U+0345, which folds to a Greek iota; Python's
+`(?i)` leaves `\w`, `\d` and `\s` alone. `py_pattern` wraps Python's
+classes in `(?-i:...)` where the pattern is case-insensitive, and adds
+`İ` and `ı` wherever an `i` can match, which Python's `(?i)` equates and
+Rust's does not.
 
 Two smaller points:
 - Compiling a regex is expensive, so each one is compiled once, in a
@@ -383,6 +397,47 @@ Two smaller points:
 - Replacement: `fancy-regex` and `regex` expand `$name` in a replacement
   string; `NoExpand(&s)` or a closure avoids surprises. `replace_all`
   returns a `Cow`: borrowed when nothing matched.
+
+## Floating point: the same bits
+
+Scores are `f64` in both languages, and the dump compares them to six
+decimals, so they must be computed identically, not just closely:
+
+- **Same operations, same order.** IEEE 754 arithmetic is deterministic,
+  but `a + b + c` and `a + (b + c)` can differ in the last bit. The port
+  copies Python's expressions term for term (`vocab_score`,
+  `score_templates`), and a golden file holds Python's scores as `repr()`
+  strings, which read back to the exact same `f64`; the test compares
+  `to_bits()`.
+- **`max` is not `max`.** Python's `max(0.0, x)` returns `0.0` unless `x`
+  is greater, so `max(0.0, -0.0)` is `0.0`; Rust's `f64::max` may return
+  either zero. `score::py_max0` spells out Python's rule.
+- **Library functions.** `log2` comes from the platform's C library in
+  both languages, so on one machine they agree. A static musl build uses
+  musl's `log2`, which could differ from glibc's in the last bit for some
+  counts; parity runs on glibc.
+- **Formatting.** Rust's `{:.6}` and Python's `%.6f` both round the exact
+  binary value half to even and both print `-0.000000`, so the text
+  matches too.
+
+## Lifetimes in a struct
+
+`pass::Segmenter<'v>` holds `vocab: &'v Vocab`: a reference to a
+vocabulary it does not own. The lifetime parameter `'v` is how the type
+says so, and the compiler checks that no segmenter outlives its
+vocabulary; in C++ it would be a `const Vocab&` member with the same rule
+left to the programmer. `vocab::Line<'v, 't>` has two: it borrows the
+vocabulary and the line's text. Python reads a global `VOCAB` that
+`--vocab` reassigns; passing the vocabulary in instead makes the
+dependency visible and lets tests build their own.
+
+## Ordering `Option`
+
+`Option<T>` is ordered with `None` below every `Some`, so where Python
+writes `-1` for "no severity" and compares integers, Rust compares
+`Option<u8>` directly: `sev > tpl.best_sev`, and
+`detect_level(t).max(http_severity(t))` is Python's `max` over the
+signals that are present. The type keeps "none" distinct from 0 (debug).
 
 ## Generated code
 
@@ -422,8 +477,8 @@ which are the point here.
 - Examples in `///` doc comments are compiled and run by `cargo test`, so
   the documentation cannot drift from the code (`Budget::tokens_in`,
   `clean_line`, `py_isspace`, `mask`, `Drain::add`).
-- Golden files: `tests/data/mask.tsv` holds Python's results, and a unit
-  test reads it with `concat!(env!("CARGO_MANIFEST_DIR"), "/tests/...")`,
+- Golden files: `tests/data/mask.tsv`, `vocab.tsv`, `vocab.txt` and
+  `vocab-example.txt` hold Python's results, and the unit tests read them with `concat!(env!("CARGO_MANIFEST_DIR"), "/tests/...")`,
   a path fixed at compile time so the test works from any directory.
 - A test that checks the tests: breaking a fast mask pattern on purpose
   makes four tests fail; that is how the superset test was checked.
@@ -444,9 +499,15 @@ which are the point here.
   Python's. A small benchmark binary (a scratch crate depending on `pare`
   by path, timing one function on real lines) showed the Python classes
   were not the cost, the backtracking engine was, which led to the
-  two-engine design. After it: the whole pass over a 30 MB log takes 2.1 s
-  and 31 MB of memory, against Python's 28.5 s and 65 MB for its full run
-  (which also does severity and scoring, stage 3).
+  two-engine design. After it, the segmentation pass over a 30 MB log
+  took 2.1 s; with severity and scoring (stage 3) it takes 5.4 s and
+  51 MB, against Python's 28.5 s and 65 MB.
+- **Start-up counts too.** pare runs on every command an agent sends
+  through it, mostly short ones. Python's classes make the patterns large
+  (`\b` is four copies of a 12 KB class), and `fancy-regex` takes
+  milliseconds to compile one; compiling them all cost 110 ms per run.
+  `PyRegex` compiles its backtracking half on the first candidate
+  (`OnceLock`), and start-up went back to about 50 ms.
 - **ASCII first.** `py_isspace` and friends answer for ASCII characters
   with a `match` before falling back to a binary search in the tables;
   nearly every character in a log is ASCII.

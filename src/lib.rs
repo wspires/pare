@@ -29,11 +29,14 @@ pub mod error;
 pub mod mask;
 pub mod pass;
 pub mod pyclass;
+pub mod pyre;
 pub mod pyunicode;
 pub mod runfile;
+pub mod score;
 pub mod store;
 pub mod summary;
 pub mod text;
+pub mod vocab;
 
 /// The version, from Cargo.toml (`pare --version` prints it).
 // Rust note: `env!` reads an environment variable at compile time; Cargo

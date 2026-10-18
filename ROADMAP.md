@@ -305,10 +305,19 @@ with warnings as errors, few dependencies, each one justified.
   (`bench/gen_fixtures.py`). Found in the reference: a line indented 256
   columns past its head crashed it (depth was a signed byte); fixed, with
   a test. *Done.*
-- [ ] **3. Vocabulary, severity, scoring.** The whole per-line dump matches.
-  Starts with `fancy-regex` (it accepts Python's lookarounds) for correct
-  output first; hot patterns then move to the `regex` crate with their
-  boundaries checked in code, and parity says whether anything moved.
+- [x] **3. Vocabulary, severity, scoring.** The whole per-line dump matches.
+  Severity (level tokens, HTTP statuses, exit codes, logcat crashes),
+  the vocabulary classes, `vocab_score`, inheritance, depth and location
+  adjustments, template salience and markers; `--vocab`, `$PARE_VOCAB`
+  and `--dump-vocab`. Parity with `--dump`: 0 of 2,730 runs differ (a
+  14th flag set uses `proto/vocab.example`), and every field of all
+  1,552 batch dumps matches, scores to the bit. The two-engine scan of
+  stage 2 became `PyRegex`, for every Python pattern; Python's `(?i)`
+  needed two more corrections (`İ`/`ı`, and classes that Rust's `(?i)`
+  would widen). Golden files of Python's severity, classes and scores on
+  6,032 lines and of `--dump-vocab`. The pass over 30 MB takes 5.4 s
+  (Python: 28.5 s); start-up 50 ms, the `fancy-regex` halves compiled on
+  first use. *Done.*
 - [ ] **4. Summary and allocation.** Full output identical on every run.
 - [ ] **5. The rest.** Selection flags, command mode, follow mode, prune,
   stats.

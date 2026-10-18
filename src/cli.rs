@@ -17,7 +17,9 @@ use crate::dump;
 use crate::error::{Error, Result};
 use crate::pass;
 use crate::runfile::{Spool, default_run_dir};
+use crate::score;
 use crate::summary;
+use crate::vocab::{self, Vocab};
 
 /// Summarize noisy command output (tests, builds, logs) to a token budget.
 ///
@@ -174,9 +176,10 @@ fn dispatch(args: &Args, command: Option<&[OsString]>) -> Result<()> {
     if args.chars_per_token <= 0.0 || args.chars_per_token.is_nan() {
         return Err(Error::Usage("--chars-per-token must be positive".into()));
     }
-    if args.vocab.is_some() {
-        return Err(Error::NotPorted("--vocab"));
-    }
+    let vocab = match args.vocab.as_deref().filter(|p| !p.as_os_str().is_empty()) {
+        Some(path) => load_vocab(path)?,
+        None => Vocab::builtin(),
+    };
     if args.stats {
         return Err(Error::NotPorted("--stats"));
     }
@@ -187,7 +190,10 @@ fn dispatch(args: &Args, command: Option<&[OsString]>) -> Result<()> {
         return Err(Error::NotPorted("--prune"));
     }
     if args.dump_vocab {
-        return Err(Error::NotPorted("--dump-vocab"));
+        return write_out(
+            &mut io::stdout().lock(),
+            vocab::dump_vocab(vocab.entries()).as_bytes(),
+        );
     }
     if command.is_some() && args.selecting() {
         return Err(Error::Usage(
@@ -213,11 +219,30 @@ fn dispatch(args: &Args, command: Option<&[OsString]>) -> Result<()> {
             "--only/--except/--since/--until/--min-severity",
         ));
     }
-    batch(args)
+    batch(args, &vocab)
+}
+
+/// The vocabulary of `--vocab FILE`: the built-in one with the file
+/// applied.
+fn load_vocab(path: &std::path::Path) -> Result<Vocab> {
+    let source = path.to_string_lossy();
+    let text = std::fs::read_to_string(path).map_err(|e| {
+        // Python prints the OS's message alone (`e.strerror`); Rust's adds
+        // " (os error 2)", which is cut off.
+        let msg = e.to_string();
+        let msg = msg
+            .find(" (os error ")
+            .map_or(&*msg, |at| &msg[..at])
+            .to_owned();
+        Error::Usage(format!("cannot read vocab file {source}: {msg}"))
+    })?;
+    let entries =
+        vocab::parse_vocab(&text, &vocab::default_entries(), &source).map_err(Error::Usage)?;
+    Vocab::new(entries).map_err(|e| Error::Usage(format!("{source}: {e}")))
 }
 
 /// Batch mode: read all of stdin, save it, and write the summary.
-fn batch(args: &Args) -> Result<()> {
+fn batch(args: &Args, vocab: &Vocab) -> Result<()> {
     let budget = Budget {
         tokens: args.budget,
         chars_per_token: args.chars_per_token,
@@ -242,7 +267,7 @@ fn batch(args: &Args) -> Result<()> {
     };
 
     let stdin = io::stdin().lock();
-    let (store, digest, _) = pass::read_all(stdin, spool.file(), args.width)
+    let (mut store, digest, _) = pass::read_all(stdin, spool.file(), vocab, args.width)
         .map_err(|e| Error::io("reading the input", e))?;
 
     let stdout = io::stdout().lock();
@@ -266,6 +291,9 @@ fn batch(args: &Args) -> Result<()> {
     } else {
         (spool.path().to_path_buf(), Some(spool))
     };
+
+    score::score_templates(&mut store, vocab, &spool_path)
+        .map_err(|e| Error::io("reading the run file back", e))?;
 
     // The pass's results for bench/parity.py --dump, as Python writes them
     // before summarising (and so even when the summary is not ported yet).

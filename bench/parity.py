@@ -39,7 +39,7 @@ import tempfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Flag sets: budgets, a narrow width, the prose token rate, a template cap,
-# small windows, every selection flag, and follow mode.
+# a vocabulary file, small windows, every selection flag, and follow mode.
 CASES = [
     ["--budget", "2000"],
     ["--budget", "1000"],
@@ -48,6 +48,7 @@ CASES = [
     ["--budget", "600", "--chars-per-token", "4"],
     ["--budget", "1000", "--max-templates", "5"],
     ["--budget", "1000", "--head", "2", "--tail", "3"],
+    ["--budget", "1000", "--vocab", os.path.join(ROOT, "proto", "vocab.example")],
     ["--only", "T1,T2,T3", "--budget", "100000"],
     ["--except", "T1", "--budget", "1000"],
     ["--min-severity", "error", "--budget", "1000"],
@@ -55,7 +56,7 @@ CASES = [
     ["--follow", "--every", "300", "--budget", "600", "--quiet"],
     ["--follow", "--every", "5000", "--budget", "1000"],
 ]
-QUICK = [CASES[0], CASES[2], CASES[7], CASES[11]]
+QUICK = [CASES[0], CASES[2], CASES[8], CASES[12]]
 SELECTING = ("--only", "--except", "--min-severity", "--since", "--until", "--follow")
 NOT_PORTED = 70  # the Rust port's status for what it does not do yet (src/error.rs)
 
@@ -96,6 +97,10 @@ def edge_cases(directory: str) -> list[str]:
             f"{h} job{i} x\u0301{i} 5\u00b2 v1.2\u0301 a\u0301/b {i}\u00b9 \u0e50{i} {d}{i} "
             f"\u203f{i} 10.0.0.{i}\u0301 2026-10-0{i % 9 + 1}\u0301 0xff\u00b2\n"
             for i in range(60) for h, d in (("ERROR", "\U00016ac0"), ("WARN", "\U0001e4f0"))).encode(),
+        # German log vocabulary, which the --vocab flag set's file knows.
+        "vocab-german": ("INFO lade Daten\n" * 40 + "Fehler: Zeitüberschreitung beim Verbinden\n"
+                         "  bei a.b(C.java:1)\nWarnung: veraltet\nAUSNAHME aufgetreten\n"
+                         "0 Fehler, zusammenfassung beendet\n").encode(),
         "deep-indent": ("ERROR head\n" + " " * 300 + "deep line\n" + "\t" * 80 + "deeper\nINFO next\n").encode(),
     }
     paths = []
