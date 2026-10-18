@@ -1,5 +1,5 @@
 //! Tokens and the budget: the same arithmetic as `tokens()` and
-//! `budget_bytes_for()` in `proto/pare.py`.
+//! `budget_bytes_for()` in `reference/pare.py`.
 //!
 //! A token is estimated as `bytes / chars_per_token` (2.8 by default, the
 //! rate measured on cl100k and o200k, see docs/DESIGN.md), and the budget
@@ -70,7 +70,7 @@ mod tests {
 
     #[test]
     fn matches_python() {
-        // Values from proto/pare.py: budget_bytes_for(600) and tokens(n).
+        // Values from reference/pare.py: budget_bytes_for(600) and tokens(n).
         assert_eq!(B.bytes(), 1680);
         assert_eq!(B.tokens_in(0), 0);
         assert_eq!(B.tokens_in(1), 1);

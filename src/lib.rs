@@ -1,7 +1,7 @@
 //! pare: summarize noisy command output (test runs, builds, logs) to a
 //! token budget, for AI agents and humans.
 //!
-//! This crate is the Rust port of `proto/pare.py`, which stays the
+//! This crate is the Rust port of `reference/pare.py`, which stays the
 //! reference until the two produce identical output (`bench/parity.py`).
 //! The port is staged (ROADMAP.md, stage 5); what is ported so far:
 //!

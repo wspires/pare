@@ -1,5 +1,5 @@
 //! The single pass over the input: the `Pass` class and `analyze()` of
-//! `proto/pare.py`.
+//! `reference/pare.py`.
 //!
 //! Input arrives in chunks (1 MiB from a file or pipe, less from a slow
 //! command). Each chunk is written to the spool and fed to the hash as it

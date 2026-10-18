@@ -1,0 +1,42 @@
+# Homebrew formula for pare, filled in by packaging/homebrew/render.py on
+# each release and pushed to the tap (github.com/wspires/homebrew-tap):
+#
+#   brew install wspires/tap/pare
+#
+# It installs the prebuilt release binary; nothing is compiled.
+class Pare < Formula
+  desc "Summarize noisy command output to a token budget, for AI agents and humans"
+  homepage "https://github.com/wspires/pare"
+  license any_of: ["MIT", "Apache-2.0"]
+
+  on_macos do
+    on_arm do
+      url "https://github.com/wspires/pare/releases/download/v@VERSION@/pare-v@VERSION@-aarch64-apple-darwin.tar.gz"
+      sha256 "@SHA256_aarch64-apple-darwin@"
+    end
+    on_intel do
+      url "https://github.com/wspires/pare/releases/download/v@VERSION@/pare-v@VERSION@-x86_64-apple-darwin.tar.gz"
+      sha256 "@SHA256_x86_64-apple-darwin@"
+    end
+  end
+
+  on_linux do
+    on_arm do
+      url "https://github.com/wspires/pare/releases/download/v@VERSION@/pare-v@VERSION@-aarch64-unknown-linux-musl.tar.gz"
+      sha256 "@SHA256_aarch64-unknown-linux-musl@"
+    end
+    on_intel do
+      url "https://github.com/wspires/pare/releases/download/v@VERSION@/pare-v@VERSION@-x86_64-unknown-linux-musl.tar.gz"
+      sha256 "@SHA256_x86_64-unknown-linux-musl@"
+    end
+  end
+
+  def install
+    bin.install "pare"
+  end
+
+  test do
+    assert_match "pare #{version}", shell_output("#{bin}/pare --version")
+    assert_equal "hello\n", pipe_output("#{bin}/pare --no-tee", "hello\n")
+  end
+end

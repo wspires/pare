@@ -1,7 +1,7 @@
 # pare: architecture of the Rust port
 
 How the Rust code is organised, how data flows through it, and how it
-maps onto the Python reference (`proto/pare.py`). What the algorithm does
+maps onto the Python reference (`reference/pare.py`). What the algorithm does
 and why is in [DESIGN.md](DESIGN.md); what is Rust-specific, explained for
 a C++ reader, is in [RUST.md](RUST.md). The port's plan and its stages are
 in [ROADMAP.md](../ROADMAP.md), stage 5; setting up, building and
@@ -24,7 +24,7 @@ Every mode and flag of the Python version is ported. After stage 5, on
 identical to the Python version's, byte for byte, and so is its exit
 status: summaries at budgets from 300 to 2,000 tokens, with a narrow
 width, the prose token rate, a template cap, small windows and
-`--vocab proto/vocab.example`; input that fits, passed through; the
+`--vocab reference/vocab.example`; input that fits, passed through; the
 selection flags; follow mode with 300- and 5,000-line windows. Command
 mode, `--prune`, `--stats` and follow mode's time-driven flushes are
 not in the parity runs (they depend on time, processes or the run
@@ -244,7 +244,7 @@ version: 65 MB and 28.5 s); on a small log, 16 MB.
 
 ## Module map: Python to Rust
 
-| Python (`proto/pare.py`) | Rust |
+| Python (`reference/pare.py`) | Rust |
 |---|---|
 | `main()` options and checks | `cli::Args`, `cli::dispatch` |
 | `main()` batch path | `cli::batch` |
@@ -308,7 +308,7 @@ status:
   from the Python version: `mask()` on 4,045 real record heads and
   awkward Unicode lines; severity, vocabulary classes and both
   `vocab_score`s of 6,032 lines (the scores as `repr()` strings, compared
-  bit for bit); `--dump-vocab` with and without `proto/vocab.example`.
+  bit for bit); `--dump-vocab` with and without `reference/vocab.example`.
 - **Parity** (`bench/parity.py --candidate target/release/pare`) compares the binary with the Python version byte for
   byte over every corpus log and the generated edge cases, under 14 flag
   sets; `--dump` also compares the per-line results and reports the first
@@ -320,17 +320,26 @@ status:
 
 ## Builds and releases
 
-`cargo build --release` gives `target/release/pare`, about 2.3 MB,
-stripped, with link-time optimisation. `.github/workflows/release.yml`
-builds on each version tag (`v0.2.0`, not `v0.1-python`) and attaches the
-archives and their SHA-256 sums to a GitHub release:
+`cargo build --release` gives `target/release/pare`, about 3.5 MB,
+stripped, with link-time optimisation. The package is `pare-cli` (the
+name `pare` is taken on crates.io and PyPI); `Cargo.toml` names its
+library and binary `pare` (`[lib]`, `[[bin]]`), so the code says
+`use pare::...` and the command is `pare`.
 
-- `x86_64-unknown-linux-musl`: statically linked, runs on any x86-64 Linux;
-- `aarch64-apple-darwin` and `x86_64-apple-darwin`;
-- `x86_64-pc-windows-msvc`.
+`.github/workflows/release.yml` runs on each version tag (`v0.2.0`, not
+`v0.1-python`) and publishes:
 
-It can be run by hand (Actions, "Release", "Run workflow") to build the
-archives without publishing. ARM Linux is not built yet.
+- archives for `x86_64-unknown-linux-musl` and `aarch64-unknown-linux-musl`
+  (statically linked, any Linux), `aarch64-apple-darwin`,
+  `x86_64-apple-darwin` and `x86_64-pc-windows-msvc`, with `SHA256SUMS`,
+  to a GitHub release (`install.sh` and `cargo binstall` download these);
+- a Homebrew formula pointing at them, tested with Homebrew and pushed to
+  the `wspires/homebrew-tap` repository;
+- PyPI wheels built by maturin (`pyproject.toml`, `bindings = "bin"`):
+  the binary in a wheel, for `pipx install pare-cli`;
+- the crate, to crates.io.
+
+RELEASING.md has the checklist and the one-time setup.
 
 ## Dependencies
 

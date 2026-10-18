@@ -1,4 +1,4 @@
-//! Producing the output: `summarize()` in `proto/pare.py`, in batch mode.
+//! Producing the output: `summarize()` in `reference/pare.py`, in batch mode.
 //!
 //! Input that fits the budget is passed through unchanged
 //! ([`passthrough`]). Anything larger is summarised ([`summarize`]) into

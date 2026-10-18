@@ -273,7 +273,7 @@ with warnings as errors, few dependencies, each one justified.
   width, token rate, template cap, windows, every selection flag, follow
   mode) and compares outputs and exit codes byte for byte. With `--dump`
   it also compares the pass's per-line and per-template results
-  (`$PARE_DUMP`, `write_dump` in `proto/pare.py`) and reports the first
+  (`$PARE_DUMP`, `write_dump` in `reference/pare.py`) and reports the first
   row that differs, so a divergence is found at the line where it starts.
   *Done.*
 - [x] **1. Crate skeleton.** A library crate with a thin binary
@@ -310,7 +310,7 @@ with warnings as errors, few dependencies, each one justified.
   the vocabulary classes, `vocab_score`, inheritance, depth and location
   adjustments, template salience and markers; `--vocab`, `$PARE_VOCAB`
   and `--dump-vocab`. Parity with `--dump`: 0 of 2,730 runs differ (a
-  14th flag set uses `proto/vocab.example`), and every field of all
+  14th flag set uses `reference/vocab.example`), and every field of all
   1,552 batch dumps matches, scores to the bit. The two-engine scan of
   stage 2 became `PyRegex`, for every Python pattern; Python's `(?i)`
   needed two more corrections (`İ`/`ı`, and classes that Rust's `(?i)`
@@ -347,9 +347,29 @@ with warnings as errors, few dependencies, each one justified.
   kept: a follow run file is named in UTC (Python: local time; std has
   no time zones), and a bad `--vocab` regex is reported in the regex
   engine's words. *Done.*
-- [ ] **6. Distribution.** GitHub release binaries, a Homebrew tap,
-  `cargo install`; optionally PyPI wheels (maturin) so `pipx install pare`
-  gets the binary. The Python version moves to `reference/`.
+- [x] **6. Distribution.** Licensed MIT OR Apache-2.0 (drain3's MIT
+  notice in `THIRD-PARTY-NOTICES`). The package is `pare-cli` (`pare` is
+  taken on crates.io and PyPI); the command is `pare`. One tag push
+  publishes four channels (`release.yml`): a GitHub release (Linux x86-64
+  and ARM static builds, macOS ARM and Intel, Windows, `SHA256SUMS`), a
+  Homebrew formula tested with Homebrew and pushed to `wspires/homebrew-tap`,
+  PyPI wheels with the binary (maturin, trusted publishing) and the crate
+  (with `cargo binstall` metadata). `install.sh` installs a release and
+  checks its checksum. CI's "Packaging" job checks the crate, the wheel,
+  the install script and the formula on every pull request. The Python
+  version moved to `reference/`, no longer packaged. RELEASING.md has the
+  checklist and the one-time setup (the tap repository, two secrets,
+  PyPI's trusted publisher), which only the owner can do. Version 0.2.0.
+  *Done.*
+- [ ] **First release.** The one-time setup in RELEASING.md, then tag
+  `v0.2.0`.
+- [ ] **After the first change in behaviour.** The reference is frozen;
+  parity holds the Rust version to it. When pare's output changes on
+  purpose (the `--budget 0` overshoot is the first candidate), parity will
+  report it. Then either keep parity for the rest by teaching
+  `bench/parity.py` the intended difference, or retire the parity job and
+  regenerate the golden files from the Rust version, which becomes its own
+  reference.
 - [ ] **Later, if needed.** Per-line checks on worker threads: they depend
   only on the line's text, so the pass is written to keep them a pure
   function from the start.

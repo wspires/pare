@@ -1,5 +1,5 @@
 //! Masking the variable parts of a line: `MASKS` and `mask()` in
-//! `proto/pare.py`.
+//! `reference/pare.py`.
 //!
 //! Before a record's head line is clustered, the parts that differ between
 //! otherwise identical lines (timestamps, dates, ids, addresses, versions,
@@ -18,7 +18,7 @@ use crate::pyre::PyRegex;
 struct Spec {
     /// The placeholder name: `TS` masks to `<TS>`.
     name: &'static str,
-    /// Python's pattern, as written in `proto/pare.py`.
+    /// Python's pattern, as written in `reference/pare.py`.
     exact: &'static str,
     /// The line must contain a decimal digit for the mask to apply.
     needs_digit: bool,
@@ -364,7 +364,7 @@ mod tests {
 
     #[test]
     fn examples_from_python() {
-        // Expected values from proto/pare.py's mask().
+        // Expected values from reference/pare.py's mask().
         let cases = [
             ("  10.0.0.1:8080 refused  ", "<IP> refused"),
             ("see http://x.y/z?q=1 now", "see <URL> now"),

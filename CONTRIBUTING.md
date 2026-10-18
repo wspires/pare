@@ -2,7 +2,7 @@
 
 pare has two implementations while it is being ported (ROADMAP.md, stage
 5): the Rust version in `src/`, in progress, and the Python version in
-`proto/pare.py`, which is the reference the Rust one must match byte for
+`reference/pare.py`, which is the reference the Rust one must match byte for
 byte. This page covers both. How the Rust code is organised is in
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); the Rust-specific parts,
 explained for a C++ reader, are in [docs/RUST.md](docs/RUST.md).
@@ -88,9 +88,11 @@ Without `--no-tee`, pare saves its input as a run file, as the Python
 version does: in `$PARE_RUN_DIR`, else `~/.cache/pare/runs`.
 
 **Installing it on your PATH.** `cargo install --path .` builds a release
-binary into `~/.cargo/bin/pare` (`cargo uninstall pare` removes it). It
-shadows a Python `pare` in `~/.local/bin` if `~/.cargo/bin` comes first
-on your PATH, which is the point once you switch.
+binary from the checkout into `~/.cargo/bin/pare` (`cargo uninstall
+pare-cli` removes it). The released versions install with Homebrew, the
+install script, pipx or cargo (README, "Install"). An older Python `pare`
+in `~/.local/bin` is shadowed if `~/.cargo/bin` comes first on your PATH;
+`pipx uninstall pare` or deleting that file removes it.
 
 ### Test
 
@@ -126,7 +128,7 @@ module docs, item docs and examples, a readable way into the code.
 The check that the port is right: both versions over every corpus log
 plus generated edge cases, under 14 flag sets, compared byte for byte.
 It needs Python 3.13 (any 3.10 or newer runs it, but the port's
-character classes are 3.13's) and nothing else: `proto/pare.py` and
+character classes are 3.13's) and nothing else: `reference/pare.py` and
 `bench/parity.py` use only the standard library.
 
 ```
@@ -158,17 +160,22 @@ the scripts after changing what they are made from:
 - `tests/data/*`, golden files for the unit tests: Python's `mask()` on
   4,045 real record heads (`mask.tsv`); severity, vocabulary classes and
   scores of 6,032 lines (`vocab.tsv`); `--dump-vocab` (`vocab.txt`, and
-  with `proto/vocab.example`, `vocab-example.txt`); whole summaries of
+  with `reference/vocab.example`, `vocab-example.txt`); whole summaries of
   five corpus logs under three flag sets (`summary/`). All from
   `python3.13 bench/gen_fixtures.py`.
 
-### Release builds
+### Releases and packaging
 
-`.github/workflows/release.yml` builds static Linux (musl), macOS (Apple
-Silicon and Intel) and Windows binaries when a version tag (`v0.2.0`) is
-pushed, and attaches them to a GitHub release. It can also be run by hand
-from the Actions tab to build the archives without publishing. To build
-the static Linux binary locally:
+Releases are made by pushing a version tag; RELEASING.md has the
+checklist and the one-time setup. `.github/workflows/release.yml` builds
+static Linux (musl, x86-64 and ARM), macOS (Apple Silicon and Intel) and
+Windows binaries and the PyPI wheels, and publishes the GitHub release,
+the Homebrew formula, the wheels and the crate. CI's "Packaging" job
+checks on every pull request that the crate packages (`cargo package`),
+that the wheel builds and runs (`maturin build`), that `install.sh`
+installs and verifies a release laid out on disk
+(`packaging/test-install.sh`), and that the Homebrew formula renders. To
+build the static Linux binary locally:
 
 ```
 rustup target add x86_64-unknown-linux-musl
@@ -177,16 +184,20 @@ cargo build --release --target x86_64-unknown-linux-musl
 
 ## Python (the reference)
 
-`proto/pare.py` runs on any Python 3.10 or newer with nothing installed:
-`python3 proto/pare.py --budget 2000 < some.log`. For its tests and the
-benchmark tools, use a virtual environment:
+`reference/pare.py` runs on any Python 3.10 or newer with nothing installed:
+`python3 reference/pare.py --budget 2000 < some.log`. For its tests, the
+fixture and parity scripts and the benchmark tools, use a virtual
+environment:
 
 ```
 python3 -m venv .venv
-.venv/bin/pip install -e '.[dev]'          # pare, pytest, and drain3 (the reference for the built-in Drain)
-.venv/bin/python -m pytest -q proto/
+.venv/bin/pip install -r reference/requirements.txt   # pytest, and drain3 (the reference for the built-in Drain)
+.venv/bin/pip install -r bench/requirements.txt       # the benchmark's comparison tools, if you run bench/run.py
+.venv/bin/python -m pytest -q reference/
 ```
 
-The rules are frozen during the port (ROADMAP.md, stage 5): the Python
-version changes only to fix a bug the Rust version must then match, so
-the target does not move.
+The reference is frozen: it is the record of what pare did when the port
+was made, and CI holds the Rust version to it byte for byte. A change to
+pare's behaviour is made in the Rust version; parity then shows exactly
+what changed, and the change also updates the golden files and the parity
+check (ROADMAP.md says how).

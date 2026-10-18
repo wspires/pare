@@ -1,6 +1,6 @@
 //! Reading a run file back by template, severity and line range: `--only`,
 //! `--except`, `--min-severity`, `--since` and `--until`. `parse_lineno()`,
-//! `parse_tids()` and `select()` in `proto/pare.py`.
+//! `parse_tids()` and `select()` in `reference/pare.py`.
 //!
 //! A summary names its templates (`T3`) and lines (`L3001`); these flags
 //! take those names and print the raw lines behind them, so an agent can

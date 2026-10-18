@@ -285,7 +285,7 @@ noun (`0 errors`, `0 failed`) is removed before matching. `pare
 --dump-vocab` prints the lists as a file; `--vocab FILE` or `$PARE_VOCAB`
 loads one back, where `[error]` adds to a class and `[error replace]`
 replaces it, a plain line is a phrase and a `/.../` line a regex. See
-`proto/vocab.example` for a German extension.
+`reference/vocab.example` for a German extension.
 
 ## Scoring model
 
@@ -517,7 +517,7 @@ the budget still applies. `--max-templates N` caps the table.
 ## Tool-specific rules
 
 Everything pare knows about particular tools, in one place, so recall can
-be measured with and without it (`TOOL_SPECIFIC = False` in `proto/pare.py`,
+be measured with and without it (`TOOL_SPECIFIC = False` in `reference/pare.py`,
 or the "generic signals only" row of `bench/ablate.py`), and each rule on
 its own (`TOOL_PYTEST`, `TOOL_RUSTC`, `TOOL_LOGCAT`, `TOOL_BLANK_IN_BLOCK`;
 the "no ... rules" rows):

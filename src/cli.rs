@@ -1,4 +1,4 @@
-//! The command line: the options of `main()` in `proto/pare.py`, its
+//! The command line: the options of `main()` in `reference/pare.py`, its
 //! checks in the same order, and the dispatch to batch mode, command mode,
 //! follow mode, the selection flags, `--prune`, `--stats` and
 //! `--dump-vocab`.

@@ -1,7 +1,15 @@
-# Release binaries: on a version tag (v1.2.3, v0.2.0-beta.1), build pare for
-# each platform and attach the archives to a GitHub release. Run it by hand
-# (workflow_dispatch) to build the archives without publishing a release.
-# The Python reference tag (v0.1-python) does not match the pattern.
+# Release: on a version tag (v0.2.0, v0.3.0-beta.1), build pare for each
+# platform and publish it everywhere it is installed from:
+#
+#   GitHub release   archives + SHA256SUMS (install.sh and Homebrew use them)
+#   Homebrew tap     wspires/homebrew-tap, Formula/pare.rb
+#   PyPI             pare-cli wheels with the binary (pipx/uvx install pare-cli)
+#   crates.io        pare-cli (cargo install / cargo binstall pare-cli)
+#
+# Run by hand (workflow_dispatch) to build the archives and wheels without
+# publishing anything. RELEASING.md has the one-time setup (the tap
+# repository, the secrets, PyPI's trusted publisher) and the checklist.
+# The Python reference's tag (v0.1-python) does not match the pattern.
 name: Release
 
 on:
@@ -10,22 +18,40 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  check:
+    name: Tag matches Cargo.toml
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        run: |
+          version="$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_REF" == refs/tags/* && "$GITHUB_REF_NAME" != "v$version" ]]; then
+            echo "tag $GITHUB_REF_NAME does not match Cargo.toml's version $version" >&2
+            exit 1
+          fi
+
   build:
-    name: ${{ matrix.target }}
+    name: Binary ${{ matrix.target }}
+    needs: check
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Statically linked (musl): runs on any x86-64 Linux, no glibc
-          # version to match.
+          # Statically linked (musl): runs on any Linux, no glibc version
+          # to match. ARM builds natively on GitHub's ARM runners.
           - { os: ubuntu-latest, target: x86_64-unknown-linux-musl }
+          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-musl }
           - { os: macos-latest, target: aarch64-apple-darwin }
           - { os: macos-latest, target: x86_64-apple-darwin }
           - { os: windows-latest, target: x86_64-pc-windows-msvc }
@@ -39,38 +65,164 @@ jobs:
       - run: cargo build --release --locked --target ${{ matrix.target }}
       - name: Package
         shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          VERSION: ${{ needs.check.outputs.version }}
         run: |
-          name="pare-${GITHUB_REF_NAME}-${{ matrix.target }}"
+          name="pare-v$VERSION-$TARGET"
           mkdir "$name"
-          if [[ "${{ matrix.target }}" == *windows* ]]; then
-            cp "target/${{ matrix.target }}/release/pare.exe" "$name/"
-            cp README.md "$name/"
+          cp README.md LICENSE-MIT LICENSE-APACHE THIRD-PARTY-NOTICES "$name/"
+          if [[ "$TARGET" == *windows* ]]; then
+            cp "target/$TARGET/release/pare.exe" "$name/"
             7z a "$name.zip" "$name" >/dev/null
             echo "ASSET=$name.zip" >> "$GITHUB_ENV"
           else
-            cp "target/${{ matrix.target }}/release/pare" "$name/"
-            cp README.md "$name/"
+            cp "target/$TARGET/release/pare" "$name/"
             tar czf "$name.tar.gz" "$name"
             echo "ASSET=$name.tar.gz" >> "$GITHUB_ENV"
           fi
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.target }}
+          name: binary-${{ matrix.target }}
           path: ${{ env.ASSET }}
 
-  release:
-    name: Publish the release
-    needs: build
+  wheels:
+    name: Wheel ${{ matrix.os }} ${{ matrix.target }}
+    needs: check
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # manylinux: the wheel tag pip accepts on glibc distributions; the
+          # binary inside is the same pure-Rust build.
+          - { os: ubuntu-latest, target: x86_64, manylinux: auto }
+          - { os: ubuntu-24.04-arm, target: aarch64, manylinux: auto }
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-musl, manylinux: musllinux_1_2 }
+          - { os: macos-latest, target: aarch64-apple-darwin }
+          - { os: macos-latest, target: x86_64-apple-darwin }
+          - { os: windows-latest, target: x64 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          args: --release --locked --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.os }}-${{ matrix.target }}
+          path: dist/*.whl
+
+  sdist:
+    name: Source distribution (PyPI)
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+
+  github:
+    name: GitHub release
+    needs: [check, build]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: dist
+          pattern: binary-*
           merge-multiple: true
       - name: Checksums
-        run: cd dist && sha256sum * > SHA256SUMS
+        run: cd dist && sha256sum -- * > SHA256SUMS
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*
           generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+
+  homebrew:
+    name: Homebrew tap
+    needs: [check, github]
+    # A pre-release (v0.3.0-beta.1) does not go to the tap.
+    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
+    runs-on: macos-latest
+    env:
+      TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Formula for this release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "$GITHUB_REF_NAME" --pattern SHA256SUMS --dir /tmp
+          python3 packaging/homebrew/render.py "${{ needs.check.outputs.version }}" /tmp/SHA256SUMS > /tmp/pare.rb
+      # Installed, tested and audited in a throwaway local tap before it is
+      # published.
+      - name: Test the formula
+        run: |
+          brew tap-new --no-git local/test
+          cp /tmp/pare.rb "$(brew --repository local/test)/Formula/pare.rb"
+          brew install --formula local/test/pare
+          brew test local/test/pare
+          brew audit --strict local/test/pare
+      - name: Push to the tap
+        if: env.TAP_TOKEN != ''
+        run: |
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/wspires/homebrew-tap.git" /tmp/tap
+          mkdir -p /tmp/tap/Formula
+          cp /tmp/pare.rb /tmp/tap/Formula/pare.rb
+          cd /tmp/tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/pare.rb
+          git commit -m "pare ${{ needs.check.outputs.version }}"
+          git push
+      - name: No tap token
+        if: env.TAP_TOKEN == ''
+        run: echo "::warning::HOMEBREW_TAP_TOKEN is not set; the formula was tested but not published (RELEASING.md)"
+
+  pypi:
+    name: PyPI
+    needs: [github, wheels, sdist]
+    runs-on: ubuntu-latest
+    # Trusted publishing: PyPI accepts this workflow's identity, so no API
+    # token is stored (RELEASING.md sets it up). The environment lets the
+    # repository require an approval before anything is uploaded.
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: "{wheel-*,sdist}"
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  crates:
+    name: crates.io
+    # After the GitHub release, so `cargo binstall pare-cli` finds the
+    # archives it points at.
+    needs: github
+    runs-on: ubuntu-latest
+    env:
+      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Publish
+        if: env.CARGO_REGISTRY_TOKEN != ''
+        run: cargo publish --locked
+      - name: No crates.io token
+        if: env.CARGO_REGISTRY_TOKEN == ''
+        run: echo "::warning::CARGO_REGISTRY_TOKEN is not set; not published to crates.io (RELEASING.md)"

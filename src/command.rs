@@ -1,6 +1,6 @@
 //! Command mode, `pare [options] -- CMD [ARGS...]`: pare runs the command
 //! itself, so its exit code and its command line survive (a pipe keeps
-//! neither). `CommandRun` and `CommandOutput` in `proto/pare.py`.
+//! neither). `CommandRun` and `CommandOutput` in `reference/pare.py`.
 //!
 //! stdout and stderr are merged into one pipe, in the order the command
 //! wrote them; stdin is inherited. While the command runs, pare ignores

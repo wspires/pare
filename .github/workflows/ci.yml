@@ -38,8 +38,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: pip install -e '.[dev]'
-      - run: python -m pytest -q proto/
+      - run: pip install -r reference/requirements.txt
+      - run: python -m pytest -q reference/
 
   parity:
     name: Parity with the Python version
@@ -54,7 +54,37 @@ jobs:
       # The Unicode tables must be Python 3.13's (the reference's) classes.
       - run: python bench/gen_pyunicode.py | diff - src/pyunicode.rs
       - run: cargo build --release
-      # Byte for byte on everything the port does so far, and the per-line
-      # results line by line; output it does not produce yet (status 70) is
-      # skipped, and dump fields it does not compute yet ("?") are too.
+      # Byte for byte, output and exit status, and the per-line results
+      # line by line.
       - run: python bench/parity.py --candidate target/release/pare --dump --show 10
+
+  packaging:
+    name: Packaging (crate, wheel, install script)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # The crate builds from its published files alone.
+      - run: cargo package --locked
+      # The PyPI wheel: built, installed in a fresh venv, and run.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install maturin
+      - run: maturin build --release --out wheels
+      - run: |
+          python -m venv /tmp/wheel-venv
+          /tmp/wheel-venv/bin/pip install wheels/*.whl
+          /tmp/wheel-venv/bin/pare --version
+      # install.sh against a release laid out on disk as GitHub serves it.
+      - run: shellcheck install.sh packaging/test-install.sh
+      - run: cargo build --release --locked
+      - run: packaging/test-install.sh target/release/pare
+      # The Homebrew formula fills in from a release's checksums.
+      - run: |
+          for t in aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-musl x86_64-unknown-linux-musl; do
+            echo "0000  pare-v1.2.3-$t.tar.gz"
+          done > /tmp/SHA256SUMS
+          python3 packaging/homebrew/render.py 1.2.3 /tmp/SHA256SUMS > /tmp/pare.rb
+          ruby -c /tmp/pare.rb

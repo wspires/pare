@@ -1,6 +1,6 @@
 """Tests for the pare prototype.
 
-    .venv/bin/python -m pytest proto/
+    .venv/bin/python -m pytest reference/
 """
 
 import hashlib
