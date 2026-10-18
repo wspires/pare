@@ -41,8 +41,9 @@ use crate::store::Store;
 use crate::text::{clean_line, clip};
 use crate::vocab::{Class, NWORD_CLASSES, Vocab, level_only};
 
-/// Writes the input to `out` verbatim, one cleaned line per line, if it
-/// fits the budget. Returns whether it did.
+/// Writes the input to `out` verbatim, one cleaned line per line, and then
+/// `end` if given (command mode: a failing exit status), if it all fits
+/// the budget. Returns the bytes written, or `None` if it did not fit.
 ///
 /// A whole run that fits is the output, byte for byte: no header, and no
 /// run-file line (the run file holds nothing more). The cleaned text is
@@ -56,22 +57,30 @@ pub fn passthrough(
     store: &Store,
     spool: &Path,
     budget: Budget,
+    end: Option<&str>,
     out: &mut impl Write,
-) -> io::Result<bool> {
+) -> io::Result<Option<u64>> {
     // Rust note: comparing an unsigned byte count with a signed budget
     // needs an explicit conversion; Rust has no implicit integer promotions
     // and no signed/unsigned mixing. `i64::try_from` fails instead of
     // wrapping, so a count past i64::MAX (impossible here) counts as not
     // fitting rather than as a negative number that fits.
-    let fits = i64::try_from(store.verbatim_bytes).is_ok_and(|v| v <= budget.bytes());
+    let end_bytes = end.map_or(0, |e| e.len() as u64 + 1);
+    let fits = i64::try_from(store.verbatim_bytes + end_bytes).is_ok_and(|v| v <= budget.bytes());
     if !fits {
-        return Ok(false);
+        return Ok(None);
     }
+    let mut written = 0u64;
     store.for_each_raw(spool, |raw| {
-        out.write_all(clean_line(raw).as_bytes())?;
+        let line = clean_line(raw);
+        written += line.len() as u64 + 1;
+        out.write_all(line.as_bytes())?;
         out.write_all(b"\n")
     })?;
-    Ok(true)
+    if let Some(end) = end {
+        writeln!(out, "{end}")?;
+    }
+    Ok(Some(written + end_bytes))
 }
 
 // The allocation's constants, as in Python. Each one survived
@@ -160,7 +169,7 @@ pub fn fmt_int(n: i64) -> String {
         out.push('-');
     }
     for (k, c) in digits.chars().enumerate() {
-        if k > 0 && (digits.len() - k) % 3 == 0 {
+        if k > 0 && (digits.len() - k).is_multiple_of(3) {
             out.push(',');
         }
         out.push(c);

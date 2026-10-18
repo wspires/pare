@@ -19,6 +19,8 @@ fn pare(args: &[&str], input: &[u8]) -> Output {
     let mut child = Command::new(env!("CARGO_BIN_EXE_pare"))
         .args(args)
         .env_remove("PARE_VOCAB")
+        // No automatic pruning, so a run directory holds only what the test made.
+        .env("PARE_RUN_PRUNE", "off")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -113,19 +115,9 @@ fn empty_input_leaves_no_run_file() {
 
 #[test]
 fn unported_work_exits_70_and_says_so() {
-    let big = "ERROR something\n".repeat(2000);
-    for args in [
-        vec!["--no-tee", "--follow"],
-        vec!["--stats"],
-        vec!["--no-tee", "--", "true"],
-    ] {
-        let out = pare(&args, big.as_bytes());
-        assert_eq!(out.status.code(), Some(70), "{args:?}");
-        assert!(
-            String::from_utf8_lossy(&out.stderr).contains("not yet ported to Rust"),
-            "{args:?}"
-        );
-    }
+    let out = pare(&["--no-tee", "--follow"], b"ERROR something\n");
+    assert_eq!(out.status.code(), Some(70));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("not yet ported to Rust"));
 }
 
 #[test]
@@ -281,5 +273,118 @@ fn summary_fits_the_budget_and_names_the_run_file() {
     assert!(
         text.contains(&format!("## raw: {}", dir.path().join(&run[0]).display())),
         "{text}"
+    );
+}
+
+/// Runs pare with a run directory and returns (status, stdout).
+#[cfg(unix)]
+fn pare_in(dir: &Path, args: &[&str], env: &[(&str, &str)]) -> (Option<i32>, String) {
+    let out = Command::new(env!("CARGO_BIN_EXE_pare"))
+        .arg("--run-dir")
+        .arg(dir)
+        .args(args)
+        .env_remove("PARE_VOCAB")
+        .envs(env.iter().copied())
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    (
+        out.status.code(),
+        String::from_utf8_lossy(&out.stdout).into_owned(),
+    )
+}
+
+#[test]
+#[cfg(unix)]
+fn command_mode_keeps_the_exit_code_and_records_the_run() {
+    let dir = TempDir::new("command");
+    let d = dir.path();
+    // Output that fits passes through, with a failing status added.
+    let (code, out) = pare_in(
+        d,
+        &["--", "sh", "-c", "echo hello; echo err >&2; exit 3"],
+        &[],
+    );
+    assert_eq!((code, out.as_str()), (Some(3), "hello\nerr\n## exit 3\n"));
+    // A summary ends its run line with the status.
+    let script = "for i in $(seq 1 400); do echo \"INFO step $i\"; done; echo ERROR boom";
+    let (code, out) = pare_in(d, &["--budget", "300", "--", "sh", "-c", script], &[]);
+    assert_eq!(code, Some(0));
+    assert!(
+        out.lines().last().unwrap().ends_with(".log · exit 0"),
+        "{out}"
+    );
+    let (code, out) = pare_in(d, &["--", "true"], &[]);
+    assert_eq!(
+        (code, out.as_str()),
+        (Some(0), "# pare: no output · exit 0\n")
+    );
+    let (code, _) = pare_in(d, &["--", "/nonexistent/command"], &[]);
+    assert_eq!(code, Some(127));
+    // The record next to the run file, as Python writes it.
+    let json: Vec<String> = entries(d)
+        .into_iter()
+        .filter(|n| n.ends_with(".json"))
+        .collect();
+    assert_eq!(json.len(), 2, "{json:?}");
+    let text = fs::read_to_string(d.join("72d6e231d174.json")).unwrap();
+    assert!(
+        text.starts_with("{\n  \"command\": [\n    \"sh\",\n    \"-c\",\n"),
+        "{text}"
+    );
+    assert!(
+        text.contains("\n  \"exit\": 3,\n") && text.contains("\n  \"chars_per_token\": 2.8\n}\n"),
+        "{text}"
+    );
+    // --stats reads the records back.
+    let (code, out) = pare_in(d, &["--stats"], &[]);
+    assert_eq!(code, Some(0));
+    assert!(
+        out.starts_with("# pare --stats: 2 command runs in "),
+        "{out}"
+    );
+    assert!(
+        out.contains("1 run fit the budget and passed through whole\n## largest\n"),
+        "{out}"
+    );
+}
+
+#[test]
+#[cfg(unix)]
+fn prune_removes_old_and_excess_run_files() {
+    use std::time::{Duration, SystemTime};
+    let dir = TempDir::new("prune");
+    let d = dir.path();
+    let day = Duration::from_secs(86400);
+    for (name, age) in [
+        ("aaaaaaaaaaaa.log", 20),
+        ("bbbbbbbbbbbb.log", 3),
+        ("cccccccccccc.log", 0),
+        ("keep.log", 30),
+    ] {
+        let f = fs::File::create(d.join(name)).unwrap();
+        f.set_len(300_000).unwrap();
+        f.set_modified(SystemTime::now() - day * age).unwrap();
+    }
+    fs::write(d.join("aaaaaaaaaaaa.json"), "{\"exit\": 1}\n").unwrap();
+    let (_, out) = pare_in(d, &["--prune", "--dry-run"], &[]);
+    assert!(
+        out.starts_with("# pare --prune: would remove 1 file, 0.3 MB, in "),
+        "{out}"
+    );
+    assert!(out.ends_with("(keep 14 days, at most 500 MB; $PARE_RUN_KEEP_DAYS, $PARE_RUN_MAX_MB)\naaaaaaaaaaaa.log  293 KB  older than 14 days\n"), "{out}");
+    let (_, out) = pare_in(d, &["--prune"], &[("PARE_RUN_MAX_MB", "0.5")]);
+    assert!(
+        out.contains("bbbbbbbbbbbb.log  293 KB  over 0.5 MB in all"),
+        "{out}"
+    );
+    assert_eq!(
+        entries(d),
+        ["aaaaaaaaaaaa.json", "cccccccccccc.log", "keep.log"]
+    );
+    let meta = fs::read_to_string(d.join("aaaaaaaaaaaa.json")).unwrap();
+    assert!(
+        meta.starts_with("{\n  \"exit\": 1,\n  \"pruned\": \"") && meta.ends_with("Z\"\n}\n"),
+        "{meta}"
     );
 }

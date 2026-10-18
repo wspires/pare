@@ -50,7 +50,7 @@ Notes:
   `arm64`, and `rustup show` should list `aarch64-apple-darwin`. A
   terminal set to "Open using Rosetta", or an Intel Homebrew carried over
   from an older Mac, can make it `x86_64` instead.
-- **Version.** The crate needs Rust 1.85 or newer (`rust-version` in
+- **Version.** The crate needs Rust 1.87 or newer (`rust-version` in
   Cargo.toml). CI uses the latest stable, so a new clippy lint shows up
   there and on an up-to-date machine at the same time.
 - **Editor.** rust-analyzer (the VS Code extension, or JetBrains
