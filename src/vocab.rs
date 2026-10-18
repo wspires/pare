@@ -64,7 +64,7 @@ pub enum Class {
 /// The number of classes.
 pub const NCLASSES: usize = 13;
 /// The classes that are not level classes come first; this many.
-const NWORD_CLASSES: usize = 8;
+pub const NWORD_CLASSES: usize = 8;
 
 /// One class's fixed properties.
 struct ClassInfo {
@@ -365,6 +365,13 @@ static LEVEL_ONLY: LazyLock<PyRegex> = LazyLock::new(|| {
     tokens.sort_by_key(|t| std::cmp::Reverse(t.chars().count()));
     rx(&format!(r"(?i)^\W*(?:{})\W*$", tokens.join("|")))
 });
+
+/// Whether a line with a structural level says nothing else (`[ERROR]`
+/// alone): `LEVEL_ONLY_RX.match(text)`.
+#[must_use]
+pub fn level_only(text: &str) -> bool {
+    LEVEL_ONLY.match_start(text).is_some()
+}
 
 /// A call-stack frame: `at pkg.Cls.method(...)`, `File "x.py", line 3`.
 static STACK_FRAME: LazyLock<PyRegex> = LazyLock::new(|| {

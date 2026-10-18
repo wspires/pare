@@ -1,0 +1,80 @@
+# pare: 594 lines, 17,584 B (~6,280 tok) → ~985 tok (budget 1,000) · 8 templates
+## head (L1–L7)
+1: PASS src/components/Button.test.ts (0.556 s)
+  ┆ (5 lines)
+7: 
+## templates (by salience)
+T2   ×3 (80 lines) E L324: FAIL src/utils/parse.test.ts
+325:   parse
+  ┆ (5 lines)
+331:     ✕ memoizes #5 (18 ms)
+  ┆ (2 lines)
+334:   ● parse › throws on invalid #6
+  ┆ (1 line)
+336:     expect(received).toEqual(expected) // deep equality
+  ┆ (1 line)
+338:     - Expected  - 1
+339:     + Received  + 1
+  ┆ (1 line)
+341:       Object {
+  ┆ (1 line)
+343:     -   "currency": "USD",
+344:     +   "currency": undefined,
+  ┆ (2 lines)
+347:       41 |   it('parses currency', () => {
+  ┆ (1 line)
+349:     > 43 |     expect(out).toEqual({ amount: 1250, currency: 'USD' });
+  ┆ (1 line)
+351:       44 |   });
+  ┆ (1 line)
+353:       at Object.<anonymous> (src/utils/parse.test.ts:43:17)
+  ┆ (+10 more lines)
+## selected lines
+414:   useAuth
+  ┆ (10 lines)
+425:     ✕ formats date #10 (73 ms)
+  ┆ (2 lines)
+428:   ● useAuth › parses empty #11
+  ┆ (1 line)
+430:     TypeError: Cannot read properties of undefined (reading 'token')
+  ┆ (1 line)
+432:       17 |   const { data } = useFetch('/session');
+433:     > 18 |   return data.token;
+  ┆ (1 line)
+435:       19 | }
+  ┆ (1 line)
+437:       at useAuth (src/api/useAuth.ts:18:15)
+438:       at TestComponent (src/api/useAuth.test.ts:9:21)
+439:       at renderWithHooks (node_modules/react-dom/cjs/react-dom.development.js:1…(+8c)
+440:       at mountIndeterminateComponent (node_modules/react-dom/cjs/react-dom.deve…(+20c)
+441:       at beginWork (node_modules/react-dom/cjs/react-dom.development.js:21587:16)
+  ┆ (75 lines)
+517:   Table
+  ┆ (5 lines)
+523:     ✕ renders #5 (6 ms)
+  ┆ (2 lines)
+526:   ● Table › parses empty #6
+  ┆ (1 line)
+528:     thrown: "Exceeded timeout of 5000 ms for a test.
+529:     Add a timeout value to this test to increase the timeout, if this is a long…(+67c)
+  ┆ (1 line)
+531:       88 |
+532:     > 89 |   it('loads 10k rows', async () => {
+533:          |   ^
+534:       90 |     await store.load(rows);
+  ┆ (1 line)
+536:       at src/store/Table.test.ts:89:3
+## tail (L585–L594)
+585: Summary of all failing tests
+586:  FAIL  src/api/useAuth.test.ts
+587:  FAIL  src/store/Table.test.ts
+588:  FAIL  src/utils/parse.test.ts
+589: 
+590: Test Suites: 3 failed, 35 passed, 38 total
+591: Tests:       3 failed, 1 skipped, 418 passed, 421 total
+592: Snapshots:   0 total
+593: Time:        27.418 s
+594: Ran all test suites.
+## omitted 546/594 lines (91.9%): T1 ×465, T2 ×44 · 7 templates not listed; 51 blank
+## raw: (not saved)
+   expand with: pare --only T<n> < raw   ·   drop noise: pare --except T<n>,T<m> < raw

@@ -1,0 +1,116 @@
+    Updating crates.io index
+     Locking 64 packages to latest compatible versions
+ Downloading crates ...
+  Downloaded anstream v1.0.0
+  Downloaded aho-corasick v1.1.5
+  Downloaded colorchoice v1.0.5
+  Downloaded anstyle-query v1.1.5
+  Downloaded clap_lex v1.1.1
+  Downloaded strsim v0.11.1
+  Downloaded utf8parse v0.2.2
+  Downloaded is_terminal_polyfill v1.70.2
+  Downloaded itoa v1.0.18
+  Downloaded anstyle-parse v1.0.0
+  Downloaded heck v0.5.0
+  Downloaded autocfg v1.5.1
+  Downloaded zmij v1.0.23
+  Downloaded anstyle v1.0.14
+  Downloaded quote v1.0.47
+  Downloaded unicode-ident v1.0.26
+  Downloaded clap_derive v4.6.7
+  Downloaded iana-time-zone v0.1.65
+  Downloaded serde_derive v1.0.229
+  Downloaded num-traits v0.2.19
+  Downloaded proc-macro2 v1.0.107
+  Downloaded clap v4.6.7
+  Downloaded serde_core v1.0.229
+  Downloaded serde v1.0.229
+  Downloaded memchr v2.8.3
+  Downloaded regex v1.13.1
+  Downloaded serde_json v1.0.151
+  Downloaded clap_builder v4.6.7
+  Downloaded chrono v0.4.45
+  Downloaded syn v3.0.6
+  Downloaded regex-syntax v0.8.11
+  Downloaded regex-automata v0.4.18
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.26
+   Compiling memchr v2.8.3
+   Compiling utf8parse v0.2.2
+   Compiling serde_core v1.0.229
+   Compiling autocfg v1.5.1
+   Compiling anstyle-parse v1.0.0
+   Compiling anstyle v1.0.14
+   Compiling colorchoice v1.0.5
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling anstyle-query v1.1.5
+   Compiling zmij v1.0.23
+   Compiling anstream v1.0.0
+   Compiling num-traits v0.2.19
+   Compiling aho-corasick v1.1.5
+   Compiling heck v0.5.0
+   Compiling serde v1.0.229
+   Compiling syn v3.0.6
+   Compiling strsim v0.11.1
+   Compiling clap_lex v1.1.1
+   Compiling serde_json v1.0.151
+   Compiling regex-syntax v0.8.11
+   Compiling clap_builder v4.6.7
+   Compiling regex-automata v0.4.18
+   Compiling serde_derive v1.0.229
+   Compiling clap_derive v4.6.7
+   Compiling iana-time-zone v0.1.65
+   Compiling itoa v1.0.18
+   Compiling chrono v0.4.45
+   Compiling clap v4.6.7
+   Compiling regex v1.13.1
+   Compiling inventory v0.1.0 (/home/dev/proj)
+error[E0308]: mismatched types
+  --> src/main.rs:24:18
+   |
+24 |     let t: u32 = total(&items);
+   |            ---   ^^^^^^^^^^^^^ expected `u32`, found `f64`
+   |            |
+   |            expected due to this
+
+error[E0425]: cannot find function `undefined_function` in this scope
+  --> src/main.rs:26:19
+   |
+26 |     let missing = undefined_function(3);
+   |                   ^^^^^^^^^^^^^^^^^^ not found in this scope
+
+warning: unused variable: `y`
+ --> src/main.rs:7:39
+  |
+7 | fn unused_helper(x: i32) -> i32 { let y = 3; x * 2 }
+  |                                       ^ help: if this is intentional, prefix it with an underscore: `_y`
+  |
+  = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+  --> src/main.rs:11:9
+   |
+11 |     let mut count = 0;
+   |         ----^^^^^
+   |         |
+   |         help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `count`
+  --> src/main.rs:11:9
+   |
+11 |     let mut count = 0;
+   |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_count`
+
+warning: unused variable: `re`
+  --> src/main.rs:16:9
+   |
+16 |     let re = regex::Regex::new(r"^\d+$").unwrap();
+   |         ^^ help: if this is intentional, prefix it with an underscore: `_re`
+
+Some errors have detailed explanations: E0308, E0425.
+For more information about an error, try `rustc --explain E0308`.
+warning: `inventory` (bin "inventory") generated 4 warnings
+error: could not compile `inventory` (bin "inventory") due to 2 previous errors; 4 warnings emitted

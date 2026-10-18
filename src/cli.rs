@@ -305,13 +305,53 @@ fn batch(args: &Args, vocab: &Vocab) -> Result<()> {
     let wrote = summary::passthrough(&store, &spool_path, budget, &mut out)
         .map_err(|e| Error::io("writing the output", e))?;
     if !wrote {
-        return Err(Error::NotPorted(
-            "summaries of input larger than the budget",
-        ));
+        let opts = summary::Options {
+            budget,
+            head: args.head,
+            tail: args.tail,
+            width: args.width,
+            max_templates: args.max_templates,
+            run_path: tee.then(|| py_abspath(&spool_path)),
+            in_bytes: store.total_bytes,
+            note: None,
+        };
+        let text = summary::summarize(&store, vocab, &spool_path, &opts)
+            .map_err(|e| Error::io("reading the run file back", e))?;
+        out.write_all(text.as_bytes())
+            .map_err(|e| Error::io("writing the output", e))
+            .or_else(ignore_broken_pipe)?;
     }
     out.flush()
         .map_err(|e| Error::io("writing the output", e))
         .or_else(ignore_broken_pipe)
+}
+
+/// Python's `os.path.abspath()`: the path made absolute against the
+/// current directory and normalised (`.` and `..` resolved by name, not
+/// by following symlinks), as the run line shows it.
+fn py_abspath(path: &std::path::Path) -> String {
+    use std::path::Component;
+    let joined = std::env::current_dir().map_or_else(|_| path.to_path_buf(), |cwd| cwd.join(path));
+    let mut parts: Vec<std::ffi::OsString> = Vec::new();
+    let mut root = String::new();
+    // Rust note: `components()` already drops `.` and repeated separators;
+    // `..` is left for the caller to resolve, as `normpath` does by name.
+    for c in joined.components() {
+        match c {
+            Component::Prefix(p) => root.push_str(&p.as_os_str().to_string_lossy()),
+            Component::RootDir => root.push(std::path::MAIN_SEPARATOR),
+            Component::CurDir => {}
+            Component::ParentDir => {
+                parts.pop();
+            }
+            Component::Normal(n) => parts.push(n.to_os_string()),
+        }
+    }
+    let rest: Vec<String> = parts
+        .iter()
+        .map(|p| p.to_string_lossy().into_owned())
+        .collect();
+    format!("{root}{}", rest.join(std::path::MAIN_SEPARATOR_STR))
 }
 
 fn create_dir(dir: &std::path::Path) -> Result<()> {

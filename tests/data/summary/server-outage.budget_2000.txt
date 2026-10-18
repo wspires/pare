@@ -1,0 +1,29 @@
+# pare: 4,813 lines, 535,403 B (~191,216 tok) → ~888 tok (budget 2,000) · 14 templates
+## head (L1–L3)
+1: 2026-10-07T09:00:00.000Z INFO  [main] starting inventory-api v2.14.3 (git 9f1c2ab) pid=4182
+2: 2026-10-07T09:00:00.012Z INFO  [main] config: db=postgres://db-primary.internal:5432/inv pool=20 cache=redis://cache:6379
+3: 2026-10-07T09:00:00.140Z INFO  [main] listening on 0.0.0.0:8080
+## templates (by salience)
+T12  ×1 E L3250: 2026-10-07T09:01:05.848Z FATAL [db] giving up after 30 reconnect attempts; circuit breaker OPEN for 60s
+T8   ×1 E L3001: 2026-10-07T09:01:01.277Z ERROR [db] connection to db-primary.internal:5432 lost: read tcp 10.4.1.17:53022->10.4.2.5:5432: connection reset by peer
+T10  ×6 (42 lines) E L3003: 2026-10-07T09:01:01.288Z ERROR [worker-0] unhandled exception in handler OrdersHandler.list
+3004:     psycopg.OperationalError: connection failed: server closed the connection unexpectedly
+3005:         at inventory/db/pool.py:212 in acquire
+3006:         at inventory/db/pool.py:188 in _checkout
+3007:         at inventory/handlers/orders.py:57 in list
+3008:         at inventory/http/router.py:140 in dispatch
+3009:         at inventory/http/server.py:88 in handle_request
+T9   ×180 E L3002: 2026-10-07T09:01:01.281Z ERROR [worker-0] http: GET /api/v1/cart 500 1137ms rid=bb94b0cd err="pool exhausted: timed out waiting for connection after 5000ms"
+T11  ×26 E L3010: 2026-10-07T09:01:01.301Z WARN  [db] reconnect attempt 1/30 to db-primary.internal:5432 failed: dial tcp: connection refused
+T7   ×40 W L2298: 2026-10-07T09:00:46.803Z WARN  [cache] redis GET slow: 452ms key=product:2956 (threshold 250ms)
+T13  ×1 . L3251: 2026-10-07T09:01:05.864Z INFO  [db] reconnected to db-primary.internal:5432 (pool 20/20 healthy)
+## selected lines
+3011: 2026-10-07T09:01:01.319Z ERROR [worker-3] http: GET /api/v1/cart 500 4200ms rid=7458b4d2 err="pool exhausted: timed out waiting for connection after 5000ms"
+  ┆ (33 lines)
+3045: 2026-10-07T09:01:02.113Z ERROR [worker-6] unhandled exception in handler OrdersHandler.list
+## tail (L4812–L4813)
+4812: 2026-10-07T09:01:38.741Z INFO  [main] received SIGTERM, draining 12 in-flight requests
+4813: 2026-10-07T09:01:38.749Z INFO  [main] shutdown complete exit=0
+## omitted 4,793/4,813 lines (99.6%): T4 ×4,340, T9 ×178, T5 ×172, T7 ×39, T10 ×34, T11 ×25, T6 ×5 · 7 templates not listed
+## raw: (not saved)
+   expand with: pare --only T<n> < raw   ·   drop noise: pare --except T<n>,T<m> < raw
