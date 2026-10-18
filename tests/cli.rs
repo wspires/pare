@@ -116,7 +116,6 @@ fn unported_work_exits_70_and_says_so() {
     let big = "ERROR something\n".repeat(2000);
     for args in [
         vec!["--no-tee", "--follow"],
-        vec!["--no-tee", "--only", "T1"],
         vec!["--stats"],
         vec!["--no-tee", "--", "true"],
     ] {

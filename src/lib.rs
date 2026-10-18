@@ -33,6 +33,7 @@ pub mod pyre;
 pub mod pyunicode;
 pub mod runfile;
 pub mod score;
+pub mod select;
 pub mod store;
 pub mod summary;
 pub mod text;

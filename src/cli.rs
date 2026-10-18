@@ -18,6 +18,7 @@ use crate::error::{Error, Result};
 use crate::pass;
 use crate::runfile::{Spool, default_run_dir};
 use crate::score;
+use crate::select;
 use crate::summary;
 use crate::vocab::{self, Vocab};
 
@@ -214,11 +215,6 @@ fn dispatch(args: &Args, command: Option<&[OsString]>) -> Result<()> {
         }
         return Err(Error::NotPorted("--follow"));
     }
-    if args.selecting() {
-        return Err(Error::NotPorted(
-            "--only/--except/--since/--until/--min-severity",
-        ));
-    }
     batch(args, &vocab)
 }
 
@@ -302,6 +298,33 @@ fn batch(args: &Args, vocab: &Vocab) -> Result<()> {
             .map_err(|e| Error::io("writing $PARE_DUMP", e))?;
     }
 
+    let run_path = tee.then(|| py_abspath(&spool_path));
+    if args.selecting() {
+        // Checked in Python's order, after the input is read and saved.
+        let ntpl = store.templates.len();
+        let sel = select::Selection {
+            only: select::parse_tids(args.only.as_deref(), ntpl).map_err(Error::Usage)?,
+            exclude: select::parse_tids(args.exclude.as_deref(), ntpl).map_err(Error::Usage)?,
+            min_severity: args.min_severity.as_deref().map(severity_by_name),
+            since: select::parse_lineno(args.since.as_deref(), store.len(), "--since")
+                .map_err(Error::Usage)?,
+            until: select::parse_lineno(args.until.as_deref(), store.len(), "--until")
+                .map_err(Error::Usage)?,
+        };
+        let text = select::select(
+            &store,
+            &sel,
+            budget,
+            args.width,
+            run_path.as_deref(),
+            &spool_path,
+        )
+        .map_err(|e| match e {
+            Ok(msg) => Error::Usage(msg),
+            Err(e) => Error::io("reading the run file back", e),
+        })?;
+        return write_out(&mut out, text.as_bytes());
+    }
     let wrote = summary::passthrough(&store, &spool_path, budget, &mut out)
         .map_err(|e| Error::io("writing the output", e))?;
     if !wrote {
@@ -311,7 +334,7 @@ fn batch(args: &Args, vocab: &Vocab) -> Result<()> {
             tail: args.tail,
             width: args.width,
             max_templates: args.max_templates,
-            run_path: tee.then(|| py_abspath(&spool_path)),
+            run_path,
             in_bytes: store.total_bytes,
             note: None,
         };
@@ -324,6 +347,17 @@ fn batch(args: &Args, vocab: &Vocab) -> Result<()> {
     out.flush()
         .map_err(|e| Error::io("writing the output", e))
         .or_else(ignore_broken_pipe)
+}
+
+/// `SEVERITY_BY_NAME`: a `--min-severity` level (clap has checked it).
+fn severity_by_name(name: &str) -> u8 {
+    match name {
+        "debug" => 0,
+        "info" => 1,
+        "warn" => 2,
+        "error" => 3,
+        _ => 4,
+    }
 }
 
 /// Python's `os.path.abspath()`: the path made absolute against the

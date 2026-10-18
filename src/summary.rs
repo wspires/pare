@@ -191,7 +191,9 @@ fn all_digits(t: &str) -> bool {
     !t.is_empty() && t.chars().all(py_isdigit)
 }
 
-fn gap_marker(gap: usize) -> String {
+/// `gap_marker()`: the marker between non-adjacent lines.
+#[must_use]
+pub fn gap_marker(gap: usize) -> String {
     format!(
         "  ┆ ({} line{})",
         fmt_int(gap as i64),
