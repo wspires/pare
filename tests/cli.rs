@@ -159,3 +159,30 @@ fn version() {
         format!("pare {}", env!("CARGO_PKG_VERSION"))
     );
 }
+
+#[test]
+fn dump_has_python_format_with_todo_fields() {
+    let dir = TempDir::new("dump");
+    let dump = dir.path().join("d.tsv");
+    let mut child = Command::new(env!("CARGO_BIN_EXE_pare"))
+        .args(["--no-tee"])
+        .env("PARE_DUMP", &dump)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(b"ERROR a 1\n  detail\n\nERROR a 2\n")
+        .unwrap();
+    assert!(child.wait().unwrap().success());
+    let text = fs::read_to_string(&dump).unwrap();
+    let rows: Vec<&str> = text.lines().collect();
+    assert_eq!(rows[0], "# pare dump v1");
+    // no, record, depth, severity (not yet), blank, template, score (not yet), sizes
+    assert_eq!(rows[1], "L\t1\t0\t0\t?\t0\tT1\t?\t13\t9");
+    assert_eq!(rows[3], "L\t3\t-1\t0\t?\t1\t-\t?\t4\t0");
+    assert_eq!(rows[5], "T\tT1\t2\t3\t2\t?\t?\t?\t?\t?\t?\tERROR a <NUM>");
+}

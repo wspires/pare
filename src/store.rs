@@ -1,19 +1,38 @@
-//! Where each line is: the `Store` class of `proto/pare.py`, so far only
-//! its offsets and byte counts.
+//! What the pass learned about each line, record and template: the `Store`
+//! class of `proto/pare.py`, so far without severity and scores.
 //!
 //! pare never keeps the input's text in memory. Every chunk is written to
 //! the spool file (the run file, or a temporary file under `--no-tee`) as it
 //! arrives, and the store records, per line, where it starts in that file
-//! and how long it is. A line's text is read back only when the output
-//! needs it. Later stages add more per-line columns (record, depth,
-//! severity, score), one vector each, as the Python version keeps one typed
-//! array each.
+//! and how long it is, plus what segmentation found: which record the line
+//! belongs to and how deep in it. A line's text is read back only when the
+//! output needs it.
+//!
+//! Each fact is a column: one `Vec` per field, indexed by line (or by
+//! record), as the Python version keeps one typed array each. A column of
+//! `u32` costs 4 bytes a line; a `Vec` of per-line structs with the same
+//! fields would cost the same or more and be slower to scan one field of.
 
 use std::fs::File;
 use std::io::{self, BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
 
-/// Per-line offsets and sizes for one input.
+/// One template (a Drain cluster) as this input uses it.
+#[derive(Debug, Clone)]
+pub struct Template {
+    /// The template text, final once the pass is over.
+    pub text: String,
+    /// Drain's id for the cluster.
+    pub cluster_id: usize,
+    /// Records of this template.
+    pub count: u32,
+    /// Lines in those records (heads, continuations, adopted blank lines).
+    pub lines: u32,
+    /// Records of this template in the whole input (in batch mode, `count`).
+    pub total: u32,
+}
+
+/// Per-line, per-record and per-template results for one input.
 #[derive(Debug, Default)]
 pub struct Store {
     /// Byte offset of each raw line in the spool.
@@ -27,6 +46,33 @@ pub struct Store {
     /// Bytes of the cleaned text with one newline per line: the size of a
     /// verbatim pass-through.
     pub verbatim_bytes: u64,
+
+    /// Per line: the record it belongs to, or `None` for a blank line
+    /// outside any record.
+    // Rust note: `Option<u32>` where Python stores -1 for "none". The
+    // compiler makes every use say what happens in the `None` case, so
+    // "forgot to check for -1" cannot happen. It costs 8 bytes rather than
+    // 4; a `u32` with a sentinel would halve that if memory ever mattered.
+    pub rec: Vec<Option<u32>>,
+    /// Per line: 0 for a record's head, 1 and up for continuation lines.
+    pub depth: Vec<u32>,
+    /// Per line: whether it is blank.
+    pub blank: Vec<bool>,
+    /// Per line: bytes of the rendered line (`"<no>: <clipped text>"`) plus
+    /// its newline.
+    pub rlen: Vec<u32>,
+    /// Per line: characters of the text after `strip()`.
+    pub slen: Vec<u32>,
+
+    /// Per record: its first line.
+    pub rstart: Vec<u32>,
+    /// Per record: one past its last line.
+    pub rend: Vec<u32>,
+    /// Per record: its template, an index into `templates`.
+    pub rtpl: Vec<u32>,
+
+    /// Templates in order of first appearance: `T1` is `templates[0]`.
+    pub templates: Vec<Template>,
 }
 
 impl Store {
@@ -48,8 +94,15 @@ impl Store {
         self.off.is_empty()
     }
 
-    /// Records a line of `raw_len` bytes (newline excluded) whose cleaned
-    /// text is `clean_len` bytes long. Lines are pushed in input order.
+    /// Number of records.
+    #[must_use]
+    pub fn nrecords(&self) -> usize {
+        self.rstart.len()
+    }
+
+    /// Records where a line of `raw_len` bytes (newline excluded) is, and
+    /// that its cleaned text is `clean_len` bytes long. Lines are pushed in
+    /// input order; the other per-line columns are filled by the pass.
     ///
     /// # Panics
     ///

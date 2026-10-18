@@ -18,8 +18,10 @@ reported as the first row that differs, which says where two
 implementations part ways long before the summaries show it.
 
 With --skip-unported, a candidate run that exits with status 70 and says
-"not yet ported" counts as skipped rather than as a difference, so a port
-can be checked on what it does so far.
+"not yet ported" has its output skipped rather than counted as a
+difference, so a port can be checked on what it does so far. Its dump is
+still compared if it wrote one, and a dump field the candidate writes as
+"?" (not computed yet) is not compared.
 
 Exits 1 if anything differs.
 """
@@ -56,7 +58,6 @@ CASES = [
 QUICK = [CASES[0], CASES[2], CASES[7], CASES[11]]
 SELECTING = ("--only", "--except", "--min-severity", "--since", "--until", "--follow")
 NOT_PORTED = 70  # the Rust port's status for what it does not do yet (src/error.rs)
-SKIPPED = "skipped"
 
 
 def corpus_logs() -> list[str]:
@@ -87,6 +88,15 @@ def edge_cases(directory: str) -> list[str]:
         "no-trailing-newline-big": ("2026-10-07T09:00:00Z INFO request ok\n" * 3000
                                     + "2026-10-07T09:00:01Z ERROR worker crashed").encode(),
         "repeated-trace": (trace * 200 + "=== 200 failed ===\n").encode(),
+        # Continuation lines 300 columns deeper than their head: the depth
+        # overflowed a signed byte in the Python version until it was fixed.
+        # Characters where Python's \\w, \\d and isdigit() differ from Rust's,
+        # next to numbers and in paths, on record heads so the masks see them.
+        "unicode-classes": "".join(
+            f"{h} job{i} x\u0301{i} 5\u00b2 v1.2\u0301 a\u0301/b {i}\u00b9 \u0e50{i} {d}{i} "
+            f"\u203f{i} 10.0.0.{i}\u0301 2026-10-0{i % 9 + 1}\u0301 0xff\u00b2\n"
+            for i in range(60) for h, d in (("ERROR", "\U00016ac0"), ("WARN", "\U0001e4f0"))).encode(),
+        "deep-indent": ("ERROR head\n" + " " * 300 + "deep line\n" + "\t" * 80 + "deeper\nINFO next\n").encode(),
     }
     paths = []
     for name, data in cases.items():
@@ -116,9 +126,35 @@ def first_difference(a: bytes, b: bytes, label: str, context: int = 3) -> str:
     return f"  {label}:\n" + "\n".join("    " + d for d in diff[:40]) + ("\n    ..." if len(diff) > 40 else "")
 
 
-def compare(job) -> tuple[str, list[str]] | str | None:
-    """None if the runs agree, SKIPPED for an unported candidate run under
-    --skip-unported, else (name, problems)."""
+TODO_FIELD = "?"  # a dump field the candidate does not compute yet (src/dump.rs)
+
+
+def compare_dumps(ref: bytes, cand: bytes) -> tuple[str | None, int]:
+    """The first rows where two dumps differ, ignoring fields the candidate
+    writes as TODO_FIELD, and how many fields were ignored."""
+    rl = ref.decode("utf-8", "replace").splitlines()
+    cl = cand.decode("utf-8", "replace").splitlines()
+    skipped = 0
+    shown = []
+    for i in range(max(len(rl), len(cl))):
+        r = rl[i] if i < len(rl) else "(no row)"
+        c = cl[i] if i < len(cl) else "(no row)"
+        rf, cf = r.split("\t"), c.split("\t")
+        skipped += sum(1 for x in cf if x == TODO_FIELD)
+        same = len(rf) == len(cf) and all(y == TODO_FIELD or x == y for x, y in zip(rf, cf))
+        if not same and len(shown) < 3:
+            # Label by the row's own key: "L 229" (input line 229), "T T8".
+            label = " ".join(rf[:2]) if len(rf) >= 2 and rf[0] in ("L", "T") else f"row {i + 1}"
+            shown.append(f"    at {label}:\n      reference {r[:300]}\n      candidate {c[:300]}")
+    if not shown:
+        return None, skipped
+    return "  per-line dump (first rows that differ; ? = not computed by the candidate yet):\n" + "\n".join(shown), skipped
+
+
+def compare(job) -> dict:
+    """Runs reference and candidate on one input and one flag set. The
+    result says what differed (problems), whether the candidate's output was
+    skipped as not yet ported, and whether and how its dump was compared."""
     ref, cand, log, args, use_dump, skip_unported, tmp = job
     name = f"{os.path.relpath(log, ROOT) if log.startswith(ROOT) else os.path.basename(log)} {' '.join(args)}"
     want_dump = use_dump and not any(a in SELECTING for a in args)
@@ -130,28 +166,31 @@ def compare(job) -> tuple[str, list[str]] | str | None:
         os.close(fd)
     r = run(ref, args, log, dumps[0])
     c = run(cand, args, log, dumps[1])
-    if skip_unported and c[0] == NOT_PORTED and b"not yet ported" in c[2]:
-        for d in dumps:
-            if d:
-                os.unlink(d)
-        return SKIPPED
-    problems = []
-    if r[0] != c[0]:
-        problems.append(f"  exit code: reference {r[0]}, candidate {c[0]}"
-                        + (f"\n  candidate stderr: {c[2].decode('utf-8', 'replace').strip()[:500]}" if c[2] else ""))
+    unported = skip_unported and c[0] == NOT_PORTED and b"not yet ported" in c[2]
+    res = {"name": name, "problems": [], "skipped": unported, "dumped": False, "todo_fields": 0}
     if want_dump:
         with open(dumps[0], "rb") as f:
             rd = f.read()
         with open(dumps[1], "rb") as f:
             cd = f.read()
-        if rd != cd:
-            problems.append(first_difference(rd, cd, "per-line dump (first rows that differ)", context=1))
-    if r[1] != c[1]:
-        problems.append(first_difference(r[1], c[1], "output"))
+        # A run the candidate does not finish can still have dumped the pass:
+        # compare that, so a port is checked line by line before it summarises.
+        if rd or cd:
+            res["dumped"] = True
+            problem, res["todo_fields"] = compare_dumps(rd, cd)
+            if problem:
+                res["problems"].append(problem)
+    if not unported:
+        if r[0] != c[0]:
+            res["problems"].append(f"  exit code: reference {r[0]}, candidate {c[0]}"
+                                   + (f"\n  candidate stderr: {c[2].decode('utf-8', 'replace').strip()[:500]}"
+                                      if c[2] else ""))
+        if r[1] != c[1]:
+            res["problems"].append(first_difference(r[1], c[1], "output"))
     for d in dumps:
         if d:
             os.unlink(d)
-    return (name, problems) if problems else None
+    return res
 
 
 def main() -> int:
@@ -176,22 +215,26 @@ def main() -> int:
         if not args.no_edge:
             logs += edge_cases(tmp)
         jobs = [(ref, cand, log, case, args.dump, args.skip_unported, tmp) for log in logs for case in cases]
-        failures = []
-        skipped = 0
+        results = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
-            for res in pool.map(compare, jobs):
-                if res == SKIPPED:
-                    skipped += 1
-                elif res:
-                    failures.append(res)
-        for name, problems in failures[: args.show]:
-            print(f"DIFF {name}")
-            print("\n".join(problems))
-        for name, _ in failures[args.show:]:
-            print(f"DIFF {name}")
-        print(f"# parity: {len(jobs)} runs ({len(logs)} inputs x {len(cases)} flag sets), "
-              f"{len(failures)} differ" + (f", {skipped} skipped (not yet ported)" if args.skip_unported else "")
-              + (" (per-line dumps compared)" if args.dump else ""))
+            results = list(pool.map(compare, jobs))
+        failures = [r for r in results if r["problems"]]
+        skipped = sum(1 for r in results if r["skipped"] and not r["problems"])
+        dumped = sum(1 for r in results if r["dumped"])
+        todo = sum(r["todo_fields"] for r in results)
+        for r in failures[: args.show]:
+            print(f"DIFF {r['name']}")
+            print("\n".join(r["problems"]))
+        for r in failures[args.show:]:
+            print(f"DIFF {r['name']}")
+        summary = f"# parity: {len(jobs)} runs ({len(logs)} inputs x {len(cases)} flag sets), {len(failures)} differ"
+        if args.skip_unported:
+            summary += f", {skipped} with output not yet ported"
+        if args.dump:
+            summary += f"; per-line dumps compared on {dumped} runs"
+            if todo:
+                summary += f" ({todo:,} fields not computed by the candidate yet)"
+        print(summary)
     return 1 if failures else 0
 
 

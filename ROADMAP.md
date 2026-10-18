@@ -288,8 +288,23 @@ with warnings as errors, few dependencies, each one justified.
   static Linux (musl), macOS (both) and Windows archives on version tags.
   `docs/ARCHITECTURE.md` and `docs/RUST.md` started. Not ported with it:
   run-file pruning and the command-mode `.json` record (stage 5). *Done.*
-- [ ] **2. Masking and Drain.** Template ids match on every line (the dump's
-  template column).
+- [x] **2. Segmentation, masking and Drain.** Lines into records (indent,
+  continuation shapes, logcat entries, one blank inside a block, the
+  400-line cap), the twelve masks, `drain_message` and Drain, with the
+  per-line and per-template columns and `$PARE_DUMP` in Python's format
+  (`?` for severity and scores). Parity with `--dump`: 0 of 2,522 runs
+  differ, and every comparable field of all 1,351 batch dumps matches
+  (records, depth, templates and their text, rendered sizes). Python's
+  `\w`, `\d`, `\s` and `isdigit()` differ from Rust's on about 8,000
+  characters, so their tables are generated from Python 3.13
+  (`bench/gen_pyunicode.py`, `src/pyunicode.rs`, checked in CI). Masks
+  need lookaround: the `regex` crate scans for candidates and
+  `fancy-regex` checks Python's pattern only there (14 times faster than
+  `fancy-regex` alone; the pass over 30 MB takes 2.1 s, Python's full
+  run 28.5 s). A golden file of Python's `mask()` on 4,045 record heads
+  (`bench/gen_fixtures.py`). Found in the reference: a line indented 256
+  columns past its head crashed it (depth was a signed byte); fixed, with
+  a test. *Done.*
 - [ ] **3. Vocabulary, severity, scoring.** The whole per-line dump matches.
   Starts with `fancy-regex` (it accepts Python's lookarounds) for correct
   output first; hot patterns then move to the `regex` crate with their

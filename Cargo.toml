@@ -15,6 +15,7 @@ publish = false
 # Each dependency is justified in docs/ARCHITECTURE.md ("Dependencies").
 [dependencies]
 clap = { version = "4.5", features = ["derive", "env"] }
+fancy-regex = "0.19"
 memchr = "2"
 regex = "1.11"
 sha2 = "0.10"
