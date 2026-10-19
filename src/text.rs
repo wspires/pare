@@ -1,5 +1,5 @@
 //! Turning a raw input line into the text pare works with: `clean_line()`
-//! in `proto/pare.py`.
+//! in `reference/pare.py`.
 //!
 //! Input is bytes, and logs are not always valid UTF-8. A line is decoded
 //! with invalid sequences replaced by U+FFFD, reduced to what a terminal
@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn clip_like_python() {
-        // Values from proto/pare.py's clip().
+        // Values from reference/pare.py's clip().
         let x300 = "abcdefghij".repeat(30);
         let cases: [(&str, i64, String); 7] = [
             ("xxxxxxxxxx", 10, "xxxxxxxxxx".into()),

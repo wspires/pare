@@ -1,7 +1,7 @@
 //! Python regular expressions, matched as Python's `re` matches them, at
 //! the speed of Rust's linear-time `regex` crate where possible.
 //!
-//! pare's patterns are written in Python's syntax (`proto/pare.py` is the
+//! pare's patterns are written in Python's syntax (`reference/pare.py` is the
 //! reference) and use what `re` has and the `regex` crate lacks:
 //! lookahead, lookbehind, and `\b` on Python's word characters (see
 //! [`crate::pyclass`]). The backtracking `fancy-regex` crate has all of

@@ -1,6 +1,6 @@
 //! The vocabulary: what words, levels and shapes say about a line. The
 //! `VOCAB_CLASSES`, `DEFAULT_VOCAB`, `Vocab`, `parse_vocab`, `dump_vocab`,
-//! severity and `vocab_score` parts of `proto/pare.py`.
+//! severity and `vocab_score` parts of `reference/pare.py`.
 //!
 //! A line's salience comes from two kinds of evidence:
 //!
@@ -951,10 +951,12 @@ mod tests {
                 .unwrap()
         };
         assert_eq!(dump_vocab(&default_entries()), golden("vocab.txt"));
-        let example =
-            std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/proto/vocab.example"))
-                .unwrap();
-        let entries = parse_vocab(&example, &default_entries(), "proto/vocab.example").unwrap();
+        let example = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/reference/vocab.example"
+        ))
+        .unwrap();
+        let entries = parse_vocab(&example, &default_entries(), "reference/vocab.example").unwrap();
         assert_eq!(dump_vocab(&entries), golden("vocab-example.txt"));
         Vocab::new(entries).unwrap();
     }

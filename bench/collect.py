@@ -176,7 +176,7 @@ def append_manifest(corpus: str, row: list[str]) -> None:
 
 def pare_version() -> str:
     try:
-        with open(os.path.join(ROOT, "proto", "pare.py"), encoding="utf-8") as f:
+        with open(os.path.join(ROOT, "reference", "pare.py"), encoding="utf-8") as f:
             m = re.search(r'^__version__ = "([^"]+)"', f.read(), re.M)
         return m.group(1) if m else "?"
     except OSError:

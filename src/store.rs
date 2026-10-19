@@ -1,5 +1,5 @@
 //! What the pass learned about each line, record and template: the `Store`
-//! class of `proto/pare.py`.
+//! class of `reference/pare.py`.
 //!
 //! pare never keeps the input's text in memory. Every chunk is written to
 //! the spool file (the run file, or a temporary file under `--no-tee`) as it

@@ -1,5 +1,5 @@
 //! Python's character classes, for code that must classify characters
-//! exactly as `proto/pare.py` does.
+//! exactly as `reference/pare.py` does.
 //!
 //! The tables are in [`crate::pyunicode`], generated from Python by
 //! `bench/gen_pyunicode.py`. This module looks characters up in them and

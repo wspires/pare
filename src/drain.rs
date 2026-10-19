@@ -1,5 +1,6 @@
-//! The Drain log-template miner: the `Drain` class in `proto/pare.py`,
-//! itself the core of drain3 0.9.11 (MIT; github.com/logpai/Drain3).
+//! The Drain log-template miner: the `Drain` class in `reference/pare.py`,
+//! itself the core of drain3 0.9.11 (MIT; github.com/logpai/Drain3; its
+//! license is in THIRD-PARTY-NOTICES).
 //!
 //! Each masked record head goes in; out comes the cluster (template) it
 //! belongs to. A prefix tree keyed on the token count and the first token
@@ -234,7 +235,7 @@ mod tests {
 
     #[test]
     fn past_the_child_limit_tokens_share_the_wildcard() {
-        // Numbers from proto/pare.py's Drain on the same messages: 99 first
+        // Numbers from reference/pare.py's Drain on the same messages: 99 first
         // tokens get their own node, the 100th slot becomes `<*>`, and every
         // later message (a token with a digit too) joins cluster 100.
         let mut d = Drain::new();

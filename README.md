@@ -155,32 +155,37 @@ with `↳ continues L1: ERROR …`, naming the head its first lines belong
 to. Blocks start with a `# pare #` line; split the stream on that, since
 a verbatim block can contain the input's own blank lines. The run file is named up front and
 appended as the stream runs, so every block's `--since/--until` range can
-be expanded with the usual flags afterwards. Unix only: the loop waits
-on stdin with `select`.
+be expanded with the usual flags afterwards.
 
 ## Install
 
-pare is being ported to Rust for a single-binary install and speed on
-large logs ([docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) has its status).
-Until the Rust version matches this one byte for byte, the Python
-version below is the one to use. Building and testing the Rust version:
-[CONTRIBUTING.md](CONTRIBUTING.md).
-
-pare is one file, `proto/pare.py`, with no dependencies beyond Python 3.10
-or newer: copy it anywhere on your PATH and run it.
+pare is a single binary with no dependencies. Any of these installs the
+`pare` command (the package is `pare-cli` where `pare` was taken):
 
 ```
-# the file alone
-cp proto/pare.py ~/.local/bin/pare
+brew install wspires/tap/pare                    # macOS and Linux (Homebrew)
+curl -sSfL https://raw.githubusercontent.com/wspires/pare/main/install.sh | sh
+                                                 # macOS and Linux: to ~/.local/bin
+pipx install pare-cli                            # or: uv tool install pare-cli, uvx pare-cli
+cargo binstall pare-cli                          # the release binary, via cargo
+cargo install pare-cli                           # built from source (Rust 1.87+)
+```
+
+Or download an archive for Linux (x86-64 and ARM, statically linked),
+macOS (Apple Silicon and Intel) or Windows from the
+[releases](https://github.com/wspires/pare/releases) page; each has a
+`SHA256SUMS` entry. Then:
+
+```
 pytest -v 2>&1 | pare --budget 2000
-
-# or as an installed tool (add --editable to track the checkout)
-uv tool install .            # or: pipx install .
-
-# or a virtualenv
-python3 -m venv .venv && .venv/bin/pip install -e '.[dev,bench]'
-pytest -v 2>&1 | .venv/bin/pare --budget 2000
+pare --budget 2000 -- make test
 ```
+
+pare is written in Rust. It began as a Python prototype, which is kept as
+the reference the Rust version is tested against byte for byte
+([reference/pare.py](reference/pare.py), one file, Python 3.10+, no
+dependencies); building from a checkout and running the tests are in
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 Template clustering uses the Drain algorithm, built in: a copy of the
 core of [drain3](https://github.com/logpai/Drain3) 0.9.11 (MIT), which
@@ -306,20 +311,18 @@ for a native port are in [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Tests
 
-Setting up, building and testing both versions, and the checks CI runs,
-are in [CONTRIBUTING.md](CONTRIBUTING.md). For the Python version:
+Setting up, building and testing, and the checks CI runs, are in
+[CONTRIBUTING.md](CONTRIBUTING.md). In short: `cargo test` for the Rust
+version (unit tests, end-to-end tests and golden files of the Python
+version's results), `bench/parity.py` for byte-for-byte parity with the
+Python reference over every corpus log, and for the reference itself:
 
 ```
-.venv/bin/pip install -e '.[dev]'       # pare itself, pytest and drain3 (the `dev` extra)
-.venv/bin/python -m pytest -q proto/
+.venv/bin/pip install -r reference/requirements.txt    # pytest and drain3
+.venv/bin/python -m pytest -q reference/
 ```
 
-A few tests skip themselves when an optional tool is missing: drain3,
-the reference for the built-in Drain (`.[dev]`), tidyout (`.[bench]`) and
-the SWE-bench package (`.[datasets]`). Extras combine:
-`pip install -e '.[dev,bench,datasets]'`.
-
-268 tests: severity forms and their false positives, vocabulary files, the
+The reference's 268 tests: severity forms and their false positives, vocabulary files, the
 shortcuts in the per-line checks against the regexes they skip, the
 built-in Drain against drain3, the hard budget limit on every corpus file
 at several sizes, determinism,
@@ -331,29 +334,46 @@ harvest, SWE-bench and Defects4J helpers, and the Claude Code hook.
 ## Layout
 
 ```
-proto/pare.py          the prototype (one file, standard library only); the reference for the Rust port
-proto/test_pare.py     pytest suite
-proto/vocab.example    example vocabulary extension (German)
-bench/run.py           benchmark runner
-bench/ablate.py        ablation study of the scoring heuristics
-bench/tokens.py        byte proxy vs real tokenizer counts
-bench/gen_synthetic.py generator for the seeded synthetic corpus files
-bench/collect.py       turn run files into held-out cases (never shows pare's output)
-bench/harvest.py       harvest held-out candidates from Claude Code transcripts (scrubbed, staged for review)
-bench/swebench_cases.py held-out cases from SWE-bench tasks, labelled by their failing tests (needs Docker)
-bench/defects4j_cases.py held-out Java cases from Defects4J bugs, labelled by their trigger tests (needs Docker)
-bench/parity.py        compare two pare implementations byte for byte (the Rust port against proto/pare.py)
-integrations/          agent instructions and a Claude Code hook (integrations/README.md)
-corpus/                dev corpus: *.log, *.keep, *.cmd
-corpus-generated/      real Maven, tsc, Terraform and kubectl output from small projects in src/ (a second dev corpus, not held-out)
-corpus-dev/defects4j/  Defects4J development sample (seed 1), used to tune the failing-test fix
-corpus-heldout/        protocol and held-out cases: SWE-bench, Defects4J (results in its README)
-docs/DESIGN.md         design notes, full results, port notes
-docs/ARCHITECTURE.md   the Rust port: crate layout, data flow, memory model, Python-to-Rust map, status
-docs/RUST.md           Rust for C++ developers, through pare's code
-Cargo.toml, src/       the Rust port: complete, identical to proto/pare.py (ROADMAP.md, stage 5)
-tests/cli.rs           end-to-end tests of the Rust binary
-.github/workflows/     CI (Rust checks, Python tests, parity) and release builds
-ROADMAP.md             what comes next, in order, and who can do it
-CONTRIBUTING.md        setting up, building and testing (Rust and Python), the CI checks, parity
+src/                      the Rust version: the pare library and command (docs/ARCHITECTURE.md)
+tests/                    end-to-end tests of the binary, golden files of the reference's results
+Cargo.toml                the crate (pare-cli on crates.io), its dependencies, lints and release profile
+pyproject.toml            the PyPI wheels (pare-cli): the binary packaged by maturin
+install.sh                the install script for the release binaries
+packaging/                the Homebrew formula template, the install script's test
+reference/pare.py         the Python prototype (one file, standard library only); the reference for the Rust version
+reference/test_pare.py    its pytest suite
+reference/vocab.example   example vocabulary extension (German)
+bench/run.py              benchmark runner
+bench/ablate.py           ablation study of the scoring heuristics
+bench/tokens.py           byte proxy vs real tokenizer counts
+bench/gen_synthetic.py    generator for the seeded synthetic corpus files
+bench/collect.py          turn run files into held-out cases (never shows pare's output)
+bench/harvest.py          harvest held-out candidates from Claude Code transcripts (scrubbed, staged for review)
+bench/swebench_cases.py   held-out cases from SWE-bench tasks, labelled by their failing tests (needs Docker)
+bench/defects4j_cases.py  held-out Java cases from Defects4J bugs, labelled by their trigger tests (needs Docker)
+bench/parity.py           compare two pare implementations byte for byte (the Rust version against reference/pare.py)
+bench/gen_fixtures.py     write tests/data/ from the reference
+bench/gen_pyunicode.py    write src/pyunicode.rs, Python's character classes
+integrations/             agent instructions and a Claude Code hook (integrations/README.md)
+corpus/                   dev corpus: *.log, *.keep, *.cmd
+corpus-generated/         real Maven, tsc, Terraform and kubectl output from small projects in src/ (a second dev corpus, not held-out)
+corpus-dev/defects4j/     Defects4J development sample (seed 1), used to tune the failing-test fix
+corpus-heldout/           protocol and held-out cases: SWE-bench, Defects4J (results in its README)
+docs/DESIGN.md            design notes, full results, port notes
+docs/ARCHITECTURE.md      the Rust code: crate layout, data flow, memory model, Python-to-Rust map
+docs/RUST.md              Rust for C++ developers, through pare's code
+.github/workflows/        CI (Rust checks, Python tests, parity, packaging) and the release
+ROADMAP.md                what comes next, in order, and who can do it
+CONTRIBUTING.md           setting up, building and testing (Rust and Python), the CI checks, parity
+RELEASING.md              how to make a release, and the one-time setup of the channels
+CHANGELOG.md              what changed in each release
 ```
+
+## License
+
+Licensed under either of [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE),
+at your option. The built-in Drain is adapted from
+[drain3](https://github.com/logpai/Drain3) (MIT; see
+[THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES)). Unless you say otherwise, a
+contribution you submit for inclusion is dual-licensed as above, without
+additional terms.

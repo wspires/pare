@@ -5,7 +5,7 @@
     python bench/parity.py --candidate target/release/pare --dump      # also per-line results
     python bench/parity.py --candidate ./pare --quick --show 3          # a fast subset
 
-The reference is proto/pare.py (the frozen Python version) unless
+The reference is reference/pare.py (the frozen Python version) unless
 --reference names another command. Every log in the corpora, plus a set of
 generated edge cases (empty input, no final newline, CRLF, ANSI colours,
 invalid UTF-8, NUL bytes, a very long line, letters that case-fold to
@@ -13,7 +13,7 @@ ASCII), is run through both under each flag set in CASES, with --no-tee so
 no run file is written. The outputs and exit codes must be identical.
 
 With --dump, batch cases also compare the pass's per-line and per-template
-results ($PARE_DUMP, see write_dump in proto/pare.py), and a difference is
+results ($PARE_DUMP, see write_dump in reference/pare.py), and a difference is
 reported as the first row that differs, which says where two
 implementations part ways long before the summaries show it.
 
@@ -48,7 +48,7 @@ CASES = [
     ["--budget", "600", "--chars-per-token", "4"],
     ["--budget", "1000", "--max-templates", "5"],
     ["--budget", "1000", "--head", "2", "--tail", "3"],
-    ["--budget", "1000", "--vocab", os.path.join(ROOT, "proto", "vocab.example")],
+    ["--budget", "1000", "--vocab", os.path.join(ROOT, "reference", "vocab.example")],
     ["--only", "T1,T2,T3", "--budget", "100000"],
     ["--except", "T1", "--budget", "1000"],
     ["--min-severity", "error", "--budget", "1000"],
@@ -201,7 +201,7 @@ def compare(job) -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--candidate", required=True, help="command for the implementation under test")
-    ap.add_argument("--reference", default=None, help="command for the reference (default: proto/pare.py)")
+    ap.add_argument("--reference", default=None, help="command for the reference (default: reference/pare.py)")
     ap.add_argument("--dump", action="store_true", help="also compare per-line results ($PARE_DUMP) in batch cases")
     ap.add_argument("--quick", action="store_true", help=f"{len(QUICK)} flag sets instead of {len(CASES)}")
     ap.add_argument("--logs", nargs="*", help="these logs instead of the corpora")
@@ -212,7 +212,7 @@ def main() -> int:
     ap.add_argument("--show", type=int, default=5, help="differences to print in full (default 5)")
     args = ap.parse_args()
 
-    ref = shlex.split(args.reference) if args.reference else [sys.executable, os.path.join(ROOT, "proto", "pare.py")]
+    ref = shlex.split(args.reference) if args.reference else [sys.executable, os.path.join(ROOT, "reference", "pare.py")]
     cand = shlex.split(args.candidate)
     cases = QUICK if args.quick else CASES
     with tempfile.TemporaryDirectory(prefix="pare-parity-") as tmp:

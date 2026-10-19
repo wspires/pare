@@ -1,5 +1,5 @@
 //! Scoring constants, and template salience and markers: `score_templates()`
-//! and the scoring constants of `proto/pare.py`.
+//! and the scoring constants of `reference/pare.py`.
 //!
 //! A line's score is set during the pass ([`crate::pass::Segmenter`]): its
 //! vocabulary score ([`crate::vocab::vocab_score`]), and for a continuation

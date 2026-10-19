@@ -75,8 +75,8 @@ Register it in `.claude/settings.json` (project) or
 ```
 
 `pare` must be on the PATH that Claude Code's hooks and Bash tool see
-(`uv tool install .` from this repository puts it there). If it is not,
-the hook does nothing.
+(any install in the README's "Install" section puts it there, or set
+`PARE_BIN` to its path). If it is not, the hook does nothing.
 
 ### Permissions: read this before choosing a mode
 
@@ -105,8 +105,9 @@ current directory, so `cd <project> && pytest` is wrapped like `pytest`.
 
 This repository registers the hook for itself in `.claude/settings.json`
 (through `$CLAUDE_PROJECT_DIR`, so the same file works in any checkout);
-it does nothing where `pare` is not on PATH. `uv tool install --editable .`
-makes `pare` the working copy, so the hook runs the code being changed.
+it does nothing where `pare` is not on PATH. To have it run the code being
+changed, point `PARE_BIN` at the checkout's build (`target/release/pare`)
+or rerun `cargo install --path .` after a change.
 
 Other notes from the hooks reference: a hook that times out does not block
 the call (the command then runs unwrapped); the Bash tool's own timeout

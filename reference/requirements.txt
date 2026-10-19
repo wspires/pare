@@ -1,0 +1,4 @@
+# For the Python reference's tests (python -m pytest reference/):
+pytest
+drain3==0.9.11  # the reference the built-in Drain is tested against
+# Optional: swebench>=5 (the SWE-bench helpers' tests skip without it)

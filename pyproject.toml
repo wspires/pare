@@ -1,38 +1,31 @@
+# The PyPI package: wheels that contain the Rust binary, built by maturin
+# (`bindings = "bin"`), so `pipx install pare-cli` or `uvx pare-cli` gets the
+# native `pare` with no Rust toolchain. The version comes from Cargo.toml.
+# The Python reference (reference/pare.py) is not packaged; its test
+# dependencies are in reference/requirements.txt.
 [build-system]
-requires = ["setuptools>=68"]
-build-backend = "setuptools.build_meta"
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"
 
 [project]
-name = "pare"
+name = "pare-cli"
 description = "Summarize noisy command output (test runs, builds, logs) to a token budget, for AI agents and humans"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.8"
+license = "MIT OR Apache-2.0"
+license-files = ["LICENSE-MIT", "LICENSE-APACHE", "THIRD-PARTY-NOTICES"]
 dynamic = ["version"]
-dependencies = []
 keywords = ["logs", "summarization", "token-budget", "ai-agents", "cli"]
 classifiers = [
     "Environment :: Console",
-    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
     "Topic :: Software Development :: Testing",
     "Topic :: System :: Logging",
     "Topic :: Utilities",
 ]
 
-[project.optional-dependencies]
-dev = ["pytest", "drain3==0.9.11"]  # drain3: the reference the built-in Drain is tested against
-bench = ["tidyout-cli"]
-datasets = ["swebench>=5"]
-
-[project.scripts]
-pare = "pare:main"
-
 [project.urls]
 Repository = "https://github.com/wspires/pare"
 
-# The prototype is a single module, proto/pare.py; map it to top-level `pare`.
-[tool.setuptools]
-package-dir = {"" = "proto"}
-py-modules = ["pare"]
-
-[tool.setuptools.dynamic]
-version = {attr = "pare.__version__"}
+[tool.maturin]
+bindings = "bin"

@@ -1,5 +1,5 @@
 //! `$PARE_DUMP=FILE`: the pass's per-line and per-template results as
-//! tab-separated rows, in the format of `write_dump()` in `proto/pare.py`,
+//! tab-separated rows, in the format of `write_dump()` in `reference/pare.py`,
 //! so `bench/parity.py --dump` can compare the two implementations line by
 //! line and report the first row where they part ways.
 //!

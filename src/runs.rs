@@ -1,7 +1,7 @@
 //! Looking after the run directory: pruning old run files (`--prune`, and
 //! automatically at most hourly) and `--stats`, what command mode saved.
 //! `prune_runs()`, `maybe_prune()`, `prune_command()` and `stats()` in
-//! `proto/pare.py`.
+//! `reference/pare.py`.
 //!
 //! Only files pare named itself are ever removed: a run file
 //! (`<12 hex>.log`, `follow-<time>-<pid>.log`) and a spool a killed pare

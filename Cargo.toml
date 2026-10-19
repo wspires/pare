@@ -1,16 +1,39 @@
 [package]
-name = "pare"
-version = "0.1.0"
+# "pare" is taken on crates.io (and PyPI); the package is pare-cli, and
+# the library and the command it installs are still called pare.
+name = "pare-cli"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.87"
 description = "Summarize noisy command output (test runs, builds, logs) to a token budget, for AI agents and humans"
 repository = "https://github.com/wspires/pare"
+homepage = "https://github.com/wspires/pare"
 readme = "README.md"
-keywords = ["logs", "summarization", "token-budget", "cli"]
+license = "MIT OR Apache-2.0"
+keywords = ["logs", "summarization", "token-budget", "cli", "ai-agents"]
 categories = ["command-line-utilities", "development-tools"]
-# No license is declared yet (ROADMAP stage 4); until there is one, nothing
-# may be published to crates.io by accident.
-publish = false
+# What goes into the crate on crates.io: the code and what it needs to
+# build. The corpora, the Python reference and the test data stay in the
+# repository.
+include = ["/src", "/Cargo.toml", "/Cargo.lock", "/README.md", "/LICENSE-MIT", "/LICENSE-APACHE", "/THIRD-PARTY-NOTICES"]
+
+[lib]
+name = "pare"
+path = "src/lib.rs"
+
+[[bin]]
+name = "pare"
+path = "src/main.rs"
+
+# `cargo binstall pare-cli` downloads the release archive for the platform
+# instead of compiling (https://github.com/cargo-bins/cargo-binstall).
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/pare-v{ version }-{ target }{ archive-suffix }"
+bin-dir = "pare-v{ version }-{ target }/{ bin }{ binary-ext }"
+pkg-fmt = "tgz"
+
+[package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
+pkg-fmt = "zip"
 
 # Each dependency is justified in docs/ARCHITECTURE.md ("Dependencies").
 [dependencies]

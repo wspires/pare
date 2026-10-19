@@ -4,7 +4,7 @@
     python3.13 bench/gen_pyunicode.py > src/pyunicode.rs
 
 The Rust port must decide "is this a word character / digit / space" exactly
-as proto/pare.py does, and Python's definitions differ from Rust's: re's \\w
+as reference/pare.py does, and Python's definitions differ from Rust's: re's \\w
 is str.isalnum() or "_" (Rust's regex counts combining marks and connector
 punctuation too, and leaves out other numbers such as superscripts), \\d and
 str.isdigit() follow Python's Unicode version, and str.isspace() has U+001C

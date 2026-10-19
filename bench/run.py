@@ -56,9 +56,9 @@ def which(name: str) -> str | None:
 
 
 def pare_cmd() -> list[str]:
-    """How to run proto/pare.py: the repo venv if there is one, else the
+    """How to run reference/pare.py: the repo venv if there is one, else the
     current interpreter (pare needs nothing beyond the standard library)."""
-    script = os.path.join(ROOT, "proto", "pare.py")
+    script = os.path.join(ROOT, "reference", "pare.py")
     venv = os.path.join(ROOT, ".venv", "bin", "python")
     return [venv if os.path.exists(venv) else sys.executable, script]
 

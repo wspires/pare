@@ -1,6 +1,6 @@
 //! Follow mode, `pare --follow`: summarise a stream as it arrives, one
 //! block per window instead of one summary at the end. `follow()` in
-//! `proto/pare.py`.
+//! `reference/pare.py`.
 //!
 //! A window closes after `--every` lines (where a record starts, so a
 //! window boundary never splits one), after `--interval` seconds, about

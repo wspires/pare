@@ -162,7 +162,7 @@ fn dump_has_python_format() {
         .unwrap();
     assert!(child.wait().unwrap().success());
     let text = fs::read_to_string(&dump).unwrap();
-    // What proto/pare.py writes for the same input.
+    // What reference/pare.py writes for the same input.
     let want = [
         "# pare dump v1",
         // no, record, depth, severity, blank, template, score, sizes
@@ -184,7 +184,7 @@ fn dump_vocab_is_pythons() {
     let out = pare(&["--dump-vocab"], b"");
     assert!(out.status.success());
     assert_eq!(out.stdout, golden("vocab.txt"));
-    let example = concat!(env!("CARGO_MANIFEST_DIR"), "/proto/vocab.example");
+    let example = concat!(env!("CARGO_MANIFEST_DIR"), "/reference/vocab.example");
     let out = pare(&["--vocab", example, "--dump-vocab"], b"");
     assert_eq!(out.stdout, golden("vocab-example.txt"));
 }
@@ -212,7 +212,7 @@ fn bad_vocab_files_are_usage_errors() {
 
 #[test]
 fn summaries_are_pythons() {
-    // tests/data/summary/: proto/pare.py's whole output for corpus logs at
+    // tests/data/summary/: reference/pare.py's whole output for corpus logs at
     // a few budgets (bench/gen_fixtures.py writes them).
     let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/summary");
     let cases = fs::read_to_string(format!("{dir}/cases.tsv")).unwrap();
