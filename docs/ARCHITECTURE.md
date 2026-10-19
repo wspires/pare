@@ -348,7 +348,7 @@ makes the static build and cross-compilation trivial.
 
 | crate | why |
 |---|---|
-| `clap` (derive, env) | the standard argument parser; derives the parser and help from the `Args` struct, accepts unambiguous prefixes like argparse, reads `$PARE_VOCAB` |
+| `clap` (derive, env) | the standard argument parser; derives the parser and help from the `Args` struct, accepts unambiguous prefixes like argparse, reads `$PARE_VOCAB` (`$PARE_BUDGET` is read by `Args::resolve_budget`, so an empty value can count as unset) |
 | `regex` | linear-time regular expressions (RE2-style): the ANSI pattern, segmentation, and the scanning half of every mask |
 | `fancy-regex` | backtracking regular expressions with lookaround and `\G`, like Python's `re`: the exact half of the masks, tried only at the positions `regex` finds |
 | `memchr` | SIMD byte search for line splitting; already a dependency of `regex`, so free |

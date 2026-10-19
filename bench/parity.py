@@ -115,6 +115,7 @@ def edge_cases(directory: str) -> list[str]:
 def run(cmd: list[str], args: list[str], log: str, dump: str | None) -> tuple[int, bytes, bytes]:
     env = dict(os.environ, PARE_RUN_PRUNE="off")
     env.pop("PARE_DEBUG", None)
+    env.pop("PARE_BUDGET", None)  # the Rust version reads it; the reference does not
     if dump:
         env["PARE_DUMP"] = dump
     else:

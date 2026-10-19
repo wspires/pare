@@ -42,9 +42,12 @@ use crate::vocab::{self, Vocab};
 // argparse does by default.
 #[allow(clippy::struct_excessive_bools)] // one bool per flag, as the CLI has
 pub struct Args {
-    /// Output budget in tokens (bytes/2.8 by default)
-    #[arg(long, default_value_t = 2000, allow_negative_numbers = true)]
-    pub budget: i64,
+    /// Output budget in tokens (bytes/2.8 by default) [default: $PARE_BUDGET,
+    /// else 2000]
+    // `None` until `run` resolves it: the flag, else `$PARE_BUDGET` (an
+    // agent harness can set the budget once for every call), else 2000.
+    #[arg(long, allow_negative_numbers = true)]
+    pub budget: Option<i64>,
     /// Lines to keep from the start
     #[arg(long, default_value_t = 5)]
     pub head: i64,
@@ -124,7 +127,40 @@ pub struct Args {
     pub stats: bool,
 }
 
+/// The budget when neither `--budget` nor `$PARE_BUDGET` gives one.
+pub const DEFAULT_BUDGET: i64 = 2000;
+
 impl Args {
+    /// The output budget in tokens, once `run` has resolved it.
+    #[must_use]
+    pub fn budget(&self) -> i64 {
+        self.budget.unwrap_or(DEFAULT_BUDGET)
+    }
+
+    /// Fills in the budget from `$PARE_BUDGET` if the flag did not give
+    /// one. An empty variable counts as unset, as `$PARE_VOCAB` does.
+    ///
+    /// # Errors
+    ///
+    /// If the variable is not a whole number.
+    // Rust note: clap's own `env = ...` would do this too, but it takes an
+    // empty variable as an invalid value, and its message would not say the
+    // value came from the environment.
+    fn resolve_budget(&mut self) -> Result<()> {
+        if self.budget.is_none() {
+            if let Some(v) = std::env::var_os("PARE_BUDGET").filter(|v| !v.is_empty()) {
+                let text = v.to_string_lossy();
+                let n = text.trim().parse::<i64>().map_err(|_| {
+                    Error::Usage(format!(
+                        "$PARE_BUDGET must be a whole number of tokens; got {text:?}"
+                    ))
+                })?;
+                self.budget = Some(n);
+            }
+        }
+        Ok(())
+    }
+
     fn selecting(&self) -> bool {
         self.only.is_some()
             || self.exclude.is_some()
@@ -148,7 +184,7 @@ pub fn run(argv: Vec<OsString>) -> ExitCode {
         Some(i) => (argv[..i].to_vec(), Some(argv[i + 1..].to_vec())),
         None => (argv, None),
     };
-    let args = match Args::try_parse_from(front) {
+    let mut args = match Args::try_parse_from(front) {
         Ok(args) => args,
         Err(e) => {
             // --help and --version arrive here too, with status 0.
@@ -156,7 +192,10 @@ pub fn run(argv: Vec<OsString>) -> ExitCode {
             return ExitCode::from(u8::try_from(e.exit_code()).unwrap_or(2));
         }
     };
-    match dispatch(&args, command.as_deref()) {
+    match args
+        .resolve_budget()
+        .and_then(|()| dispatch(&args, command.as_deref()))
+    {
         Ok(status) => ExitCode::from(status),
         Err(e) => {
             eprintln!("{e}");
@@ -277,7 +316,7 @@ fn follow_mode(args: &Args, vocab: &Vocab, run: Option<&mut CommandRun>) -> Resu
     let run_path = tee.then(|| py_abspath(&path));
     let settings = follow::Settings {
         budget: Budget {
-            tokens: args.budget,
+            tokens: args.budget(),
             chars_per_token: args.chars_per_token,
         },
         head: args.head,
@@ -331,7 +370,7 @@ fn load_vocab(path: &std::path::Path) -> Result<Vocab> {
 #[allow(clippy::too_many_lines)] // the batch path of Python's main(), kept whole
 fn batch(args: &Args, vocab: &Vocab, mut run: Option<&mut CommandRun>) -> Result<u8> {
     let budget = Budget {
-        tokens: args.budget,
+        tokens: args.budget(),
         chars_per_token: args.chars_per_token,
     };
     let tee = !args.no_tee;
@@ -481,7 +520,7 @@ fn batch(args: &Args, vocab: &Vocab, mut run: Option<&mut CommandRun>) -> Result
             &spool_path,
             store.len(),
             store.total_bytes,
-            Some((out_bytes, args.budget, args.chars_per_token)),
+            Some((out_bytes, args.budget(), args.chars_per_token)),
         );
     }
     Ok(exit_code)
@@ -561,7 +600,7 @@ mod tests {
     fn defaults_match_python() {
         let a = parse(&[]);
         assert_eq!(
-            (a.budget, a.head, a.tail, a.width, a.every),
+            (a.budget(), a.head, a.tail, a.width, a.every),
             (2000, 5, 10, 200, 20000)
         );
         assert!((a.chars_per_token - 2.8).abs() < f64::EPSILON);
@@ -571,7 +610,7 @@ mod tests {
     #[test]
     fn prefixes_and_short_flags() {
         let a = parse(&["--bud", "600", "-f", "--since", "-200"]);
-        assert_eq!(a.budget, 600);
+        assert_eq!(a.budget, Some(600));
         assert!(a.follow);
         assert_eq!(a.since.as_deref(), Some("-200"));
     }
