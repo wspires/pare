@@ -2,10 +2,6 @@
 
 ## Unreleased
 
-- `$PARE_BUDGET` sets the budget when `--budget` is not given (an empty
-  value counts as unset); the default is still 2,000. The Python
-  reference does not read it.
-
 ## 0.2.0
 
 pare is now a single native binary, written in Rust, and installable with
@@ -21,13 +17,16 @@ Homebrew, an install script, pipx/uv (`pare-cli`) or cargo (`pare-cli`).
 - **Follow mode no longer needs `select()`**, which limited the Python
   version to Unix; it builds and should run on Windows, where it has not
   been tried yet.
+- **`$PARE_BUDGET`** sets the budget when `--budget` is not given (an
+  empty value counts as unset), so an agent harness can set it once; the
+  default is still 2,000.
 - **License:** MIT OR Apache-2.0.
 - The Python version is kept in `reference/` as the reference the Rust
   version is tested against; it is no longer packaged.
 
 Differences: a follow run file is named by the time in UTC (it was local
-time), and a malformed regex in a `--vocab` file is reported in the Rust
-regex engine's words.
+time), a malformed regex in a `--vocab` file is reported in the Rust
+regex engine's words, and the Python version does not read `$PARE_BUDGET`.
 
 ## 0.1 (`v0.1-python`)
 
