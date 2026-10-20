@@ -383,11 +383,12 @@ which changes output and so comes after the parity decision above.
 
 - [x] **`$PARE_BUDGET`.** The budget when `--budget` is not given, so an
   agent harness sets it once. *Done.*
-- [ ] **Configurable continuation rules.** A `[continuation]` class of
+- [x] **Configurable continuation rules.** A `[continuation]` class of
   regexes in the vocabulary file: lines matching one continue the record
-  above, for a stack-trace or diagnostic format the built-in rules
-  (`CONTINUATION` in `src/pass.rs`) do not know. Small; the vocabulary
-  file already parses and compiles regexes.
+  above, for a stack-trace or diagnostic format the built-in rules do not
+  know. The built-in rules became the class's default entries (so
+  `--dump-vocab` lists them and `[continuation replace]` can drop one);
+  parity is unchanged. *Done.*
 - [ ] **Configurable masks.** A `[mask NAME]` class: matches become
   `<NAME>` before clustering, for site-specific ids (order numbers,
   tenant ids, build hashes) that should not split one kind of line into

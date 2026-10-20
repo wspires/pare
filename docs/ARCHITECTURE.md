@@ -101,7 +101,8 @@ stdin ──read 1 MiB──▶ Pass::feed ──▶ spool file (write as read)
                  severity: level token, HTTP status, exit code (vocab::Vocab)
                  blank?           ─▶ ends the record (one blank may stay in a block)
                  continuation?    ─▶ joins the open record: deeper indent, or a
-                                     frame/caret/`Caused by:`/... shape (CONTINUATION),
+                                     frame/caret/`Caused by:`/... shape (the vocabulary's
+                                     continuation class, Vocab::continues),
                                      within one logcat entry (LOGCAT_HEADER)
                  otherwise        ─▶ starts a record: drain_message(text)
                                      = mask(text) ─▶ Drain::add ─▶ template;
@@ -259,7 +260,7 @@ version: 65 MB and 28.5 s); on a small log, 16 MB.
 | `parse_vocab()`, `dump_vocab()` | `vocab::parse_vocab`, `vocab::dump_vocab` |
 | `score_templates()`, `rarity_of()`, `INHERIT`, `DEPTH_PENALTY`, ... | `score::score_templates`, `score::rarity`, `score::INHERIT`, ... |
 | `re.compile(...)` of a pattern with lookaround | `pyre::PyRegex::new` |
-| `Pass._joins()`, `continuation_rx()`, `LOGCAT_HEADER_RX` | `Segmenter::joins`, `pass::CONTINUATION`, `pass::LOGCAT_HEADER` |
+| `Pass._joins()`, `continuation_rx()`, `LOGCAT_HEADER_RX` | `Segmenter::joins`, `Vocab::continues` (the continuation class's entries), `pass::LOGCAT_HEADER` |
 | `Pass.cut()` (template texts and totals) | `Segmenter::finish` |
 | `Store` arrays, `Store.raw()` | `Store` columns, `Store::for_each_raw` |
 | `Template` | `store::Template` |

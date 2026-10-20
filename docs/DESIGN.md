@@ -278,6 +278,7 @@ weights:
 | `advice` | −1 | re-run, for more information, please refer to, see dump files, `run with --`, `[Help 1]`, …: a build tool's closing advice. Its score replaces the line's, level included, so an `[ERROR]` advice line stays under the floor |
 | `strong-error` | — | decides whether a record *body* makes its template an error |
 | `level-fatal` … `level-debug` | +4 … −1 | plain level tokens for the structural detection above |
+| `continuation` | — | regexes for lines that continue the record above whatever their indentation: stack frames, carets, `Caused by:`, diff and rustc and pytest detail (segmentation, not scoring; Rust version only) |
 
 Words match whole, case-insensitively, and not inside a hyphenated flag or
 identifier (`--timeout=300s` is not an error). A zero count before an error
@@ -285,7 +286,10 @@ noun (`0 errors`, `0 failed`) is removed before matching. `pare
 --dump-vocab` prints the lists as a file; `--vocab FILE` or `$PARE_VOCAB`
 loads one back, where `[error]` adds to a class and `[error replace]`
 replaces it, a plain line is a phrase and a `/.../` line a regex. See
-`reference/vocab.example` for a German extension.
+`reference/vocab.example` for a German extension. The `continuation`
+class (Rust version) takes regexes only: a `[continuation]` section adds
+record shapes the built-in ones do not know, such as a Go panic's frames
+at column 0, and `[continuation replace]` can drop built-in ones.
 
 ## Scoring model
 

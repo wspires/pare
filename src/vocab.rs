@@ -59,12 +59,17 @@ pub enum Class {
     LevelInfo,
     /// Level tokens meaning debug.
     LevelDebug,
+    /// Regexes for lines that continue the record above: stack frames,
+    /// carets, a diagnostic's detail. Not in the Python version.
+    Continuation,
 }
 
 /// The number of classes.
-pub const NCLASSES: usize = 13;
+pub const NCLASSES: usize = 14;
 /// The classes that are not level classes come first; this many.
 pub const NWORD_CLASSES: usize = 8;
+/// The level classes, after them.
+const LEVEL_CLASSES: std::ops::Range<usize> = NWORD_CLASSES..NWORD_CLASSES + 5;
 
 /// One class's fixed properties.
 struct ClassInfo {
@@ -141,6 +146,11 @@ const INFO: [ClassInfo; NCLASSES] = [
         weight: -1.0,
         comment: "level tokens meaning debug/trace (weight -1)",
     },
+    ClassInfo {
+        name: "continuation",
+        weight: 0.0,
+        comment: "lines that continue the record above whatever their indentation (regexes only,\n# searched in the line: anchor them with ^); a deeper indent continues it too",
+    },
 ];
 
 const ALL: [Class; NCLASSES] = [
@@ -157,6 +167,7 @@ const ALL: [Class; NCLASSES] = [
     Class::LevelWarn,
     Class::LevelInfo,
     Class::LevelDebug,
+    Class::Continuation,
 ];
 
 impl Class {
@@ -284,6 +295,24 @@ pub const DEFAULT_VOCAB: [&[&str]; NCLASSES] = [
     &[
         "DEBUG", "TRACE", "VERBOSE", "FINE", "FINER", "FINEST",
     ],
+    // continuation: `CONT_GENERIC`, `CONT_RUSTC` and `CONT_PYTEST` in Python
+    &[
+        r#"/^\s+at\s/"#,                                         // JS/Java stack frame
+        r#"/^\s*File "[^"]+", line \d+/"#,                      // Python frame
+        r#"/^\s*\^+\s*$/"#,                                     // caret marker
+        r#"/^\s*~+\s*$/"#,                                      // tilde underline
+        r#"/^Caused by:/"#,                                     // Java/Rust cause chain
+        r#"/^\s*\.\.\. \d+ more/"#,                             // Java elided frames
+        r#"/^\s*(?:Expected|Received|Actual|Got|Want|Diff):/"#, // assertion detail
+        r#"/^\s*[+-]{3}\s/"#,                                   // diff headers
+        r#"/^\s*@@ /"#,                                         // diff hunk
+        r#"/^\s*\d*\s*\|(?:\s|$)/"#,                             // rustc gutter
+        r#"/^\s*-->\s/"#,                                       // rustc location
+        r#"/^\s*= (?:note|help|warning):/"#,                    // rustc notes
+        r#"/^\s*::: /"#,                                        // rustc other location
+        r#"/^E\s{2,}/"#,                                        // pytest failure detail
+        r#"/^>\s{2,}/"#,                                        // pytest source marker
+    ],
 ];
 
 /// A vocabulary's entries: one list per class.
@@ -358,7 +387,7 @@ static EXIT_CODE: LazyLock<PyRegex> = LazyLock::new(|| {
 /// A level with no message (`[ERROR]` alone), from the built-in level
 /// tokens whatever the vocabulary: `LEVEL_ONLY_RX`.
 static LEVEL_ONLY: LazyLock<PyRegex> = LazyLock::new(|| {
-    let mut tokens: Vec<&str> = DEFAULT_VOCAB[NWORD_CLASSES..]
+    let mut tokens: Vec<&str> = DEFAULT_VOCAB[LEVEL_CLASSES]
         .iter()
         .flat_map(|c| c.iter().copied())
         .collect();
@@ -440,6 +469,8 @@ pub struct Vocab {
     level_key: PyRegex,
     level_bare: PyRegex,
     level_letter: PyRegex,
+    /// The continuation regexes as one alternation; `None` if there are none.
+    continuation: Option<PyRegex>,
 }
 
 impl Vocab {
@@ -480,7 +511,7 @@ impl Vocab {
         // and a token keeps the place it was first seen in.
         let mut level_of: HashMap<String, u8> = HashMap::new();
         let mut order: Vec<String> = Vec::new();
-        for c in &ALL[NWORD_CLASSES..] {
+        for c in &ALL[LEVEL_CLASSES] {
             for tok in &entries[*c as usize] {
                 let up = tok.to_uppercase();
                 if level_of
@@ -519,7 +550,18 @@ impl Vocab {
             letters.push_str(r"|^(E)\s{2,}");
         }
         let level_letter = PyRegex::new(&letters)?;
+        let parts: Vec<String> = entries[Class::Continuation as usize]
+            .iter()
+            .filter(|e| is_regex_entry(e))
+            .map(|e| format!("(?:{})", entry_regex(e)))
+            .collect();
+        let continuation = if parts.is_empty() {
+            None
+        } else {
+            Some(PyRegex::new(&parts.join("|"))?)
+        };
         Ok(Vocab {
+            continuation,
             entries,
             words,
             others,
@@ -528,6 +570,16 @@ impl Vocab {
             level_bare,
             level_letter,
         })
+    }
+
+    /// Whether `text` has the shape of a line that continues the record
+    /// above: a match for one of the continuation regexes. `Pass._joins()`
+    /// in Python, which has the built-in ones only.
+    #[must_use]
+    pub fn continues(&self, text: &str) -> bool {
+        self.continuation
+            .as_ref()
+            .is_some_and(|rx| rx.is_match(text))
     }
 
     /// The built-in vocabulary.
@@ -780,6 +832,12 @@ pub fn parse_vocab(text: &str, base: &Entries, source: &str) -> Result<Entries, 
                 py_repr(line)
             ));
         };
+        if class == Class::Continuation && !is_regex_entry(line) {
+            return Err(format!(
+                "{source}:{n}: the continuation class takes /regexes/, not words: {}",
+                py_repr(line)
+            ));
+        }
         if is_regex_entry(line) {
             if class.level().is_some() {
                 return Err(format!(
@@ -946,9 +1004,11 @@ mod tests {
 
     #[test]
     fn dump_is_pythons() {
+        // Python's dump, then the continuation class, which it does not have.
         let golden = |name: &str| {
             std::fs::read_to_string(format!("{}/tests/data/{name}", env!("CARGO_MANIFEST_DIR")))
                 .unwrap()
+                + &continuation_section()
         };
         assert_eq!(dump_vocab(&default_entries()), golden("vocab.txt"));
         let example = std::fs::read_to_string(concat!(
@@ -959,6 +1019,49 @@ mod tests {
         let entries = parse_vocab(&example, &default_entries(), "reference/vocab.example").unwrap();
         assert_eq!(dump_vocab(&entries), golden("vocab-example.txt"));
         Vocab::new(entries).unwrap();
+    }
+
+    /// The continuation class as `--dump-vocab` prints it by default.
+    fn continuation_section() -> String {
+        let info = &INFO[Class::Continuation as usize];
+        let mut s = format!("\n# {}\n[{} replace]\n", info.comment, info.name);
+        for e in DEFAULT_VOCAB[Class::Continuation as usize] {
+            s.push_str(e);
+            s.push('\n');
+        }
+        s
+    }
+
+    #[test]
+    fn continuation_rules_are_entries() {
+        let v = Vocab::builtin();
+        assert!(
+            v.continues("    at a.B.c(B.java:1)")
+                && v.continues("Caused by: x")
+                && !v.continues("main.main()")
+        );
+        // A file adds to them, or replaces them.
+        let base = default_entries();
+        let go = parse_vocab(
+            "[continuation]\n/^goroutine \\d+ \\[/\n/^[\\w./]+\\(.*\\)$/\n",
+            &base,
+            "f",
+        )
+        .unwrap();
+        let v = Vocab::new(go).unwrap();
+        assert!(
+            v.continues("main.main()")
+                && v.continues("goroutine 1 [running]:")
+                && v.continues("Caused by: x")
+        );
+        let none =
+            Vocab::new(parse_vocab("[continuation replace]\n", &base, "f").unwrap()).unwrap();
+        assert!(!none.continues("Caused by: x"));
+        let e = parse_vocab("[continuation]\ngoroutine\n", &base, "f").unwrap_err();
+        assert_eq!(
+            e,
+            "f:2: the continuation class takes /regexes/, not words: 'goroutine'"
+        );
     }
 
     #[test]

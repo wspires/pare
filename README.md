@@ -288,12 +288,41 @@ On macOS: `uv tool install tidyout-cli` puts `tidyout` on PATH; for sqz,
 `brew install ojuschugh1/sqz/sqz`, `npm i -g sqz-cli` or `cargo install
 sqz-cli` (not `pip install sqz`, which fetches a pinned 0.1.0 binary).
 
+## Teaching pare your logs
+
+pare needs no configuration: it learns each input's kinds of lines as it
+reads them. What it knows in advance is a vocabulary (error, warning,
+summary and noise words, log-level tokens, the shapes of stack frames)
+which a file can extend for your tools or language:
+
+```
+pare --dump-vocab > my.vocab          # every built-in entry, in file format
+pare --vocab my.vocab ...             # or: export PARE_VOCAB=my.vocab
+```
+
+In the file, `[error]` adds entries to a class and `[error replace]`
+replaces its built-in ones; a plain line is a word or phrase (matched
+whole, case-insensitively) and a `/.../` line a regular expression.
+[reference/vocab.example](reference/vocab.example) adds German.
+
+The `continuation` class says which lines continue the record above
+whatever their indentation, so a stack trace stays one record. pare knows
+Java, JavaScript, Python, rustc and pytest shapes; for others, add
+regexes. A Go panic prints its frames at column 0:
+
+```
+[continuation]
+/^goroutine \d+ \[/
+/^[\w./*()]+\(.*\)$/
+/^\t/
+```
+
 ## How it works
 
 1. **Tee** stdin to a content-hashed run file, in one pass with the steps
    below: pare keeps about 40 bytes per line in memory, not the lines,
-   so a 30 MB log runs in 65 MB, in about 28 s spent as the input
-   arrives (0.3 s of it after the end).
+   so a 30 MB log runs in about 50 MB and 5 s, spent as the input
+   arrives.
 2. **Segment** lines into records: indented continuations, stack frames and
    compiler gutters join the line above.
 3. **Mask** timestamps, IPs, hashes, paths and numbers, then **cluster** the

@@ -180,14 +180,86 @@ fn dump_has_python_format() {
 
 #[test]
 fn dump_vocab_is_pythons() {
+    // Python's dump, unchanged, then the continuation class it does not have.
     let golden =
         |name: &str| fs::read(format!("{}/tests/data/{name}", env!("CARGO_MANIFEST_DIR"))).unwrap();
+    let check = |out: Vec<u8>, want: Vec<u8>| {
+        let (python, ours) = out.split_at(want.len().min(out.len()));
+        assert_eq!(python, want);
+        let ours = String::from_utf8_lossy(ours);
+        assert!(
+            ours.starts_with("\n# lines that continue the record above"),
+            "{ours}"
+        );
+        assert!(
+            ours.contains("[continuation replace]\n/^\\s+at\\s/\n"),
+            "{ours}"
+        );
+    };
     let out = pare(&["--dump-vocab"], b"");
     assert!(out.status.success());
-    assert_eq!(out.stdout, golden("vocab.txt"));
+    check(out.stdout, golden("vocab.txt"));
     let example = concat!(env!("CARGO_MANIFEST_DIR"), "/reference/vocab.example");
     let out = pare(&["--vocab", example, "--dump-vocab"], b"");
-    assert_eq!(out.stdout, golden("vocab-example.txt"));
+    check(out.stdout, golden("vocab-example.txt"));
+}
+
+#[test]
+fn continuation_rules_from_a_vocabulary_file() {
+    // A Go panic: its frames are at column 0, so without a rule each
+    // starts a record of its own.
+    let dir = TempDir::new("continuation");
+    let vocab = dir.path().join("go.vocab");
+    fs::write(
+        &vocab,
+        "[continuation]\n/^goroutine \\d+ \\[/\n/^[\\w./*()]+\\(.*\\)$/\n/^\\t/\n",
+    )
+    .unwrap();
+    let input = format!(
+        "{}panic: runtime error: index out of range [5] with length 3\n\ngoroutine 1 [running]:\nmain.lookup(...)\n\t/src/app/main.go:12\nmain.main()\n\t/src/app/main.go:7 +0x1d\nexit status 2\n",
+        "INFO request ok\n".repeat(400)
+    );
+    let records = |args: &[&str]| {
+        let mut child = Command::new(env!("CARGO_BIN_EXE_pare"))
+            .args(args)
+            .env_remove("PARE_VOCAB")
+            .env_remove("PARE_BUDGET")
+            .env("PARE_DUMP", dir.path().join("d.tsv"))
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .spawn()
+            .unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(input.as_bytes())
+            .unwrap();
+        assert!(child.wait().unwrap().success());
+        let dump = fs::read_to_string(dir.path().join("d.tsv")).unwrap();
+        // Per line: (line number, record) for the lines of the trace.
+        dump.lines()
+            .filter(|l| l.starts_with("L\t"))
+            .map(|l| {
+                let f: Vec<&str> = l.split('\t').collect();
+                (f[1].parse::<usize>().unwrap(), f[2].to_owned())
+            })
+            .filter(|(no, _)| (403..=407).contains(no))
+            .map(|(_, rec)| rec)
+            .collect::<Vec<_>>()
+    };
+    let plain = records(&["--no-tee"]);
+    let with_rules = records(&["--no-tee", "--vocab", vocab.to_str().unwrap()]);
+    // Without the rules the trace falls apart into several records; with
+    // them, the goroutine header, its frames and their locations are one.
+    assert!(
+        plain.iter().collect::<std::collections::HashSet<_>>().len() > 1,
+        "{plain:?}"
+    );
+    assert!(
+        with_rules.iter().all(|r| *r == with_rules[0]),
+        "{with_rules:?}"
+    );
 }
 
 #[test]
@@ -439,12 +511,9 @@ fn budget_from_the_environment() {
             .stderr(Stdio::piped())
             .spawn()
             .unwrap();
-        child
-            .stdin
-            .take()
-            .unwrap()
-            .write_all(input.as_bytes())
-            .unwrap();
+        // Pare may exit before reading (a bad $PARE_BUDGET): a closed pipe
+        // here is not a failure.
+        let _ = child.stdin.take().unwrap().write_all(input.as_bytes());
         let out = child.wait_with_output().unwrap();
         let text = String::from_utf8_lossy(if out.status.success() {
             &out.stdout

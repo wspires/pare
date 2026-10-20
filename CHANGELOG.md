@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **Continuation rules in the vocabulary file.** A `[continuation]`
+  section adds regexes for lines that continue the record above (a Go
+  panic's frames, a custom tool's detail lines), so a trace stays one
+  record; the built-in rules are now that class's default entries, shown
+  by `--dump-vocab`, and `[continuation replace]` can drop them. Output is
+  unchanged unless a file uses the class.
+
 ## 0.2.0
 
 pare is now a single native binary, written in Rust, and installable with
