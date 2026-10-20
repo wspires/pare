@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `$PARE_BUDGET` sets the budget when `--budget` is not given (an empty
+  value counts as unset); the default is still 2,000. The Python
+  reference does not read it.
+
 ## 0.2.0
 
 pare is now a single native binary, written in Rust, and installable with

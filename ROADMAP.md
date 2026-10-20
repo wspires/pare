@@ -242,8 +242,9 @@ held-out evidence asks for it.
 
 Decisions, not code. *Maintainer.*
 
-- [ ] **License.** None is declared.
-- [ ] **Name.** Check that `pare` is free on PyPI and as a crate name.
+- [x] **License.** MIT OR Apache-2.0. *Done.*
+- [x] **Name.** `pare` is taken on PyPI and crates.io; the package is
+  `pare-cli` there, and the command is `pare` everywhere. *Done.*
 - [ ] **Version.** What 0.2 means, and the compatibility promise for
   template ids (`--only T7 < runfile` must keep working).
 
@@ -374,7 +375,41 @@ with warnings as errors, few dependencies, each one justified.
   only on the line's text, so the pass is written to keep them a pure
   function from the start.
 
-## 6. Deferred
+## 6. After the first release
+
+Ideas from reviewing the release, in rough order of value for effort.
+Each changes nothing unless it is used, except the budget experiment,
+which changes output and so comes after the parity decision above.
+
+- [x] **`$PARE_BUDGET`.** The budget when `--budget` is not given, so an
+  agent harness sets it once. *Done.*
+- [ ] **Configurable continuation rules.** A `[continuation]` class of
+  regexes in the vocabulary file: lines matching one continue the record
+  above, for a stack-trace or diagnostic format the built-in rules
+  (`CONTINUATION` in `src/pass.rs`) do not know. Small; the vocabulary
+  file already parses and compiles regexes.
+- [ ] **Configurable masks.** A `[mask NAME]` class: matches become
+  `<NAME>` before clustering, for site-specific ids (order numbers,
+  tenant ids, build hashes) that should not split one kind of line into
+  many templates. Small; they would run after the built-in masks
+  (`src/mask.rs`) and share their two-engine regexes.
+- [ ] **A budget that stops when the news is shown.** Today the budget is
+  a ceiling that a large log always fills. The allocator already ranks
+  every entry by salience; it could stop once nothing above a salience
+  threshold is left, so a log with one error gets a short summary and one
+  with many gets more, still capped by `--budget`. Changes output: tune
+  the threshold with `bench/run.py` (recall and tokens at each budget) and
+  ship it behind a flag (`--budget auto`?) until it earns being the
+  default. A simpler variant scales the budget with the input's size
+  between a floor and a ceiling, at the cost of less predictable output
+  sizes.
+- [ ] **Inferring a log's format.** Detect formats from the first few
+  hundred lines (logfmt, JSON lines, a known tool) and switch rules on
+  accordingly. Possible, but output would then depend on the detection;
+  Drain already learns most of what format detection would give. Only if
+  the held-out set shows formats the rules miss.
+
+## 7. Deferred
 
 - [ ] **Rolling follow mode.** A whole-run summary rewritten in place, for
   agents that poll a file rather than read a stream. Design in

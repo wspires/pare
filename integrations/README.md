@@ -119,7 +119,7 @@ signal to the command and still prints a summary of what it saw.
 | variable | default | |
 |---|---|---|
 | `PARE_BIN` | `pare` | the pare executable |
-| `PARE_HOOK_BUDGET` | `2000` | `--budget` for rewritten commands |
+| `PARE_HOOK_BUDGET` | `2000` | `--budget` for rewritten commands (the hook always passes one, so `$PARE_BUDGET` does not change hook-wrapped commands; it applies where pare is called without `--budget`) |
 | `PARE_HOOK_DECISION` | unset | `ask` or `allow`; see above |
 | `PARE_HOOK_EXTRA` | unset | an extra regex of commands to wrap, matched against the command without its path, e.g. `^(just|nx) ` |
 | `PARE_HOOK_DISABLE` | unset | any value turns the hook off |

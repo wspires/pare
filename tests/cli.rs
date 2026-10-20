@@ -19,6 +19,7 @@ fn pare(args: &[&str], input: &[u8]) -> Output {
     let mut child = Command::new(env!("CARGO_BIN_EXE_pare"))
         .args(args)
         .env_remove("PARE_VOCAB")
+        .env_remove("PARE_BUDGET")
         // No automatic pruning, so a run directory holds only what the test made.
         .env("PARE_RUN_PRUNE", "off")
         .stdin(Stdio::piped())
@@ -277,6 +278,7 @@ fn pare_in(dir: &Path, args: &[&str], env: &[(&str, &str)]) -> (Option<i32>, Str
         .arg(dir)
         .args(args)
         .env_remove("PARE_VOCAB")
+        .env_remove("PARE_BUDGET")
         .envs(env.iter().copied())
         .stdin(Stdio::null())
         .output()
@@ -419,5 +421,54 @@ fn follow_writes_a_block_per_window() {
     assert!(
         !quiet.contains("nothing new") && quiet.contains("ERROR worker crashed"),
         "{quiet}"
+    );
+}
+
+#[test]
+fn budget_from_the_environment() {
+    let input = "INFO step\n".repeat(3000) + "ERROR disk full\n";
+    let run = |env: Option<&str>, args: &[&str]| {
+        let mut cmd = Command::new(env!("CARGO_BIN_EXE_pare"));
+        cmd.arg("--no-tee").args(args).env_remove("PARE_BUDGET");
+        if let Some(v) = env {
+            cmd.env("PARE_BUDGET", v);
+        }
+        let mut child = cmd
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(input.as_bytes())
+            .unwrap();
+        let out = child.wait_with_output().unwrap();
+        let text = String::from_utf8_lossy(if out.status.success() {
+            &out.stdout
+        } else {
+            &out.stderr
+        })
+        .into_owned();
+        (
+            out.status.code(),
+            text.lines().next().unwrap_or("").to_owned(),
+        )
+    };
+    assert!(run(None, &[]).1.contains("(budget 2,000)"));
+    assert!(run(Some("300"), &[]).1.contains("(budget 300)"));
+    assert!(run(Some(""), &[]).1.contains("(budget 2,000)")); // empty: unset
+    assert!(
+        run(Some("300"), &["--budget", "600"])
+            .1
+            .contains("(budget 600)")
+    ); // the flag wins
+    let (code, msg) = run(Some("lots"), &[]);
+    assert_eq!(code, Some(1));
+    assert_eq!(
+        msg,
+        "pare: $PARE_BUDGET must be a whole number of tokens; got \"lots\""
     );
 }

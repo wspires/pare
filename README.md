@@ -100,7 +100,8 @@ Tokens are estimated as bytes / 2.8, the rate measured with tiktoken on
 pare's output (cl100k and o200k agree); `--chars-per-token` changes it,
 and 4 gives the prose rule of thumb. The budget is a hard ceiling; 1,000
 to 2,000 is a good default for an agent loop, and small outputs pass
-through untouched. See
+through untouched. Without `--budget`, pare takes `$PARE_BUDGET`, else
+2,000, so a harness can set it once for every call. See
 [docs/DESIGN.md](docs/DESIGN.md#tokens-and-the-budget).
 
 ## Command mode and agents
