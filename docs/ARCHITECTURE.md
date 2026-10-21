@@ -53,7 +53,8 @@ src/main.rs         the binary: hands the arguments to cli::run, nothing else
 src/lib.rs          the library root: module list and crate docs
 src/cli.rs          options (every Python flag), checks, dispatch, batch mode
 src/error.rs        Error (Usage, Io) and exit statuses
-src/budget.rs       Budget: tokens <-> bytes, as tokens()/budget_bytes_for()
+src/budget.rs       Budget: tokens <-> bytes, as tokens()/budget_bytes_for();
+                    an automatic budget's pass-through and window sizes
 src/pass.rs         Pass: chunks in, lines out, spool and hash on the way;
                     Segmenter: lines into records, heads into templates
 src/store.rs        Store: per-line, per-record and per-template columns
@@ -122,16 +123,19 @@ end of input ─▶ Pass::finish ─▶ Store + hash + spool
                          ▼
                $PARE_DUMP set? ─▶ dump::write_dump
                          │
-               summary::passthrough: fits the budget?
+               summary::passthrough: fits the budget? (auto: 1,000 tokens)
                   yes ─▶ read lines back by offset, clean, write
                   no  ─▶ summary::summarize
-                           head and tail windows (at most 30 % of the budget)
+                           head and tail windows (at most 30 % of the budget;
+                             auto: of 2,000 tokens at most)
                            one queue: template entries at their salience,
                              raw lines at their score per byte, less for
                              each repeat of a shape already shown
                            place greedily; offer what did not fit against
                              the measured slack; render, measure, shed
                              until it fits the budget exactly
+                           (auto: templates below salience 3 get no entry,
+                             so the queue runs dry before the ceiling)
 ```
 
 This is the Python version's single pass and summary, in the same order.

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **`--budget auto`.** The budget becomes a ceiling (2,000, or N with
+  `auto:N`) that the summary stops short of once what is left is below
+  error level, so a log with one error gets a short summary. On the
+  benchmark: 97.4 % of must-survive lines at a mean of 1,204 tokens,
+  against 98.8 % at 1,552 for `--budget 2000`. `$PARE_BUDGET=auto` works
+  too. Opt-in; output without it is unchanged.
 - **Continuation rules in the vocabulary file.** A `[continuation]`
   section adds regexes for lines that continue the record above (a Go
   panic's frames, a custom tool's detail lines), so a trace stays one

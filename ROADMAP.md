@@ -396,7 +396,7 @@ which changes output and so comes after the parity decision above.
   first planned: after, `NUM` would already have turned `ORD-1234` into
   `ORD-<NUM>`, and a user's pattern should see the line as written.
   *Done.*
-- [ ] **A budget that stops when the news is shown.** Today the budget is
+- [x] **A budget that stops when the news is shown.** Today the budget is
   a ceiling that a large log always fills. The allocator already ranks
   every entry by salience; it could stop once nothing above a salience
   threshold is left, so a log with one error gets a short summary and one
@@ -406,6 +406,11 @@ which changes output and so comes after the parity decision above.
   default. A simpler variant scales the budget with the input's size
   between a floor and a ceiling, at the cost of less predictable output
   sizes.
+  Shipped as `--budget auto` / `auto:N`: a template floor of 3.0, pass-through
+  up to 1,000 tokens and windows sized for 2,000. 97.4 % recall at a mean
+  1,204 tokens, against 98.8 % at 1,552 for `--budget 2000`
+  (`docs/DESIGN.md`, "Automatic budget"). *Done.* Default after a fresh
+  held-out sample confirms it.
 - [ ] **Inferring a log's format.** Detect formats from the first few
   hundred lines (logfmt, JSON lines, a known tool) and switch rules on
   accordingly. Possible, but output would then depend on the detection;

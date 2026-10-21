@@ -197,6 +197,60 @@ tool calls a task takes; a 200k-token window with 40 tool calls at 2,000
 each spends 80k on tool output, which is the kind of arithmetic the budget
 exists to make explicit.
 
+### Automatic budget
+
+`--budget auto` (Rust version) treats the budget as a ceiling (2,000, or
+N with `auto:N`) that the summary need not reach. The allocator already
+places entries in order of salience; under `auto` it stops once nothing
+worth an entry of its own is left, so a log with one error gets a short
+summary and a log with many errors gets more, up to the ceiling. Three
+things change, and nothing else:
+
+- **Template floor 3.0 instead of 1.5.** Only shapes at error level get a
+  template entry; warnings and summaries still compete as raw lines,
+  under the unchanged line floor (1.0), and still appear in the ledger.
+- **Pass-through up to 1,000 tokens** (or the ceiling, if lower) instead
+  of up to the budget. A fixed budget of 2,000 passes a 1,900-token log
+  through whole; that was 77 of the 179 benchmark cases and 41 % of the
+  output tokens.
+- **Head and tail windows sized for 2,000 tokens** at most, so a higher
+  ceiling does not lengthen them.
+
+Tuned with `bench/run.py --pare-bin target/release/pare` over all 179
+cases (the corpus, the generated corpus, Defects4J dev, and the
+held-out SWE-bench and Defects4J sets), mean output tokens per case and
+must-survive lines kept:
+
+| setting | recall | mean tokens |
+|---|---|---|
+| `--budget 1000` | 93.1 % | 941 |
+| `--budget 1500` | 97.4 % | 1,298 |
+| `--budget 2000` | 98.8 % | 1,552 |
+| `--budget auto:1000` | 92.1 % | 878 |
+| `--budget auto` | 97.4 % | 1,204 |
+| `--budget auto:4000` | 97.4 % | 1,347 |
+
+`auto` keeps what `--budget 1500` keeps at 7 % fewer tokens, and
+costs 1.4 points of recall against `--budget 2000` for 22 % fewer. On
+the 144 held-out cases alone it is 98.2 % at 1,237 against 98.5 % at
+1,598; on the 35 development cases 96.2 % at 1,069 against 99.5 % at
+1,363. A higher ceiling adds little (`auto:4000`: 143 more tokens on
+average, same recall), which is the point: the size follows the log, not
+the ceiling. A small ceiling gains little over a fixed budget of the same
+mean size (`auto:1000` against the fixed curve: about half a point).
+
+What was tried and dropped: a higher line floor (2 or 3) saved tokens but
+lost the bodies of warnings (Terraform's check failures, whose lines
+score as a share of their head), costing more recall than a smaller fixed
+budget would; a template floor of 3.5 or 4 cut entries that carried
+must-survive lines. The output's size per case now ranges from about 700
+tokens (deciles: 685 to 1,984) instead of crowding at the ceiling (957 to
+1,990); 26 cases still reach it, against 40.
+
+The thresholds were tuned on every set, held-out ones included, so the
+held-out numbers above are not an unbiased estimate; the next fresh
+sample should be scored with `auto` before it becomes the default.
+
 ## Pipeline
 
 1. **Tee.** Raw stdin is saved to a run file named by content hash

@@ -16,6 +16,7 @@ For every corpus/<name>.log:
 
 Usage
     python bench/run.py [--budget 2000] [--corpus corpus] [--tools pare,sqz,tidyout] [--json out.json]
+    python bench/run.py --tools pare --pare-bin target/release/pare --budget auto   # the Rust binary
 
 Tokens are approximated as ceil(bytes / 2.8) everywhere (--chars-per-token),
 matching pare's own budget accounting. Tools that are not installed are reported as "n/a".
@@ -55,9 +56,15 @@ def which(name: str) -> str | None:
     return shutil.which(name)
 
 
+PARE_BIN: str | None = None  # set from --pare-bin
+
+
 def pare_cmd() -> list[str]:
-    """How to run reference/pare.py: the repo venv if there is one, else the
-    current interpreter (pare needs nothing beyond the standard library)."""
+    """How to run pare: --pare-bin if given (target/release/pare), else
+    reference/pare.py with the repo venv if there is one, else the current
+    interpreter (pare needs nothing beyond the standard library)."""
+    if PARE_BIN:
+        return [PARE_BIN]
     script = os.path.join(ROOT, "reference", "pare.py")
     venv = os.path.join(ROOT, ".venv", "bin", "python")
     return [venv if os.path.exists(venv) else sys.executable, script]
@@ -239,7 +246,9 @@ def load_case(corpus: str, name: str):
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--corpus", default=os.path.join(ROOT, "corpus"))
-    ap.add_argument("--budget", type=int, default=2000, help="pare token budget (default 2000)")
+    ap.add_argument("--budget", default="2000",
+                    help="pare token budget (default 2000); for pare also 'auto' or 'auto:N'")
+    ap.add_argument("--pare-bin", help="run this pare binary (target/release/pare) instead of reference/pare.py")
     ap.add_argument("--tools", default="pare,sqz,tidyout", help="comma-separated subset of pare,sqz,tidyout")
     ap.add_argument("--json", help="also write results as JSON to this path")
     ap.add_argument("--show-misses", action="store_true", help="list must-survive lines each tool dropped")
@@ -252,6 +261,8 @@ def main() -> int:
     global CHARS_PER_TOKEN
     CHARS_PER_TOKEN = args.chars_per_token
     Pare.extra_args = shlex.split(args.pare_args)
+    global PARE_BIN
+    PARE_BIN = args.pare_bin
 
     names = sorted(f[:-4] for f in os.listdir(args.corpus) if f.endswith(".log"))
     if not names:

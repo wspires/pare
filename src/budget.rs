@@ -4,9 +4,22 @@
 //! A token is estimated as `bytes / chars_per_token` (2.8 by default, the
 //! rate measured on cl100k and o200k, see docs/DESIGN.md), and the budget
 //! in bytes is the budget in tokens times that rate, truncated.
+//!
+//! An automatic budget (`--budget auto`, not in Python) is a ceiling the
+//! summary need not reach: see [`Budget::auto`].
 
 /// Bytes per token unless `--chars-per-token` says otherwise.
 pub const DEFAULT_CHARS_PER_TOKEN: f64 = 2.8;
+
+/// An automatic budget passes input through whole only up to this many
+/// tokens (or its ceiling, if lower); a fixed budget does up to the budget.
+/// Tuned with `bench/run.py`: see `docs/DESIGN.md`, "Automatic budget".
+pub const AUTO_PASSTHROUGH_TOKENS: i64 = 1000;
+
+/// An automatic budget sizes the head and tail windows as a budget of this
+/// many tokens would (or its ceiling, if lower), so a higher ceiling does
+/// not lengthen them.
+pub const AUTO_SIZING_TOKENS: i64 = 2000;
 
 /// The budget and the token rate it is measured in.
 // Rust note: `#[derive(...)]` asks the compiler to write the obvious
@@ -19,6 +32,10 @@ pub struct Budget {
     pub tokens: i64,
     /// Bytes per token.
     pub chars_per_token: f64,
+    /// `--budget auto`: `tokens` is a ceiling, and the summary stops when
+    /// what is left to show is below a higher salience floor, so a log
+    /// with little news gets a short summary.
+    pub auto: bool,
 }
 
 impl Budget {
@@ -35,11 +52,35 @@ impl Budget {
         bytes
     }
 
+    /// Input up to this many bytes is the output, unchanged.
+    #[must_use]
+    pub fn passthrough_bytes(&self) -> i64 {
+        self.capped(AUTO_PASSTHROUGH_TOKENS).bytes()
+    }
+
+    /// The budget, in bytes, that the head and tail windows are sized for.
+    #[must_use]
+    pub fn sizing_bytes(&self) -> i64 {
+        self.capped(AUTO_SIZING_TOKENS).bytes()
+    }
+
+    /// The budget, or for an automatic one at most `cap` tokens.
+    fn capped(&self, cap: i64) -> Budget {
+        if self.auto {
+            Budget {
+                tokens: self.tokens.min(cap),
+                ..*self
+            }
+        } else {
+            *self
+        }
+    }
+
     /// Estimated tokens in `nbytes` bytes of text.
     ///
     /// ```
     /// use pare::budget::{Budget, DEFAULT_CHARS_PER_TOKEN};
-    /// let b = Budget { tokens: 2000, chars_per_token: DEFAULT_CHARS_PER_TOKEN };
+    /// let b = Budget { tokens: 2000, chars_per_token: DEFAULT_CHARS_PER_TOKEN, auto: false };
     /// assert_eq!(b.tokens_in(2800), 1000); // not the 1,001 that 2800 / 2.8 gives in floating point
     /// assert_eq!(b.bytes(), 5600);
     /// ```
@@ -66,6 +107,7 @@ mod tests {
     const B: Budget = Budget {
         tokens: 600,
         chars_per_token: DEFAULT_CHARS_PER_TOKEN,
+        auto: false,
     };
 
     #[test]
@@ -78,8 +120,23 @@ mod tests {
         let four = Budget {
             tokens: 600,
             chars_per_token: 4.0,
+            auto: false,
         };
         assert_eq!(four.bytes(), 2400);
         assert_eq!(four.tokens_in(2401), 601);
+    }
+
+    #[test]
+    fn auto_caps_passthrough_and_sizing() {
+        assert_eq!((B.passthrough_bytes(), B.sizing_bytes()), (1680, 1680));
+        let auto = |tokens| Budget {
+            tokens,
+            auto: true,
+            ..B
+        };
+        assert_eq!(auto(600).passthrough_bytes(), 1680);
+        assert_eq!(auto(4000).passthrough_bytes(), 2800);
+        assert_eq!(auto(4000).sizing_bytes(), 5600);
+        assert_eq!(auto(4000).bytes(), 11_200); // still the ceiling
     }
 }
