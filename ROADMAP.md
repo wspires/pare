@@ -383,16 +383,19 @@ which changes output and so comes after the parity decision above.
 
 - [x] **`$PARE_BUDGET`.** The budget when `--budget` is not given, so an
   agent harness sets it once. *Done.*
-- [ ] **Configurable continuation rules.** A `[continuation]` class of
+- [x] **Configurable continuation rules.** A `[continuation]` class of
   regexes in the vocabulary file: lines matching one continue the record
-  above, for a stack-trace or diagnostic format the built-in rules
-  (`CONTINUATION` in `src/pass.rs`) do not know. Small; the vocabulary
-  file already parses and compiles regexes.
-- [ ] **Configurable masks.** A `[mask NAME]` class: matches become
+  above, for a stack-trace or diagnostic format the built-in rules do not
+  know. The built-in rules became the class's default entries (so
+  `--dump-vocab` lists them and `[continuation replace]` can drop one);
+  parity is unchanged. *Done.*
+- [x] **Configurable masks.** A `[mask NAME]` section: matches become
   `<NAME>` before clustering, for site-specific ids (order numbers,
   tenant ids, build hashes) that should not split one kind of line into
-  many templates. Small; they would run after the built-in masks
-  (`src/mask.rs`) and share their two-engine regexes.
+  many templates. They run *before* the built-in masks, not after as
+  first planned: after, `NUM` would already have turned `ORD-1234` into
+  `ORD-<NUM>`, and a user's pattern should see the line as written.
+  *Done.*
 - [ ] **A budget that stops when the news is shown.** Today the budget is
   a ceiling that a large log always fills. The allocator already ranks
   every entry by salience; it could stop once nothing above a salience

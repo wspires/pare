@@ -211,7 +211,8 @@ exists to make explicit.
    record. Blank lines belong to no record; a single blank line inside an
    indented block does not end it (a tool-specific rule, for Jest and
    pytest). Records are capped at 400 lines.
-3. **Mask.** Runs of rule characters shrink to three; timestamps, dates,
+3. **Mask.** A vocabulary file's own masks run first (none by default).
+   Runs of rule characters shrink to three; timestamps, dates,
    times, UUIDs, IPs, URLs, hex and hashes, versions, paths, numbers with
    units, and digits inside identifiers become `<RULE>`, `<TS>`, `<IP>`,
    `<PATH>`, `<NUM>`, `<N>` and so on. Paths must contain a letter, so
@@ -278,6 +279,7 @@ weights:
 | `advice` | −1 | re-run, for more information, please refer to, see dump files, `run with --`, `[Help 1]`, …: a build tool's closing advice. Its score replaces the line's, level included, so an `[ERROR]` advice line stays under the floor |
 | `strong-error` | — | decides whether a record *body* makes its template an error |
 | `level-fatal` … `level-debug` | +4 … −1 | plain level tokens for the structural detection above |
+| `continuation` | — | regexes for lines that continue the record above whatever their indentation: stack frames, carets, `Caused by:`, diff and rustc and pytest detail (segmentation, not scoring; Rust version only) |
 
 Words match whole, case-insensitively, and not inside a hyphenated flag or
 identifier (`--timeout=300s` is not an error). A zero count before an error
@@ -285,7 +287,15 @@ noun (`0 errors`, `0 failed`) is removed before matching. `pare
 --dump-vocab` prints the lists as a file; `--vocab FILE` or `$PARE_VOCAB`
 loads one back, where `[error]` adds to a class and `[error replace]`
 replaces it, a plain line is a phrase and a `/.../` line a regex. See
-`reference/vocab.example` for a German extension.
+`reference/vocab.example` for a German extension. The `continuation`
+class (Rust version) takes regexes only: a `[continuation]` section adds
+record shapes the built-in ones do not know, such as a Go panic's frames
+at column 0, and `[continuation replace]` can drop built-in ones.
+A `[mask NAME]` section (Rust version) is a mask of the file's own: what
+its regexes match becomes `<NAME>` before the built-in masks run, for
+site-specific ids such as order numbers, tenant names or build hashes
+that would otherwise split one kind of line into many templates. There
+are no built-in ones, so the default dump has no such section.
 
 ## Scoring model
 

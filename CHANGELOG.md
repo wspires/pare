@@ -2,9 +2,17 @@
 
 ## Unreleased
 
-- `$PARE_BUDGET` sets the budget when `--budget` is not given (an empty
-  value counts as unset); the default is still 2,000. The Python
-  reference does not read it.
+- **Continuation rules in the vocabulary file.** A `[continuation]`
+  section adds regexes for lines that continue the record above (a Go
+  panic's frames, a custom tool's detail lines), so a trace stays one
+  record; the built-in rules are now that class's default entries, shown
+  by `--dump-vocab`, and `[continuation replace]` can drop them. Output is
+  unchanged unless a file uses the class.
+- **Masks in the vocabulary file.** A `[mask NAME]` section of regexes
+  turns what they match into `<NAME>` before lines are clustered, so
+  site-specific ids (order numbers, tenant names, build hashes) do not
+  split one kind of line into many templates. They run before the
+  built-in masks; there are none by default, so output is unchanged.
 
 ## 0.2.0
 
@@ -21,13 +29,16 @@ Homebrew, an install script, pipx/uv (`pare-cli`) or cargo (`pare-cli`).
 - **Follow mode no longer needs `select()`**, which limited the Python
   version to Unix; it builds and should run on Windows, where it has not
   been tried yet.
+- **`$PARE_BUDGET`** sets the budget when `--budget` is not given (an
+  empty value counts as unset), so an agent harness can set it once; the
+  default is still 2,000.
 - **License:** MIT OR Apache-2.0.
 - The Python version is kept in `reference/` as the reference the Rust
   version is tested against; it is no longer packaged.
 
 Differences: a follow run file is named by the time in UTC (it was local
-time), and a malformed regex in a `--vocab` file is reported in the Rust
-regex engine's words.
+time), a malformed regex in a `--vocab` file is reported in the Rust
+regex engine's words, and the Python version does not read `$PARE_BUDGET`.
 
 ## 0.1 (`v0.1-python`)
 

@@ -44,34 +44,14 @@ pub const CHUNK: usize = 1 << 20;
 pub const MAX_RECORD_LINES: u32 = 400;
 
 /// Tool-specific rules, all on (the Python version has a switch per rule
-/// for `bench/ablate.py`; the port keeps them as constants).
+/// for `bench/ablate.py`; the port keeps them as constants). The
+/// continuation shapes of rustc and pytest are entries of the vocabulary's
+/// continuation class (`crate::vocab::DEFAULT_VOCAB`), which a vocabulary
+/// file can extend or replace.
 pub(crate) const TOOL_PYTEST: bool = true;
 pub(crate) const TOOL_RUSTC: bool = true;
 pub(crate) const TOOL_LOGCAT: bool = true;
 const TOOL_BLANK_IN_BLOCK: bool = true;
-
-/// Lines that continue the record above whatever their indentation:
-/// `CONT_GENERIC`, `CONT_RUSTC` and `CONT_PYTEST` in Python.
-static CONTINUATION: LazyLock<Regex> = LazyLock::new(|| {
-    let mut p = String::from(concat!(
-        r#"^\s+at\s"#,                                         // JS/Java stack frame
-        r#"|^\s*File "[^"]+", line \d+"#,                      // Python frame
-        r#"|^\s*\^+\s*$"#,                                     // caret marker
-        r#"|^\s*~+\s*$"#,                                      // tilde underline
-        r#"|^Caused by:"#,                                     // Java/Rust cause chain
-        r#"|^\s*\.\.\. \d+ more"#,                             // Java elided frames
-        r#"|^\s*(?:Expected|Received|Actual|Got|Want|Diff):"#, // assertion detail
-        r#"|^\s*[+-]{3}\s"#,                                   // diff headers
-        r#"|^\s*@@ "#,                                         // diff hunk
-    ));
-    if TOOL_RUSTC {
-        p.push_str(r#"|^\s*\d*\s*\|(?:\s|$)|^\s*-->\s|^\s*= (?:note|help|warning):|^\s*::: "#);
-    }
-    if TOOL_PYTEST {
-        p.push_str(r#"|^E\s{2,}|^>\s{2,}"#); // pytest failure detail and source marker lines
-    }
-    Regex::new(&py_pattern(&p)).expect("continuation pattern is valid")
-});
 
 /// A logcat line's header, threadtime (`10-13 09:12:31.620  4321  4321 E
 /// AndroidRuntime: ...`) or time format (`... E/AndroidRuntime( 4321): ...`).
@@ -284,16 +264,17 @@ impl<'v> Segmenter<'v> {
     }
 
     /// Whether a line continues the open record, by its shape: deeper
-    /// indentation or a continuation form. A logcat line is judged by its
-    /// message, and only within one entry (same header).
+    /// indentation or a continuation form (the vocabulary's continuation
+    /// class, [`Vocab::continues`]). A logcat line is judged by its message,
+    /// and only within one entry (same header).
     fn joins(&self, p: &Parsed<'_>) -> bool {
         match &p.logcat {
             Some(key) => {
                 let message = p.message();
                 self.logcat_key.as_ref() == Some(key)
-                    && (indent_of(message) > self.head_indent || CONTINUATION.is_match(message))
+                    && (indent_of(message) > self.head_indent || self.vocab.continues(message))
             }
-            None => p.indent > self.head_indent || CONTINUATION.is_match(&p.text),
+            None => p.indent > self.head_indent || self.vocab.continues(&p.text),
         }
     }
 
@@ -473,7 +454,7 @@ impl<'v> Segmenter<'v> {
             self.head_no = base + i as usize + 1;
             self.head_sev = sev;
             // Cluster the masked head line.
-            let cluster = self.drain.add(&drain_message(text));
+            let cluster = self.drain.add(&drain_message(text, self.vocab.masks()));
             if self.by_cluster.len() < cluster {
                 self.by_cluster.resize(cluster, None);
             }
