@@ -534,6 +534,44 @@ fn follow_writes_a_block_per_window() {
 }
 
 #[test]
+fn auto_budget_stops_when_the_news_is_shown() {
+    // Sixteen shapes of warning and one error: a fixed budget fills up with
+    // warnings, an automatic one shows the error and stops.
+    let words = [
+        "alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india",
+        "juliet", "kilo", "lima", "mike", "november", "oscar", "papa", "quebec", "romeo", "sierra",
+        "tango", "uniform", "victor", "whiskey", "xray", "yankee", "zulu",
+    ];
+    let mut input = String::new();
+    for i in 0..1200 {
+        let k = i % 60;
+        let w = words[k % 26];
+        input += &format!(
+            "WARN {} subsystem {w} is slow{}\n",
+            vec![w; k / 26 + 2].join(" "),
+            " really".repeat(k % 5)
+        );
+        if i == 900 {
+            input += "ERROR payment service unreachable: connection refused\n";
+        }
+    }
+    let run = |budget: &str| {
+        let out = pare(&["--no-tee", "--budget", budget], input.as_bytes());
+        assert!(out.status.success());
+        String::from_utf8(out.stdout).unwrap()
+    };
+    let (fixed, auto) = (run("2000"), run("auto"));
+    assert!(auto.contains("L902: ERROR payment service unreachable"));
+    assert!(
+        auto.len() * 3 < fixed.len(),
+        "{} vs {} bytes",
+        auto.len(),
+        fixed.len()
+    );
+    assert!(auto.starts_with("# pare: 1,201 lines,") && auto.contains("(budget auto ≤2,000)"));
+}
+
+#[test]
 fn budget_from_the_environment() {
     let input = "INFO step\n".repeat(3000) + "ERROR disk full\n";
     let run = |env: Option<&str>, args: &[&str]| {
@@ -575,6 +613,12 @@ fn budget_from_the_environment() {
     assert_eq!(code, Some(1));
     assert_eq!(
         msg,
-        "pare: $PARE_BUDGET must be a whole number of tokens; got \"lots\""
+        "pare: $PARE_BUDGET must be a whole number of tokens, auto, or auto:N; got \"lots\""
+    );
+    assert!(run(Some("auto"), &[]).1.contains("(budget auto ≤2,000)"));
+    assert!(
+        run(Some("auto:4000"), &[])
+            .1
+            .contains("(budget auto ≤4,000)")
     );
 }

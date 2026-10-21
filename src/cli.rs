@@ -28,7 +28,7 @@ use crate::vocab::{self, Vocab};
 
 /// Summarize noisy command output (tests, builds, logs) to a token budget.
 ///
-/// noisy-command 2>&1 | pare [--budget 2000]
+/// noisy-command 2>&1 | pare [--budget 2000 | --budget auto]
 /// pare [--budget 2000] -- noisy-command args   (runs it; keeps its exit code)
 /// pare --only T3,T7 < run-file                 (raw lines of those templates)
 // Rust note: `#[derive(Parser)]` runs a procedural macro: Rust code that
@@ -42,12 +42,15 @@ use crate::vocab::{self, Vocab};
 // argparse does by default.
 #[allow(clippy::struct_excessive_bools)] // one bool per flag, as the CLI has
 pub struct Args {
-    /// Output budget in tokens (bytes/2.8 by default) [default: $PARE_BUDGET,
-    /// else 2000]
+    /// Output budget in tokens (bytes/2.8 by default); `auto` or `auto:N`
+    /// stops early when little is left worth showing, at most 2000 (or N)
+    /// [default: $PARE_BUDGET, else 2000]
     // `None` until `run` resolves it: the flag, else `$PARE_BUDGET` (an
     // agent harness can set the budget once for every call), else 2000.
-    #[arg(long, allow_negative_numbers = true)]
-    pub budget: Option<i64>,
+    // Rust note: `value_parser` names a function from the flag's text to
+    // the field's type; clap reports its `Err` as an invalid value.
+    #[arg(long, allow_negative_numbers = true, value_name = "N|auto[:N]", value_parser = parse_budget)]
+    pub budget: Option<BudgetArg>,
     /// Lines to keep from the start
     #[arg(long, default_value_t = 5)]
     pub head: i64,
@@ -127,14 +130,59 @@ pub struct Args {
     pub stats: bool,
 }
 
-/// The budget when neither `--budget` nor `$PARE_BUDGET` gives one.
+/// The budget when neither `--budget` nor `$PARE_BUDGET` gives one, and
+/// the ceiling of a plain `auto`.
 pub const DEFAULT_BUDGET: i64 = 2000;
 
+/// A `--budget` value: a number of tokens, or `auto` with a ceiling.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BudgetArg {
+    /// The budget, or an automatic budget's ceiling, in tokens.
+    pub tokens: i64,
+    /// `auto` or `auto:N`.
+    pub auto: bool,
+}
+
+/// Parses `2000`, `auto` or `auto:4000`.
+///
+/// # Errors
+///
+/// Anything else, with a message saying what is expected.
+pub fn parse_budget(text: &str) -> std::result::Result<BudgetArg, String> {
+    let text = text.trim();
+    let number = |t: &str| t.trim().parse::<i64>().ok();
+    let parsed = match text.strip_prefix("auto") {
+        Some("") => Some(BudgetArg {
+            tokens: DEFAULT_BUDGET,
+            auto: true,
+        }),
+        Some(rest) => rest
+            .strip_prefix(':')
+            .and_then(number)
+            .map(|tokens| BudgetArg { tokens, auto: true }),
+        None => number(text).map(|tokens| BudgetArg {
+            tokens,
+            auto: false,
+        }),
+    };
+    parsed.ok_or_else(|| "expected a whole number of tokens, auto, or auto:N".to_owned())
+}
+
 impl Args {
-    /// The output budget in tokens, once `run` has resolved it.
+    /// The output budget in tokens (an automatic budget's ceiling), once
+    /// `run` has resolved it.
     #[must_use]
     pub fn budget(&self) -> i64 {
-        self.budget.unwrap_or(DEFAULT_BUDGET)
+        self.budget.map_or(DEFAULT_BUDGET, |b| b.tokens)
+    }
+
+    /// The budget for the summary, once `run` has resolved it.
+    fn budget_for_summary(&self) -> Budget {
+        Budget {
+            tokens: self.budget(),
+            chars_per_token: self.chars_per_token,
+            auto: self.budget.is_some_and(|b| b.auto),
+        }
     }
 
     /// Fills in the budget from `$PARE_BUDGET` if the flag did not give
@@ -142,7 +190,7 @@ impl Args {
     ///
     /// # Errors
     ///
-    /// If the variable is not a whole number.
+    /// If the variable is not a whole number, `auto` or `auto:N`.
     // Rust note: clap's own `env = ...` would do this too, but it takes an
     // empty variable as an invalid value, and its message would not say the
     // value came from the environment.
@@ -150,12 +198,12 @@ impl Args {
         if self.budget.is_none() {
             if let Some(v) = std::env::var_os("PARE_BUDGET").filter(|v| !v.is_empty()) {
                 let text = v.to_string_lossy();
-                let n = text.trim().parse::<i64>().map_err(|_| {
+                let b = parse_budget(&text).map_err(|_| {
                     Error::Usage(format!(
-                        "$PARE_BUDGET must be a whole number of tokens; got {text:?}"
+                        "$PARE_BUDGET must be a whole number of tokens, auto, or auto:N; got {text:?}"
                     ))
                 })?;
-                self.budget = Some(n);
+                self.budget = Some(b);
             }
         }
         Ok(())
@@ -315,10 +363,7 @@ fn follow_mode(args: &Args, vocab: &Vocab, run: Option<&mut CommandRun>) -> Resu
     let path = spool.path().to_path_buf();
     let run_path = tee.then(|| py_abspath(&path));
     let settings = follow::Settings {
-        budget: Budget {
-            tokens: args.budget(),
-            chars_per_token: args.chars_per_token,
-        },
+        budget: args.budget_for_summary(),
         head: args.head,
         tail: args.tail,
         width: args.width,
@@ -369,10 +414,7 @@ fn load_vocab(path: &std::path::Path) -> Result<Vocab> {
 /// in command mode, else 0.
 #[allow(clippy::too_many_lines)] // the batch path of Python's main(), kept whole
 fn batch(args: &Args, vocab: &Vocab, mut run: Option<&mut CommandRun>) -> Result<u8> {
-    let budget = Budget {
-        tokens: args.budget(),
-        chars_per_token: args.chars_per_token,
-    };
+    let budget = args.budget_for_summary();
     let tee = !args.no_tee;
     // Where the input goes while it is read, and the run directory it will
     // be renamed into (None: --no-tee, or an explicit --run-file).
@@ -610,9 +652,29 @@ mod tests {
     #[test]
     fn prefixes_and_short_flags() {
         let a = parse(&["--bud", "600", "-f", "--since", "-200"]);
-        assert_eq!(a.budget, Some(600));
+        assert_eq!(
+            a.budget,
+            Some(BudgetArg {
+                tokens: 600,
+                auto: false
+            })
+        );
         assert!(a.follow);
         assert_eq!(a.since.as_deref(), Some("-200"));
+    }
+
+    #[test]
+    fn budget_values() {
+        let b = |tokens, auto| Ok(BudgetArg { tokens, auto });
+        assert_eq!(parse_budget("600"), b(600, false));
+        assert_eq!(parse_budget("-5"), b(-5, false));
+        assert_eq!(parse_budget("auto"), b(2000, true));
+        assert_eq!(parse_budget(" auto:4000 "), b(4000, true));
+        for bad in ["", "auto:", "auto4000", "autox", "lots", "1.5"] {
+            assert!(parse_budget(bad).is_err(), "{bad:?}");
+        }
+        assert!(parse(&["--budget", "auto"]).budget_for_summary().auto);
+        assert!(!parse(&[]).budget_for_summary().auto);
     }
 
     #[test]

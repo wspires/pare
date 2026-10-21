@@ -66,7 +66,8 @@ pub fn passthrough(
     // wrapping, so a count past i64::MAX (impossible here) counts as not
     // fitting rather than as a negative number that fits.
     let end_bytes = end.map_or(0, |e| e.len() as u64 + 1);
-    let fits = i64::try_from(store.verbatim_bytes + end_bytes).is_ok_and(|v| v <= budget.bytes());
+    let fits = i64::try_from(store.verbatim_bytes + end_bytes)
+        .is_ok_and(|v| v <= budget.passthrough_bytes());
     if !fits {
         return Ok(None);
     }
@@ -106,6 +107,12 @@ const FILL_FLOOR: f64 = 1.0;
 /// Template entries below this salience stay in the ledger (the first
 /// entry is exempt).
 const TEMPLATE_FLOOR: f64 = 1.5;
+/// The same under `--budget auto` (not in Python): only error-level shapes
+/// get an entry of their own. With the windows and pass-through sized
+/// apart from the ceiling (`crate::budget`), this is what makes the
+/// summary stop early; raising `FILL_FLOOR` as well cost more recall than
+/// it saved tokens (docs/DESIGN.md, "Automatic budget").
+const AUTO_TEMPLATE_FLOOR: f64 = 3.0;
 /// A template whose records are at least this share distinct shapes is a
 /// list of different items...
 const LIST_DISTINCT: f64 = 0.5;
@@ -659,7 +666,7 @@ pub fn summarize(store: &Store, vocab: &Vocab, spool: &Path, opts: &Options) -> 
         let size = store.verbatim_bytes as i64
             + nbytes(&verbatim)
             + end.as_ref().map_or(0, |e| e.len() as i64 + 1);
-        if size <= budget_bytes {
+        if size <= opts.budget.passthrough_bytes() {
             let mut lines = lines;
             let mut text = verbatim.join("\n");
             text.push('\n');
@@ -774,7 +781,7 @@ impl Summarizer<'_> {
                 fmt_int(in_bytes),
                 fmt_int(self.tokens(in_bytes)),
                 fmt_int(self.tokens(out_bytes)),
-                fmt_int(self.opts.budget.tokens),
+                self.budget_label(),
                 self.store.templates.len(),
             );
         }
@@ -785,9 +792,19 @@ impl Summarizer<'_> {
             fmt_int(in_bytes),
             fmt_int(self.tokens(in_bytes)),
             fmt_int(self.tokens(out_bytes)),
-            fmt_int(self.opts.budget.tokens),
+            self.budget_label(),
             self.store.templates.len(),
         )
+    }
+
+    /// The budget as the header quotes it: `2,000`, or `auto ≤2,000`.
+    fn budget_label(&self) -> String {
+        let tokens = fmt_int(self.opts.budget.tokens);
+        if self.opts.budget.auto {
+            format!("auto ≤{tokens}")
+        } else {
+            tokens
+        }
     }
 
     fn rec(&self, i: usize) -> Option<usize> {
@@ -1352,7 +1369,12 @@ impl Summarizer<'_> {
                 if max != 0 && self.placed.len() as i64 >= max {
                     continue;
                 }
-                if self.sal[t] < TEMPLATE_FLOOR && !self.placed.is_empty() {
+                let floor = if self.opts.budget.auto {
+                    AUTO_TEMPLATE_FLOOR
+                } else {
+                    TEMPLATE_FLOOR
+                };
+                if self.sal[t] < floor && !self.placed.is_empty() {
                     continue; // low-salience shape: the ledger's count is enough
                 }
                 let ex = tpl.exemplar as usize;
@@ -1759,7 +1781,9 @@ impl Summarizer<'_> {
         let fixed = nbytes(&fixed_parts) + self.ledger_reserve;
         let mut avail = (self.budget_bytes - fixed).max(0);
 
-        // Head and tail windows: at most 30 % of the budget together.
+        // Head and tail windows: at most 30 % of the budget together (for
+        // an automatic budget, of the budget they are sized for).
+        let window_avail = (self.opts.budget.sizing_bytes() - fixed).clamp(0, avail);
         let mut head_n = self.opts.head;
         if tokens < COMPACT_BUDGET {
             head_n = head_n.min(3); // a small budget gets a smaller head (the tail keeps the verdicts)
@@ -1787,7 +1811,7 @@ impl Summarizer<'_> {
             let cost =
                 nbytes(&self.render_ranges(&head_nos)) + nbytes(&self.render_ranges(&tail_nos));
             #[allow(clippy::cast_precision_loss)]
-            if (cost as f64) <= avail as f64 * 0.3 {
+            if (cost as f64) <= window_avail as f64 * 0.3 {
                 break;
             }
             if tail_nos.len() >= head_nos.len() && !tail_nos.is_empty() {

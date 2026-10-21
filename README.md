@@ -104,6 +104,14 @@ through untouched. Without `--budget`, pare takes `$PARE_BUDGET`, else
 2,000, so a harness can set it once for every call. See
 [docs/DESIGN.md](docs/DESIGN.md#tokens-and-the-budget).
 
+`--budget auto` (or `auto:4000` for a different ceiling) lets the size
+follow the log: pare stops once what is left is below error level, so
+1,200 warning lines and one error come out at about 250 tokens instead of
+950. On the benchmark it kept 97.4 % of the must-survive lines at a mean
+of 1,204 tokens, against 98.8 % at 1,552 for `--budget 2000`. It is
+opt-in while it earns being the default; see
+[docs/DESIGN.md](docs/DESIGN.md#automatic-budget).
+
 ## Command mode and agents
 
 `pare -- CMD ARGS` runs the command itself instead of reading a pipe:
