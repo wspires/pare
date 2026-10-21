@@ -211,7 +211,8 @@ exists to make explicit.
    record. Blank lines belong to no record; a single blank line inside an
    indented block does not end it (a tool-specific rule, for Jest and
    pytest). Records are capped at 400 lines.
-3. **Mask.** Runs of rule characters shrink to three; timestamps, dates,
+3. **Mask.** A vocabulary file's own masks run first (none by default).
+   Runs of rule characters shrink to three; timestamps, dates,
    times, UUIDs, IPs, URLs, hex and hashes, versions, paths, numbers with
    units, and digits inside identifiers become `<RULE>`, `<TS>`, `<IP>`,
    `<PATH>`, `<NUM>`, `<N>` and so on. Paths must contain a letter, so
@@ -290,6 +291,11 @@ replaces it, a plain line is a phrase and a `/.../` line a regex. See
 class (Rust version) takes regexes only: a `[continuation]` section adds
 record shapes the built-in ones do not know, such as a Go panic's frames
 at column 0, and `[continuation replace]` can drop built-in ones.
+A `[mask NAME]` section (Rust version) is a mask of the file's own: what
+its regexes match becomes `<NAME>` before the built-in masks run, for
+site-specific ids such as order numbers, tenant names or build hashes
+that would otherwise split one kind of line into many templates. There
+are no built-in ones, so the default dump has no such section.
 
 ## Scoring model
 

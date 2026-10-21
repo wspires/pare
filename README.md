@@ -317,6 +317,20 @@ regexes. A Go panic prints its frames at column 0:
 /^\t/
 ```
 
+A `[mask NAME]` section turns what its regexes match into `<NAME>` before
+lines are clustered, for ids pare cannot recognize as variable. When a
+tenant name leads each line, every tenant gets a template of its own
+(`acme: nightly sync failed`, `globex: nightly sync failed`, ...); with
+
+```
+[mask TENANT]
+/^[a-z]+(?=:)/
+```
+
+they are one template. Masks run before the built-in ones (timestamps,
+numbers, ...), on the line as written. Template ids depend on the masks,
+so `--only T3` on a saved run file needs the same `--vocab`.
+
 ## How it works
 
 1. **Tee** stdin to a content-hashed run file, in one pass with the steps

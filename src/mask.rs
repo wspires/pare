@@ -7,6 +7,9 @@
 //! so that `ERROR [worker-3] GET /api/cart 500 1137ms` and the same line a
 //! second later from worker 5 look alike. The masks run in a fixed order,
 //! each on what the previous ones left.
+//!
+//! A vocabulary file can add masks of its own (`[mask NAME]`, see
+//! [`UserMask`]) for ids the built-in ones do not know; they run first.
 
 use std::borrow::Cow;
 use std::sync::LazyLock;
@@ -135,6 +138,47 @@ static MASKS: LazyLock<Vec<Mask>> = LazyLock::new(|| {
         .collect()
 });
 
+/// A mask from a vocabulary file's `[mask NAME]` section: whatever its
+/// regexes match becomes `<NAME>`. Not in Python.
+///
+/// The user's masks run before the built-in ones, on the line as written
+/// (stripped), so a pattern such as `ORD-\d+` sees the digits that `NUM`
+/// would otherwise have turned into `ORD-<NUM>` already.
+pub struct UserMask {
+    placeholder: String,
+    rx: PyRegex,
+}
+
+impl UserMask {
+    /// A mask that replaces matches for any of `regexes` (patterns, without
+    /// the slashes of the file format) with `<name>`.
+    ///
+    /// # Errors
+    ///
+    /// If the patterns do not compile.
+    pub fn new(name: &str, regexes: &[String]) -> Result<UserMask, String> {
+        let alt: Vec<String> = regexes.iter().map(|r| format!("(?:{r})")).collect();
+        Ok(UserMask {
+            placeholder: format!("<{name}>"),
+            rx: PyRegex::new(&alt.join("|"))?,
+        })
+    }
+
+    /// `text` with this mask applied, or `None` if nothing matched.
+    fn apply(&self, text: &str) -> Option<String> {
+        // An empty match (a pattern such as `/x*/`) is left alone: masking
+        // it would put a placeholder between every two characters.
+        let placeholder = self.placeholder.clone();
+        self.rx.replace_all(text, move |s| {
+            if s.is_empty() {
+                Cow::Borrowed("")
+            } else {
+                Cow::Owned(placeholder.clone())
+            }
+        })
+    }
+}
+
 /// Rule runs (`=====`, `_____`, `-----`, ...) shrink to three characters,
 /// so banners of different widths share a template. Python does this with
 /// the pattern `([=_\-*#~.])\1{2,}`, whose back-reference neither Rust
@@ -188,18 +232,22 @@ fn digits_to_n(s: &str) -> String {
     out
 }
 
-/// The line with its variable parts masked. With `words` false,
-/// identifiers with digits in them (`test_case_3`) are left whole: for
-/// telling names apart, not for clustering.
+/// The line with its variable parts masked: first by the vocabulary's own
+/// masks, `user` (none by default), then by the built-in ones. With `words`
+/// false, identifiers with digits in them (`test_case_3`) are left whole:
+/// for telling names apart, not for clustering.
 ///
 /// ```
-/// use pare::mask::mask;
+/// use pare::mask::{UserMask, mask};
 /// assert_eq!(
-///     mask("2026-10-07T09:00:01Z ERROR [worker-3] GET /api/cart 500 1137ms", true),
+///     mask("2026-10-07T09:00:01Z ERROR [worker-3] GET /api/cart 500 1137ms", true, &[]),
 ///     "<TS> ERROR [worker-<NUM>] GET <PATH> <NUM> <NUM>"
 /// );
-/// assert_eq!(mask("job42 failed ======", true), "job<N> failed ===");
-/// assert_eq!(mask("job42 failed", false), "job42 failed");
+/// assert_eq!(mask("job42 failed ======", true, &[]), "job<N> failed ===");
+/// assert_eq!(mask("job42 failed", false, &[]), "job42 failed");
+/// let order = UserMask::new("ORDER", &[r"\bORD-\d+".to_owned()]).unwrap();
+/// assert_eq!(mask("ORD-1234 shipped", true, &[]), "ORD-<NUM> shipped");
+/// assert_eq!(mask("ORD-1234 shipped", true, &[order]), "<ORDER> shipped");
 /// ```
 ///
 /// # Panics
@@ -207,8 +255,14 @@ fn digits_to_n(s: &str) -> String {
 /// If a mask's backtracking exceeds its (very high) limit, which would be
 /// a bug in a pattern.
 #[must_use]
-pub fn mask(text: &str, words: bool) -> String {
-    let mut t: String = rules(py_strip(text)).into_owned();
+pub fn mask(text: &str, words: bool, user: &[UserMask]) -> String {
+    let mut t: Cow<'_, str> = Cow::Borrowed(py_strip(text));
+    for m in user {
+        if let Some(changed) = m.apply(&t) {
+            t = Cow::Owned(changed);
+        }
+    }
+    let mut t: String = rules(&t).into_owned();
     // Whether `t` has a decimal digit; worked out when a mask needs to
     // know, and forgotten when a mask changes `t`.
     let mut digit: Option<bool> = None;
@@ -242,10 +296,10 @@ pub const DRAIN_MAX_TOKENS: usize = 40;
 
 /// What Drain clusters for a record head: its masked text, at most
 /// [`DRAIN_MAX_TOKENS`] tokens joined by single spaces, or `<EMPTY>`.
-/// `drain_message()` in Python.
+/// `drain_message()` in Python, which has no `user` masks.
 #[must_use]
-pub fn drain_message(head: &str) -> String {
-    let masked = mask(head, true);
+pub fn drain_message(head: &str, user: &[UserMask]) -> String {
+    let masked = mask(head, true, user);
     let message = py_split(&masked)
         .take(DRAIN_MAX_TOKENS)
         .collect::<Vec<_>>()
@@ -306,9 +360,9 @@ mod tests {
         let rows = golden();
         assert!(rows.len() > 4000);
         for (input, want, want_nowords) in &rows {
-            assert_eq!(&mask(input, true), want, "input: {input:?}");
+            assert_eq!(&mask(input, true, &[]), want, "input: {input:?}");
             assert_eq!(
-                &mask(input, false),
+                &mask(input, false, &[]),
                 want_nowords,
                 "input: {input:?} (words=false)"
             );
@@ -355,11 +409,11 @@ mod tests {
         // A combining accent is not a word character to Python, so the 5
         // after it is a number; to Rust's built-in `\w` it is one, and the
         // lookbehind would refuse the match. Python decides.
-        assert_eq!(mask("x\u{301}5", true), "x\u{301}<NUM>");
+        assert_eq!(mask("x\u{301}5", true, &[]), "x\u{301}<NUM>");
         let native = fancy_regex::Regex::new(r"(?<![\w.])\d+").unwrap();
         assert!(!native.is_match("x\u{301}5").unwrap());
         // A superscript is a word character to Python: "5²" is not a number.
-        assert_eq!(mask("5\u{b2}", true), "5\u{b2}");
+        assert_eq!(mask("5\u{b2}", true, &[]), "5\u{b2}");
     }
 
     #[test]
@@ -376,7 +430,28 @@ mod tests {
             ("abc123def", "<HEX>"), // all hex digits, one of them a digit
         ];
         for (input, want) in cases {
-            assert_eq!(mask(input, true), want, "{input:?}");
+            assert_eq!(mask(input, true, &[]), want, "{input:?}");
         }
+    }
+
+    #[test]
+    fn user_masks_run_first() {
+        let user = [
+            UserMask::new("ORDER", &[r"\bORD-\d+\b".to_owned()]).unwrap(),
+            UserMask::new(
+                "TENANT",
+                &[r"tenant=\w+".to_owned(), r"\bt_[a-z]+".to_owned()],
+            )
+            .unwrap(),
+        ];
+        assert_eq!(
+            mask("  ORD-981 for tenant=acme at 12:00:01 ", true, &user),
+            "<ORDER> for <TENANT> at <TIME>"
+        );
+        assert_eq!(mask("t_globex job7", false, &user), "<TENANT> job7");
+        assert_eq!(drain_message("ORD-1 ORD-2", &user), "<ORDER> <ORDER>");
+        // An empty match changes nothing.
+        let empty = [UserMask::new("E", &["x*".to_owned()]).unwrap()];
+        assert_eq!(mask("abc", true, &empty), "abc");
     }
 }

@@ -393,7 +393,12 @@ impl Lines<'_> {
         if let Some(k) = &self.facts(no).name {
             return k.clone();
         }
-        let key: Rc<str> = format!("{}{}", mask(&self.text(no), false), self.key_suffix(no)).into();
+        let key: Rc<str> = format!(
+            "{}{}",
+            mask(&self.text(no), false, self.vocab.masks()),
+            self.key_suffix(no)
+        )
+        .into();
         self.facts(no).name = Some(key.clone());
         key
     }
@@ -403,7 +408,7 @@ impl Lines<'_> {
         let masked = match &self.facts(no).mask {
             Some(m) => m.clone(),
             None => {
-                let m: Rc<str> = mask(&self.text(no), true).into();
+                let m: Rc<str> = mask(&self.text(no), true, self.vocab.masks()).into();
                 self.facts(no).mask = Some(m.clone());
                 m
             }
@@ -1208,7 +1213,7 @@ impl Summarizer<'_> {
         if PAIR_MEMBERS
             && count == 2
             && !self.compact
-            && tpl.text != drain_message(&self.lines.text(ex))
+            && tpl.text != drain_message(&self.lines.text(ex), self.lines.vocab.masks())
         {
             let rs: Vec<usize> = self
                 .records_of(t)
@@ -1277,7 +1282,10 @@ impl Summarizer<'_> {
             return vec![format!("{head} {a}"), format!("     {b}")];
         }
         let tpl = &self.store.templates[t];
-        if count == 1 || self.compact || tpl.text == drain_message(&self.lines.text(ex_no)) {
+        if count == 1
+            || self.compact
+            || tpl.text == drain_message(&self.lines.text(ex_no), self.lines.vocab.masks())
+        {
             // One line: a singleton, a small budget, or a template with no
             // variables, whose text would only repeat the exemplar.
             return vec![format!("{head} {ex_ref}")];

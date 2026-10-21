@@ -205,6 +205,43 @@ fn dump_vocab_is_pythons() {
 }
 
 #[test]
+fn masks_from_a_vocabulary_file() {
+    // The tenant name leads each line, so Drain puts every tenant in a
+    // template of its own; a mask makes them one. (A budget smaller than
+    // the input, which pare would otherwise pass through whole.)
+    let dir = TempDir::new("masks");
+    let vocab = dir.path().join("tenants.vocab");
+    fs::write(&vocab, "[mask TENANT]\n/^[a-z]+(?=:)/\n").unwrap();
+    let tenants = ["acme", "globex", "initech", "hooli", "wonka", "stark"];
+    let input: String = (0..120)
+        .map(|i| {
+            format!(
+                "{}: nightly sync failed, will retry\n",
+                tenants[i % tenants.len()]
+            )
+        })
+        .collect();
+    let templates = |args: &[&str]| {
+        let out = pare(args, input.as_bytes());
+        assert!(out.status.success());
+        let stdout = String::from_utf8(out.stdout).unwrap();
+        let first = stdout.lines().next().unwrap().to_owned();
+        first.rsplit("· ").next().unwrap().to_owned()
+    };
+    assert_eq!(templates(&["--no-tee", "--budget", "300"]), "6 templates");
+    assert_eq!(
+        templates(&[
+            "--no-tee",
+            "--budget",
+            "300",
+            "--vocab",
+            vocab.to_str().unwrap()
+        ]),
+        "1 templates"
+    );
+}
+
+#[test]
 fn continuation_rules_from_a_vocabulary_file() {
     // A Go panic: its frames are at column 0, so without a rule each
     // starts a record of its own.

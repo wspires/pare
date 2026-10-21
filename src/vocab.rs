@@ -21,6 +21,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
+use crate::mask::UserMask;
 use crate::pyclass::{py_int, py_isupper, py_repr, py_split, py_strip};
 use crate::pyre::PyRegex;
 
@@ -315,16 +316,51 @@ pub const DEFAULT_VOCAB: [&[&str]; NCLASSES] = [
     ],
 ];
 
-/// A vocabulary's entries: one list per class.
-pub type Entries = Vec<Vec<String>>;
+/// A vocabulary's entries: one list per class, indexed by `Class as
+/// usize`, and the file's own masks.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Entries {
+    /// One list per class, in [`Class`] order.
+    pub classes: Vec<Vec<String>>,
+    /// `[mask NAME]` sections, in the order their names first appear, each
+    /// with its `/regex/` entries. None are built in. Not in Python.
+    pub masks: Vec<(String, Vec<String>)>,
+}
+
+// Rust note: implementing `Index` makes `entries[c]` work as it would on
+// the `Vec` inside, like overloading `operator[]` in C++; `IndexMut` is the
+// non-const overload.
+impl std::ops::Index<usize> for Entries {
+    type Output = Vec<String>;
+    fn index(&self, c: usize) -> &Vec<String> {
+        &self.classes[c]
+    }
+}
+
+impl std::ops::IndexMut<usize> for Entries {
+    fn index_mut(&mut self, c: usize) -> &mut Vec<String> {
+        &mut self.classes[c]
+    }
+}
 
 /// The built-in entries, as owned lists to extend.
 #[must_use]
 pub fn default_entries() -> Entries {
-    DEFAULT_VOCAB
-        .iter()
-        .map(|c| c.iter().map(|&e| e.to_owned()).collect())
-        .collect()
+    Entries {
+        classes: DEFAULT_VOCAB
+            .iter()
+            .map(|c| c.iter().map(|&e| e.to_owned()).collect())
+            .collect(),
+        masks: Vec::new(),
+    }
+}
+
+/// Whether `name` can name a mask: letters and `_`, starting with a letter.
+/// No digits, so that the built-in `WORDNUM` mask, which runs after, cannot
+/// turn `<ID2>` into `<ID<N>>`.
+fn is_mask_name(name: &str) -> bool {
+    name.starts_with(|c: char| c.is_ascii_alphabetic())
+        && name.chars().all(|c| c.is_ascii_alphabetic() || c == '_')
 }
 
 fn is_regex_entry(entry: &str) -> bool {
@@ -471,6 +507,8 @@ pub struct Vocab {
     level_letter: PyRegex,
     /// The continuation regexes as one alternation; `None` if there are none.
     continuation: Option<PyRegex>,
+    /// The file's masks, compiled.
+    masks: Vec<UserMask>,
 }
 
 impl Vocab {
@@ -560,8 +598,17 @@ impl Vocab {
         } else {
             Some(PyRegex::new(&parts.join("|"))?)
         };
+        let masks = entries
+            .masks
+            .iter()
+            .map(|(name, items)| {
+                let rxs: Vec<String> = items.iter().map(|e| entry_regex(e)).collect();
+                UserMask::new(name, &rxs)
+            })
+            .collect::<Result<_, _>>()?;
         Ok(Vocab {
             continuation,
+            masks,
             entries,
             words,
             others,
@@ -580,6 +627,13 @@ impl Vocab {
         self.continuation
             .as_ref()
             .is_some_and(|rx| rx.is_match(text))
+    }
+
+    /// The vocabulary file's masks, for [`mask`](crate::mask::mask) and
+    /// [`drain_message`](crate::mask::drain_message): none by default.
+    #[must_use]
+    pub fn masks(&self) -> &[UserMask] {
+        &self.masks
     }
 
     /// The built-in vocabulary.
@@ -793,6 +847,7 @@ pub fn vocab_score(line: &mut Line<'_, '_>, head: bool, sev: Option<u8>) -> f64 
 /// [error replace]    entries below replace it
 /// timeout            a word or phrase (whole-word, case-insensitive)
 /// /(?i)\bfehler\b/   a regex, used as written
+/// [mask ORDER]       regexes below mask to <ORDER> (not in Python)
 /// ```
 ///
 /// # Errors
@@ -800,8 +855,16 @@ pub fn vocab_score(line: &mut Line<'_, '_>, head: bool, sev: Option<u8>) -> f64 
 /// A message in Python's words for a malformed line; `source` names the
 /// file in it.
 pub fn parse_vocab(text: &str, base: &Entries, source: &str) -> Result<Entries, String> {
+    // Rust note: a local enum is fine inside a function; it is private to it.
+    #[derive(Clone, Copy)]
+    enum Header {
+        None,
+        Class(Class),
+        /// An index into `out.masks`.
+        Mask(usize),
+    }
     let mut out = base.clone();
-    let mut cls: Option<Class> = None;
+    let mut header = Header::None;
     for (n, raw) in (1..).zip(py_splitlines(text)) {
         let line = py_strip(raw);
         if line.is_empty() || line.starts_with('#') {
@@ -809,6 +872,24 @@ pub fn parse_vocab(text: &str, base: &Entries, source: &str) -> Result<Entries, 
         }
         if line.starts_with('[') && line.ends_with(']') && line.len() >= 2 {
             let parts: Vec<&str> = py_split(&line[1..line.len() - 1]).collect();
+            if parts.first() == Some(&"mask") {
+                if parts.len() != 2 || !is_mask_name(parts[1]) {
+                    return Err(format!(
+                        "{source}:{n}: expected [mask NAME] with NAME made of letters and _; got {}",
+                        py_repr(line)
+                    ));
+                }
+                let name = parts[1];
+                let at = match out.masks.iter().position(|(m, _)| m == name) {
+                    Some(at) => at,
+                    None => {
+                        out.masks.push((name.to_owned(), Vec::new()));
+                        out.masks.len() - 1
+                    }
+                };
+                header = Header::Mask(at);
+                continue;
+            }
             let class = parts.first().and_then(|p| Class::from_name(p));
             let Some(class) =
                 class.filter(|_| parts.len() <= 2 && (parts.len() < 2 || parts[1] == "replace"))
@@ -820,17 +901,34 @@ pub fn parse_vocab(text: &str, base: &Entries, source: &str) -> Result<Entries, 
                     py_repr(line)
                 ));
             };
-            cls = Some(class);
+            header = Header::Class(class);
             if parts.len() == 2 {
                 out[class as usize].clear();
             }
             continue;
         }
-        let Some(class) = cls else {
-            return Err(format!(
-                "{source}:{n}: entry {} appears before any [class] header",
-                py_repr(line)
-            ));
+        let class = match header {
+            Header::None => {
+                return Err(format!(
+                    "{source}:{n}: entry {} appears before any [class] header",
+                    py_repr(line)
+                ));
+            }
+            Header::Mask(at) => {
+                if !is_regex_entry(line) {
+                    return Err(format!(
+                        "{source}:{n}: [mask {}] takes /regexes/, not words: {}",
+                        out.masks[at].0,
+                        py_repr(line)
+                    ));
+                }
+                if let Err(e) = PyRegex::new(&entry_regex(line)).and_then(|rx| rx.validate()) {
+                    return Err(format!("{source}:{n}: bad regex {}: {e}", py_repr(line)));
+                }
+                out.masks[at].1.push(line.to_owned());
+                continue;
+            }
+            Header::Class(class) => class,
         };
         if class == Class::Continuation && !is_regex_entry(line) {
             return Err(format!(
@@ -900,8 +998,18 @@ pub fn dump_vocab(entries: &Entries) -> String {
         "# defaults exactly; switch a header to plain [class] to keep the defaults\n",
         "# and add to them.\n",
     ));
-    for (info, items) in INFO.iter().zip(entries) {
+    for (info, items) in INFO.iter().zip(&entries.classes) {
         out.push_str(&format!("\n# {}\n[{} replace]\n", info.comment, info.name));
+        for e in items {
+            out.push_str(e);
+            out.push('\n');
+        }
+    }
+    // None by default, so the default dump has no such section.
+    for (name, items) in &entries.masks {
+        out.push_str(&format!(
+            "\n# matches become <{name}> before lines are clustered (regexes only)\n[mask {name}]\n"
+        ));
         for e in items {
             out.push_str(e);
             out.push('\n');
@@ -1061,6 +1169,61 @@ mod tests {
         assert_eq!(
             e,
             "f:2: the continuation class takes /regexes/, not words: 'goroutine'"
+        );
+    }
+
+    #[test]
+    fn masks_from_a_file() {
+        let base = default_entries();
+        let e = parse_vocab(
+            "[mask ORDER]\n/\\bORD-\\d+/\n[warn]\nslowish\n[mask TENANT]\n/(?i)tenant=\\w+/\n[mask ORDER]\n/\\bPO\\d+/\n",
+            &base,
+            "f",
+        )
+        .unwrap();
+        assert_eq!(
+            e.masks,
+            [
+                (
+                    "ORDER".to_owned(),
+                    vec![r"/\bORD-\d+/".to_owned(), r"/\bPO\d+/".to_owned()]
+                ),
+                ("TENANT".to_owned(), vec![r"/(?i)tenant=\w+/".to_owned()]),
+            ]
+        );
+        assert_eq!(e[Class::Warn as usize].last().unwrap(), "slowish");
+        // The dump reads back as the same entries.
+        assert_eq!(parse_vocab(&dump_vocab(&e), &base, "dump").unwrap(), e);
+        let v = Vocab::new(e).unwrap();
+        assert_eq!(
+            crate::mask::mask("PO77 and ORD-1 for TENANT=x", true, v.masks()),
+            "<ORDER> and <ORDER> for <TENANT>"
+        );
+        assert!(Vocab::builtin().masks().is_empty());
+        for (file, want) in [
+            (
+                "[mask]\n",
+                "f:1: expected [mask NAME] with NAME made of letters and _; got '[mask]'",
+            ),
+            (
+                "[mask ID2]\n",
+                "f:1: expected [mask NAME] with NAME made of letters and _; got '[mask ID2]'",
+            ),
+            (
+                "[mask ID replace]\n",
+                "f:1: expected [mask NAME] with NAME made of letters and _; got '[mask ID replace]'",
+            ),
+            (
+                "[mask ID]\nord\n",
+                "f:2: [mask ID] takes /regexes/, not words: 'ord'",
+            ),
+        ] {
+            assert_eq!(parse_vocab(file, &base, "f").unwrap_err(), want);
+        }
+        assert!(
+            parse_vocab("[mask ID]\n/(/\n", &base, "f")
+                .unwrap_err()
+                .starts_with("f:2: bad regex '/(/'")
         );
     }
 

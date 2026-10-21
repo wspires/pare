@@ -454,7 +454,7 @@ impl<'v> Segmenter<'v> {
             self.head_no = base + i as usize + 1;
             self.head_sev = sev;
             // Cluster the masked head line.
-            let cluster = self.drain.add(&drain_message(text));
+            let cluster = self.drain.add(&drain_message(text, self.vocab.masks()));
             if self.by_cluster.len() < cluster {
                 self.by_cluster.resize(cluster, None);
             }

@@ -58,7 +58,7 @@ src/pass.rs         Pass: chunks in, lines out, spool and hash on the way;
                     Segmenter: lines into records, heads into templates
 src/store.rs        Store: per-line, per-record and per-template columns
 src/text.rs         clean_line, indent_of, clip: a raw line to its text
-src/mask.rs         the masks (<TS>, <NUM>, ...) and drain_message
+src/mask.rs         the masks (<TS>, <NUM>, ...), a file's UserMasks, drain_message
 src/drain.rs        Drain, the template miner (as drain3 0.9.11)
 src/vocab.rs        vocabulary classes, levels, HTTP and exit codes, vocab_score;
                     --vocab files and --dump-vocab
@@ -105,7 +105,8 @@ stdin ──read 1 MiB──▶ Pass::feed ──▶ spool file (write as read)
                                      continuation class, Vocab::continues),
                                      within one logcat entry (LOGCAT_HEADER)
                  otherwise        ─▶ starts a record: drain_message(text)
-                                     = mask(text) ─▶ Drain::add ─▶ template;
+                                     = mask(text, the vocabulary's [mask NAME]s)
+                                     ─▶ Drain::add ─▶ template;
                                      the template's levels and exemplar
                  score            ─▶ vocab_score, plus for a continuation a share
                                      of the head's, less depth; location bonus
