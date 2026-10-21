@@ -51,6 +51,10 @@ pub const MAX_RECORD_LINES: u32 = 400;
 pub(crate) const TOOL_PYTEST: bool = true;
 pub(crate) const TOOL_RUSTC: bool = true;
 pub(crate) const TOOL_LOGCAT: bool = true;
+/// JSON and logfmt lines (not in Python): a long one is clipped keeping
+/// its telling fields, and pino's numeric levels count
+/// (`crate::structured`).
+pub(crate) const TOOL_STRUCTURED: bool = true;
 const TOOL_BLANK_IN_BLOCK: bool = true;
 
 /// A logcat line's header, threadtime (`10-13 09:12:31.620  4321  4321 E

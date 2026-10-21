@@ -572,6 +572,40 @@ fn auto_budget_stops_when_the_news_is_shown() {
 }
 
 #[test]
+fn structured_lines_keep_their_cause() {
+    // pino-style JSON lines: a long error line whose cause, an escaped
+    // stack trace, comes after 200 characters of context.
+    let ctx = format!(
+        r#""service":"thumbnailer","hostname":"worker-1","key":"{}""#,
+        "k".repeat(150)
+    );
+    let mut input = String::new();
+    for i in 0..3000 {
+        input += &format!(r#"{{"level":30,"time":{i},{ctx},"msg":"thumbnail written"}}"#);
+        input.push('\n');
+        if i == 2000 {
+            input += &format!(
+                r#"{{"level":50,"time":{i},{ctx},"err":{{"type":"TypeError","message":"x is undefined","stack":"TypeError: x is undefined\n    at thumbSize (file:///app/worker.js:44:11)\n    at run (file:///app/worker.js:69:22)"}},"msg":"job failed"}}"#
+            );
+            input.push('\n');
+        }
+    }
+    let out = pare(&["--no-tee"], input.as_bytes());
+    let text = String::from_utf8(out.stdout).unwrap();
+    let line = text
+        .lines()
+        .find(|l| l.contains("L2002"))
+        .expect("the error line is listed");
+    assert!(line.contains(" E L2002: "), "{line}"); // numeric level 50: an error
+    assert!(
+        line.contains(
+            r#""err":‹TypeError: x is undefined ⏎ at thumbSize (file:///app/worker.js:44:11)›"#
+        ),
+        "{line}"
+    );
+}
+
+#[test]
 fn budget_from_the_environment() {
     let input = "INFO step\n".repeat(3000) + "ERROR disk full\n";
     let run = |env: Option<&str>, args: &[&str]| {

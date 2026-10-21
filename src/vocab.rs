@@ -668,6 +668,12 @@ impl Vocab {
     /// the message. `Vocab.detect_level()`.
     #[must_use]
     pub fn detect_level(&self, text: &str) -> Option<u8> {
+        // pino and bunyan write numbers: "level":50 (not in Python).
+        if crate::pass::TOOL_STRUCTURED {
+            if let Some(level) = crate::structured::numeric_level(text) {
+                return Some(level);
+            }
+        }
         // key=value forms anywhere: level=error, "level": "warn".
         if let Some(groups) = self.level_key.captures_at(text, 0) {
             if let Some((s, e)) = groups[1] {
@@ -1029,6 +1035,12 @@ mod tests {
         assert_eq!(v.severity("GET /api 503 12ms"), Some(3));
         assert_eq!(v.severity("process exited with code 137"), Some(4));
         assert_eq!(v.severity("all good"), None);
+        // pino's numeric levels (Rust version).
+        assert_eq!(
+            v.severity(r#"{"level":50,"time":1,"msg":"job failed"}"#),
+            Some(3)
+        );
+        assert_eq!(v.severity(r#"{"level":30,"time":1,"msg":"ok"}"#), Some(1));
         let mut line = v.line("0 errors, 3 tests passed");
         assert!(!line.has(Class::Error) && line.has(Class::Summary));
         let mut line = v.line("ERROR: connection refused");

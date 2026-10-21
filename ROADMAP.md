@@ -411,11 +411,19 @@ which changes output and so comes after the parity decision above.
   1,204 tokens, against 98.8 % at 1,552 for `--budget 2000`
   (`docs/DESIGN.md`, "Automatic budget"). *Done.* Default after a fresh
   held-out sample confirms it.
-- [ ] **Inferring a log's format.** Detect formats from the first few
+- [x] **Inferring a log's format.** Detect formats from the first few
   hundred lines (logfmt, JSON lines, a known tool) and switch rules on
   accordingly. Possible, but output would then depend on the detection;
   Drain already learns most of what format detection would give. Only if
-  the held-out set shows formats the rules miss.
+  the held-out set shows formats the rules miss. No corpus had a JSON or
+  logfmt log, so four were generated from real loggers (slog JSON and
+  text, pino, structlog): pare kept 8 of 18 must-survive lines, every miss
+  a cause cut off by the width clip. Built per line instead of per file:
+  structured lines are recognized on their own and clipped keeping their
+  telling fields, escaped traces show as message and frame, and pino's
+  numeric levels count. 18 of 18 after, everything else unchanged
+  (`docs/DESIGN.md`, "Structured lines"). *Done.* Still owed: real
+  structured logs in a held-out sample.
 
 ## 7. Deferred
 

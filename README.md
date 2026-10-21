@@ -339,6 +339,21 @@ they are one template. Masks run before the built-in ones (timestamps,
 numbers, ...), on the line as written. Template ids depend on the masks,
 so `--only T3` on a saved run file needs the same `--vocab`.
 
+Structured logs need nothing either. A JSON line (slog, pino, zap,
+bunyan, structlog) or a logfmt line (`level=error msg="..." err="..."`)
+is recognized on its own, and when it is longer than `--width` pare keeps
+its start and then the fields that say what went wrong (`err`,
+`exception`, `panic`, `stack`, `msg`, ...) instead of cutting them off.
+An escaped stack trace inside a field is shown decoded, as its message
+and the frame nearest it:
+
+```
+T7   ×1 E L1257: {"level":50,"time":1791363827985,…"err":‹TypeError: Cannot destructure property 'width' of 'meta.dimensions' as it is undefined. ⏎ at thumbSize (file:///home/dev/proj/worker.js:44:11)›…(+447c)
+```
+
+pino's and bunyan's numeric levels (`"level":50`) count as levels.
+`pare --only T7` prints the whole line.
+
 ## How it works
 
 1. **Tee** stdin to a content-hashed run file, in one pass with the steps

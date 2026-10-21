@@ -597,6 +597,8 @@ the "no ... rules" rows):
   `E0921 10:11:12`.
 - Jest, pytest: a single blank line inside an indented block does not end
   the record.
+- Structured lines (Rust version, `TOOL_STRUCTURED`, `src/structured.rs`):
+  see **Structured lines** below.
 
 When the rules were frozen, the dev corpus without them gave 87.7 % at 600
 and 94.5 % at 2000 (bytes/4 units; with them 97.3 % and 100 %).
@@ -666,6 +668,68 @@ samples; output size where it moved):
 All four stay. Tool knowledge also lives in the vocabulary (the `advice`
 phrases name Maven, Gradle and npm wordings; `ComparisonFailure`), which
 is the prior by design and outside this switch.
+
+### Structured lines
+
+The roadmap asked for format inference (detect logfmt, JSON lines or a
+known tool from the first few hundred lines and switch rules on) only if
+evidence showed formats the rules miss. No log in any corpus or held-out
+set was JSON or logfmt, and no held-out miss was a format problem, so
+four cases were made the way `corpus-generated/` makes them: real
+loggers in small programs written to fail in chosen ways (Go's
+`log/slog` in both its JSON and text handlers, pino 9 in Node, structlog
+24 in Python). Before the change pare kept 8 of their 18 must-survive
+lines, at every budget from 600 to 2,000. Severity and clustering were
+mostly fine (logfmt request lines form one template with wildcards); every
+miss was the same one: structured loggers write time, level, message and
+request context first and the cause (`err`, `exception`, `panic`,
+`stack`) after them, often with a whole stack trace escaped in one string,
+so the 200-character clip cut the line before the cause. pino's numeric
+levels (`"level":50`) were not read as levels at all; the vocabulary
+(`err`, `slow`) happened to give its lines the right markers anyway.
+
+What was built is narrower than format inference, and per line rather
+than per file:
+
+- **Recognition per line.** A line is structured if it is a JSON object
+  (only whitespace after its closing brace) or logfmt (at least three
+  space-separated `key=value` parts and nothing else). Nothing is
+  inferred about the file, so a mixed log (a test runner printing a
+  service's JSON output) is handled line by line, and no guess can turn
+  rules on or off for the lines around it.
+- **A clip that keeps the cause.** When a structured line is longer than
+  `--width` and a telling field (`err`, `error`, `exception`, `exc_info`,
+  `panic`, `fatal`, `reason`, `cause`, `stack`, `stacktrace`, `trace`,
+  `traceback`, `msg`, `message`, `event`) lies past the plain cut, the line
+  keeps whole fields from its start and then the telling fields, which get
+  up to three quarters of the width: `{"level":50,"time":…,…"err":…`. The
+  `…(+Nc)` marker still counts what was left out, and costs are computed
+  from the clipped text as before, so the budget stays exact. A line whose
+  cause already shows is cut as usual.
+- **Escaped traces as message and frame.** A telling string with escaped
+  newlines (or an object with such a `stack`, as pino writes `err`) is
+  decoded and shown as two lines joined by ` ⏎ `, between `‹…›`: for a
+  Python traceback the last `File "..."` line and the exception; for
+  JavaScript, Java or .NET the message and the first `at` frame; for a Go
+  `debug.Stack()` the function and file after the last `panic(` frame,
+  with the function's pointer arguments dropped.
+- **Numeric levels.** A JSON line whose `"level"` is 10 to 60 in steps of
+  10 has that level (10 and 20 debug, 30 info, 40 warn, 50 error, 60
+  fatal).
+
+After the change the four cases keep 18 of 18 at 600, 1,000 and 2,000;
+the other 179 cases are unchanged at every budget (the Python version's
+output, byte for byte, on all 195 parity inputs; `bench/parity.py` leaves
+the four Rust-only logs out). A 33 MB JSON-lines log runs about 3 %
+slower, within run-to-run noise on plain logs.
+
+The cases were written by someone who knew the fix was coming, so they
+show the miss exists and is fixed, not how often it matters; real
+structured logs from a held-out sample are the test that is still owed.
+Not done: reading fields for clustering (a JSON line without spaces is
+one Drain token, so `"method":"GET"` and `"method":"POST"` request lines
+are two templates rather than one with a wildcard). That costs a few
+templates, not recall, on these cases.
 
 ## Benchmark detail
 

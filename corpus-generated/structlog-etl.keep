@@ -1,0 +1,4 @@
+KeyError: 'CHF' || \nKeyError: 'CHF'
+File "/home/dev/proj/etl.py", line 44, in to_usd || File \"/home/dev/proj/etl.py\", line 44, in to_usd
+sqlite3.IntegrityError: UNIQUE constraint failed: invoices.id || \nsqlite3.IntegrityError: UNIQUE constraint failed: invoices.id
+"loaded": 14974, "skipped": 26

@@ -59,6 +59,8 @@ src/pass.rs         Pass: chunks in, lines out, spool and hash on the way;
                     Segmenter: lines into records, heads into templates
 src/store.rs        Store: per-line, per-record and per-template columns
 src/text.rs         clean_line, indent_of, clip: a raw line to its text
+src/structured.rs   JSON and logfmt lines: a clip that keeps the telling fields,
+                    escaped traces as message and frame, pino's numeric levels
 src/mask.rs         the masks (<TS>, <NUM>, ...), a file's UserMasks, drain_message
 src/drain.rs        Drain, the template miner (as drain3 0.9.11)
 src/vocab.rs        vocabulary classes, levels, HTTP and exit codes, vocab_score;

@@ -1,0 +1,4 @@
+Cannot destructure property 'width' of 'meta.dimensions' as it is undefined.
+at thumbSize (file:///home/dev/proj/worker.js:44:11)
+socket hang up
+"done":1484,"failed":16,"msg":"queue drained, exiting"
