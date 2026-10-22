@@ -114,7 +114,9 @@ fn py_prefix(s: &str, stop: i64) -> &str {
 
 /// A line cut to `width` characters with a marker saying how much went:
 /// `clip()` in Python. The line stays whole when it fits, or when the
-/// marker would be no shorter than what it replaces.
+/// marker would be no shorter than what it replaces. A long JSON or
+/// logfmt line is cut by [`crate::structured::clip`] instead, which keeps
+/// the fields that say what went wrong.
 ///
 /// ```
 /// use pare::text::clip;
@@ -126,6 +128,12 @@ pub fn clip(text: &str, width: i64) -> Cow<'_, str> {
     let len = i64::try_from(text.chars().count()).unwrap_or(i64::MAX);
     if len <= width {
         return Cow::Borrowed(text);
+    }
+    // A JSON or logfmt line keeps its telling fields (not in Python).
+    if crate::pass::TOOL_STRUCTURED {
+        if let Some(clipped) = crate::structured::clip(text, width) {
+            return Cow::Owned(clipped);
+        }
     }
     let cut = len - width + 1;
     let marker = format!("…(+{cut}c)");

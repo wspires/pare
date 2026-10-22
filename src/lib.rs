@@ -39,6 +39,7 @@ pub mod runs;
 pub mod score;
 pub mod select;
 pub mod store;
+pub mod structured;
 pub mod summary;
 pub mod text;
 pub mod vocab;

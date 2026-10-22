@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Structured logs.** A JSON line (slog, pino, zap, bunyan, structlog)
+  or a logfmt line longer than `--width` keeps its start and then the
+  fields that say what went wrong (`err`, `exception`, `panic`, `stack`,
+  `msg`, ...), where the plain cut dropped them; an escaped stack trace in
+  such a field shows as its message and nearest frame, decoded. pino's
+  numeric levels (`"level":50`) count as levels. Lines are recognized one
+  by one; output for other lines is unchanged.
+
 - **`--budget auto`.** The budget becomes a ceiling (2,000, or N with
   `auto:N`) that the summary stops short of once what is left is below
   error level, so a log with one error gets a short summary. On the

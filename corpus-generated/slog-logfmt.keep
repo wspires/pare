@@ -1,0 +1,5 @@
+runtime error: invalid memory address or nil pointer dereference
+/home/dev/proj/main.go:67
+payment: charge order 5014: context deadline exceeded
+dial tcp 10.0.4.17:5432: connect: connection refused
+served=2400 failed=15

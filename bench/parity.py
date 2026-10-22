@@ -23,6 +23,9 @@ difference, so a port can be checked on what it does so far. Its dump is
 still compared if it wrote one, and a dump field the candidate writes as
 "?" (not computed yet) is not compared.
 
+Logs in RUST_ONLY exercise what only the Rust version does (structured
+JSON and logfmt lines, src/structured.rs) and are left out, with a note.
+
 Exits 1 if anything differs.
 """
 
@@ -61,12 +64,27 @@ SELECTING = ("--only", "--except", "--min-severity", "--since", "--until", "--fo
 NOT_PORTED = 70  # the Rust port's status for what it does not do yet (src/error.rs)
 
 
+# Logs whose summaries differ from the Python version's on purpose: the Rust
+# version clips structured lines keeping their telling fields and reads
+# pino's numeric levels (src/structured.rs), which the Python version
+# does not. Everything else must match.
+RUST_ONLY = {
+    "corpus-generated/pino-worker.log",
+    "corpus-generated/slog-json.log",
+    "corpus-generated/slog-logfmt.log",
+    "corpus-generated/structlog-etl.log",
+}
+
+
 def corpus_logs() -> list[str]:
     pats = ["corpus/*.log", "corpus-generated/*.log", "corpus-dev/*/*.log", "corpus-heldout/*/*.log"]
     out = []
     for p in pats:
         out += [f for f in glob.glob(os.path.join(ROOT, p)) if "/inbox/" not in f and "/_failed/" not in f]
-    return sorted(out)
+    skipped = [f for f in out if os.path.relpath(f, ROOT) in RUST_ONLY]
+    if skipped:
+        print(f"# parity: {len(skipped)} Rust-only logs left out (RUST_ONLY)", file=sys.stderr)
+    return sorted(f for f in out if f not in skipped)
 
 
 def edge_cases(directory: str) -> list[str]:
