@@ -182,6 +182,57 @@ class covers pytest's and Python's closing hints as well as Maven's. The
 one miss is pydata__xarray-4094 at 600, its single failing test
 (`test_to_stacked_array_to_unstacked_dataset`), shown at 1,000.
 
+### Sixth fresh Defects4J sample: seed 6
+
+Defects4J seed 6, drawn after the structured-log change (`77966f0`, the
+0.2.0 code) with `--exclude` every earlier Defects4J set, and measured
+before anyone read it. It is the first fresh test of the Gson-7 change
+(a template seen twice lists both lines; a line is not clipped when the
+marker saves nothing) and of `--budget auto`.
+
+```
+python3 bench/defects4j_cases.py run --sample 20 --seed 6 --exclude corpus-heldout/defects4j --exclude corpus-heldout/defects4j-2 --exclude corpus-heldout/defects4j-3 --exclude corpus-heldout/defects4j-4 --exclude corpus-heldout/defects4j-5 --exclude corpus-dev/defects4j --out corpus-heldout/defects4j-6
+```
+
+19 of 20 bugs gave a case (Csv-13's build failed before any test ran).
+40 keep lines; every trigger test and exception was located in its log.
+No log fits in 600 or 1,000 tokens; 12 of 19 fit in 2,000 and pass
+through.
+
+| version | 600 | 1,000 | 2,000 | `auto` |
+|---|---|---|---|---|
+| before any held-out fix (`d730e86`) | 60.0 % (min 0) | 90.0 % (min 33) | 97.5 % (min 67) | — |
+| 0.2.0 (`77966f0`) | **92.5 %** (min 33) | **100 %** | **100 %** | **100 %** |
+| 0.2.0 without the pair rule | 92.5 % | 97.5 % | 100 % | |
+| 0.2.0 without the clip rule | 92.5 % | 100 % | 100 % | |
+
+Output is 27 %, 44 % and 72 % of the input at 600, 1,000 and 2,000;
+`auto` keeps all 40 lines at 51 % (21,086 tokens against 29,565 at
+2,000). `--strict` gives 90 % at 600 and 100 % at 1,000. On data it was
+not chosen on, the pair rule earns one line (Gson-17 at 1,000, 2 → 3 of
+3); the clip rule changes nothing, either way.
+
+The three misses at 600, read after scoring (no code changed on them):
+
+- **Gson-17**, 2 of 3 lost: seven tests fail, but only three are the
+  bug's trigger tests; four are locale tests that fail in the capture
+  container (French dates, `1 janv. 1970`). The failing-test list shows
+  five, and `testUnexpectedToken`, a trigger test, is in "+2 more", with
+  its message. Failures unrelated to the bug crowd the list at 600.
+- **Gson-12**, 1 of 3 lost: the bare `ArrayIndexOutOfBoundsException: -1`
+  message.
+
+This sample is now spent by any change measured on it.
+
+**Capture note.** In a container whose outbound TLS is re-signed by a
+gateway, Maven inside the build container fails with `PKIX path building
+failed`. Build a truststore from the image's `cacerts` plus the gateway's
+CA certificates, mount it and pass it in:
+`MAVEN_OPTS="-Djavax.net.ssl.trustStore=/trust/cacerts -Djavax.net.ssl.trustStorePassword=changeit"`
+with `--docker-arg=--volume=DIR:/trust:ro --pass-env MAVEN_OPTS`. That
+does not change the build or its output, apart from the download lines'
+success.
+
 ### Fifth fresh Defects4J sample: seed 5
 
 Defects4J seed 5, drawn after the JUnit 3 change (`89e2de8`) with

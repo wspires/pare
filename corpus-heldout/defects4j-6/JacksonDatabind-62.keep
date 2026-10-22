@@ -1,0 +1,2 @@
+testUnmodifiable(com.fasterxml.jackson.databind.creators.ArrayDelegatorCreatorForCollectionTest) || com.fasterxml.jackson.databind.creators.ArrayDelegatorCreatorForCollectionTest.testUnmodifiable || ArrayDelegatorCreatorForCollectionTest.testUnmodifiable
+java.lang.IllegalStateException: No default constructor for [collection type; class java.util.Collections$UnmodifiableSet, contains [simple type, class java.lang.Object]] || No default constructor for [collection type; class java.util.Collections$UnmodifiableSet, contains [simple type, class java.lang.Object]]

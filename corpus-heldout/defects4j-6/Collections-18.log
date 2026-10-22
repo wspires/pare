@@ -1,0 +1,107 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --------------< commons-collections:commons-collections >---------------
+[INFO] Building Commons Collections 4.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- antrun:1.7:run (javadoc.resources) @ commons-collections ---
+[INFO] Executing tasks
+
+main:
+[INFO] Executed tasks
+[INFO] 
+[INFO] --- remote-resources:1.2.1:process (default) @ commons-collections ---
+[INFO] 
+[INFO] --- buildnumber:1.0:create (default) @ commons-collections ---
+[INFO] Checking for local modifications: skipped.
+[INFO] Updating project files from SCM: skipped.
+[INFO] Executing: /bin/sh -c cd /work && svn --non-interactive info
+[INFO] Working directory: /work
+[INFO] Storing buildNumber: ?????? at timestamp: 1792635027520
+[INFO] Executing: /bin/sh -c cd /work && svn --non-interactive info
+[INFO] Working directory: /work
+[INFO] Storing buildScmBranch: UNKNOWN_BRANCH
+[INFO] 
+[INFO] --- resources:2.5:resources (default-resources) @ commons-collections ---
+[debug] execute contextualize
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory /work/src/main/resources
+[INFO] Copying 2 resources to META-INF
+[INFO] 
+[INFO] --- compiler:2.3.2:compile (default-compile) @ commons-collections ---
+[INFO] Compiling 15 source files to /work/target/classes
+[INFO] 
+[INFO] --- bundle:2.3.7:manifest (bundle-manifest) @ commons-collections ---
+[INFO] 
+[INFO] --- resources:2.5:testResources (default-testResources) @ commons-collections ---
+[debug] execute contextualize
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 159 resources
+[INFO] Copying 2 resources to META-INF
+[INFO] 
+[INFO] --- compiler:2.3.2:testCompile (default-testCompile) @ commons-collections ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- surefire:2.12:test (default-test) @ commons-collections ---
+[INFO] Surefire report directory: /work/target/surefire-reports
+
+-------------------------------------------------------
+ T E S T S
+-------------------------------------------------------
+Running org.apache.commons.collections.set.ListOrderedSetTest
+Tests run: 35, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 10.259 sec <<< FAILURE!
+testRetainAllCollections426(org.apache.commons.collections.set.ListOrderedSetTest)  Time elapsed: 10.16 sec  <<< FAILURE!
+junit.framework.AssertionFailedError
+	at junit.framework.Assert.fail(Assert.java:48)
+	at junit.framework.Assert.assertTrue(Assert.java:20)
+	at junit.framework.Assert.assertTrue(Assert.java:27)
+	at org.apache.commons.collections.set.ListOrderedSetTest.testRetainAllCollections426(ListOrderedSetTest.java:226)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at junit.framework.TestCase.runTest(TestCase.java:168)
+	at junit.framework.TestCase.runBare(TestCase.java:134)
+	at junit.framework.TestResult$1.protect(TestResult.java:110)
+	at junit.framework.TestResult.runProtected(TestResult.java:128)
+	at junit.framework.TestResult.run(TestResult.java:113)
+	at junit.framework.TestCase.run(TestCase.java:124)
+	at junit.framework.TestSuite.runTest(TestSuite.java:243)
+	at junit.framework.TestSuite.run(TestSuite.java:238)
+	at org.junit.internal.runners.JUnit38ClassRunner.run(JUnit38ClassRunner.java:83)
+	at org.apache.maven.surefire.junit4.JUnit4Provider.execute(JUnit4Provider.java:236)
+	at org.apache.maven.surefire.junit4.JUnit4Provider.executeTestSet(JUnit4Provider.java:134)
+	at org.apache.maven.surefire.junit4.JUnit4Provider.invoke(JUnit4Provider.java:113)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.apache.maven.surefire.util.ReflectionUtils.invokeMethodWithArray(ReflectionUtils.java:189)
+	at org.apache.maven.surefire.booter.ProviderFactory$ProviderProxy.invoke(ProviderFactory.java:165)
+	at org.apache.maven.surefire.booter.ProviderFactory.invokeProvider(ProviderFactory.java:85)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:103)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:74)
+
+Results :
+
+Failed tests:   testRetainAllCollections426(org.apache.commons.collections.set.ListOrderedSetTest)
+
+Tests run: 35, Failures: 1, Errors: 0, Skipped: 0
+
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  12.472 s
+[INFO] Finished at: 2026-10-22T02:10:39Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.12:test (default-test) on project commons-collections: There are test failures.
+[ERROR] 
+[ERROR] Please refer to /work/target/surefire-reports for the individual test results.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

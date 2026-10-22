@@ -250,6 +250,11 @@ tokens (deciles: 685 to 1,984) instead of crowding at the ceiling (957 to
 The thresholds were tuned on every set, held-out ones included, so the
 held-out numbers above are not an unbiased estimate; the next fresh
 sample should be scored with `auto` before it becomes the default.
+The first one, Defects4J seed 6 (19 bugs, drawn after `auto` was
+tuned), keeps 40 of 40 must-survive lines with `auto` at 21,086 tokens,
+as `--budget 2000` does at 29,565 (`corpus-heldout/README.md`). That is
+one sample of one kind of log; a fresh SWE-bench sample would be the
+second.
 
 ## Pipeline
 

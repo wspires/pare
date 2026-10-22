@@ -1,0 +1,57 @@
+{
+  "bug": "Cli-29",
+  "project": "Cli",
+  "bug_id": 29,
+  "fixed_revision": "20002f7f4e971349a1c95dd3b05846c5b824b65c",
+  "report": "https://issues.apache.org/jira/browse/CLI-185",
+  "upstream": "https://github.com/apache/commons-cli",
+  "image": "maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=UtilTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.cli.UtilTest",
+      "method": "testStripLeadingAndTrailingQuotes",
+      "exception": "junit.framework.ComparisonFailure: expected:<foo \"bar[\"]> but was:<foo \"bar[]>"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.cli.UtilTest::testStripLeadingAndTrailingQuotes"
+  ],
+  "keep": [
+    "testStripLeadingAndTrailingQuotes(org.apache.commons.cli.UtilTest) || org.apache.commons.cli.UtilTest.testStripLeadingAndTrailingQuotes || UtilTest.testStripLeadingAndTrailingQuotes",
+    "junit.framework.ComparisonFailure: expected:<foo \"bar[\"]> but was:<foo \"bar[]> || expected:<foo \"bar[\"]> but was:<foo \"bar[]>"
+  ],
+  "unlocated": [],
+  "lines": 79,
+  "seconds": 7.3,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-22T02:10:00Z",
+  "pare": "0.1.0",
+  "commit": "930455d"
+}

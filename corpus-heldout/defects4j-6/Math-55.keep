@@ -1,0 +1,2 @@
+testCrossProductCancellation(org.apache.commons.math.geometry.Vector3DTest) || org.apache.commons.math.geometry.Vector3DTest.testCrossProductCancellation || Vector3DTest.testCrossProductCancellation
+expected:<1.0> but was:<0.0>

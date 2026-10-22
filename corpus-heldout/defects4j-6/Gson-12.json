@@ -1,0 +1,66 @@
+{
+  "bug": "Gson-12",
+  "project": "Gson",
+  "bug_id": 12,
+  "fixed_revision": "9e6f2bab20257b6823a5b753739f047d79e9dcbd",
+  "report": "https://github.com/google/gson/issues/1013",
+  "upstream": "https://github.com/google/gson",
+  "image": "maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=JsonTreeReaderTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "com.google.gson.internal.bind.JsonTreeReaderTest",
+      "method": "testSkipValue_filledJsonObject",
+      "exception": "java.lang.ArrayIndexOutOfBoundsException: -1"
+    },
+    {
+      "class": "com.google.gson.internal.bind.JsonTreeReaderTest",
+      "method": "testSkipValue_emptyJsonObject",
+      "exception": "java.lang.ArrayIndexOutOfBoundsException: -1"
+    }
+  ],
+  "failed": [
+    "com.google.gson.internal.bind.JsonTreeReaderTest::testSkipValue_filledJsonObject",
+    "com.google.gson.internal.bind.JsonTreeReaderTest::testSkipValue_emptyJsonObject"
+  ],
+  "keep": [
+    "com.google.gson.internal.bind.JsonTreeReaderTest.testSkipValue_filledJsonObject || JsonTreeReaderTest.testSkipValue_filledJsonObject",
+    "java.lang.ArrayIndexOutOfBoundsException: -1",
+    "com.google.gson.internal.bind.JsonTreeReaderTest.testSkipValue_emptyJsonObject || JsonTreeReaderTest.testSkipValue_emptyJsonObject"
+  ],
+  "unlocated": [],
+  "lines": 155,
+  "seconds": 14.8,
+  "fixes_applied": [
+    "locale-2-14.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-22T02:08:01Z",
+  "pare": "0.1.0",
+  "commit": "930455d"
+}

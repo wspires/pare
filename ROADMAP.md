@@ -88,9 +88,16 @@ The gate for everything after it.
   Defects4J labeller accepts Surefire 3's `Cls#testX`. Seed 5 (new
   labels) 91.3 / 93.5 → 93.5 / 97.8 % at 600 / 1,000; maven-test +1 at
   1,000; no case worse anywhere. Seed 5 is spent. *Done.*
-- [ ] **Sixth fresh Defects4J sample.** Seed 6, every earlier set
+- [x] **Sixth fresh Defects4J sample.** Seed 6, every earlier set
   excluded, to measure the pair and clip rules on data they were not
-  chosen on.
+  chosen on. 19 bugs (`corpus-heldout/defects4j-6/`), measured before
+  reading: 92.5 / 100 / 100 % at 600 / 1,000 / 2,000, and 100 % with
+  `--budget auto` at 51 % of the input against 72 % at 2,000 (60.0 /
+  90.0 / 97.5 % before any held-out fix). The pair rule earns one line
+  (Gson-17 at 1,000), the clip rule none. Misses at 600: failures
+  unrelated to the bug (locale tests) crowding Gson-17's list, and
+  Gson-12's bare exception. *Done; spent by the next change measured on
+  it.*
 - [ ] **Claude token rate.** `bench/tokens.py --anthropic claude-opus-5-5`
   on a machine with credentials. If the rate differs much from the 2.8
   bytes per token measured on cl100k and o200k, change the default.
@@ -410,7 +417,9 @@ which changes output and so comes after the parity decision above.
   up to 1,000 tokens and windows sized for 2,000. 97.4 % recall at a mean
   1,204 tokens, against 98.8 % at 1,552 for `--budget 2000`
   (`docs/DESIGN.md`, "Automatic budget"). *Done.* Default after a fresh
-  held-out sample confirms it.
+  held-out sample confirms it: the first one, Defects4J seed 6, keeps
+  100 % with `auto` at 71 % of the tokens of `--budget 2000`; one Java
+  sample, no SWE-bench one yet.
 - [x] **Inferring a log's format.** Detect formats from the first few
   hundred lines (logfmt, JSON lines, a known tool) and switch rules on
   accordingly. Possible, but output would then depend on the detection;

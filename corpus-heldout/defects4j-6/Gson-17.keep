@@ -1,0 +1,3 @@
+com.google.gson.DefaultDateTypeAdapterTest.testUnexpectedToken || DefaultDateTypeAdapterTest.testUnexpectedToken
+com.google.gson.JsonParseException: The date should be a string value || The date should be a string value
+com.google.gson.DefaultDateTypeAdapterTest.testNullValue || DefaultDateTypeAdapterTest.testNullValue

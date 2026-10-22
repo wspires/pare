@@ -1,0 +1,59 @@
+{
+  "bug": "Collections-18",
+  "project": "Collections",
+  "bug_id": 18,
+  "fixed_revision": "b10fa43d3e29af6c6e79577c305fad99df01dff0",
+  "report": "https://issues.apache.org/jira/browse/COLLECTIONS-426",
+  "upstream": "https://github.com/apache/commons-collections",
+  "image": "maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=ListOrderedSetTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.collections.set.ListOrderedSetTest",
+      "method": "testRetainAllCollections426",
+      "exception": "junit.framework.AssertionFailedError"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.collections.set.ListOrderedSetTest::testRetainAllCollections426"
+  ],
+  "keep": [
+    "testRetainAllCollections426(org.apache.commons.collections.set.ListOrderedSetTest) || org.apache.commons.collections.set.ListOrderedSetTest.testRetainAllCollections426 || ListOrderedSetTest.testRetainAllCollections426",
+    "junit.framework.AssertionFailedError"
+  ],
+  "unlocated": [],
+  "lines": 107,
+  "seconds": 30.4,
+  "fixes_applied": [
+    "compile-18-18.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-22T02:10:39Z",
+  "pare": "0.1.0",
+  "commit": "930455d"
+}

@@ -1,0 +1,2 @@
+testToClass_object(org.apache.commons.lang3.ClassUtilsTest) || org.apache.commons.lang3.ClassUtilsTest.testToClass_object || ClassUtilsTest.testToClass_object
+java.lang.NullPointerException

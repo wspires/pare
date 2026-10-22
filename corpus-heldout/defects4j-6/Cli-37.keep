@@ -1,0 +1,2 @@
+shouldParseShortOptionWithoutValue(org.apache.commons.cli.bug.BugCLI265Test) || org.apache.commons.cli.bug.BugCLI265Test.shouldParseShortOptionWithoutValue || BugCLI265Test.shouldParseShortOptionWithoutValue
+Second option has been used as value for first option. Actual: -last

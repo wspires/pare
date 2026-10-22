@@ -1,0 +1,2 @@
+testNoHeaderMap(org.apache.commons.csv.CSVParserTest) || org.apache.commons.csv.CSVParserTest.testNoHeaderMap || CSVParserTest.testNoHeaderMap
+java.lang.NullPointerException

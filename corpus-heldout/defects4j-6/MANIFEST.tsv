@@ -1,0 +1,20 @@
+name	collected	pare	commit	sha256	lines	bytes	exit	command	source	labels
+Cli-37	2026-10-22T02:06:27Z	0.1.0	930455d		95	4563	1	mvn -B -Dtest=BugCLI265Test test	dataset	dataset trigger tests
+Codec-15	2026-10-22T02:06:40Z	0.1.0	930455d		87	4215	1	mvn -B -Dtest=SoundexTest test	dataset	dataset trigger tests
+Collections-12	2026-10-22T02:07:05Z	0.1.0	930455d		76	4055	1	mvn -B -Dtest=TestExtendedProperties test	dataset	dataset trigger tests
+Compress-9	2026-10-22T02:07:27Z	0.1.0	930455d		114	6359	1	mvn -B -Dtest=TarArchiveOutputStreamTest test	dataset	dataset trigger tests
+Csv-4	2026-10-22T02:07:45Z	0.1.0	930455d		83	3723	1	mvn -B -Dtest=CSVParserTest test	dataset	dataset trigger tests
+Gson-12	2026-10-22T02:08:01Z	0.1.0	930455d		155	9537	1	mvn -B -Dtest=JsonTreeReaderTest test	dataset	dataset trigger tests
+JacksonCore-3	2026-10-22T02:08:16Z	0.1.0	930455d		94	5197	1	mvn -B -Dtest=TestLocation test	dataset	dataset trigger tests
+JacksonDatabind-62	2026-10-22T02:08:33Z	0.1.0	930455d		81	5099	1	mvn -B -Dtest=ArrayDelegatorCreatorForCollectionTest test	dataset	dataset trigger tests
+JacksonXml-4	2026-10-22T02:08:45Z	0.1.0	930455d		71	3586	1	mvn -B -Dtest=RootNameTest test	dataset	dataset trigger tests
+Jsoup-70	2026-10-22T02:09:01Z	0.1.0	930455d		118	6387	1	mvn -B -Dtest=ElementTest test	dataset	dataset trigger tests
+JxPath-14	2026-10-22T02:09:12Z	0.1.0	930455d		98	6278	1	mvn -B -Dtest=CoreFunctionTest test	dataset	dataset trigger tests
+Lang-33	2026-10-22T02:09:23Z	0.1.0	930455d		94	5204	1	mvn -B -Dtest=ClassUtilsTest test	dataset	dataset trigger tests
+Math-55	2026-10-22T02:09:38Z	0.1.0	930455d		114	6527	1	mvn -B -Dtest=Vector3DTest test	dataset	dataset trigger tests
+Time-15	2026-10-22T02:09:52Z	0.1.0	930455d		73	3492	1	mvn -B -Dtest=TestFieldUtils test	dataset	dataset trigger tests
+Cli-29	2026-10-22T02:10:00Z	0.1.0	930455d		79	4005	1	mvn -B -Dtest=UtilTest test	dataset	dataset trigger tests
+Codec-8	2026-10-22T02:10:07Z	0.1.0	930455d		80	4152	1	mvn -B -Dtest=Base64InputStreamTest test	dataset	dataset trigger tests
+Collections-18	2026-10-22T02:10:39Z	0.1.0	930455d		107	5714	1	mvn -B -Dtest=ListOrderedSetTest test	dataset	dataset trigger tests
+Compress-7	2026-10-22T02:10:46Z	0.1.0	930455d		80	4365	1	mvn -B -Dtest=TarUtilsTest test	dataset	dataset trigger tests
+Gson-17	2026-10-22T02:11:11Z	0.1.0	930455d		334	23109	1	mvn -B -Dtest=DefaultDateTypeAdapterTest test	dataset	dataset trigger tests

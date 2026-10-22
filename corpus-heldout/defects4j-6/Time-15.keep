@@ -1,0 +1,2 @@
+testSafeMultiplyLongInt(org.joda.time.field.TestFieldUtils) || org.joda.time.field.TestFieldUtils.testSafeMultiplyLongInt || TestFieldUtils.testSafeMultiplyLongInt
+junit.framework.AssertionFailedError

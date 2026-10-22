@@ -1,0 +1,95 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ----------------------< commons-cli:commons-cli >-----------------------
+[INFO] Building Apache Commons CLI 1.4-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- enforcer:1.3.1:enforce (enforce-maven-3) @ commons-cli ---
+[INFO] Skipping Rule Enforcement.
+[INFO] 
+[INFO] --- build-helper:1.8:parse-version (parse-version) @ commons-cli ---
+[INFO] 
+[INFO] --- antrun:1.7:run (javadoc.resources) @ commons-cli ---
+[INFO] Executing tasks
+
+main:
+[INFO] Executed tasks
+[INFO] 
+[INFO] --- remote-resources:1.5:process (default) @ commons-cli ---
+[INFO] 
+[INFO] --- buildnumber:1.3:create (default) @ commons-cli ---
+[INFO] Executing: /bin/sh -c cd /work && svn --non-interactive info
+[INFO] Working directory: /work
+[INFO] Storing buildNumber: ?????? at timestamp: 1792634785953
+[INFO] Executing: /bin/sh -c cd /work && svn --non-interactive info
+[INFO] Working directory: /work
+[INFO] Storing buildScmBranch: UNKNOWN_BRANCH
+[INFO] 
+[INFO] --- resources:2.7:resources (default-resources) @ commons-cli ---
+[INFO] Using 'iso-8859-1' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory /work/src/main/resources
+[INFO] Copying 2 resources to META-INF
+[INFO] 
+[INFO] --- compiler:3.2:compile (default-compile) @ commons-cli ---
+[INFO] Changes detected - recompiling the module!
+[INFO] Compiling 23 source files to /work/target/classes
+[INFO] /work/src/main/java/org/apache/commons/cli/Parser.java: Some input files use unchecked or unsafe operations.
+[INFO] /work/src/main/java/org/apache/commons/cli/Parser.java: Recompile with -Xlint:unchecked for details.
+[INFO] 
+[INFO] --- bundle:2.5.3:manifest (bundle-manifest) @ commons-cli ---
+[INFO] 
+[INFO] --- animal-sniffer:1.13:check (checkAPIcompatibility) @ commons-cli ---
+[INFO] Signature checking is skipped.
+[INFO] 
+[INFO] --- resources:2.7:testResources (default-testResources) @ commons-cli ---
+[INFO] Using 'iso-8859-1' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory /work/src/test/resources
+[INFO] Copying 2 resources to META-INF
+[INFO] 
+[INFO] --- compiler:3.2:testCompile (default-testCompile) @ commons-cli ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- jacoco:0.7.4.201502262128:prepare-agent (prepare-agent) @ commons-cli ---
+[INFO] Skipping JaCoCo execution because property jacoco.skip is set.
+[INFO] argLine set to empty
+[INFO] 
+[INFO] --- surefire:2.18.1:test (default-test) @ commons-cli ---
+[INFO] Surefire report directory: /work/target/surefire-reports
+
+-------------------------------------------------------
+ T E S T S
+-------------------------------------------------------
+Running org.apache.commons.cli.bug.BugCLI265Test
+Tests run: 2, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.01 sec <<< FAILURE! - in org.apache.commons.cli.bug.BugCLI265Test
+shouldParseShortOptionWithoutValue(org.apache.commons.cli.bug.BugCLI265Test)  Time elapsed: 0.003 sec  <<< FAILURE!
+java.lang.AssertionError: Second option has been used as value for first option. Actual: -last
+	at org.junit.Assert.fail(Assert.java:88)
+	at org.junit.Assert.failEquals(Assert.java:185)
+	at org.junit.Assert.assertNotEquals(Assert.java:161)
+	at org.apache.commons.cli.bug.BugCLI265Test.shouldParseShortOptionWithoutValue(BugCLI265Test.java:52)
+
+
+Results :
+
+Failed tests: 
+  BugCLI265Test.shouldParseShortOptionWithoutValue:52 Second option has been used as value for first option. Actual: -last
+
+Tests run: 2, Failures: 1, Errors: 0, Skipped: 0
+
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  2.763 s
+[INFO] Finished at: 2026-10-22T02:06:27Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.18.1:test (default-test) on project commons-cli: There are test failures.
+[ERROR] 
+[ERROR] Please refer to /work/target/surefire-reports for the individual test results.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
