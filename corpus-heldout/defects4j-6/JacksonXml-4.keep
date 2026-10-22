@@ -1,0 +1,2 @@
+testDynamicRootName(com.fasterxml.jackson.dataformat.xml.misc.RootNameTest) || com.fasterxml.jackson.dataformat.xml.misc.RootNameTest.testDynamicRootName || RootNameTest.testDynamicRootName
+junit.framework.ComparisonFailure: expected:<<[rudy]/>> but was:<<[null]/>> || expected:<<[rudy]/>> but was:<<[null]/>>

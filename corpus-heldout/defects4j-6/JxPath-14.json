@@ -1,0 +1,57 @@
+{
+  "bug": "JxPath-14",
+  "project": "JxPath",
+  "bug_id": 14,
+  "fixed_revision": "8a04f62fa755ec165152a03a516c186d20e8cd46",
+  "report": "https://issues.apache.org/jira/browse/JXPATH-102",
+  "upstream": "https://github.com/apache/commons-jxpath",
+  "image": "maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=CoreFunctionTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.jxpath.ri.compiler.CoreFunctionTest",
+      "method": "testCoreFunctions",
+      "exception": "junit.framework.AssertionFailedError: Evaluating <round('NaN')> expected:<NaN> but was:<0.0>"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.jxpath.ri.compiler.CoreFunctionTest::testCoreFunctions"
+  ],
+  "keep": [
+    "testCoreFunctions(org.apache.commons.jxpath.ri.compiler.CoreFunctionTest) || org.apache.commons.jxpath.ri.compiler.CoreFunctionTest.testCoreFunctions || CoreFunctionTest.testCoreFunctions",
+    "junit.framework.AssertionFailedError: Evaluating <round('NaN')> expected:<NaN> but was:<0.0> || Evaluating <round('NaN')> expected:<NaN> but was:<0.0>"
+  ],
+  "unlocated": [],
+  "lines": 98,
+  "seconds": 10.0,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-22T02:09:12Z",
+  "pare": "0.1.0",
+  "commit": "930455d"
+}

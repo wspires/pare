@@ -1,0 +1,2 @@
+testOffsetWithInputOffset(com.fasterxml.jackson.core.json.TestLocation) || com.fasterxml.jackson.core.json.TestLocation.testOffsetWithInputOffset || TestLocation.testOffsetWithInputOffset
+junit.framework.AssertionFailedError: expected:<0> but was:<3> || expected:<0> but was:<3>

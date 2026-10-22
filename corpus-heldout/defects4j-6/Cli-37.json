@@ -1,0 +1,57 @@
+{
+  "bug": "Cli-37",
+  "project": "Cli",
+  "bug_id": 37,
+  "fixed_revision": "1bf9e6c551b6a2e7d37291673a1ff77c338ce131",
+  "report": "https://issues.apache.org/jira/browse/CLI-265",
+  "upstream": "https://github.com/apache/commons-cli",
+  "image": "maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=BugCLI265Test",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.cli.bug.BugCLI265Test",
+      "method": "shouldParseShortOptionWithoutValue",
+      "exception": "junit.framework.AssertionFailedError: Second option has been used as value for first option. Actual: -last"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.cli.bug.BugCLI265Test::shouldParseShortOptionWithoutValue"
+  ],
+  "keep": [
+    "shouldParseShortOptionWithoutValue(org.apache.commons.cli.bug.BugCLI265Test) || org.apache.commons.cli.bug.BugCLI265Test.shouldParseShortOptionWithoutValue || BugCLI265Test.shouldParseShortOptionWithoutValue",
+    "Second option has been used as value for first option. Actual: -last"
+  ],
+  "unlocated": [],
+  "lines": 95,
+  "seconds": 36.1,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-22T02:06:27Z",
+  "pare": "0.1.0",
+  "commit": "930455d"
+}

@@ -1,0 +1,76 @@
+[INFO] Scanning for projects...
+[WARNING] 
+[WARNING] Some problems were encountered while building the effective model for commons-collections:commons-collections:jar:3.3-SNAPSHOT
+[WARNING] 'build.plugins.plugin.version' for org.apache.maven.plugins:maven-idea-plugin is missing. @ org.apache.commons:commons-parent:11, /m2/org/apache/commons/commons-parent/11/commons-parent-11.pom, line 255, column 15
+[WARNING] The expression ${pom.version} is deprecated. Please use ${project.version} instead.
+[WARNING] 
+[WARNING] It is highly recommended to fix these problems because they threaten the stability of your build.
+[WARNING] 
+[WARNING] For this reason, future Maven versions might no longer support building such malformed projects.
+[WARNING] 
+[INFO] 
+[INFO] --------------< commons-collections:commons-collections >---------------
+[INFO] Building Commons Collections 3.3-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- antrun:1.1:run (javadoc.resources) @ commons-collections ---
+[INFO] Executing tasks
+[INFO] Executed tasks
+[INFO] 
+[INFO] --- resources:3.4.0:resources (default-resources) @ commons-collections ---
+[WARNING] Using platform encoding (UTF-8 actually) to copy filtered resources, i.e. build is platform dependent!
+[INFO] Copying 2 resources from . to target/classes/META-INF
+[INFO] 
+[INFO] --- compiler:2.0.2:compile (default-compile) @ commons-collections ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- bundle:1.4.0:manifest (bundle-manifest) @ commons-collections ---
+[INFO] 
+[INFO] --- resources:3.4.0:testResources (default-testResources) @ commons-collections ---
+[WARNING] Using platform encoding (UTF-8 actually) to copy filtered resources, i.e. build is platform dependent!
+[INFO] skip non existing resourceDirectory /work/src/test/resources
+[INFO] 
+[INFO] --- compiler:2.0.2:testCompile (default-testCompile) @ commons-collections ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- surefire:2.4.3:test (default-test) @ commons-collections ---
+[INFO] Surefire report directory: /work/target/surefire-reports
+
+-------------------------------------------------------
+ T E S T S
+-------------------------------------------------------
+Running org.apache.commons.collections.TestExtendedProperties
+Tests run: 16, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.024 sec <<< FAILURE!
+testCollections271(org.apache.commons.collections.TestExtendedProperties)  Time elapsed: 0.002 sec  <<< FAILURE!
+junit.framework.AssertionFailedError
+	at junit.framework.Assert.fail(Assert.java:47)
+	at junit.framework.Assert.assertTrue(Assert.java:20)
+	at junit.framework.Assert.assertNotNull(Assert.java:220)
+	at junit.framework.Assert.assertNotNull(Assert.java:213)
+	at org.apache.commons.collections.TestExtendedProperties.testCollections271(TestExtendedProperties.java:415)
+
+
+Results :
+
+Failed tests: 
+  testCollections271(org.apache.commons.collections.TestExtendedProperties)
+
+Tests run: 16, Failures: 1, Errors: 0, Skipped: 0
+
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  2.094 s
+[INFO] Finished at: 2026-10-22T02:06:56Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.4.3:test (default-test) on project commons-collections: There are test failures.
+[ERROR] 
+[ERROR] Please refer to /work/target/surefire-reports for the individual test results.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

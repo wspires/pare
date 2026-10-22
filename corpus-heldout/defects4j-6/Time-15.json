@@ -1,0 +1,59 @@
+{
+  "bug": "Time-15",
+  "project": "Time",
+  "bug_id": 15,
+  "fixed_revision": "0cefc4c212e92e5dccdfa658785c419483317558",
+  "report": "https://sourceforge.net/p/joda-time/bugs/147",
+  "upstream": "https://github.com/JodaOrg/joda-time",
+  "image": "maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=TestFieldUtils",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.joda.time.field.TestFieldUtils",
+      "method": "testSafeMultiplyLongInt",
+      "exception": "junit.framework.AssertionFailedError"
+    }
+  ],
+  "failed": [
+    "org.joda.time.field.TestFieldUtils::testSafeMultiplyLongInt"
+  ],
+  "keep": [
+    "testSafeMultiplyLongInt(org.joda.time.field.TestFieldUtils) || org.joda.time.field.TestFieldUtils.testSafeMultiplyLongInt || TestFieldUtils.testSafeMultiplyLongInt",
+    "junit.framework.AssertionFailedError"
+  ],
+  "unlocated": [],
+  "lines": 73,
+  "seconds": 12.6,
+  "fixes_applied": [
+    "locale-1-27.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-22T02:09:52Z",
+  "pare": "0.1.0",
+  "commit": "930455d"
+}

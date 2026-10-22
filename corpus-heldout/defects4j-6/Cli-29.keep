@@ -1,0 +1,2 @@
+testStripLeadingAndTrailingQuotes(org.apache.commons.cli.UtilTest) || org.apache.commons.cli.UtilTest.testStripLeadingAndTrailingQuotes || UtilTest.testStripLeadingAndTrailingQuotes
+junit.framework.ComparisonFailure: expected:<foo "bar["]> but was:<foo "bar[]> || expected:<foo "bar["]> but was:<foo "bar[]>

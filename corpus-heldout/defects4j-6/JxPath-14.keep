@@ -1,0 +1,2 @@
+testCoreFunctions(org.apache.commons.jxpath.ri.compiler.CoreFunctionTest) || org.apache.commons.jxpath.ri.compiler.CoreFunctionTest.testCoreFunctions || CoreFunctionTest.testCoreFunctions
+junit.framework.AssertionFailedError: Evaluating <round('NaN')> expected:<NaN> but was:<0.0> || Evaluating <round('NaN')> expected:<NaN> but was:<0.0>
