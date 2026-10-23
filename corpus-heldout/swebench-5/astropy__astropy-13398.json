@@ -1,0 +1,36 @@
+{
+  "instance_id": "astropy__astropy-13398",
+  "repo": "astropy/astropy",
+  "version": "5.0",
+  "base_commit": "6500928dc0e57be8f06d1162eacc3ba5e2eff692",
+  "image": "swebench/sweb.eval.x86_64.astropy_1776_astropy-13398:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "astropy/coordinates/tests/test_intermediate_transformations.py::test_itrs_topo_to_altaz_with_refraction",
+    "astropy/coordinates/tests/test_intermediate_transformations.py::test_itrs_topo_to_hadec_with_refraction",
+    "astropy/coordinates/tests/test_intermediate_transformations.py::test_cirs_itrs_topo",
+    "astropy/coordinates/tests/test_intermediate_transformations.py::test_itrs_straight_overhead"
+  ],
+  "failed": [
+    "astropy/coordinates/tests/test_intermediate_transformations.py::test_itrs_topo_to_altaz_with_refraction",
+    "astropy/coordinates/tests/test_intermediate_transformations.py::test_itrs_topo_to_hadec_with_refraction",
+    "astropy/coordinates/tests/test_intermediate_transformations.py::test_cirs_itrs_topo",
+    "astropy/coordinates/tests/test_intermediate_transformations.py::test_itrs_straight_overhead"
+  ],
+  "keep": [
+    "astropy/coordinates/tests/test_intermediate_transformations.py::test_itrs_topo_to_altaz_with_refraction",
+    "astropy/coordinates/tests/test_intermediate_transformations.py::test_itrs_topo_to_hadec_with_refraction",
+    "astropy/coordinates/tests/test_intermediate_transformations.py::test_cirs_itrs_topo",
+    "astropy/coordinates/tests/test_intermediate_transformations.py::test_itrs_straight_overhead"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 68,
+  "lines": 429,
+  "seconds": 76.4,
+  "network": "bridge",
+  "collected": "2026-10-23T02:02:49Z",
+  "pare": "0.1.0",
+  "commit": "bbd6378",
+  "swebench": "5.0.2"
+}

@@ -1,0 +1,36 @@
+{
+  "instance_id": "pydata__xarray-4966",
+  "repo": "pydata/xarray",
+  "version": "0.12",
+  "base_commit": "37522e991a32ee3c0ad1a5ff8afe8e3eb1885550",
+  "image": "swebench/sweb.eval.x86_64.pydata_1776_xarray-4966:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "xarray/tests/test_coding.py::test_decode_signed_from_unsigned[1]",
+    "xarray/tests/test_coding.py::test_decode_signed_from_unsigned[2]",
+    "xarray/tests/test_coding.py::test_decode_signed_from_unsigned[4]",
+    "xarray/tests/test_coding.py::test_decode_signed_from_unsigned[8]"
+  ],
+  "failed": [
+    "xarray/tests/test_coding.py::test_decode_signed_from_unsigned[1]",
+    "xarray/tests/test_coding.py::test_decode_signed_from_unsigned[2]",
+    "xarray/tests/test_coding.py::test_decode_signed_from_unsigned[4]",
+    "xarray/tests/test_coding.py::test_decode_signed_from_unsigned[8]"
+  ],
+  "keep": [
+    "xarray/tests/test_coding.py::test_decode_signed_from_unsigned[1]",
+    "xarray/tests/test_coding.py::test_decode_signed_from_unsigned[2]",
+    "xarray/tests/test_coding.py::test_decode_signed_from_unsigned[4]",
+    "xarray/tests/test_coding.py::test_decode_signed_from_unsigned[8]"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 21,
+  "lines": 154,
+  "seconds": 15.0,
+  "network": "bridge",
+  "collected": "2026-10-23T01:58:20Z",
+  "pare": "0.1.0",
+  "commit": "bbd6378",
+  "swebench": "5.0.2"
+}

@@ -56,7 +56,23 @@ unchanged) is skipped and reported; full logs of failed runs go to
 `swebench/_failed/`, which git ignores. Images this run pulled are removed
 afterwards unless `--keep-images`. `--dataset` takes a local
 `.jsonl`/`.json`/`.parquet` with SWE-bench's fields when Hugging Face is out
-of reach.
+of reach. Hugging Face serves the dataset's files from other hosts
+(`us.aws.cdn.hf.co`, `cas-server.xethub.hf.co`), so a network allowlist
+needs those as well as `huggingface.co`.
+
+Two capture problems and their workarounds, neither of which changes what
+a test prints:
+
+- **A TLS-re-signing gateway.** Eval scripts that `pip install` fail to
+  verify PyPI inside the container. Mount the gateway's CA bundle and
+  point pip at it:
+  `--docker-arg=--volume=/path/ca-bundle.crt:/pare-ca.crt:ro --docker-arg=--env=PIP_CERT=/pare-ca.crt`.
+- **Docker Hub's rate limit** (`429 Too Many Requests` on pull). Pull the
+  image from Google's mirror and tag it with its Docker Hub name; the
+  harness uses an image that is already there (and then leaves it for you
+  to remove): `docker pull mirror.gcr.io/swebench/sweb.eval.x86_64.<id>:latest`
+  and `docker tag` it as `swebench/sweb.eval.x86_64.<id>:latest`, then rerun
+  the task with `--instances`.
 
 These are a different kind of keep list from the transcript cases: they
 only ask whether the summary names every failing test, not whether it
@@ -146,7 +162,64 @@ cases, as `bench/run.py` prints it); "full" counts the cases where pare
 kept every keep line. tidyout keeps everything on every source, at 96 to
 100 % of the input size.
 
-### Latest fresh SWE-bench sample: seed 3
+### Latest fresh SWE-bench sample: seed 4
+
+SWE-bench Verified seed 4, drawn after the 0.2.0 code (`bbd6378`) with
+`--exclude` every earlier SWE-bench set, in this repository's cloud
+environment (with Hugging Face allowed), and measured before anyone read
+it. It is the first fresh SWE-bench test of `--budget auto` and of the
+Gson-7 change, and the first since the tail-window and JUnit 3 changes
+were last measured here.
+
+```
+python3 bench/swebench_cases.py run --sample 20 --seed 4 --exclude corpus-heldout/swebench --exclude corpus-heldout/swebench-2 --exclude corpus-heldout/swebench-3 --exclude corpus-heldout/swebench-4 --out corpus-heldout/swebench-5 --docker-arg=--volume=/root/.ccr/ca-bundle.crt:/pare-ca.crt:ro --docker-arg=--env=PIP_CERT=/pare-ca.crt
+```
+
+18 of 20 tasks gave a case: pylint-dev__pylint-4551's FAIL_TO_PASS tests
+were not in the output (its log is in `_failed/`), and django__django-16502's
+output is under 40 lines. Six images hit Docker Hub's rate limit and were
+pulled from `mirror.gcr.io` instead (above). Before the draw two harness
+fixes went in, both about labels or capture, not pare: test ids are
+located with colour codes removed (pytest printed
+`::ESC[1mtest_x ESC[0m`, and astropy__astropy-14369 found no id at all),
+and `--docker-arg` passes the CA bundle so the eval scripts' `pip install`
+works. 30 keep lines; logs are 1,417 to 38,227 tokens (145,462 in all):
+none fits in 1,000 tokens, four in 2,000.
+
+| version | 600 | 1,000 | 2,000 | `auto` |
+|---|---|---|---|---|
+| before any held-out fix (`d730e86`) | 70.0 % | 80.0 % | 83.3 % | — |
+| 0.2.0 (`bbd6378`) | **90.0 %** (min 0) | **96.7 %** (min 0) | **96.7 %** (min 0) | **96.7 %** |
+| 0.2.0, windows not skipping common shapes | 93.3 % | 100 % | 100 % | |
+
+Output is 7 %, 11 % and 17 % of the input at 600, 1,000 and 2,000;
+`auto` keeps the same 29 of 30 as 2,000 at 13 % (18,698 tokens against
+24,357). `--strict` gives 73 / 83 / 83 %: several tasks' failing tests
+are shown as items of a compact list.
+
+The misses, read after scoring (no code changed on them):
+
+- **pytest-dev__pytest-8399**, its one failing test, at every budget.
+  pytest's own suite prints the output of the inner pytest runs it
+  drives, so the log has dozens of `FAILED`/`ERROR` lines from those.
+  The real `FAILED testing/test_unittest.py::test_fixtures_setup_setUpClass_issue8394`
+  is line 1,416, inside the tail window, but its shape is common, and the
+  window skips lines of templates seen five or more times (the
+  "windows skip chatter" change, `821097f`): the line is folded into
+  `┆ (1 line)` while `PASSED` and `SKIPPED` lines around it are shown.
+  With that skip off, the task keeps its test at every budget. This is
+  the first held-out cost of that change, which was made for Maven's
+  chatter and gained there; the two have to be weighed against each
+  other, on data not yet seen.
+- **astropy__astropy-13398**, 2 of 4 at 600: five tests fail, one
+  (`test_icrs_cirs`) from the environment (IERS data, unrelated to the
+  bug) and listed first; the list shows three and "+2 more", while
+  entries such as `ARCH_ON_CI: undefined` and three `SKIPPED` lines take
+  room.
+
+This sample is now spent by any change measured on it.
+
+### SWE-bench seed 3
 
 SWE-bench Verified seed 3, drawn after the JUnit 3 change (`27c905c`) with
 `--exclude` every earlier SWE-bench set, on the maintainer's machine (this

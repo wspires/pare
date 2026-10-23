@@ -1,0 +1,2 @@
+lib/matplotlib/tests/test_colors.py::test_colormap_equals
+lib/matplotlib/tests/test_colors.py::test_set_cmap_mismatched_name

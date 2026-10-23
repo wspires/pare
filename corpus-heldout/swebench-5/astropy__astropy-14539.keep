@@ -1,0 +1,2 @@
+astropy/io/fits/tests/test_diff.py::TestDiff::test_identical_tables
+astropy/io/fits/tests/test_diff.py::TestDiff::test_different_table_data

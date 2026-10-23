@@ -1,0 +1,27 @@
+{
+  "instance_id": "matplotlib__matplotlib-24870",
+  "repo": "matplotlib/matplotlib",
+  "version": "3.6",
+  "base_commit": "6091437be9776139d3672cde28a19cbe6c09dcd5",
+  "image": "swebench/sweb.eval.x86_64.matplotlib_1776_matplotlib-24870:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "lib/matplotlib/tests/test_contour.py::test_bool_autolevel"
+  ],
+  "failed": [
+    "lib/matplotlib/tests/test_contour.py::test_bool_autolevel"
+  ],
+  "keep": [
+    "lib/matplotlib/tests/test_contour.py::test_bool_autolevel"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 65,
+  "lines": 95,
+  "seconds": 89.8,
+  "network": "bridge",
+  "collected": "2026-10-23T01:55:49Z",
+  "pare": "0.1.0",
+  "commit": "bbd6378",
+  "swebench": "5.0.2"
+}

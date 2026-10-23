@@ -176,12 +176,17 @@ def test_output(log: str) -> str:
 
 
 DJANGO_ID = re.compile(r"^(\w+) \(([\w.]+)\)$")
+ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 
 
 def locate(test_id: str, text: str) -> str | None:
     """The form of a test id that appears in the log: the id itself, or
     Django's newer `name (module.Class.name)` spelling of `name
-    (module.Class)`. The keep line is what a summary must contain."""
+    (module.Class)`. The keep line is what a summary must contain.
+    Colour codes are ignored, as pare drops them: pytest can print
+    `::ESC[1mtest_x ESC[0m` (ESC the escape character), which reads
+    `::test_x` on screen."""
+    text = ANSI.sub("", text)
     candidates = [test_id]
     m = DJANGO_ID.match(test_id)
     if m:
@@ -199,6 +204,9 @@ def locate(test_id: str, text: str) -> str | None:
 class Docker:
     """The four docker operations the harness needs; a test replaces it."""
 
+    def __init__(self, extra_args: list[str] | None = None):
+        self.extra_args = list(extra_args or [])
+
     def has_image(self, image: str) -> bool:
         return subprocess.run(["docker", "image", "inspect", image], capture_output=True).returncode == 0
 
@@ -214,7 +222,7 @@ class Docker:
                 f.write(script)
             name = f"pare-swebench-{uuid.uuid4().hex[:12]}"
             cmd = ["docker", "run", "--rm", "--name", name, "--platform", "linux/amd64", "--network", network,
-                   "-v", f"{d}:/pare-eval:ro", "--entrypoint", "/bin/bash", image, "-c", "bash /pare-eval/eval.sh 2>&1"]
+                   "-v", f"{d}:/pare-eval:ro", *self.extra_args, "--entrypoint", "/bin/bash", image, "-c", "bash /pare-eval/eval.sh 2>&1"]
             try:
                 p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout)
                 return p.stdout.decode("utf-8", "replace"), False
@@ -365,7 +373,7 @@ def cmd_run(args, docker: Docker | None = None) -> int:
             print(f"  {t['instance_id']:<40} {len(fail_to_pass(t)):>2} failing  {image_of(t)}")
         return 0
     os.makedirs(args.out, exist_ok=True)
-    docker = docker or Docker()
+    docker = docker or Docker(args.docker_arg)
     counts: dict[str, int] = {}
     for n, task in enumerate(chosen, 1):
         iid = task["instance_id"]
@@ -396,6 +404,9 @@ def main(argv: list[str] | None = None, docker: Docker | None = None) -> int:
                    help="skip outputs shorter than this; pare passes small outputs through unchanged (default 40)")
     p.add_argument("--timeout", type=int, default=1800, help="seconds per task (default 1800)")
     p.add_argument("--network", default="bridge", help="docker network for the container (default bridge; 'none' to cut it off)")
+    p.add_argument("--docker-arg", action="append", default=[], metavar="ARG",
+                   help="extra argument for docker run, repeatable (e.g. --docker-arg=--env=PIP_CERT=/ca.crt "
+                        "with a mounted CA bundle, behind a TLS-re-signing gateway)")
     p.add_argument("--keep-images", action="store_true", help="keep images this run pulled (they are 1-4 GB each)")
     p.add_argument("--out", default=DEFAULT_OUT)
     p.add_argument("--force", action="store_true", help="redo tasks that already have a case")
