@@ -130,7 +130,7 @@ pub fn clip(text: &str, width: i64) -> Cow<'_, str> {
         return Cow::Borrowed(text);
     }
     // A JSON or logfmt line keeps its telling fields (not in Python).
-    if crate::pass::TOOL_STRUCTURED {
+    if crate::pass::TOOL_STRUCTURED && crate::pass::rust_rules() {
         if let Some(clipped) = crate::structured::clip(text, width) {
             return Cow::Owned(clipped);
         }

@@ -320,7 +320,11 @@ status:
 - **Parity** (`bench/parity.py --candidate target/release/pare`) compares the binary with the Python version byte for
   byte over every corpus log and the generated edge cases, under 14 flag
   sets; `--dump` also compares the per-line results and reports the first
-  row that differs.
+  row that differs. It runs the binary with `PARE_REFERENCE_RULES=1`
+  (`pass::rust_rules`), which turns off the Rust-only rules that change
+  default output: structured lines (`src/structured.rs`) and the tail
+  window's verdict rule (`Summarizer::windowed`). The golden-summary test
+  does the same; the rules have tests of their own.
 - **CI** (`.github/workflows/ci.yml`, Linux): `cargo fmt --check`, `cargo
   clippy -D warnings`, `cargo test`, `cargo doc` with warnings as errors,
   the Python test suite on Python 3.13, that `src/pyunicode.rs` is what

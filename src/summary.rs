@@ -95,6 +95,10 @@ const NOVELTY_BONUS: f64 = 1.0;
 const WINDOW_SKIP_COUNT: u32 = 5;
 /// ...looking at most this many window-lengths into the file.
 const WINDOW_SCAN_FACTOR: i64 = 3;
+/// The tail window keeps an error line of a template that common when it
+/// is the only line of its template in the window's span (Rust version;
+/// see `Summarizer::windowed`).
+const TAIL_KEEPS_ERRORS: bool = true;
 /// Templates this small are skipped when their exemplar restates a shown line.
 const NEAR_DUP_MAX_COUNT: u32 = 5;
 /// A raw line's priority is scaled by `(REF / (REF + len))^POWER`.
@@ -852,9 +856,33 @@ impl Summarizer<'_> {
 
     /// `windowed()`: the head or tail window's line numbers from the line
     /// indices `idxs`, skipping chatter and lines of frequent templates or
-    /// long records, except the very first and last lines.
-    fn windowed(&mut self, idxs: &[usize], n: i64, keep_no: usize) -> Vec<usize> {
+    /// long records, except the very first and last lines. With
+    /// `keep_errors` (the tail window), an error line of a frequent
+    /// template is kept when no other line of its template is in `idxs`.
+    ///
+    /// The skip is for chatter that recurs to the end (Maven's download
+    /// lines, an emulator's routine errors); its cost was the verdict that
+    /// repeats a shape seen earlier: pytest's own suite prints dozens of
+    /// `FAILED` lines from the inner runs it drives, and the one real
+    /// `FAILED` line near the end was folded away (SWE-bench
+    /// pytest-dev__pytest-8399, `corpus-heldout/README.md`).
+    fn windowed(
+        &mut self,
+        idxs: &[usize],
+        n: i64,
+        keep_no: usize,
+        keep_errors: bool,
+    ) -> Vec<usize> {
         let mut out = Vec::new();
+        // Lines per template in the scanned span.
+        let mut near_end: HashMap<usize, u32> = HashMap::new();
+        if keep_errors {
+            for &i in idxs {
+                if let Some(ri) = self.rec(i) {
+                    *near_end.entry(self.rtpl(ri)).or_default() += 1;
+                }
+            }
+        }
         for &i in idxs {
             if out.len() as i64 >= n {
                 break;
@@ -868,7 +896,15 @@ impl Summarizer<'_> {
                 out.push(no);
                 continue;
             };
-            let frequent = self.store.templates[self.rtpl(ri)].count >= WINDOW_SKIP_COUNT;
+            // The tail window keeps an error line of a common shape when it
+            // is the only line of that shape near the end: a verdict that
+            // repeats a shape seen earlier (pytest's FAILED after a suite's
+            // inner runs printed dozens), not noise that recurs to the end.
+            // Not in Python.
+            let verdict =
+                keep_errors && near_end.get(&self.rtpl(ri)) == Some(&1) && self.lines.is_error(no);
+            let frequent =
+                !verdict && self.store.templates[self.rtpl(ri)].count >= WINDOW_SKIP_COUNT;
             let long_body = self.store.depth[i] > 0
                 && self.rend(ri) - self.rstart(ri) >= WINDOW_SKIP_COUNT as usize;
             if !frequent && !long_body {
@@ -1803,8 +1839,13 @@ impl Summarizer<'_> {
         let head_idxs: Vec<usize> = (0..head_end).collect();
         let tail_start = usize::try_from((total_i - 1 - tail_span).max(-1) + 1).unwrap_or(0);
         let tail_idxs: Vec<usize> = (tail_start..total).rev().collect();
-        let mut head_nos = self.windowed(&head_idxs, head_n, self.b1);
-        let mut tail_nos = self.windowed(&tail_idxs, tail_n, self.store.base + total);
+        let mut head_nos = self.windowed(&head_idxs, head_n, self.b1, false);
+        let mut tail_nos = self.windowed(
+            &tail_idxs,
+            tail_n,
+            self.store.base + total,
+            TAIL_KEEPS_ERRORS && crate::pass::rust_rules(),
+        );
         tail_nos.sort_unstable();
         tail_nos.retain(|n| !head_nos.contains(n));
         while !head_nos.is_empty() || !tail_nos.is_empty() {

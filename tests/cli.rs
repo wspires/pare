@@ -16,10 +16,17 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
 fn pare(args: &[&str], input: &[u8]) -> Output {
+    pare_with(args, input, &[])
+}
+
+/// `pare` with extra environment variables.
+fn pare_with(args: &[&str], input: &[u8], env: &[(&str, &str)]) -> Output {
     let mut child = Command::new(env!("CARGO_BIN_EXE_pare"))
         .args(args)
         .env_remove("PARE_VOCAB")
         .env_remove("PARE_BUDGET")
+        .env_remove("PARE_REFERENCE_RULES")
+        .envs(env.iter().copied())
         // No automatic pruning, so a run directory holds only what the test made.
         .env("PARE_RUN_PRUNE", "off")
         .stdin(Stdio::piped())
@@ -323,7 +330,8 @@ fn bad_vocab_files_are_usage_errors() {
 #[test]
 fn summaries_are_pythons() {
     // tests/data/summary/: reference/pare.py's whole output for corpus logs at
-    // a few budgets (bench/gen_fixtures.py writes them).
+    // a few budgets (bench/gen_fixtures.py writes them), with the Rust-only
+    // rules off.
     let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/summary");
     let cases = fs::read_to_string(format!("{dir}/cases.tsv")).unwrap();
     let mut n = 0;
@@ -332,7 +340,7 @@ fn summaries_are_pythons() {
         let input = fs::read(format!("{}/corpus/{}", env!("CARGO_MANIFEST_DIR"), f[0])).unwrap();
         let mut args = vec!["--no-tee"];
         args.extend(f[1].split(' '));
-        let out = pare(&args, &input);
+        let out = pare_with(&args, &input, &[("PARE_REFERENCE_RULES", "1")]);
         assert!(out.status.success(), "{row}");
         let want = fs::read(format!("{dir}/{}", f[2])).unwrap();
         assert!(
@@ -603,6 +611,33 @@ fn structured_lines_keep_their_cause() {
         ),
         "{line}"
     );
+}
+
+#[test]
+fn tail_window_keeps_a_verdict_of_a_common_shape() {
+    // pytest's own suite: the inner runs it drives print FAILED lines of
+    // their own early on, so the real one at the end has a common shape.
+    let mut input = String::from(
+        "============================= test session starts ==============================\n",
+    );
+    for i in 0..40 {
+        input += &format!("FAILED test_inner_{i}.py::test_x - Failed\n");
+        input += &"some detail of an inner run that passes along\n".repeat(3);
+    }
+    for i in 0..30 {
+        input += &format!("PASSED testing/test_unittest.py::test_ok_{i}\n");
+    }
+    input += "FAILED testing/test_unittest.py::test_fixtures_setup_setUpClass_issue8394 - Failed\n";
+    input += "=================== 1 failed, 59 passed in 3.24s ===================\n";
+    let tail = |env: &[(&str, &str)]| {
+        let out = pare_with(&["--no-tee", "--budget", "600"], input.as_bytes(), env);
+        let text = String::from_utf8(out.stdout).unwrap();
+        text[text.find("## tail").unwrap()..].to_owned()
+    };
+    let verdict = "FAILED testing/test_unittest.py::test_fixtures_setup_setUpClass_issue8394";
+    assert!(tail(&[]).contains(verdict), "{}", tail(&[]));
+    // The Python version's rules fold it away.
+    assert!(!tail(&[("PARE_REFERENCE_RULES", "1")]).contains(verdict));
 }
 
 #[test]

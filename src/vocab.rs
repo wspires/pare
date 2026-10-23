@@ -669,7 +669,7 @@ impl Vocab {
     #[must_use]
     pub fn detect_level(&self, text: &str) -> Option<u8> {
         // pino and bunyan write numbers: "level":50 (not in Python).
-        if crate::pass::TOOL_STRUCTURED {
+        if crate::pass::TOOL_STRUCTURED && crate::pass::rust_rules() {
             if let Some(level) = crate::structured::numeric_level(text) {
                 return Some(level);
             }

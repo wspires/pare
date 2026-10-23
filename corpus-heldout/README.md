@@ -217,7 +217,11 @@ The misses, read after scoring (no code changed on them):
   entries such as `ARCH_ON_CI: undefined` and three `SKIPPED` lines take
   room.
 
-This sample is now spent by any change measured on it.
+**Spent since.** pytest-8399 led to the tail window's verdict rule (an
+error line of a common shape stays when it is the only one of its shape
+near the end; `docs/DESIGN.md`, "The verdict that repeats a shape"). With
+it this sample scores 93.3 / 100 / 100 % at 600 / 1,000 / 2,000 and 100 %
+with `auto`; that is a training score now.
 
 ### SWE-bench seed 3
 
