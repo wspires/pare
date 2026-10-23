@@ -1,0 +1,27 @@
+{
+  "instance_id": "django__django-13033",
+  "repo": "django/django",
+  "version": "3.2",
+  "base_commit": "a59de6e89e8dc1f3e71c9a5a5bbceb373ea5247e",
+  "image": "swebench/sweb.eval.x86_64.django_1776_django-13033:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "test_order_by_self_referential_fk (ordering.tests.OrderingTests)"
+  ],
+  "failed": [
+    "test_order_by_self_referential_fk (ordering.tests.OrderingTests)"
+  ],
+  "keep": [
+    "test_order_by_self_referential_fk (ordering.tests.OrderingTests)"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 26,
+  "lines": 81,
+  "seconds": 12.0,
+  "network": "bridge",
+  "collected": "2026-10-23T01:42:29Z",
+  "pare": "0.1.0",
+  "commit": "bbd6378",
+  "swebench": "5.0.2"
+}

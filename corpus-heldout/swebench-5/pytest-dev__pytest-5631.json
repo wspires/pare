@@ -1,0 +1,27 @@
+{
+  "instance_id": "pytest-dev__pytest-5631",
+  "repo": "pytest-dev/pytest",
+  "version": "5.0",
+  "base_commit": "cb828ebe70b4fa35cd5f9a7ee024272237eab351",
+  "image": "swebench/sweb.eval.x86_64.pytest-dev_1776_pytest-5631:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "testing/python/integration.py::TestMockDecoration::test_mock_sentinel_check_against_numpy_like"
+  ],
+  "failed": [
+    "testing/python/integration.py::TestMockDecoration::test_mock_sentinel_check_against_numpy_like"
+  ],
+  "keep": [
+    "testing/python/integration.py::TestMockDecoration::test_mock_sentinel_check_against_numpy_like"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 15,
+  "lines": 221,
+  "seconds": 7.7,
+  "network": "bridge",
+  "collected": "2026-10-23T02:08:55Z",
+  "pare": "0.1.0",
+  "commit": "bbd6378",
+  "swebench": "5.0.2"
+}

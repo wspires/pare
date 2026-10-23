@@ -1,0 +1,3 @@
+astropy/units/tests/test_format.py::test_cds_grammar[strings4-unit4]
+astropy/units/tests/test_format.py::test_cds_grammar[strings6-unit6]
+astropy/units/tests/test_format.py::test_cds_grammar_fail[km/s.Mpc-1]

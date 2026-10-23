@@ -1,0 +1,33 @@
+{
+  "instance_id": "astropy__astropy-14369",
+  "repo": "astropy/astropy",
+  "version": "5.1",
+  "base_commit": "fa4e8d1cd279acf9b24560813c8652494ccd5922",
+  "image": "swebench/sweb.eval.x86_64.astropy_1776_astropy-14369:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "astropy/units/tests/test_format.py::test_cds_grammar[strings4-unit4]",
+    "astropy/units/tests/test_format.py::test_cds_grammar[strings6-unit6]",
+    "astropy/units/tests/test_format.py::test_cds_grammar_fail[km/s.Mpc-1]"
+  ],
+  "failed": [
+    "astropy/units/tests/test_format.py::test_cds_grammar[strings4-unit4]",
+    "astropy/units/tests/test_format.py::test_cds_grammar[strings6-unit6]",
+    "astropy/units/tests/test_format.py::test_cds_grammar_fail[km/s.Mpc-1]"
+  ],
+  "keep": [
+    "astropy/units/tests/test_format.py::test_cds_grammar[strings4-unit4]",
+    "astropy/units/tests/test_format.py::test_cds_grammar[strings6-unit6]",
+    "astropy/units/tests/test_format.py::test_cds_grammar_fail[km/s.Mpc-1]"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 732,
+  "lines": 1271,
+  "seconds": 54.7,
+  "network": "bridge",
+  "collected": "2026-10-23T02:08:47Z",
+  "pare": "0.1.0",
+  "commit": "bbd6378",
+  "swebench": "5.0.2"
+}

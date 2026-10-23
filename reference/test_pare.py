@@ -1495,6 +1495,9 @@ def test_swebench_output_slicing_and_test_id_forms():
         == "test_add (tests.math.Calc.test_add)"  # newer Django spelling
     assert sc.locate("test_add (tests.math.Calc)", "test_add (tests.math.Calc) ... FAIL") == "test_add (tests.math.Calc)"
     assert sc.locate("missing", "nothing here") is None
+    # pytest's colours split an id on the raw text; pare drops them, so the
+    # label is the id as it reads on screen.
+    assert sc.locate("a/b.py::test_x[1-2]", "FAILED a/b.py::\x1b[1mtest_x[1-2]\x1b[0m - boom") == "a/b.py::test_x[1-2]"
     assert sc.image_of({"instance_id": "django__django-11099"}) == \
         "swebench/sweb.eval.x86_64.django_1776_django-11099:latest"
 

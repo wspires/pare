@@ -1,0 +1,27 @@
+{
+  "instance_id": "sphinx-doc__sphinx-8035",
+  "repo": "sphinx-doc/sphinx",
+  "version": "3.2",
+  "base_commit": "5e6da19f0e44a0ae83944fb6ce18f18f781e1a6e",
+  "image": "swebench/sweb.eval.x86_64.sphinx-doc_1776_sphinx-8035:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "tests/test_ext_autodoc_private_members.py::test_private_members"
+  ],
+  "failed": [
+    "tests/test_ext_autodoc_private_members.py::test_private_members"
+  ],
+  "keep": [
+    "tests/test_ext_autodoc_private_members.py::test_private_members"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 2,
+  "lines": 114,
+  "seconds": 5.7,
+  "network": "bridge",
+  "collected": "2026-10-23T02:00:24Z",
+  "pare": "0.1.0",
+  "commit": "bbd6378",
+  "swebench": "5.0.2"
+}

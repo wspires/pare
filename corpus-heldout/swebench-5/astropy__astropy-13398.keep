@@ -1,0 +1,4 @@
+astropy/coordinates/tests/test_intermediate_transformations.py::test_itrs_topo_to_altaz_with_refraction
+astropy/coordinates/tests/test_intermediate_transformations.py::test_itrs_topo_to_hadec_with_refraction
+astropy/coordinates/tests/test_intermediate_transformations.py::test_cirs_itrs_topo
+astropy/coordinates/tests/test_intermediate_transformations.py::test_itrs_straight_overhead

@@ -98,6 +98,20 @@ The gate for everything after it.
   unrelated to the bug (locale tests) crowding Gson-17's list, and
   Gson-12's bare exception. *Done; spent by the next change measured on
   it.*
+- [x] **SWE-bench seed 4.** 18 tasks (`corpus-heldout/swebench-5/`),
+  drawn after 0.2.0 with every earlier SWE-bench set excluded, measured
+  before reading: 90.0 / 96.7 / 96.7 % at 600 / 1,000 / 2,000, and 96.7 %
+  with `--budget auto` at 77 % of the tokens of 2,000 (70.0 / 80.0 /
+  83.3 % before any held-out fix). One task, pytest-dev__pytest-8399,
+  loses its only failing test at every budget: the tail window skips its
+  `FAILED` line because the inner pytest runs in pytest's own suite made
+  that shape common. *Done; spent by the next change measured on it.*
+- [ ] **Window skip against a common verdict.** The windows skip lines
+  of templates seen five or more times (for Maven's chatter); on
+  pytest-dev__pytest-8399 that hides the one real `FAILED` line. A
+  candidate: never skip an error-level line in the tail window. Decide
+  on data neither change was chosen on: a seventh Defects4J and a fifth
+  SWE-bench sample.
 - [ ] **Claude token rate.** `bench/tokens.py --anthropic claude-opus-5-5`
   on a machine with credentials. If the rate differs much from the 2.8
   bytes per token measured on cl100k and o200k, change the default.
@@ -418,8 +432,9 @@ which changes output and so comes after the parity decision above.
   1,204 tokens, against 98.8 % at 1,552 for `--budget 2000`
   (`docs/DESIGN.md`, "Automatic budget"). *Done.* Default after a fresh
   held-out sample confirms it: the first one, Defects4J seed 6, keeps
-  100 % with `auto` at 71 % of the tokens of `--budget 2000`; one Java
-  sample, no SWE-bench one yet.
+  100 % with `auto` at 71 % of the tokens of `--budget 2000`, and
+  SWE-bench seed 4 the same recall as 2,000 (96.7 %) at 77 % of its
+  tokens.
 - [x] **Inferring a log's format.** Detect formats from the first few
   hundred lines (logfmt, JSON lines, a known tool) and switch rules on
   accordingly. Possible, but output would then depend on the detection;

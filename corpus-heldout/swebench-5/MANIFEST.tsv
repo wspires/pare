@@ -1,0 +1,19 @@
+name	collected	pare	commit	sha256	lines	bytes	exit	command	source	labels
+django__django-13033	2026-10-23T01:42:29Z	0.1.0	bbd6378		81	3966		./tests/runtests.py --verbosity 2 --settings=test_sqlite --parallel 1 ordering.models ordering.tests	dataset	dataset FAIL_TO_PASS
+matplotlib__matplotlib-25479	2026-10-23T01:45:46Z	0.1.0	bbd6378		340	23719		pytest -rA lib/matplotlib/tests/test_colors.py	dataset	dataset FAIL_TO_PASS
+pydata__xarray-6461	2026-10-23T01:47:48Z	0.1.0	bbd6378		298	22449		pytest -rA xarray/tests/test_computation.py	dataset	dataset FAIL_TO_PASS
+sphinx-doc__sphinx-8459	2026-10-23T01:49:07Z	0.1.0	bbd6378		579	37552		tox --current-env -epy39 -v -- tests/test_ext_autodoc_configs.py	dataset	dataset FAIL_TO_PASS
+sympy__sympy-21379	2026-10-23T01:50:25Z	0.1.0	bbd6378		134	4261		PYTHONWARNINGS='ignore::UserWarning,ignore::SyntaxWarning' bin/test -C --verbose sympy/core/tests/test_arit.py	dataset	dataset FAIL_TO_PASS
+astropy__astropy-14539	2026-10-23T01:51:40Z	0.1.0	bbd6378		432	21759		pytest -rA astropy/io/fits/tests/test_diff.py	dataset	dataset FAIL_TO_PASS
+matplotlib__matplotlib-24870	2026-10-23T01:55:49Z	0.1.0	bbd6378		95	7161		pytest -rA lib/matplotlib/tests/test_contour.py	dataset	dataset FAIL_TO_PASS
+pydata__xarray-4966	2026-10-23T01:58:20Z	0.1.0	bbd6378		154	8309		pytest -rA xarray/tests/test_coding.py	dataset	dataset FAIL_TO_PASS
+scikit-learn__scikit-learn-13779	2026-10-23T01:59:36Z	0.1.0	bbd6378		186	7932		pytest -rA sklearn/ensemble/tests/test_voting.py	dataset	dataset FAIL_TO_PASS
+sphinx-doc__sphinx-8035	2026-10-23T02:00:24Z	0.1.0	bbd6378		114	5837		tox --current-env -epy39 -v -- tests/test_ext_autodoc_private_members.py	dataset	dataset FAIL_TO_PASS
+sympy__sympy-14531	2026-10-23T02:00:51Z	0.1.0	bbd6378		132	4984		PYTHONWARNINGS='ignore::UserWarning,ignore::SyntaxWarning' bin/test -C --verbose sympy/printing/tests/test_python.py sympy/printing/tests/test_str.py	dataset	dataset FAIL_TO_PASS
+astropy__astropy-13398	2026-10-23T02:02:49Z	0.1.0	bbd6378		429	23068		pytest -rA astropy/coordinates/tests/test_intermediate_transformations.py	dataset	dataset FAIL_TO_PASS
+django__django-12039	2026-10-23T02:03:22Z	0.1.0	bbd6378		66	4053		./tests/runtests.py --verbosity 2 --settings=test_sqlite --parallel 1 indexes.tests	dataset	dataset FAIL_TO_PASS
+astropy__astropy-14369	2026-10-23T02:08:47Z	0.1.0	bbd6378		1271	107034		pytest -rA astropy/units/tests/test_format.py	dataset	dataset FAIL_TO_PASS
+pytest-dev__pytest-5631	2026-10-23T02:08:55Z	0.1.0	bbd6378		221	12611		pytest -rA testing/python/integration.py	dataset	dataset FAIL_TO_PASS
+scikit-learn__scikit-learn-26323	2026-10-23T02:09:03Z	0.1.0	bbd6378		231	30851		pytest -rA sklearn/compose/tests/test_column_transformer.py	dataset	dataset FAIL_TO_PASS
+pylint-dev__pylint-8898	2026-10-23T02:09:21Z	0.1.0	bbd6378		116	6819		pytest -rA tests/config/test_config.py	dataset	dataset FAIL_TO_PASS
+pytest-dev__pytest-8399	2026-10-23T02:09:30Z	0.1.0	bbd6378		1417	74905		pytest -rA testing/test_nose.py testing/test_unittest.py	dataset	dataset FAIL_TO_PASS

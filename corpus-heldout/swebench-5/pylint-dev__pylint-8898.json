@@ -1,0 +1,27 @@
+{
+  "instance_id": "pylint-dev__pylint-8898",
+  "repo": "pylint-dev/pylint",
+  "version": "3.0",
+  "base_commit": "1f8c4d9eb185c16a2c1d881c054f015e1c2eb334",
+  "image": "swebench/sweb.eval.x86_64.pylint-dev_1776_pylint-8898:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "tests/config/test_config.py::test_csv_regex_error"
+  ],
+  "failed": [
+    "tests/config/test_config.py::test_csv_regex_error"
+  ],
+  "keep": [
+    "tests/config/test_config.py::test_csv_regex_error"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 18,
+  "lines": 116,
+  "seconds": 10.5,
+  "network": "bridge",
+  "collected": "2026-10-23T02:09:21Z",
+  "pare": "0.1.0",
+  "commit": "bbd6378",
+  "swebench": "5.0.2"
+}
