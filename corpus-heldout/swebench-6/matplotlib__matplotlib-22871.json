@@ -1,0 +1,27 @@
+{
+  "instance_id": "matplotlib__matplotlib-22871",
+  "repo": "matplotlib/matplotlib",
+  "version": "3.5",
+  "base_commit": "a7b7260bf06c20d408215d95ce20a1a01c12e5b1",
+  "image": "swebench/sweb.eval.x86_64.matplotlib_1776_matplotlib-22871:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "lib/matplotlib/tests/test_dates.py::test_offset_changes"
+  ],
+  "failed": [
+    "lib/matplotlib/tests/test_dates.py::test_offset_changes"
+  ],
+  "keep": [
+    "lib/matplotlib/tests/test_dates.py::test_offset_changes"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 88,
+  "lines": 134,
+  "seconds": 13.6,
+  "network": "bridge",
+  "collected": "2026-10-24T02:36:45Z",
+  "pare": "0.1.0",
+  "commit": "7fb1cce",
+  "swebench": "5.0.2"
+}

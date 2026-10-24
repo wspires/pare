@@ -122,6 +122,21 @@ The gate for everything after it.
   / 89.2 % before any held-out fix). The verdict rule changes no output
   on it. One miss: Math-66's assertion messages at 600. *Done; spent by
   the next change measured on it.*
+- [x] **SWE-bench seed 5.** 17 tasks (`corpus-heldout/swebench-6/`),
+  drawn after the verdict rule and measured before reading: 66.7 / 70.4 /
+  100 % at 600 / 1,000 / 2,000, and 100 % with `--budget auto` at 79 % of
+  the tokens of 2,000 (66.7 / 70.4 / 70.4 % before any held-out fix).
+  16 of 17 tasks keep every test at every budget; all misses are
+  pytest-dev__pytest-7205's. The verdict rule changes no output on it.
+  *Done; spent by the next change measured on it.*
+- [ ] **Inner runs in pytest's own suite.** Both pytest misses on fresh
+  data (pytest-8399, pytest-7205) come from the inner pytest sessions
+  that pytester prints: their one-off `FAILED`/`ERROR` lines rank as
+  rare errors and crowd out the real failures. A candidate: recognize an
+  inner session (a `test session starts` banner after the first, inside
+  a captured-output section) and score its lines as body, not verdicts.
+  Narrow (pytest's own repository, and plugins tested with pytester);
+  decide on more samples first.
 - [ ] **Claude token rate.** `bench/tokens.py --anthropic claude-opus-5-5`
   on a machine with credentials. If the rate differs much from the 2.8
   bytes per token measured on cl100k and o200k, change the default.

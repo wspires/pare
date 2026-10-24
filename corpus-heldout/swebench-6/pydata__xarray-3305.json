@@ -1,0 +1,27 @@
+{
+  "instance_id": "pydata__xarray-3305",
+  "repo": "pydata/xarray",
+  "version": "0.12",
+  "base_commit": "69c7e01e5167a3137c285cb50d1978252bb8bcbf",
+  "image": "swebench/sweb.eval.x86_64.pydata_1776_xarray-3305:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "xarray/tests/test_dataarray.py::TestDataArray::test_quantile"
+  ],
+  "failed": [
+    "xarray/tests/test_dataarray.py::TestDataArray::test_quantile"
+  ],
+  "keep": [
+    "xarray/tests/test_dataarray.py::TestDataArray::test_quantile"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 653,
+  "lines": 917,
+  "seconds": 12.8,
+  "network": "bridge",
+  "collected": "2026-10-24T02:28:21Z",
+  "pare": "0.1.0",
+  "commit": "7fb1cce",
+  "swebench": "5.0.2"
+}

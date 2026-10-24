@@ -1,0 +1,27 @@
+{
+  "instance_id": "django__django-13741",
+  "repo": "django/django",
+  "version": "3.2",
+  "base_commit": "d746f28949c009251a8741ba03d156964050717f",
+  "image": "swebench/sweb.eval.x86_64.django_1776_django-13741:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "test_readonly_field_has_changed (auth_tests.test_forms.ReadOnlyPasswordHashTest)"
+  ],
+  "failed": [
+    "test_readonly_field_has_changed (auth_tests.test_forms.ReadOnlyPasswordHashTest)"
+  ],
+  "keep": [
+    "test_readonly_field_has_changed (auth_tests.test_forms.ReadOnlyPasswordHashTest)"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 82,
+  "lines": 141,
+  "seconds": 9.2,
+  "network": "bridge",
+  "collected": "2026-10-24T02:44:41Z",
+  "pare": "0.1.0",
+  "commit": "7fb1cce",
+  "swebench": "5.0.2"
+}

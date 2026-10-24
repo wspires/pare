@@ -1,0 +1,27 @@
+{
+  "instance_id": "scikit-learn__scikit-learn-10844",
+  "repo": "scikit-learn/scikit-learn",
+  "version": "0.20",
+  "base_commit": "97523985b39ecde369d83352d7c3baf403b60a22",
+  "image": "swebench/sweb.eval.x86_64.scikit-learn_1776_scikit-learn-10844:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "sklearn/metrics/cluster/tests/test_supervised.py::test_int_overflow_mutual_info_fowlkes_mallows_score"
+  ],
+  "failed": [
+    "sklearn/metrics/cluster/tests/test_supervised.py::test_int_overflow_mutual_info_fowlkes_mallows_score"
+  ],
+  "keep": [
+    "sklearn/metrics/cluster/tests/test_supervised.py::test_int_overflow_mutual_info_fowlkes_mallows_score"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 16,
+  "lines": 69,
+  "seconds": 5.2,
+  "network": "bridge",
+  "collected": "2026-10-24T02:41:38Z",
+  "pare": "0.1.0",
+  "commit": "7fb1cce",
+  "swebench": "5.0.2"
+}

@@ -1,0 +1,18 @@
+name	collected	pare	commit	sha256	lines	bytes	exit	command	source	labels
+astropy__astropy-7166	2026-10-24T02:22:11Z	0.1.0	7fb1cce		50	1982		pytest -rA -vv -o console_output_style=classic --tb=no astropy/utils/tests/test_misc.py	dataset	dataset FAIL_TO_PASS
+matplotlib__matplotlib-24026	2026-10-24T02:26:34Z	0.1.0	7fb1cce		893	63898		pytest -rA lib/matplotlib/tests/test_axes.py	dataset	dataset FAIL_TO_PASS
+pydata__xarray-3305	2026-10-24T02:28:21Z	0.1.0	7fb1cce		917	67997		pytest -rA xarray/tests/test_dataarray.py	dataset	dataset FAIL_TO_PASS
+pytest-dev__pytest-6202	2026-10-24T02:29:46Z	0.1.0	7fb1cce		2644	421600		pytest -rA testing/test_collection.py	dataset	dataset FAIL_TO_PASS
+scikit-learn__scikit-learn-12682	2026-10-24T02:30:58Z	0.1.0	7fb1cce		132	10876		pytest -rA sklearn/decomposition/tests/test_dict_learning.py	dataset	dataset FAIL_TO_PASS
+sphinx-doc__sphinx-9230	2026-10-24T02:31:42Z	0.1.0	7fb1cce		876	54902		tox --current-env -epy39 -v -- tests/test_domain_py.py	dataset	dataset FAIL_TO_PASS
+sympy__sympy-14711	2026-10-24T02:32:26Z	0.1.0	7fb1cce		44	3135		PYTHONWARNINGS='ignore::UserWarning,ignore::SyntaxWarning' bin/test -C --verbose sympy/physics/vector/tests/test_vector.py	dataset	dataset FAIL_TO_PASS
+astropy__astropy-14309	2026-10-24T02:33:51Z	0.1.0	7fb1cce		239	20887		pytest -rA astropy/io/fits/tests/test_connect.py	dataset	dataset FAIL_TO_PASS
+django__django-12774	2026-10-24T02:34:35Z	0.1.0	7fb1cce		94	4733		./tests/runtests.py --verbosity 2 --settings=test_sqlite --parallel 1 lookup.models lookup.tests	dataset	dataset FAIL_TO_PASS
+matplotlib__matplotlib-22871	2026-10-24T02:36:45Z	0.1.0	7fb1cce		134	8864		pytest -rA lib/matplotlib/tests/test_dates.py	dataset	dataset FAIL_TO_PASS
+pydata__xarray-7229	2026-10-24T02:38:39Z	0.1.0	7fb1cce		332	25447		pytest -rA xarray/tests/test_computation.py	dataset	dataset FAIL_TO_PASS
+pytest-dev__pytest-7205	2026-10-24T02:40:14Z	0.1.0	7fb1cce		1168	56522		pytest -rA testing/test_setuponly.py	dataset	dataset FAIL_TO_PASS
+scikit-learn__scikit-learn-10844	2026-10-24T02:41:38Z	0.1.0	7fb1cce		69	4196		pytest -rA sklearn/metrics/cluster/tests/test_supervised.py	dataset	dataset FAIL_TO_PASS
+sphinx-doc__sphinx-7440	2026-10-24T02:42:29Z	0.1.0	7fb1cce		621	34437		tox --current-env -epy39 -v -- tests/test_domain_std.py	dataset	dataset FAIL_TO_PASS
+sympy__sympy-19637	2026-10-24T02:43:09Z	0.1.0	7fb1cce		94	3562		PYTHONWARNINGS='ignore::UserWarning,ignore::SyntaxWarning' bin/test -C --verbose sympy/core/tests/test_sympify.py	dataset	dataset FAIL_TO_PASS
+astropy__astropy-7606	2026-10-24T02:43:57Z	0.1.0	7fb1cce		284	17849		pytest -rA -vv -o console_output_style=classic --tb=no astropy/units/tests/test_units.py	dataset	dataset FAIL_TO_PASS
+django__django-13741	2026-10-24T02:44:41Z	0.1.0	7fb1cce		141	9455		./tests/runtests.py --verbosity 2 --settings=test_sqlite --parallel 1 auth_tests.test_forms	dataset	dataset FAIL_TO_PASS

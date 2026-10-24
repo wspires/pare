@@ -1,0 +1,10 @@
+testing/test_setuponly.py::test_show_fixtures_with_parameters[--setup-only]
+testing/test_setuponly.py::test_show_fixtures_with_parameter_ids[--setup-only]
+testing/test_setuponly.py::test_show_fixtures_with_parameter_ids_function[--setup-only]
+testing/test_setuponly.py::test_show_fixtures_with_parameters[--setup-plan]
+testing/test_setuponly.py::test_show_fixtures_with_parameter_ids[--setup-plan]
+testing/test_setuponly.py::test_show_fixtures_with_parameter_ids_function[--setup-plan]
+testing/test_setuponly.py::test_show_fixtures_with_parameters[--setup-show]
+testing/test_setuponly.py::test_show_fixtures_with_parameter_ids[--setup-show]
+testing/test_setuponly.py::test_show_fixtures_with_parameter_ids_function[--setup-show]
+testing/test_setuponly.py::test_show_fixture_action_with_bytes

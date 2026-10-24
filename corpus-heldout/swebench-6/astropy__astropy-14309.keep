@@ -1,0 +1,1 @@
+astropy/io/fits/tests/test_connect.py::test_is_fits_gh_14305
