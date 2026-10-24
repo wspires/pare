@@ -1,0 +1,59 @@
+{
+  "bug": "Collections-25",
+  "project": "Collections",
+  "bug_id": 25,
+  "fixed_revision": "73d69dfe8677210e44049bc1a2a7d1ff85bc1ca7",
+  "report": "https://issues.apache.org/jira/browse/COLLECTIONS-566",
+  "upstream": "https://github.com/apache/commons-collections",
+  "image": "maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=IteratorUtilsTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.collections4.IteratorUtilsTest",
+      "method": "testCollatedIterator",
+      "exception": "java.lang.NullPointerException: You must invoke setComparator() to set a comparator first."
+    }
+  ],
+  "failed": [
+    "org.apache.commons.collections4.IteratorUtilsTest::testCollatedIterator"
+  ],
+  "keep": [
+    "testCollatedIterator(org.apache.commons.collections4.IteratorUtilsTest) || org.apache.commons.collections4.IteratorUtilsTest.testCollatedIterator || IteratorUtilsTest.testCollatedIterator",
+    "java.lang.NullPointerException: You must invoke setComparator() to set a comparator first. || You must invoke setComparator() to set a comparator first."
+  ],
+  "unlocated": [],
+  "lines": 98,
+  "seconds": 15.9,
+  "fixes_applied": [
+    "compile-25-25.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-24T00:08:43Z",
+  "pare": "0.1.0",
+  "commit": "5be48cc"
+}

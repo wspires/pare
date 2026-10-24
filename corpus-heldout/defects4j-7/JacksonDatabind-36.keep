@@ -1,0 +1,2 @@
+testLenient(com.fasterxml.jackson.databind.TestStdDateFormat) || com.fasterxml.jackson.databind.TestStdDateFormat.testLenient || TestStdDateFormat.testLenient
+java.lang.NullPointerException

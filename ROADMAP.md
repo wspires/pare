@@ -115,6 +115,13 @@ The gate for everything after it.
   and loses one line (ci-pipeline at 1,000, a budget edge). Shipped the
   second (`docs/DESIGN.md`, "The verdict that repeats a shape"). SWE-bench
   seed 4 is spent; the next fresh samples are its test. *Done.*
+- [x] **Seventh fresh Defects4J sample.** Seed 7, 16 bugs
+  (`corpus-heldout/defects4j-7/`), drawn after the verdict rule and
+  measured before reading: 91.9 / 100 / 100 % at 600 / 1,000 / 2,000, and
+  100 % with `--budget auto` at 69 % of the tokens of 2,000 (54.1 / 78.4
+  / 89.2 % before any held-out fix). The verdict rule changes no output
+  on it. One miss: Math-66's assertion messages at 600. *Done; spent by
+  the next change measured on it.*
 - [ ] **Claude token rate.** `bench/tokens.py --anthropic claude-opus-5-5`
   on a machine with credentials. If the rate differs much from the 2.8
   bytes per token measured on cl100k and o200k, change the default.

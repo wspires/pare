@@ -1,0 +1,57 @@
+{
+  "bug": "Compress-30",
+  "project": "Compress",
+  "bug_id": 30,
+  "fixed_revision": "5cf68bdc46c7bcc0fc5eb3cacd1c84514ef552cf",
+  "report": "https://issues.apache.org/jira/browse/COMPRESS-309",
+  "upstream": "https://github.com/apache/commons-compress",
+  "image": "maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=BZip2CompressorInputStreamTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStreamTest",
+      "method": "readOfLength0ShouldReturn0",
+      "exception": "junit.framework.AssertionFailedError: expected:<0> but was:<-1>"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStreamTest::readOfLength0ShouldReturn0"
+  ],
+  "keep": [
+    "readOfLength0ShouldReturn0(org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStreamTest) || org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStreamTest.readOfLength0ShouldReturn0 || BZip2CompressorInputStreamTest.readOfLength0ShouldReturn0",
+    "expected:<0> but was:<-1>"
+  ],
+  "unlocated": [],
+  "lines": 91,
+  "seconds": 11.4,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-24T00:08:57Z",
+  "pare": "0.1.0",
+  "commit": "5be48cc"
+}

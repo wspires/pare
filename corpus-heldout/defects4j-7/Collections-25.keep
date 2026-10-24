@@ -1,0 +1,2 @@
+testCollatedIterator(org.apache.commons.collections4.IteratorUtilsTest) || org.apache.commons.collections4.IteratorUtilsTest.testCollatedIterator || IteratorUtilsTest.testCollatedIterator
+java.lang.NullPointerException: You must invoke setComparator() to set a comparator first. || You must invoke setComparator() to set a comparator first.

@@ -1,0 +1,2 @@
+testEndMb(org.apache.commons.codec.language.CaverphoneTest) || org.apache.commons.codec.language.CaverphoneTest.testEndMb || CaverphoneTest.testEndMb
+junit.framework.ComparisonFailure: Source: mbmb expected:<M[PM]1111111> but was:<M[MP]1111111> || junit.framework.ComparisonFailure: Source: mbmb expected:<M[PM]1111111> but was: || Source: mbmb expected:<M[PM]1111111> but was:<M[MP]1111111>

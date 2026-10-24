@@ -1,0 +1,63 @@
+{
+  "bug": "Lang-3",
+  "project": "Lang",
+  "bug_id": 3,
+  "fixed_revision": "8a1042959df80c06dbfa83896594caa8e20ff9d6",
+  "report": "https://issues.apache.org/jira/browse/LANG-693",
+  "upstream": "https://github.com/apache/commons-lang",
+  "image": "maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=NumberUtilsTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.lang3.math.NumberUtilsTest",
+      "method": "testStringCreateNumberEnsureNoPrecisionLoss",
+      "exception": "junit.framework.AssertionFailedError"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.lang3.math.NumberUtilsTest::testStringCreateNumberEnsureNoPrecisionLoss"
+  ],
+  "keep": [
+    "testStringCreateNumberEnsureNoPrecisionLoss(org.apache.commons.lang3.math.NumberUtilsTest) || org.apache.commons.lang3.math.NumberUtilsTest.testStringCreateNumberEnsureNoPrecisionLoss || NumberUtilsTest.testStringCreateNumberEnsureNoPrecisionLoss"
+  ],
+  "unlocated": [
+    "exception: junit.framework.AssertionFailedError"
+  ],
+  "lines": 84,
+  "seconds": 13.8,
+  "fixes_applied": [
+    "locale-1-4.diff",
+    "test-1-16.diff",
+    "test-1-21.diff",
+    "test-1-4.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-24T00:07:50Z",
+  "pare": "0.1.0",
+  "commit": "5be48cc"
+}

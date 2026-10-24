@@ -1,0 +1,2 @@
+testHeader(org.apache.commons.csv.CSVPrinterTest) || org.apache.commons.csv.CSVPrinterTest.testHeader || CSVPrinterTest.testHeader
+expected:<[C1,C2,C3

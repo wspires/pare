@@ -1,0 +1,98 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --------------< org.apache.commons:commons-collections4 >---------------
+[INFO] Building Apache Commons Collections 4.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- enforcer:1.3.1:enforce (enforce-maven-3) @ commons-collections4 ---
+[INFO] Skipping Rule Enforcement.
+[INFO] 
+[INFO] --- build-helper:1.8:parse-version (parse-version) @ commons-collections4 ---
+[INFO] 
+[INFO] --- antrun:1.7:run (javadoc.resources) @ commons-collections4 ---
+[INFO] Executing tasks
+
+main:
+[INFO] Executed tasks
+[INFO] 
+[INFO] --- remote-resources:1.5:process (default) @ commons-collections4 ---
+[INFO] 
+[INFO] --- buildnumber:1.3:create (default) @ commons-collections4 ---
+[INFO] Executing: /bin/sh -c cd /work && svn --non-interactive info
+[INFO] Working directory: /work
+[INFO] Storing buildNumber: ?????? at timestamp: 1792800519681
+[INFO] Executing: /bin/sh -c cd /work && svn --non-interactive info
+[INFO] Working directory: /work
+[INFO] Storing buildScmBranch: UNKNOWN_BRANCH
+[INFO] 
+[INFO] --- resources:2.7:resources (default-resources) @ commons-collections4 ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory /work/src/main/resources
+[INFO] Copying 2 resources to META-INF
+[INFO] 
+[INFO] --- compiler:3.2:compile (default-compile) @ commons-collections4 ---
+[INFO] Changes detected - recompiling the module!
+[INFO] Compiling 308 source files to /work/target/classes
+[INFO] /work/src/main/java/org/apache/commons/collections4/MapUtils.java: Some input files use or override a deprecated API.
+[INFO] /work/src/main/java/org/apache/commons/collections4/MapUtils.java: Recompile with -Xlint:deprecation for details.
+[INFO] 
+[INFO] --- bundle:2.5.3:manifest (bundle-manifest) @ commons-collections4 ---
+[INFO] 
+[INFO] --- animal-sniffer:1.13:check (checkAPIcompatibility) @ commons-collections4 ---
+[INFO] Signature checking is skipped.
+[INFO] 
+[INFO] --- resources:2.7:testResources (default-testResources) @ commons-collections4 ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 164 resources
+[INFO] Copying 2 resources to META-INF
+[INFO] 
+[INFO] --- compiler:3.2:testCompile (default-testCompile) @ commons-collections4 ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- jacoco:0.7.2.201409121644:prepare-agent (prepare-agent) @ commons-collections4 ---
+[INFO] Skipping JaCoCo execution because property jacoco.skip is set.
+[INFO] argLine set to empty
+[INFO] 
+[INFO] --- surefire:2.18:test (default-test) @ commons-collections4 ---
+[INFO] Surefire report directory: /work/target/surefire-reports
+
+-------------------------------------------------------
+ T E S T S
+-------------------------------------------------------
+Running org.apache.commons.collections4.IteratorUtilsTest
+Tests run: 24, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.047 sec <<< FAILURE! - in org.apache.commons.collections4.IteratorUtilsTest
+testCollatedIterator(org.apache.commons.collections4.IteratorUtilsTest)  Time elapsed: 0.007 sec  <<< ERROR!
+java.lang.NullPointerException: You must invoke setComparator() to set a comparator first.
+	at org.apache.commons.collections4.iterators.CollatingIterator.least(CollatingIterator.java:366)
+	at org.apache.commons.collections4.iterators.CollatingIterator.next(CollatingIterator.java:251)
+	at org.apache.commons.collections4.IteratorUtils.toList(IteratorUtils.java:1147)
+	at org.apache.commons.collections4.IteratorUtils.toList(IteratorUtils.java:1122)
+	at org.apache.commons.collections4.IteratorUtilsTest.testCollatedIterator(IteratorUtilsTest.java:943)
+
+
+Results :
+
+
+Tests in error: 
+  IteratorUtilsTest.testCollatedIterator:943 » NullPointer You must invoke setCo...
+
+
+Tests run: 24, Failures: 0, Errors: 1, Skipped: 0
+
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  4.952 s
+[INFO] Finished at: 2026-10-24T00:08:43Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.18:test (default-test) on project commons-collections4: There are test failures.
+[ERROR] 
+[ERROR] Please refer to /work/target/surefire-reports for the individual test results.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

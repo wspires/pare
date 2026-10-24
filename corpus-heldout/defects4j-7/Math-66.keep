@@ -1,0 +1,7 @@
+testQuinticMin(org.apache.commons.math.optimization.MultiStartUnivariateRealOptimizerTest) || org.apache.commons.math.optimization.MultiStartUnivariateRealOptimizerTest.testQuinticMin || MultiStartUnivariateRealOptimizerTest.testQuinticMin
+expected:<-0.2719561270319131> but was:<-0.2719561299044896>
+testSinMin(org.apache.commons.math.optimization.MultiStartUnivariateRealOptimizerTest) || org.apache.commons.math.optimization.MultiStartUnivariateRealOptimizerTest.testSinMin || MultiStartUnivariateRealOptimizerTest.testSinMin
+testQuinticMinStatistics(org.apache.commons.math.optimization.univariate.BrentOptimizerTest) || org.apache.commons.math.optimization.univariate.BrentOptimizerTest.testQuinticMinStatistics || BrentOptimizerTest.testQuinticMinStatistics
+expected:<1880.5> but was:<18.0>
+testSinMin(org.apache.commons.math.optimization.univariate.BrentOptimizerTest) || org.apache.commons.math.optimization.univariate.BrentOptimizerTest.testSinMin || BrentOptimizerTest.testSinMin
+expected:<4.71238898038469> but was:<4.71238897901431>

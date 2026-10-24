@@ -259,6 +259,50 @@ class covers pytest's and Python's closing hints as well as Maven's. The
 one miss is pydata__xarray-4094 at 600, its single failing test
 (`test_to_stacked_array_to_unstacked_dataset`), shown at 1,000.
 
+### Seventh fresh Defects4J sample: seed 7
+
+Defects4J seed 7, drawn after the tail window's verdict rule (`5be48cc`)
+with `--exclude` every earlier Defects4J set, and measured before anyone
+read it. It is the first fresh test of that rule on Java builds, where it
+was not chosen.
+
+```
+python3 bench/defects4j_cases.py run --sample 20 --seed 7 --exclude corpus-heldout/defects4j --exclude corpus-heldout/defects4j-2 --exclude corpus-heldout/defects4j-3 --exclude corpus-heldout/defects4j-4 --exclude corpus-heldout/defects4j-5 --exclude corpus-heldout/defects4j-6 --exclude corpus-dev/defects4j --out corpus-heldout/defects4j-7
+```
+
+(with the truststore of the capture note below.) 16 of 20 bugs gave a
+case: Collections-2 and Cli-5 have no Maven build at their revisions, and
+JacksonCore-23 and JacksonXml-5 need a `jackson-base` snapshot parent POM
+that is no longer published (JacksonXml-5 failed the same way in seed 5).
+37 keep lines. Five exceptions were left unlabelled because the log never
+shows them as Defects4J recorded them: messageless
+`AssertionFailedError`s (Csv-5, Lang-3, Math-66) and `ComparisonFailure`s
+that JUnit prints in another form (Cli-15). Logs are 1,339 to 6,866
+tokens: none fits in 1,000, 11 of 16 in 2,000.
+
+| version | 600 | 1,000 | 2,000 | `auto` |
+|---|---|---|---|---|
+| before any held-out fix (`d730e86`) | 54.1 % (min 0) | 78.4 % (min 29) | 89.2 % (min 43) | — |
+| 0.2.0 (`5be48cc`) | **91.9 %** (min 57) | **100 %** | **100 %** | **100 %** |
+| 0.2.0 without the verdict rule | 91.9 % | 100 % | 100 % | 100 % |
+
+Output is 26 %, 43 % and 69 % of the input at 600, 1,000 and 2,000;
+`auto` keeps all 37 lines at 48 % (17,416 tokens against 25,107 at
+2,000). `--strict` gives 92 / 92 %. The verdict rule changes no output
+here, byte for byte, at any budget: it costs nothing on Java builds,
+which have no inner runs repeating the verdict's shape, so this sample
+can say nothing about what it gains.
+
+The one miss, read after scoring (no code changed on it):
+
+- **Math-66** at 600, 4 of 7: all four failing tests are named, but three
+  of their assertion messages (`expected:<1880.5> but was:<18.0>` and two
+  floating-point ones) are in Surefire 2.5's `Failed tests:` block, which
+  is folded to "+4 more lines". A budget squeeze; at 1,000 all seven are
+  shown.
+
+This sample is now spent by any change measured on it.
+
 ### Sixth fresh Defects4J sample: seed 6
 
 Defects4J seed 6, drawn after the structured-log change (`77966f0`, the
