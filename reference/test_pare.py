@@ -1262,13 +1262,13 @@ def load_hook():
 
 
 @pytest.mark.parametrize("command,expected", [
-    ("pytest -x tests/", "{pare} --budget 2000 -- pytest -x tests/"),
-    ("pytest 2>&1", "{pare} --budget 2000 -- pytest"),
-    ("CI=1 npx jest --runInBand", "CI=1 {pare} --budget 2000 -- npx jest --runInBand"),
-    ("npm run test:unit", "{pare} --budget 2000 -- npm run test:unit"),
-    ("pytest -k 'a or b'", "{pare} --budget 2000 -- pytest -k 'a or b'"),
-    ("./gradlew build", "{pare} --budget 2000 -- ./gradlew build"),
-    ("terraform apply -auto-approve", "{pare} --budget 2000 -- terraform apply -auto-approve"),
+    ("pytest -x tests/", "{pare} -- pytest -x tests/"),
+    ("pytest 2>&1", "{pare} -- pytest"),
+    ("CI=1 npx jest --runInBand", "CI=1 {pare} -- npx jest --runInBand"),
+    ("npm run test:unit", "{pare} -- npm run test:unit"),
+    ("pytest -k 'a or b'", "{pare} -- pytest -k 'a or b'"),
+    ("./gradlew build", "{pare} -- ./gradlew build"),
+    ("terraform apply -auto-approve", "{pare} -- terraform apply -auto-approve"),
     ("npm run dev", None), ("make dev", None), ("tsc --watch", None), ("kubectl logs -f deploy/api", None),
     ("./gradlew build --continuous", None), ("terraform apply", None),
     ("npm test 2>&1 | tail -50", None), ("cd app && pytest", None), ("pytest > out.txt", None),
@@ -1280,19 +1280,32 @@ def test_hook_wraps_only_simple_noisy_commands(command, expected, monkeypatch):
     monkeypatch.setenv("PARE_BIN", sys.executable)
     monkeypatch.delenv("PARE_HOOK_DISABLE", raising=False)
     monkeypatch.delenv("PARE_HOOK_EXTRA", raising=False)
+    monkeypatch.delenv("PARE_HOOK_BUDGET", raising=False)
     new, why = hook.plan(command)
     assert new == (expected.format(pare=__import__("shlex").quote(sys.executable)) if expected else None), why
+
+
+def test_hook_budget(monkeypatch):
+    hook = load_hook()
+    monkeypatch.setenv("PARE_BIN", sys.executable)
+    q = __import__("shlex").quote(sys.executable)
+    for budget in ("1000", "auto", "auto:4000"):
+        monkeypatch.setenv("PARE_HOOK_BUDGET", budget)
+        assert hook.plan("pytest")[0] == f"{q} --budget {budget} -- pytest"
+    monkeypatch.setenv("PARE_HOOK_BUDGET", "lots")
+    assert hook.plan("pytest")[0] is None
 
 
 def test_hook_event_io(monkeypatch):
     env = dict(os.environ, PARE_BIN=sys.executable)
     env.pop("PARE_HOOK_DECISION", None)
+    env.pop("PARE_HOOK_BUDGET", None)
     event = {"hook_event_name": "PreToolUse", "tool_name": "Bash",
              "tool_input": {"command": "cargo test", "description": "Run tests", "timeout": 120000}}
     p = subprocess.run([sys.executable, HOOK], input=json.dumps(event), capture_output=True, text=True, env=env)
     out = json.loads(p.stdout)["hookSpecificOutput"]
     assert out["hookEventName"] == "PreToolUse" and "permissionDecision" not in out
-    assert out["updatedInput"] == {**event["tool_input"], "command": f"{sys.executable} --budget 2000 -- cargo test"}
+    assert out["updatedInput"] == {**event["tool_input"], "command": f"{sys.executable} -- cargo test"}
     env["PARE_HOOK_DECISION"] = "ask"
     p = subprocess.run([sys.executable, HOOK], input=json.dumps(event), capture_output=True, text=True, env=env)
     assert json.loads(p.stdout)["hookSpecificOutput"]["permissionDecision"] == "ask"

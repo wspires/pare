@@ -98,26 +98,25 @@ Only files pare named are touched, and a pruned run keeps its small
 
 Tokens are estimated as bytes / 2.8, the rate measured with tiktoken on
 pare's output (cl100k and o200k agree); `--chars-per-token` changes it,
-and 4 gives the prose rule of thumb. The budget is a hard ceiling; 1,000
-to 2,000 is a good default for an agent loop, and small outputs pass
-through untouched. Without `--budget`, pare takes `$PARE_BUDGET`, else
-2,000, so a harness can set it once for every call. See
-[docs/DESIGN.md](docs/DESIGN.md#tokens-and-the-budget).
+and 4 gives the prose rule of thumb. The budget is a hard ceiling.
 
-`--budget auto` (or `auto:4000` for a different ceiling) lets the size
-follow the log: pare stops once what is left is below error level, so
-1,200 warning lines and one error come out at about 250 tokens instead of
-950. On the benchmark it kept 97.4 % of the must-survive lines at a mean
-of 1,204 tokens, against 98.8 % at 1,552 for `--budget 2000`. It is
-opt-in while it earns being the default; see
-[docs/DESIGN.md](docs/DESIGN.md#automatic-budget).
+By default the size follows the log (`auto`): pare stops once what is
+left is below error level, at most 2,000 tokens, so 1,200 warning lines
+and one error come out at about 250 tokens instead of 950. `auto:4000`
+raises the ceiling; a number (`--budget 2000`) is a fixed budget the
+summary fills, which is what pare did before. On four fresh held-out
+samples `auto` kept what `--budget 2000` kept at 69 to 79 % of its
+tokens; see [docs/DESIGN.md](docs/DESIGN.md#automatic-budget). Without
+`--budget`, pare takes `$PARE_BUDGET`, else `auto`, so a harness can set
+it once for every call. Small outputs pass through untouched. See
+[docs/DESIGN.md](docs/DESIGN.md#tokens-and-the-budget).
 
 ## Command mode and agents
 
 `pare -- CMD ARGS` runs the command itself instead of reading a pipe:
 
 ```
-pare --budget 2000 -- ./gradlew build
+pare -- ./gradlew build
 ```
 
 The exit code survives (a pipe reports pare's), the summary ends with the
@@ -186,8 +185,8 @@ macOS (Apple Silicon and Intel) or Windows from the
 `SHA256SUMS` entry. Then:
 
 ```
-pytest -v 2>&1 | pare --budget 2000
-pare --budget 2000 -- make test
+pytest -v 2>&1 | pare
+pare -- make test
 ```
 
 pare is written in Rust. It began as a Python prototype, which is kept as

@@ -460,8 +460,8 @@ which changes output and so comes after the parity decision above.
   Shipped as `--budget auto` / `auto:N`: a template floor of 3.0, pass-through
   up to 1,000 tokens and windows sized for 2,000. 97.4 % recall at a mean
   1,204 tokens, against 98.8 % at 1,552 for `--budget 2000`
-  (`docs/DESIGN.md`, "Automatic budget"). *Done.* Default after a fresh
-  held-out sample confirms it: the first one, Defects4J seed 6, keeps
+  (`docs/DESIGN.md`, "Automatic budget"). *Done.* The default since four
+  fresh held-out samples confirmed it: the first one, Defects4J seed 6, keeps
   100 % with `auto` at 71 % of the tokens of `--budget 2000`, and
   SWE-bench seed 4 the same recall as 2,000 (96.7 %) at 77 % of its
   tokens.

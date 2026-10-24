@@ -255,7 +255,17 @@ tuned), keeps 40 of 40 must-survive lines with `auto` at 21,086 tokens,
 as `--budget 2000` does at 29,565 (`corpus-heldout/README.md`). The
 second, SWE-bench seed 4 (18 tasks), keeps 29 of 30 with `auto` at
 18,698 tokens, the same as `--budget 2000` at 24,357; its one miss is
-the same at every budget and is not `auto`'s.
+the same at every budget and is not `auto`'s. Defects4J seed 7 and
+SWE-bench seed 5 agree: `auto` keeps what 2,000 keeps (37 of 37, 27 of
+27) at 69 % and 79 % of its tokens.
+
+**The default since.** With four fresh samples where `auto` loses
+nothing against `--budget 2000` and costs 21 to 31 % fewer tokens, it is
+pare's default: no `--budget` means `auto` (at most 2,000), and a number
+is a fixed budget as before. The cost is a less predictable output size
+(from a few hundred tokens to the ceiling) for the same command.
+`PARE_REFERENCE_RULES=1` restores the Python version's fixed 2,000, so
+parity is unchanged (it passes `--budget` on every run anyway).
 
 ## Pipeline
 
@@ -570,7 +580,7 @@ shell reports pare's) and the command line itself. In command mode:
 `integrations/` builds on it: an instruction for agents' instruction files,
 and a Claude Code PreToolUse hook (`integrations/claude-code/pare-hook.py`)
 that rewrites a single, simple test, build or install command to
-`pare --budget 2000 -- CMD`. The hook skips compound commands (a subshell
+`pare -- CMD` (pare's default budget, `auto`, applies). The hook skips compound commands (a subshell
 would change what persists, such as `cd`), watch modes and dev servers
 (which never exit), and anything whose exact output an agent needs. It
 fails open: an error or a missing pare means no rewrite. Its permission

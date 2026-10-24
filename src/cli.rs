@@ -28,8 +28,8 @@ use crate::vocab::{self, Vocab};
 
 /// Summarize noisy command output (tests, builds, logs) to a token budget.
 ///
-/// noisy-command 2>&1 | pare [--budget 2000 | --budget auto]
-/// pare [--budget 2000] -- noisy-command args   (runs it; keeps its exit code)
+/// noisy-command 2>&1 | pare [--budget auto|N]
+/// pare [--budget auto|N] -- noisy-command args (runs it; keeps its exit code)
 /// pare --only T3,T7 < run-file                 (raw lines of those templates)
 // Rust note: `#[derive(Parser)]` runs a procedural macro: Rust code that
 // runs at compile time, reads this struct definition and generates the
@@ -42,11 +42,12 @@ use crate::vocab::{self, Vocab};
 // argparse does by default.
 #[allow(clippy::struct_excessive_bools)] // one bool per flag, as the CLI has
 pub struct Args {
-    /// Output budget in tokens (bytes/2.8 by default); `auto` or `auto:N`
-    /// stops early when little is left worth showing, at most 2000 (or N)
-    /// [default: $PARE_BUDGET, else 2000]
+    /// Output budget in tokens (bytes/2.8 by default). `auto` or `auto:N`
+    /// stops early when little is left worth showing, at most 2000 (or N);
+    /// a number is a fixed budget the summary fills
+    /// [default: $PARE_BUDGET, else auto]
     // `None` until `run` resolves it: the flag, else `$PARE_BUDGET` (an
-    // agent harness can set the budget once for every call), else 2000.
+    // agent harness can set the budget once for every call), else `auto`.
     // Rust note: `value_parser` names a function from the flag's text to
     // the field's type; clap reports its `Err` as an invalid value.
     #[arg(long, allow_negative_numbers = true, value_name = "N|auto[:N]", value_parser = parse_budget)]
@@ -130,8 +131,9 @@ pub struct Args {
     pub stats: bool,
 }
 
-/// The budget when neither `--budget` nor `$PARE_BUDGET` gives one, and
-/// the ceiling of a plain `auto`.
+/// The ceiling of `auto`, the budget when neither `--budget` nor
+/// `$PARE_BUDGET` gives one (and, under `$PARE_REFERENCE_RULES`, the fixed
+/// budget the Python version defaults to).
 pub const DEFAULT_BUDGET: i64 = 2000;
 
 /// A `--budget` value: a number of tokens, or `auto` with a ceiling.
@@ -176,12 +178,14 @@ impl Args {
         self.budget.map_or(DEFAULT_BUDGET, |b| b.tokens)
     }
 
-    /// The budget for the summary, once `run` has resolved it.
+    /// The budget for the summary, once `run` has resolved it: `auto`
+    /// unless a fixed number was given (fixed 2000 under
+    /// `$PARE_REFERENCE_RULES`, as in Python).
     fn budget_for_summary(&self) -> Budget {
         Budget {
             tokens: self.budget(),
             chars_per_token: self.chars_per_token,
-            auto: self.budget.is_some_and(|b| b.auto),
+            auto: self.budget.map_or_else(crate::pass::rust_rules, |b| b.auto),
         }
     }
 
@@ -674,7 +678,8 @@ mod tests {
             assert!(parse_budget(bad).is_err(), "{bad:?}");
         }
         assert!(parse(&["--budget", "auto"]).budget_for_summary().auto);
-        assert!(!parse(&[]).budget_for_summary().auto);
+        assert!(parse(&[]).budget_for_summary().auto); // the default
+        assert!(!parse(&["--budget", "2000"]).budget_for_summary().auto);
     }
 
     #[test]
