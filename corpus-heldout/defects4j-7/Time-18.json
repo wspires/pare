@@ -1,0 +1,59 @@
+{
+  "bug": "Time-18",
+  "project": "Time",
+  "bug_id": 18,
+  "fixed_revision": "b609d7d66d180f2eb537b27f5d605d0596e096ce",
+  "report": "https://sourceforge.net/p/joda-time/bugs/130",
+  "upstream": "https://github.com/JodaOrg/joda-time",
+  "image": "maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=TestGJChronology",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.joda.time.chrono.TestGJChronology",
+      "method": "testLeapYearRulesConstruction",
+      "exception": "org.joda.time.IllegalFieldValueException: Value 29 for dayOfMonth must be in the range [1,28]"
+    }
+  ],
+  "failed": [
+    "org.joda.time.chrono.TestGJChronology::testLeapYearRulesConstruction"
+  ],
+  "keep": [
+    "testLeapYearRulesConstruction(org.joda.time.chrono.TestGJChronology) || org.joda.time.chrono.TestGJChronology.testLeapYearRulesConstruction || TestGJChronology.testLeapYearRulesConstruction",
+    "org.joda.time.IllegalFieldValueException: Value 29 for dayOfMonth must be in the range [1,28] || org.joda.time.IllegalFieldValueException: Value 29 for dayOfMonth must be in the || Value 29 for dayOfMonth must be in the range [1,28]"
+  ],
+  "unlocated": [],
+  "lines": 79,
+  "seconds": 12.9,
+  "fixes_applied": [
+    "locale-1-27.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-24T00:08:16Z",
+  "pare": "0.1.0",
+  "commit": "5be48cc"
+}

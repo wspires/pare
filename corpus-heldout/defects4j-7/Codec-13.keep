@@ -1,0 +1,3 @@
+testIsDoubleMetaphoneEqualBasic(org.apache.commons.codec.language.DoubleMetaphoneTest) || org.apache.commons.codec.language.DoubleMetaphoneTest.testIsDoubleMetaphoneEqualBasic || DoubleMetaphoneTest.testIsDoubleMetaphoneEqualBasic
+java.lang.NullPointerException
+testCodec184(org.apache.commons.codec.language.DoubleMetaphoneTest) || org.apache.commons.codec.language.DoubleMetaphoneTest.testCodec184 || DoubleMetaphoneTest.testCodec184

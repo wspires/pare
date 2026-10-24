@@ -1,0 +1,3 @@
+testUnion(org.apache.commons.jxpath.ri.model.dom.DOMModelTest)
+junit.framework.AssertionFailedError: Evaluating </vendor[1]/contact[4] | /vendor[1]/contact[1]> expected:<John> but was:<Jack Black> || Evaluating </vendor[1]/contact[4] | /vendor[1]/contact[1]> expected:<John> but was:<Jack Black>
+testUnion(org.apache.commons.jxpath.ri.model.jdom.JDOMModelTest)

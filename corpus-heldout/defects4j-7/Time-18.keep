@@ -1,0 +1,2 @@
+testLeapYearRulesConstruction(org.joda.time.chrono.TestGJChronology) || org.joda.time.chrono.TestGJChronology.testLeapYearRulesConstruction || TestGJChronology.testLeapYearRulesConstruction
+org.joda.time.IllegalFieldValueException: Value 29 for dayOfMonth must be in the range [1,28] || org.joda.time.IllegalFieldValueException: Value 29 for dayOfMonth must be in the || Value 29 for dayOfMonth must be in the range [1,28]

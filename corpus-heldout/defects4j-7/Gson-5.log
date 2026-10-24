@@ -1,0 +1,277 @@
+[INFO] Scanning for projects...
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Build Order:
+[INFO] 
+[INFO] Gson                                                               [jar]
+[INFO] Gson Parent                                                        [pom]
+[INFO] 
+[INFO] ---------------------< com.google.code.gson:gson >----------------------
+[INFO] Building Gson 2.6-SNAPSHOT                                         [1/2]
+[INFO]   from gson/pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- enforcer:1.2:enforce (enforce-maven) @ gson ---
+[INFO] Skipping Rule Enforcement.
+[INFO] 
+[INFO] --- resources:3.4.0:resources (default-resources) @ gson ---
+[INFO] skip non existing resourceDirectory /work/gson/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.3:compile (default-compile) @ gson ---
+[INFO] Changes detected - recompiling the module!
+[INFO] Compiling 67 source files to /work/gson/target/classes
+[INFO] 
+[INFO] --- resources:3.4.0:testResources (default-testResources) @ gson ---
+[INFO] skip non existing resourceDirectory /work/gson/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.3:testCompile (default-testCompile) @ gson ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- surefire:3.5.4:test (default-test) @ gson ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junit.JUnit3Provider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.google.gson.DefaultDateTypeAdapterTest
+[ERROR] Tests run: 9, Failures: 3, Errors: 3, Skipped: 0, Time elapsed: 0.044 s <<< FAILURE! -- in com.google.gson.DefaultDateTypeAdapterTest
+[ERROR] com.google.gson.DefaultDateTypeAdapterTest.testParsingDatesFormattedWithSystemLocale -- Time elapsed: 0.004 s <<< ERROR!
+com.google.gson.JsonSyntaxException: 1 janv. 1970 à 00:00:00
+	at com.google.gson.DefaultDateTypeAdapter.deserializeToDate(DefaultDateTypeAdapter.java:107)
+	at com.google.gson.DefaultDateTypeAdapter.deserialize(DefaultDateTypeAdapter.java:84)
+	at com.google.gson.DefaultDateTypeAdapterTest.assertParsed(DefaultDateTypeAdapterTest.java:168)
+	at com.google.gson.DefaultDateTypeAdapterTest.testParsingDatesFormattedWithSystemLocale(DefaultDateTypeAdapterTest.java:71)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at junit.framework.TestCase.runTest(TestCase.java:164)
+	at junit.framework.TestCase.runBare(TestCase.java:130)
+	at junit.framework.TestResult$1.protect(TestResult.java:106)
+	at junit.framework.TestResult.runProtected(TestResult.java:124)
+	at junit.framework.TestResult.run(TestResult.java:109)
+	at junit.framework.TestCase.run(TestCase.java:120)
+	at junit.framework.TestSuite.runTest(TestSuite.java:230)
+	at junit.framework.TestSuite.run(TestSuite.java:225)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.apache.maven.surefire.junit.JUnitTestSetExecutor.execute(JUnitTestSetExecutor.java:81)
+	at org.apache.maven.surefire.junit.JUnit3Provider.executeTestSet(JUnit3Provider.java:131)
+	at org.apache.maven.surefire.junit.JUnit3Provider.invoke(JUnit3Provider.java:93)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495)
+Caused by: java.text.ParseException: Failed to parse date ["1 janv. 1970 à 00:00:00']: Invalid number: 1 ja
+	at com.google.gson.internal.bind.util.ISO8601Utils.parse(ISO8601Utils.java:273)
+	at com.google.gson.DefaultDateTypeAdapter.deserializeToDate(DefaultDateTypeAdapter.java:105)
+	... 26 more
+Caused by: java.lang.NumberFormatException: Invalid number: 1 ja
+	at com.google.gson.internal.bind.util.ISO8601Utils.parseInt(ISO8601Utils.java:317)
+	at com.google.gson.internal.bind.util.ISO8601Utils.parse(ISO8601Utils.java:129)
+	... 27 more
+
+[ERROR] com.google.gson.DefaultDateTypeAdapterTest.testParsingDatesFormattedWithUsLocale -- Time elapsed: 0.006 s <<< ERROR!
+com.google.gson.JsonSyntaxException: Jan 1, 1970, 0:00:00 AM
+	at com.google.gson.DefaultDateTypeAdapter.deserializeToDate(DefaultDateTypeAdapter.java:107)
+	at com.google.gson.DefaultDateTypeAdapter.deserialize(DefaultDateTypeAdapter.java:84)
+	at com.google.gson.DefaultDateTypeAdapterTest.assertParsed(DefaultDateTypeAdapterTest.java:168)
+	at com.google.gson.DefaultDateTypeAdapterTest.testParsingDatesFormattedWithUsLocale(DefaultDateTypeAdapterTest.java:95)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at junit.framework.TestCase.runTest(TestCase.java:164)
+	at junit.framework.TestCase.runBare(TestCase.java:130)
+	at junit.framework.TestResult$1.protect(TestResult.java:106)
+	at junit.framework.TestResult.runProtected(TestResult.java:124)
+	at junit.framework.TestResult.run(TestResult.java:109)
+	at junit.framework.TestCase.run(TestCase.java:120)
+	at junit.framework.TestSuite.runTest(TestSuite.java:230)
+	at junit.framework.TestSuite.run(TestSuite.java:225)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.apache.maven.surefire.junit.JUnitTestSetExecutor.execute(JUnitTestSetExecutor.java:81)
+	at org.apache.maven.surefire.junit.JUnit3Provider.executeTestSet(JUnit3Provider.java:131)
+	at org.apache.maven.surefire.junit.JUnit3Provider.invoke(JUnit3Provider.java:93)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495)
+Caused by: java.text.ParseException: Failed to parse date ["Jan 1, 1970, 0:00:00 AM']: Invalid number: Jan 
+	at com.google.gson.internal.bind.util.ISO8601Utils.parse(ISO8601Utils.java:273)
+	at com.google.gson.DefaultDateTypeAdapter.deserializeToDate(DefaultDateTypeAdapter.java:105)
+	... 26 more
+Caused by: java.lang.NumberFormatException: Invalid number: Jan 
+	at com.google.gson.internal.bind.util.ISO8601Utils.parseInt(ISO8601Utils.java:310)
+	at com.google.gson.internal.bind.util.ISO8601Utils.parse(ISO8601Utils.java:129)
+	... 27 more
+
+[ERROR] com.google.gson.DefaultDateTypeAdapterTest.testFormatUsesDefaultTimezone -- Time elapsed: 0 s <<< FAILURE!
+junit.framework.ComparisonFailure: expected:<Dec 31, 1969[,] 4:00:00 PM> but was:<Dec 31, 1969[] 4:00:00 PM>
+	at junit.framework.Assert.assertEquals(Assert.java:81)
+	at junit.framework.Assert.assertEquals(Assert.java:87)
+	at com.google.gson.DefaultDateTypeAdapterTest.assertFormatted(DefaultDateTypeAdapterTest.java:164)
+	at com.google.gson.DefaultDateTypeAdapterTest.testFormatUsesDefaultTimezone(DefaultDateTypeAdapterTest.java:119)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at junit.framework.TestCase.runTest(TestCase.java:164)
+	at junit.framework.TestCase.runBare(TestCase.java:130)
+	at junit.framework.TestResult$1.protect(TestResult.java:106)
+	at junit.framework.TestResult.runProtected(TestResult.java:124)
+	at junit.framework.TestResult.run(TestResult.java:109)
+	at junit.framework.TestCase.run(TestCase.java:120)
+	at junit.framework.TestSuite.runTest(TestSuite.java:230)
+	at junit.framework.TestSuite.run(TestSuite.java:225)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.apache.maven.surefire.junit.JUnitTestSetExecutor.execute(JUnitTestSetExecutor.java:81)
+	at org.apache.maven.surefire.junit.JUnit3Provider.executeTestSet(JUnit3Provider.java:131)
+	at org.apache.maven.surefire.junit.JUnit3Provider.invoke(JUnit3Provider.java:93)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495)
+
+[ERROR] com.google.gson.DefaultDateTypeAdapterTest.testDateDeserializationISO8601 -- Time elapsed: 0.001 s <<< ERROR!
+com.google.gson.JsonSyntaxException: 1970-01-01T01:00:00+01
+	at com.google.gson.DefaultDateTypeAdapter.deserializeToDate(DefaultDateTypeAdapter.java:107)
+	at com.google.gson.DefaultDateTypeAdapter.deserialize(DefaultDateTypeAdapter.java:84)
+	at com.google.gson.DefaultDateTypeAdapterTest.assertParsed(DefaultDateTypeAdapterTest.java:168)
+	at com.google.gson.DefaultDateTypeAdapterTest.testDateDeserializationISO8601(DefaultDateTypeAdapterTest.java:133)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at junit.framework.TestCase.runTest(TestCase.java:164)
+	at junit.framework.TestCase.runBare(TestCase.java:130)
+	at junit.framework.TestResult$1.protect(TestResult.java:106)
+	at junit.framework.TestResult.runProtected(TestResult.java:124)
+	at junit.framework.TestResult.run(TestResult.java:109)
+	at junit.framework.TestCase.run(TestCase.java:120)
+	at junit.framework.TestSuite.runTest(TestSuite.java:230)
+	at junit.framework.TestSuite.run(TestSuite.java:225)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.apache.maven.surefire.junit.JUnitTestSetExecutor.execute(JUnitTestSetExecutor.java:81)
+	at org.apache.maven.surefire.junit.JUnit3Provider.executeTestSet(JUnit3Provider.java:131)
+	at org.apache.maven.surefire.junit.JUnit3Provider.invoke(JUnit3Provider.java:93)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495)
+Caused by: java.text.ParseException: Failed to parse date ["1970-01-01T01:00:00+01']: Mismatching time zone indicator: GMT+01 given, resolves to GMT+01:00
+	at com.google.gson.internal.bind.util.ISO8601Utils.parse(ISO8601Utils.java:273)
+	at com.google.gson.DefaultDateTypeAdapter.deserializeToDate(DefaultDateTypeAdapter.java:105)
+	... 26 more
+Caused by: java.lang.IndexOutOfBoundsException: Mismatching time zone indicator: GMT+01 given, resolves to GMT+01:00
+	at com.google.gson.internal.bind.util.ISO8601Utils.parse(ISO8601Utils.java:239)
+	... 27 more
+
+[ERROR] com.google.gson.DefaultDateTypeAdapterTest.testFormattingInFr -- Time elapsed: 0 s <<< FAILURE!
+junit.framework.ComparisonFailure: expected:<Jan 1, 1970[,] 12:00:00 AM> but was:<Jan 1, 1970[] 12:00:00 AM>
+	at junit.framework.Assert.assertEquals(Assert.java:81)
+	at junit.framework.Assert.assertEquals(Assert.java:87)
+	at com.google.gson.DefaultDateTypeAdapterTest.assertFormatted(DefaultDateTypeAdapterTest.java:164)
+	at com.google.gson.DefaultDateTypeAdapterTest.assertFormattingAlwaysEmitsUsLocale(DefaultDateTypeAdapterTest.java:47)
+	at com.google.gson.DefaultDateTypeAdapterTest.testFormattingInFr(DefaultDateTypeAdapterTest.java:38)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at junit.framework.TestCase.runTest(TestCase.java:164)
+	at junit.framework.TestCase.runBare(TestCase.java:130)
+	at junit.framework.TestResult$1.protect(TestResult.java:106)
+	at junit.framework.TestResult.runProtected(TestResult.java:124)
+	at junit.framework.TestResult.run(TestResult.java:109)
+	at junit.framework.TestCase.run(TestCase.java:120)
+	at junit.framework.TestSuite.runTest(TestSuite.java:230)
+	at junit.framework.TestSuite.run(TestSuite.java:225)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.apache.maven.surefire.junit.JUnitTestSetExecutor.execute(JUnitTestSetExecutor.java:81)
+	at org.apache.maven.surefire.junit.JUnit3Provider.executeTestSet(JUnit3Provider.java:131)
+	at org.apache.maven.surefire.junit.JUnit3Provider.invoke(JUnit3Provider.java:93)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495)
+
+[ERROR] com.google.gson.DefaultDateTypeAdapterTest.testFormattingInEnUs -- Time elapsed: 0.001 s <<< FAILURE!
+junit.framework.ComparisonFailure: expected:<Jan 1, 1970[,] 12:00:00 AM> but was:<Jan 1, 1970[] 12:00:00 AM>
+	at junit.framework.Assert.assertEquals(Assert.java:81)
+	at junit.framework.Assert.assertEquals(Assert.java:87)
+	at com.google.gson.DefaultDateTypeAdapterTest.assertFormatted(DefaultDateTypeAdapterTest.java:164)
+	at com.google.gson.DefaultDateTypeAdapterTest.assertFormattingAlwaysEmitsUsLocale(DefaultDateTypeAdapterTest.java:47)
+	at com.google.gson.DefaultDateTypeAdapterTest.testFormattingInEnUs(DefaultDateTypeAdapterTest.java:34)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at junit.framework.TestCase.runTest(TestCase.java:164)
+	at junit.framework.TestCase.runBare(TestCase.java:130)
+	at junit.framework.TestResult$1.protect(TestResult.java:106)
+	at junit.framework.TestResult.runProtected(TestResult.java:124)
+	at junit.framework.TestResult.run(TestResult.java:109)
+	at junit.framework.TestCase.run(TestCase.java:120)
+	at junit.framework.TestSuite.runTest(TestSuite.java:230)
+	at junit.framework.TestSuite.run(TestSuite.java:225)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.apache.maven.surefire.junit.JUnitTestSetExecutor.execute(JUnitTestSetExecutor.java:81)
+	at org.apache.maven.surefire.junit.JUnit3Provider.executeTestSet(JUnit3Provider.java:131)
+	at org.apache.maven.surefire.junit.JUnit3Provider.invoke(JUnit3Provider.java:93)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495)
+
+[INFO] 
+[INFO] Results:
+[INFO] 
+[ERROR] Failures: 
+[ERROR]   com.google.gson.DefaultDateTypeAdapterTest#testFormatUsesDefaultTimezone ComparisonFailure expected:<Dec 31, 1969[,] 4:00:00 PM> but was:<Dec 31, 1969[] 4:00:00 PM>
+[ERROR]   com.google.gson.DefaultDateTypeAdapterTest#testFormattingInEnUs ComparisonFailure expected:<Jan 1, 1970[,] 12:00:00 AM> but was:<Jan 1, 1970[] 12:00:00 AM>
+[ERROR]   com.google.gson.DefaultDateTypeAdapterTest#testFormattingInFr ComparisonFailure expected:<Jan 1, 1970[,] 12:00:00 AM> but was:<Jan 1, 1970[] 12:00:00 AM>
+[ERROR] Errors: 
+[ERROR]   com.google.gson.DefaultDateTypeAdapterTest#testDateDeserializationISO8601 JsonSyntaxException 1970-01-01T01:00:00+01
+[ERROR]   com.google.gson.DefaultDateTypeAdapterTest#testParsingDatesFormattedWithSystemLocale JsonSyntaxException 1 janv. 1970 à 00:00:00
+[ERROR]   com.google.gson.DefaultDateTypeAdapterTest#testParsingDatesFormattedWithUsLocale JsonSyntaxException Jan 1, 1970, 0:00:00 AM
+[INFO] 
+[ERROR] Tests run: 9, Failures: 3, Errors: 3, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary for Gson Parent 2.6-SNAPSHOT:
+[INFO] 
+[INFO] Gson ............................................... FAILURE [  2.122 s]
+[INFO] Gson Parent ........................................ SKIPPED
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  2.265 s
+[INFO] Finished at: 2026-10-24T00:06:50Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.4:test (default-test) on project gson: There are test failures.
+[ERROR] 
+[ERROR] See /work/gson/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

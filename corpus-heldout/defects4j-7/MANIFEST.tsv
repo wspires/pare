@@ -1,0 +1,17 @@
+name	collected	pare	commit	sha256	lines	bytes	exit	command	source	labels
+Cli-15	2026-10-24T00:06:02Z	0.1.0	5be48cc		82	4556	1	mvn -B -Dtest=BugCLI158Test test	dataset	dataset trigger tests
+Codec-13	2026-10-24T00:06:17Z	0.1.0	5be48cc		88	4609	1	mvn -B -Dtest=DoubleMetaphoneTest test	dataset	dataset trigger tests
+Compress-6	2026-10-24T00:06:26Z	0.1.0	5be48cc		74	3811	1	mvn -B -Dtest=ZipArchiveEntryTest test	dataset	dataset trigger tests
+Csv-5	2026-10-24T00:06:39Z	0.1.0	5be48cc		84	3761	1	mvn -B -Dtest=CSVFormatTest test	dataset	dataset trigger tests
+Gson-5	2026-10-24T00:06:50Z	0.1.0	5be48cc		277	19224	1	mvn -B -Dtest=DefaultDateTypeAdapterTest test	dataset	dataset trigger tests
+JacksonDatabind-36	2026-10-24T00:07:11Z	0.1.0	5be48cc		73	3841	1	mvn -B -Dtest=TestStdDateFormat test	dataset	dataset trigger tests
+Jsoup-69	2026-10-24T00:07:27Z	0.1.0	5be48cc		115	6441	1	mvn -B -Dtest=FormElementTest test	dataset	dataset trigger tests
+JxPath-15	2026-10-24T00:07:35Z	0.1.0	5be48cc		136	9010	1	mvn -B -Dtest=DOMModelTest,JDOMModelTest test	dataset	dataset trigger tests
+Lang-3	2026-10-24T00:07:50Z	0.1.0	5be48cc		84	3824	1	mvn -B -Dtest=NumberUtilsTest test	dataset	dataset trigger tests
+Math-66	2026-10-24T00:08:02Z	0.1.0	5be48cc		214	14463	1	mvn -B -Dtest=BrentOptimizerTest,MultiStartUnivariateRealOptimizerTest test	dataset	dataset trigger tests
+Time-18	2026-10-24T00:08:16Z	0.1.0	5be48cc		79	4057	1	mvn -B -Dtest=TestGJChronology test	dataset	dataset trigger tests
+Codec-10	2026-10-24T00:08:26Z	0.1.0	5be48cc		80	4197	1	mvn -B -Dtest=CaverphoneTest test	dataset	dataset trigger tests
+Collections-25	2026-10-24T00:08:43Z	0.1.0	5be48cc		98	4857	1	mvn -B -Dtest=IteratorUtilsTest test	dataset	dataset trigger tests
+Compress-30	2026-10-24T00:08:57Z	0.1.0	5be48cc		91	4244	1	mvn -B -Dtest=BZip2CompressorInputStreamTest test	dataset	dataset trigger tests
+Csv-10	2026-10-24T00:09:09Z	0.1.0	5be48cc		92	3747	1	mvn -B -Dtest=CSVPrinterTest test	dataset	dataset trigger tests
+Gson-10	2026-10-24T00:09:21Z	0.1.0	5be48cc		121	7234	1	mvn -B -Dtest=JsonAdapterAnnotationOnFieldsTest test	dataset	dataset trigger tests

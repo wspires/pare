@@ -1,0 +1,82 @@
+[INFO] Scanning for projects...
+[WARNING] 
+[WARNING] Some problems were encountered while building the effective model for org.apache.commons:commons-cli:jar:2.0-SNAPSHOT
+[WARNING] 'build.plugins.plugin.version' for org.apache.maven.plugins:maven-idea-plugin is missing. @ org.apache.commons:commons-parent:11, /m2/org/apache/commons/commons-parent/11/commons-parent-11.pom, line 255, column 15
+[WARNING] The expression ${pom.version} is deprecated. Please use ${project.version} instead.
+[WARNING] 
+[WARNING] It is highly recommended to fix these problems because they threaten the stability of your build.
+[WARNING] 
+[WARNING] For this reason, future Maven versions might no longer support building such malformed projects.
+[WARNING] 
+[INFO] 
+[INFO] -------------------< org.apache.commons:commons-cli >-------------------
+[INFO] Building Commons CLI 2.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- antrun:1.1:run (javadoc.resources) @ commons-cli ---
+[INFO] Executing tasks
+[INFO] Executed tasks
+[INFO] 
+[INFO] --- resources:3.4.0:resources (default-resources) @ commons-cli ---
+[WARNING] Using platform encoding (UTF-8 actually) to copy filtered resources, i.e. build is platform dependent!
+[INFO] Copying 1 resource from src/java/org/apache/commons/cli2 to target/classes/org/apache/commons/cli2
+[INFO] Copying 2 resources from . to target/classes/META-INF
+[INFO] 
+[INFO] --- compiler:2.0.2:compile (default-compile) @ commons-cli ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- bundle:1.4.0:manifest (bundle-manifest) @ commons-cli ---
+[INFO] 
+[INFO] --- resources:3.4.0:testResources (default-testResources) @ commons-cli ---
+[WARNING] Using platform encoding (UTF-8 actually) to copy filtered resources, i.e. build is platform dependent!
+[INFO] Copying 1 resource from src/test/org/apache/commons/cli2/resource to target/test-classes/org/apache/commons/cli2/resource
+[INFO] 
+[INFO] --- compiler:2.0.2:testCompile (default-testCompile) @ commons-cli ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- surefire:2.4.3:test (default-test) @ commons-cli ---
+[INFO] Surefire report directory: /work/target/surefire-reports
+
+-------------------------------------------------------
+ T E S T S
+-------------------------------------------------------
+Running org.apache.commons.cli2.bug.BugCLI158Test
+Tests run: 3, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 0.037 sec <<< FAILURE!
+testSingleOptionMaximumNumberOfArgument(org.apache.commons.cli2.bug.BugCLI158Test)  Time elapsed: 0.02 sec  <<< FAILURE!
+junit.framework.ComparisonFailure: expected:<..., 10000...> but was:<......>
+	at junit.framework.Assert.assertEquals(Assert.java:81)
+	at junit.framework.Assert.assertEquals(Assert.java:87)
+	at org.apache.commons.cli2.bug.BugCLI158Test.testSingleOptionMaximumNumberOfArgument(BugCLI158Test.java:112)
+
+testSingleOptionSingleArgument(org.apache.commons.cli2.bug.BugCLI158Test)  Time elapsed: 0.001 sec  <<< FAILURE!
+junit.framework.ComparisonFailure: expected:<..., 1000...> but was:<......>
+	at junit.framework.Assert.assertEquals(Assert.java:81)
+	at junit.framework.Assert.assertEquals(Assert.java:87)
+	at org.apache.commons.cli2.bug.BugCLI158Test.testSingleOptionSingleArgument(BugCLI158Test.java:70)
+
+
+Results :
+
+Failed tests: 
+  testSingleOptionMaximumNumberOfArgument(org.apache.commons.cli2.bug.BugCLI158Test)
+  testSingleOptionSingleArgument(org.apache.commons.cli2.bug.BugCLI158Test)
+
+Tests run: 3, Failures: 2, Errors: 0, Skipped: 0
+
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  1.195 s
+[INFO] Finished at: 2026-10-24T00:06:02Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.4.3:test (default-test) on project commons-cli: There are test failures.
+[ERROR] 
+[ERROR] Please refer to /work/target/surefire-reports for the individual test results.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

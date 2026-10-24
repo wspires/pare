@@ -1,0 +1,82 @@
+{
+  "bug": "Math-66",
+  "project": "Math",
+  "bug_id": 66,
+  "fixed_revision": "962315ba9322bb96d5b1941c4272501cc7cc050e",
+  "report": "https://issues.apache.org/jira/browse/MATH-395",
+  "upstream": "https://github.com/apache/commons-math",
+  "image": "maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=BrentOptimizerTest,MultiStartUnivariateRealOptimizerTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.math.optimization.MultiStartUnivariateRealOptimizerTest",
+      "method": "testQuinticMin",
+      "exception": "junit.framework.AssertionFailedError: expected:<-0.2719561270319131> but was:<-0.2719561299044896>"
+    },
+    {
+      "class": "org.apache.commons.math.optimization.MultiStartUnivariateRealOptimizerTest",
+      "method": "testSinMin",
+      "exception": "junit.framework.AssertionFailedError"
+    },
+    {
+      "class": "org.apache.commons.math.optimization.univariate.BrentOptimizerTest",
+      "method": "testQuinticMinStatistics",
+      "exception": "junit.framework.AssertionFailedError: expected:<1880.5> but was:<18.0>"
+    },
+    {
+      "class": "org.apache.commons.math.optimization.univariate.BrentOptimizerTest",
+      "method": "testSinMin",
+      "exception": "junit.framework.AssertionFailedError: expected:<4.71238898038469> but was:<4.71238897901431>"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.math.optimization.MultiStartUnivariateRealOptimizerTest::testQuinticMin",
+    "org.apache.commons.math.optimization.MultiStartUnivariateRealOptimizerTest::testSinMin",
+    "org.apache.commons.math.optimization.univariate.BrentOptimizerTest::testQuinticMinStatistics",
+    "org.apache.commons.math.optimization.univariate.BrentOptimizerTest::testSinMin"
+  ],
+  "keep": [
+    "testQuinticMin(org.apache.commons.math.optimization.MultiStartUnivariateRealOptimizerTest) || org.apache.commons.math.optimization.MultiStartUnivariateRealOptimizerTest.testQuinticMin || MultiStartUnivariateRealOptimizerTest.testQuinticMin",
+    "expected:<-0.2719561270319131> but was:<-0.2719561299044896>",
+    "testSinMin(org.apache.commons.math.optimization.MultiStartUnivariateRealOptimizerTest) || org.apache.commons.math.optimization.MultiStartUnivariateRealOptimizerTest.testSinMin || MultiStartUnivariateRealOptimizerTest.testSinMin",
+    "testQuinticMinStatistics(org.apache.commons.math.optimization.univariate.BrentOptimizerTest) || org.apache.commons.math.optimization.univariate.BrentOptimizerTest.testQuinticMinStatistics || BrentOptimizerTest.testQuinticMinStatistics",
+    "expected:<1880.5> but was:<18.0>",
+    "testSinMin(org.apache.commons.math.optimization.univariate.BrentOptimizerTest) || org.apache.commons.math.optimization.univariate.BrentOptimizerTest.testSinMin || BrentOptimizerTest.testSinMin",
+    "expected:<4.71238898038469> but was:<4.71238897901431>"
+  ],
+  "unlocated": [
+    "exception: junit.framework.AssertionFailedError"
+  ],
+  "lines": 214,
+  "seconds": 10.6,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-24T00:08:02Z",
+  "pare": "0.1.0",
+  "commit": "5be48cc"
+}

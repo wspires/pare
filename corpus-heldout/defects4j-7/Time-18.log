@@ -1,0 +1,79 @@
+[INFO] Scanning for projects...
+[WARNING] 
+[WARNING] Some problems were encountered while building the effective model for joda-time:joda-time:jar:2.1.alpha
+[WARNING] The expression ${pom.build.sourceDirectory} is deprecated. Please use ${project.build.sourceDirectory} instead.
+[WARNING] The expression ${pom.build.outputDirectory} is deprecated. Please use ${project.build.outputDirectory} instead.
+[WARNING] 
+[WARNING] It is highly recommended to fix these problems because they threaten the stability of your build.
+[WARNING] 
+[WARNING] For this reason, future Maven versions might no longer support building such malformed projects.
+[WARNING] 
+[INFO] 
+[INFO] ------------------------< joda-time:joda-time >-------------------------
+[INFO] Building Joda time 2.1.alpha
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.4.0:resources (default-resources) @ joda-time ---
+[INFO] Copying 2 resources from . to target/classes/META-INF
+[INFO] Copying 6 resources from src/main/java to target/classes/.
+[INFO] 
+[INFO] --- compiler:2.3.1:compile (default-compile) @ joda-time ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- antrun:1.4:run (default) @ joda-time ---
+project.artifactId
+[INFO] Executing tasks
+     [java] Writing zoneinfo files
+     [java] Writing ZoneInfoMap
+[INFO] Executed tasks
+[INFO] 
+[INFO] --- resources:3.4.0:testResources (default-testResources) @ joda-time ---
+[INFO] Copying 32 resources from src/test/resources to target/test-classes
+[INFO] 
+[INFO] --- compiler:2.3.1:testCompile (default-testCompile) @ joda-time ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- surefire:2.5:test (default-test) @ joda-time ---
+[INFO] Surefire report directory: /work/target/surefire-reports
+
+-------------------------------------------------------
+ T E S T S
+-------------------------------------------------------
+Running org.joda.time.chrono.TestGJChronology
+Tests run: 27, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.125 sec <<< FAILURE!
+testLeapYearRulesConstruction(org.joda.time.chrono.TestGJChronology)  Time elapsed: 0.002 sec  <<< ERROR!
+org.joda.time.IllegalFieldValueException: Value 29 for dayOfMonth must be in the range [1,28]
+	at org.joda.time.field.FieldUtils.verifyValueBounds(FieldUtils.java:235)
+	at org.joda.time.chrono.BasicChronology.getDateMidnightMillis(BasicChronology.java:605)
+	at org.joda.time.chrono.BasicChronology.getDateTimeMillis(BasicChronology.java:177)
+	at org.joda.time.chrono.GregorianChronology.getDateTimeMillis(GregorianChronology.java:45)
+	at org.joda.time.chrono.GJChronology.getDateTimeMillis(GJChronology.java:365)
+	at org.joda.time.base.BaseDateTime.<init>(BaseDateTime.java:254)
+	at org.joda.time.DateMidnight.<init>(DateMidnight.java:343)
+	at org.joda.time.chrono.TestGJChronology.testLeapYearRulesConstruction(TestGJChronology.java:496)
+
+
+Results :
+
+Tests in error: 
+  testLeapYearRulesConstruction(org.joda.time.chrono.TestGJChronology)
+
+Tests run: 27, Failures: 0, Errors: 1, Skipped: 0
+
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  2.137 s
+[INFO] Finished at: 2026-10-24T00:08:16Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.5:test (default-test) on project joda-time: There are test failures.
+[ERROR] 
+[ERROR] Please refer to /work/target/surefire-reports for the individual test results.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

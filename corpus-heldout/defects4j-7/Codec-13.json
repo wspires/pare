@@ -1,0 +1,64 @@
+{
+  "bug": "Codec-13",
+  "project": "Codec",
+  "bug_id": 13,
+  "fixed_revision": "37ba197e62d6b60037d18afc33801e6221f1b8c6",
+  "report": "https://issues.apache.org/jira/browse/CODEC-184",
+  "upstream": "https://github.com/apache/commons-codec",
+  "image": "maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=DoubleMetaphoneTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.codec.language.DoubleMetaphoneTest",
+      "method": "testIsDoubleMetaphoneEqualBasic",
+      "exception": "java.lang.NullPointerException"
+    },
+    {
+      "class": "org.apache.commons.codec.language.DoubleMetaphoneTest",
+      "method": "testCodec184",
+      "exception": "java.lang.NullPointerException"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.codec.language.DoubleMetaphoneTest::testIsDoubleMetaphoneEqualBasic",
+    "org.apache.commons.codec.language.DoubleMetaphoneTest::testCodec184"
+  ],
+  "keep": [
+    "testIsDoubleMetaphoneEqualBasic(org.apache.commons.codec.language.DoubleMetaphoneTest) || org.apache.commons.codec.language.DoubleMetaphoneTest.testIsDoubleMetaphoneEqualBasic || DoubleMetaphoneTest.testIsDoubleMetaphoneEqualBasic",
+    "java.lang.NullPointerException",
+    "testCodec184(org.apache.commons.codec.language.DoubleMetaphoneTest) || org.apache.commons.codec.language.DoubleMetaphoneTest.testCodec184 || DoubleMetaphoneTest.testCodec184"
+  ],
+  "unlocated": [],
+  "lines": 88,
+  "seconds": 13.8,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-24T00:06:17Z",
+  "pare": "0.1.0",
+  "commit": "5be48cc"
+}

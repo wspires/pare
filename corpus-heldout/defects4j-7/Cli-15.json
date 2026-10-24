@@ -1,0 +1,68 @@
+{
+  "bug": "Cli-15",
+  "project": "Cli",
+  "bug_id": 15,
+  "fixed_revision": "a93139165b160af1c908c85a06b0af6b3dda3387",
+  "report": "https://issues.apache.org/jira/browse/CLI-158",
+  "upstream": "https://github.com/apache/commons-cli",
+  "image": "maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=BugCLI158Test",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.cli2.bug.BugCLI158Test",
+      "method": "testSingleOptionSingleArgument",
+      "exception": "junit.framework.ComparisonFailure: expected:<[1[, 1000]]> but was:<[1[]]>"
+    },
+    {
+      "class": "org.apache.commons.cli2.bug.BugCLI158Test",
+      "method": "testSingleOptionMaximumNumberOfArgument",
+      "exception": "junit.framework.ComparisonFailure: expected:<[1, 2[, 10000]]> but was:<[1, 2[]]>"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.cli2.bug.BugCLI158Test::testSingleOptionSingleArgument",
+    "org.apache.commons.cli2.bug.BugCLI158Test::testSingleOptionMaximumNumberOfArgument"
+  ],
+  "keep": [
+    "testSingleOptionSingleArgument(org.apache.commons.cli2.bug.BugCLI158Test) || org.apache.commons.cli2.bug.BugCLI158Test.testSingleOptionSingleArgument || BugCLI158Test.testSingleOptionSingleArgument",
+    "testSingleOptionMaximumNumberOfArgument(org.apache.commons.cli2.bug.BugCLI158Test) || org.apache.commons.cli2.bug.BugCLI158Test.testSingleOptionMaximumNumberOfArgument || BugCLI158Test.testSingleOptionMaximumNumberOfArgument"
+  ],
+  "unlocated": [
+    "exception: junit.framework.ComparisonFailure: expected:<[1[, 1000]]> but was:<[1[]]>",
+    "exception: junit.framework.ComparisonFailure: expected:<[1, 2[, 10000]]> but was:<[1, 2[]]>"
+  ],
+  "lines": 82,
+  "seconds": 20.0,
+  "fixes_applied": [
+    "test-13-16.diff"
+  ],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-24T00:06:02Z",
+  "pare": "0.1.0",
+  "commit": "5be48cc"
+}

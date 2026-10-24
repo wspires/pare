@@ -1,0 +1,88 @@
+[INFO] Scanning for projects...
+[WARNING] The project commons-codec:commons-codec:jar:1.10-SNAPSHOT uses prerequisites which is only intended for maven-plugin projects but not for non maven-plugin projects. For such purposes you should use the maven-enforcer-plugin. See https://maven.apache.org/enforcer/enforcer-rules/requireMavenVersion.html
+[INFO] 
+[INFO] --------------------< commons-codec:commons-codec >---------------------
+[INFO] Building Apache Commons Codec 1.10-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- antrun:1.7:run (javadoc.resources) @ commons-codec ---
+[INFO] Executing tasks
+
+main:
+[INFO] Executed tasks
+[INFO] 
+[INFO] --- remote-resources:1.5:process (default) @ commons-codec ---
+[INFO] 
+[INFO] --- buildnumber:1.2:create (default) @ commons-codec ---
+[INFO] Checking for local modifications: skipped.
+[INFO] Updating project files from SCM: skipped.
+[INFO] Executing: /bin/sh -c cd /work && svn --non-interactive info
+[INFO] Working directory: /work
+[INFO] Storing buildNumber: ?????? at timestamp: 1792800376516
+[INFO] Executing: /bin/sh -c cd /work && svn --non-interactive info
+[INFO] Working directory: /work
+[INFO] Storing buildScmBranch: UNKNOWN_BRANCH
+[INFO] 
+[INFO] --- resources:2.6:resources (default-resources) @ commons-codec ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 124 resources
+[INFO] Copying 2 resources to META-INF
+[INFO] 
+[INFO] --- compiler:3.1:compile (default-compile) @ commons-codec ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- bundle:2.4.0:manifest (bundle-manifest) @ commons-codec ---
+[INFO] 
+[INFO] --- resources:2.6:testResources (default-testResources) @ commons-codec ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory /work/src/test/resources
+[INFO] Copying 2 resources to META-INF
+[INFO] 
+[INFO] --- compiler:3.1:testCompile (default-testCompile) @ commons-codec ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- surefire:2.16:test (default-test) @ commons-codec ---
+[INFO] Surefire report directory: /work/target/surefire-reports
+
+-------------------------------------------------------
+ T E S T S
+-------------------------------------------------------
+Running org.apache.commons.codec.language.DoubleMetaphoneTest
+Tests run: 16, Failures: 0, Errors: 2, Skipped: 0, Time elapsed: 0.061 sec <<< FAILURE! - in org.apache.commons.codec.language.DoubleMetaphoneTest
+testIsDoubleMetaphoneEqualBasic(org.apache.commons.codec.language.DoubleMetaphoneTest)  Time elapsed: 0.009 sec  <<< ERROR!
+java.lang.NullPointerException: null
+	at org.apache.commons.codec.language.DoubleMetaphone.isDoubleMetaphoneEqual(DoubleMetaphone.java:244)
+	at org.apache.commons.codec.language.DoubleMetaphoneTest.doubleMetaphoneEqualTest(DoubleMetaphoneTest.java:1039)
+	at org.apache.commons.codec.language.DoubleMetaphoneTest.testIsDoubleMetaphoneEqualBasic(DoubleMetaphoneTest.java:1136)
+
+testCodec184(org.apache.commons.codec.language.DoubleMetaphoneTest)  Time elapsed: 0 sec  <<< ERROR!
+java.lang.NullPointerException: null
+	at org.apache.commons.codec.language.DoubleMetaphone.isDoubleMetaphoneEqual(DoubleMetaphone.java:244)
+	at org.apache.commons.codec.language.DoubleMetaphoneTest.testCodec184(DoubleMetaphoneTest.java:1065)
+
+
+Results :
+
+Tests in error: 
+  DoubleMetaphoneTest.testIsDoubleMetaphoneEqualBasic:1136->doubleMetaphoneEqualTest:1039 » NullPointer
+  DoubleMetaphoneTest.testCodec184:1065 » NullPointer
+
+Tests run: 16, Failures: 0, Errors: 2, Skipped: 0
+
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  1.970 s
+[INFO] Finished at: 2026-10-24T00:06:17Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.16:test (default-test) on project commons-codec: There are test failures.
+[ERROR] 
+[ERROR] Please refer to /work/target/surefire-reports for the individual test results.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

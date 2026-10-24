@@ -1,0 +1,2 @@
+readOfLength0ShouldReturn0(org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStreamTest) || org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStreamTest.readOfLength0ShouldReturn0 || BZip2CompressorInputStreamTest.readOfLength0ShouldReturn0
+expected:<0> but was:<-1>

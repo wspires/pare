@@ -1,0 +1,57 @@
+{
+  "bug": "Compress-6",
+  "project": "Compress",
+  "bug_id": 6,
+  "fixed_revision": "5066e9aeb98f386b29a31cd4acb97aa43844cd30",
+  "report": "https://issues.apache.org/jira/browse/COMPRESS-94",
+  "upstream": "https://github.com/apache/commons-compress",
+  "image": "maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=ZipArchiveEntryTest",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "org.apache.commons.compress.archivers.zip.ZipArchiveEntryTest",
+      "method": "testNotEquals",
+      "exception": "junit.framework.AssertionFailedError"
+    }
+  ],
+  "failed": [
+    "org.apache.commons.compress.archivers.zip.ZipArchiveEntryTest::testNotEquals"
+  ],
+  "keep": [
+    "testNotEquals(org.apache.commons.compress.archivers.zip.ZipArchiveEntryTest) || org.apache.commons.compress.archivers.zip.ZipArchiveEntryTest.testNotEquals || ZipArchiveEntryTest.testNotEquals",
+    "junit.framework.AssertionFailedError"
+  ],
+  "unlocated": [],
+  "lines": 74,
+  "seconds": 7.1,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-24T00:06:26Z",
+  "pare": "0.1.0",
+  "commit": "5be48cc"
+}

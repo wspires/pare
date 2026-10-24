@@ -1,0 +1,2 @@
+com.google.gson.DefaultDateTypeAdapterTest.testDateDeserializationISO8601 || DefaultDateTypeAdapterTest.testDateDeserializationISO8601 || com.google.gson.DefaultDateTypeAdapterTest#testDateDeserializationISO8601 || DefaultDateTypeAdapterTest#testDateDeserializationISO8601
+com.google.gson.JsonSyntaxException: 1970-01-01T01:00:00+01 || 1970-01-01T01:00:00+01

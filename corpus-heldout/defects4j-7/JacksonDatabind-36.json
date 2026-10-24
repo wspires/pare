@@ -1,0 +1,57 @@
+{
+  "bug": "JacksonDatabind-36",
+  "project": "JacksonDatabind",
+  "bug_id": 36,
+  "fixed_revision": "c48e992652125eb74aea8ead8cbda5fd0b44976a",
+  "report": "https://github.com/FasterXML/jackson-databind/issues/803",
+  "upstream": "https://github.com/FasterXML/jackson-databind",
+  "image": "maven:3.9-eclipse-temurin-8",
+  "command": [
+    "mvn",
+    "-B",
+    "-DfailIfNoTests=false",
+    "-Dsurefire.failIfNoSpecifiedTests=false",
+    "-Dsurefire.useFile=false",
+    "-Drat.skip=true",
+    "-Djacoco.skip=true",
+    "-Danimal.sniffer.skip=true",
+    "-Dcheckstyle.skip=true",
+    "-Denforcer.skip=true",
+    "-Dmaven.javadoc.skip=true",
+    "-Djapicmp.skip=true",
+    "-Dclirr.skip=true",
+    "-Dbuildnumber.skip=true",
+    "-Dspotbugs.skip=true",
+    "-Dfindbugs.skip=true",
+    "-Dpmd.skip=true",
+    "-Dtest=TestStdDateFormat",
+    "test"
+  ],
+  "exit": 1,
+  "triggers": [
+    {
+      "class": "com.fasterxml.jackson.databind.TestStdDateFormat",
+      "method": "testLenient",
+      "exception": "java.lang.NullPointerException"
+    }
+  ],
+  "failed": [
+    "com.fasterxml.jackson.databind.TestStdDateFormat::testLenient"
+  ],
+  "keep": [
+    "testLenient(com.fasterxml.jackson.databind.TestStdDateFormat) || com.fasterxml.jackson.databind.TestStdDateFormat.testLenient || TestStdDateFormat.testLenient",
+    "java.lang.NullPointerException"
+  ],
+  "unlocated": [],
+  "lines": 73,
+  "seconds": 14.7,
+  "fixes_applied": [],
+  "differences_from_defects4j": [
+    "only the compile-error fixes of the post-checkout hook (and Lang's enum rename) are applied",
+    "known-broken tests are not removed",
+    "the project's Maven build instead of Defects4J's Ant wrapper"
+  ],
+  "collected": "2026-10-24T00:07:11Z",
+  "pare": "0.1.0",
+  "commit": "5be48cc"
+}
