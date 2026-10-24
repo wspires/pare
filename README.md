@@ -9,11 +9,11 @@ how to get it back.
 pytest -v 2>&1 | pare --budget 2000
 ```
 
-A 308-line, 6,803-token pytest run becomes this (1,250 tokens), exactly
+A 308-line, 6,803-token pytest run becomes this (1,249 tokens), exactly
 as printed; the last lines name the run file on the machine it ran on:
 
 ```
-# pare: 308 lines, 19,046 B (~6,803 tok) → ~1,250 tok (budget 2,000) · 35 templates
+# pare: 308 lines, 19,046 B (~6,803 tok) → ~1,249 tok (budget 2,000) · 35 templates
 ## head (L1–L5)
 1: ============================= test session starts ==============================
 2: platform linux -- Python 3.13.16, pytest-9.1.1, pluggy-1.6.0 -- /home/dev/proj/.venv/bin/python
@@ -64,12 +64,12 @@ T25  ×6 S --- Captured log <*> ---
 295: >   def c(): raise RuntimeError("deep failure at level 3")
   ┆ (1 line)
 297: E   RuntimeError: deep failure at level 3
-## tail (L284–L308)
-284: 
+## tail (L285–L308)
 285: tests/test_net.py:12:
   ┆ (12 lines)
 298: 
-  ┆ (3 lines)
+299: tests/test_net.py:11: RuntimeError
+  ┆ (2 lines)
 302: =========================== short test summary info ============================
 303: FAILED tests/test_cart.py::test_parse_bad - json.decoder.JSONDecodeError: Exp...
 304: FAILED tests/test_cart.py::test_total_wrong - assert 0.9000000000000001 == 0.9
@@ -77,7 +77,7 @@ T25  ×6 S --- Captured log <*> ---
 306: FAILED tests/test_net.py::test_connect[10.255.255.1] - TimeoutError: timed out
 307: FAILED tests/test_net.py::test_deep - RuntimeError: deep failure at level 3
 308: ============= 5 failed, 163 passed, 1 skipped, 1 xfailed in 0.51s ==============
-## omitted 266/308 lines (86.4%): T5 ×120, T28 ×24, T18 ×16, T21 ×13, T23 ×12, T6 ×10, T7 ×10, T8 ×10, T9 ×10, T20 ×8, T25 ×5, T26 ×4, T12 ×3, T15 ×2, T19 ×2, T10 ×1, T11 ×1, T16 ×1, T24 ×1 · 23 templates not listed; 24 blank
+## omitted 266/308 lines (86.4%): T5 ×120, T28 ×24, T18 ×16, T21 ×13, T23 ×12, T6 ×10, T7 ×10, T8 ×10, T9 ×10, T20 ×8, T25 ×5, T26 ×4, T12 ×3, T15 ×2, T19 ×2, T10 ×1, T11 ×1, T16 ×1 · 23 templates not listed; 25 blank
 ## raw: /root/.cache/pare/runs/d0ec7c06b92d.log
    expand with: pare --only T<n> < raw   ·   drop noise: pare --except T<n>,T<m> < raw
 ```

@@ -452,7 +452,10 @@ and it is a hard limit.
   budget; the head shrinks to 3 below 1,000 tokens). Lines of templates
   with 5 or more records, and continuation lines of records 20 or more
   lines long, are skipped inside the windows, since the table already
-  stands for them; the first and last lines always stay.
+  stands for them; the first and last lines always stay. In the tail
+  window (Rust version), an error line of such a template stays when it
+  is the only line of its template in the window's span: see **The
+  verdict that repeats a shape** below.
 - Then one priority queue for template entries and raw lines on the same
   salience scale. A template entry (count, marker, exemplar head line)
   competes at its salience, so every template is listed once if the budget
@@ -725,8 +728,9 @@ than per file:
 
 After the change the four cases keep 18 of 18 at 600, 1,000 and 2,000;
 the other 179 cases are unchanged at every budget (the Python version's
-output, byte for byte, on all 195 parity inputs; `bench/parity.py` leaves
-the four Rust-only logs out). A 33 MB JSON-lines log runs about 3 %
+output, byte for byte, on all 195 parity inputs; `bench/parity.py` runs
+with `PARE_REFERENCE_RULES=1`, which turns this rule off, so the four
+logs are compared too). A 33 MB JSON-lines log runs about 3 %
 slower, within run-to-run noise on plain logs.
 
 The cases were written by someone who knew the fix was coming, so they
@@ -1025,6 +1029,39 @@ SWE-bench is unchanged.
 Build warnings (`'build.plugins.plugin.version' … is missing`,
 `bootstrap class path not set`) stay: they are real warnings, and the dev
 corpus has warnings that matter (gcc's).
+
+**The verdict that repeats a shape** (Rust version). SWE-bench seed 4
+found the cost of the windows' skip: pytest's own test suite prints the
+output of the inner pytest runs it drives, so pytest-dev__pytest-8399's
+log has dozens of `FAILED` lines from those, and the one real `FAILED
+testing/test_unittest.py::test_fixtures_setup_setUpClass_issue8394`, line
+1,416 of 1,417, was folded into `┆ (1 line)` at every budget while the
+`PASSED` and `SKIPPED` lines around it were shown. Two rules were tried
+on all 220 cases at 600, 1,000, 2,000 and `auto`:
+
+| tail-window rule | lines gained | lost | outputs changed |
+|---|---|---|---|
+| keep every error line, however common | 6 | 8 (android-logcat, ci-pipeline, matplotlib-25775, django-13212) | 61 of 880 |
+| keep an error line when it is the only one of its template in the window's span | 4 (pytest-8399 at each budget) | 1 (ci-pipeline at 1,000) | 12 of 880 |
+
+The first undoes what the skip was for: an emulator's routine errors
+(`GnssHAL`, `netmgr`) recur to the last line of android-logcat, and kept,
+they fill its tail. What tells the verdict apart is that its shape is
+common earlier but appears once near the end; noise that recurs keeps
+recurring. So the second rule shipped. Its one loss is a budget edge: at
+1,000 ci-pipeline's tail gains a kubectl `Warning BackOff … Back-off
+restarting failed container` event (one of its shape near the end), and
+a stack frame no longer fits. Totals: 600 501 → 502, 1,000 559 → 559,
+2,000 588 → 589, `auto` 581 → 582 of 595, output sizes within 0.1 %.
+SWE-bench seed 4 is spent by this change; the rule's fresh test is the
+next sample.
+
+It is the first change to the default output of plain-text logs since
+the Python version was frozen, so `bench/parity.py` and the golden-file
+test run with `PARE_REFERENCE_RULES=1`, which turns off the Rust-only
+rules that change default output (this one, and structured lines) and
+holds everything else to the Python version byte for byte; the rules
+have tests of their own.
 
 | set | 600 | 1,000 | 2,000 |
 |---|---|---|---|

@@ -106,12 +106,15 @@ The gate for everything after it.
   loses its only failing test at every budget: the tail window skips its
   `FAILED` line because the inner pytest runs in pytest's own suite made
   that shape common. *Done; spent by the next change measured on it.*
-- [ ] **Window skip against a common verdict.** The windows skip lines
+- [x] **Window skip against a common verdict.** The windows skip lines
   of templates seen five or more times (for Maven's chatter); on
-  pytest-dev__pytest-8399 that hides the one real `FAILED` line. A
-  candidate: never skip an error-level line in the tail window. Decide
-  on data neither change was chosen on: a seventh Defects4J and a fifth
-  SWE-bench sample.
+  pytest-dev__pytest-8399 that hid the one real `FAILED` line. Keeping
+  every error line in the tail lost 8 lines elsewhere (an emulator's
+  routine errors recur to the end); keeping an error line that is the
+  only one of its template near the end gains pytest-8399 at every budget
+  and loses one line (ci-pipeline at 1,000, a budget edge). Shipped the
+  second (`docs/DESIGN.md`, "The verdict that repeats a shape"). SWE-bench
+  seed 4 is spent; the next fresh samples are its test. *Done.*
 - [ ] **Claude token rate.** `bench/tokens.py --anthropic claude-opus-5-5`
   on a machine with credentials. If the rate differs much from the 2.8
   bytes per token measured on cl100k and o200k, change the default.
@@ -385,13 +388,18 @@ with warnings as errors, few dependencies, each one justified.
   *Done.*
 - [ ] **First release.** The one-time setup in RELEASING.md, then tag
   `v0.2.0`.
-- [ ] **After the first change in behaviour.** The reference is frozen;
+- [x] **After the first change in behaviour.** The reference is frozen;
   parity holds the Rust version to it. When pare's output changes on
   purpose (the `--budget 0` overshoot is the first candidate), parity will
   report it. Then either keep parity for the rest by teaching
   `bench/parity.py` the intended difference, or retire the parity job and
   regenerate the golden files from the Rust version, which becomes its own
-  reference.
+  reference. The first change was the tail window's verdict rule. Parity
+  is kept: `PARE_REFERENCE_RULES=1` turns off the Rust-only rules that
+  change default output (structured lines, the verdict rule), parity and
+  the golden-file test run with it, and the rules have tests of their
+  own. *Done.* Retire parity instead once the Rust-only rules outnumber
+  what it still checks.
 - [ ] **Later, if needed.** Per-line checks on worker threads: they depend
   only on the line's text, so the pass is written to keep them a pure
   function from the start.

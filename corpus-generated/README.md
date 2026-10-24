@@ -55,8 +55,9 @@ cd src/structlog-proj && pip install -r requirements.txt && python etl.py     # 
 The structured-log programs are seeded and stamp time from a clock of
 their own, so a rerun gives the same lines, apart from the pointer values
 in the Go stack trace. Their checkouts' paths were scrubbed to
-`/home/dev/proj` (in pino's and structlog's traces) with `sed`. These four logs are Rust-only behaviour, so
-`bench/parity.py` leaves them out (`RUST_ONLY`).
+`/home/dev/proj` (in pino's and structlog's traces) with `sed`. These four
+logs exercise Rust-only behaviour, which `bench/parity.py` turns off
+(`PARE_REFERENCE_RULES=1`) to compare them with the Python version.
 
 ```
 .venv/bin/python bench/run.py --corpus corpus-generated [--budget 600] [--show-misses]

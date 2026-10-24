@@ -5,12 +5,19 @@
 pare is now a single native binary, written in Rust, and installable with
 Homebrew, an install script, pipx/uv (`pare-cli`) or cargo (`pare-cli`).
 
-- **Same output as before.** On plain-text logs the Rust version prints
-  exactly what the Python version did, byte for byte: every log in the
-  repository but the four structured-log cases below, under every flag set
-  tested (2,730 runs), with the same exit statuses. Template ids are the
+- **Same output as before, apart from two new rules.** With the Rust
+  version's own rules switched off (`PARE_REFERENCE_RULES=1`, for testing)
+  it prints exactly what the Python version did, byte for byte, on every
+  log in the repository under every flag set tested (3,304 runs), with the
+  same exit statuses. The two rules are the structured-log clip below and
+  a tail window that keeps a lone verdict line. Template ids are the
   same, so `pare --only T3 < run-file` works on run files saved by either
   version.
+- **The tail window keeps the verdict.** It skips lines of shapes seen
+  five or more times, so that chatter does not fill it; now an error line
+  of such a shape stays when it is the only one of its shape near the
+  end. pytest's own test suite prints dozens of inner-run `FAILED` lines,
+  and the one real `FAILED` line at the end was folded away.
 - **Faster and smaller.** A 30 MB log takes about 5 s instead of about
   30 s, in less memory; start-up is about 50 ms.
 - **Follow mode no longer needs `select()`**, which limited the Python
@@ -48,7 +55,8 @@ Homebrew, an install script, pipx/uv (`pare-cli`) or cargo (`pare-cli`).
 Differences from the Python version: a follow run file is named by the
 time in UTC (it was local time); a malformed regex in a `--vocab` file is
 reported in the Rust regex engine's words; long JSON and logfmt lines are
-clipped as above, and pino's numeric levels count; and `$PARE_BUDGET`,
+clipped as above, and pino's numeric levels count; the tail window keeps
+a lone verdict line of a common shape; and `$PARE_BUDGET`,
 `--budget auto`, `--dump-vocab`'s continuation section and the
 `[continuation]` and `[mask NAME]` sections are new.
 

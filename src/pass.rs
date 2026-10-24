@@ -55,6 +55,20 @@ pub(crate) const TOOL_LOGCAT: bool = true;
 /// its telling fields, and pino's numeric levels count
 /// (`crate::structured`).
 pub(crate) const TOOL_STRUCTURED: bool = true;
+
+/// `$PARE_REFERENCE_RULES` set (and not `0`): the Rust-only rules that
+/// change default output (`TOOL_STRUCTURED`, the tail window's verdict
+/// rule in `crate::summary`) are off, so the output is the Python
+/// version's. For `bench/parity.py` and the golden-file tests, which hold
+/// everything else to `reference/pare.py`; not for users.
+static REFERENCE_RULES: LazyLock<bool> = LazyLock::new(|| {
+    std::env::var_os("PARE_REFERENCE_RULES").is_some_and(|v| !v.is_empty() && v != "0")
+});
+
+/// Whether the Rust-only rules apply: true unless `$PARE_REFERENCE_RULES`.
+pub(crate) fn rust_rules() -> bool {
+    !*REFERENCE_RULES
+}
 const TOOL_BLANK_IN_BLOCK: bool = true;
 
 /// A logcat line's header, threadtime (`10-13 09:12:31.620  4321  4321 E
