@@ -1,0 +1,2 @@
+lib/matplotlib/tests/test_axes.py::test_stackplot[png]
+lib/matplotlib/tests/test_axes.py::test_stackplot[pdf]

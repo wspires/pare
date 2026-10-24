@@ -162,7 +162,52 @@ cases, as `bench/run.py` prints it); "full" counts the cases where pare
 kept every keep line. tidyout keeps everything on every source, at 96 to
 100 % of the input size.
 
-### Latest fresh SWE-bench sample: seed 4
+### Latest fresh SWE-bench sample: seed 5
+
+SWE-bench Verified seed 5, drawn after the tail window's verdict rule
+(`7fb1cce`) with `--exclude` every earlier SWE-bench set, and measured
+before anyone read it. It is the first fresh test of that rule on the
+kind of log it was made for.
+
+```
+python3 bench/swebench_cases.py run --sample 20 --seed 5 --exclude corpus-heldout/swebench --exclude corpus-heldout/swebench-2 --exclude corpus-heldout/swebench-3 --exclude corpus-heldout/swebench-4 --exclude corpus-heldout/swebench-5 --out corpus-heldout/swebench-6 --docker-arg=--volume=/root/.ccr/ca-bundle.crt:/pare-ca.crt:ro --docker-arg=--env=PIP_CERT=/pare-ca.crt
+```
+
+17 of 20 tasks gave a case. Three ran but SWE-bench's parser found their
+FAIL_TO_PASS tests absent: pylint-dev__pylint-4661 and pylint-4551, as in
+earlier draws, and django__django-14349, whose test fails as Django
+subtests the parser does not match to the test id (logs in `_failed/`).
+No pull hit Docker Hub's rate limit this time. 27 keep lines; logs are
+708 to 150,572 tokens (289,415 in all): one fits in 1,000, five in 2,000.
+
+| version | 600 | 1,000 | 2,000 | `auto` |
+|---|---|---|---|---|
+| before any held-out fix (`d730e86`) | 66.7 % | 70.4 % | 70.4 % | — |
+| 0.2.0 (`7fb1cce`) | **66.7 %** (16 of 17 cases full) | **70.4 %** (16 of 17) | **100 %** | **100 %** |
+| 0.2.0 without the verdict rule | 66.7 % | 70.4 % | 100 % | 100 % |
+
+Output is 3 %, 5 % and 8 % of the input at 600, 1,000 and 2,000; `auto`
+keeps all 27 at 6 % (18,244 tokens against 22,983 at 2,000). Pooled
+recall is one task's: pytest-dev__pytest-7205 holds 10 of the 27 keep
+lines, and every miss. `--strict` gives 67 % at every budget, because at
+2,000 that task's tests are shown as items of a compact list. The verdict
+rule changes no output here, byte for byte.
+
+The misses, read after scoring (no code changed on them):
+
+- **pytest-dev__pytest-7205**, 1 of 10 at 600 and 2 at 1,000, all 10 at
+  2,000. pytest's own suite again (as pytest-8399 in seed 4): the inner
+  sessions it drives print one-off `ERROR test_capturing.py::…` and
+  `FAILED test_show_fixtures_and_execute_test.py::test_arg` lines, which
+  rank as rare errors and get entries of their own, while the real
+  failures, nine `FAILED testing/test_setuponly.py::…` lines of one
+  shape, get one list entry that shows one item and "+8 more". The
+  verdict rule rightly does not fire (nine lines of one shape are not a
+  lone verdict).
+
+This sample is now spent by any change measured on it.
+
+### SWE-bench seed 4
 
 SWE-bench Verified seed 4, drawn after the 0.2.0 code (`bbd6378`) with
 `--exclude` every earlier SWE-bench set, in this repository's cloud

@@ -1,0 +1,27 @@
+{
+  "instance_id": "astropy__astropy-7166",
+  "repo": "astropy/astropy",
+  "version": "1.3",
+  "base_commit": "26d147868f8a891a6009a25cd6a8576d2e1bd747",
+  "image": "swebench/sweb.eval.x86_64.astropy_1776_astropy-7166:latest",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "fail_to_pass": [
+    "astropy/utils/tests/test_misc.py::test_inherit_docstrings"
+  ],
+  "failed": [
+    "astropy/utils/tests/test_misc.py::test_inherit_docstrings"
+  ],
+  "keep": [
+    "astropy/utils/tests/test_misc.py::test_inherit_docstrings"
+  ],
+  "unlocated": [],
+  "pass_to_pass": 6,
+  "lines": 50,
+  "seconds": 6.1,
+  "network": "bridge",
+  "collected": "2026-10-24T02:22:11Z",
+  "pare": "0.1.0",
+  "commit": "7fb1cce",
+  "swebench": "5.0.2"
+}
