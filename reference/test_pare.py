@@ -2057,3 +2057,63 @@ def test_a_template_seen_twice_lists_both_lines():
     out = run(["--budget", "1000"], ("\n".join(lines) + "\n").encode()).decode()
     assert "Expected an int" in out and "Expected a long" in out, out
     assert "Expected <*>" not in out, out
+
+
+def test_harvest_ranks_summaries_the_agent_went_past(tmp_path):
+    """Hook-style calls: the transcript holds the bare command and pare's
+    summary as its output. One summary the agent expanded, read past and
+    reran; one it took as it was. The first is ranked first, with its
+    signals and the summary it saw."""
+    runs = tmp_path / "runs"
+    runs.mkdir()
+    events = []
+
+    def call(i, command, run_text, summary_extra, follow=()):
+        run_file = runs / f"r{i}.log"
+        run_file.write_text(run_text)
+        summary = f"# pare: {run_text.count(chr(10))} lines ...\n{summary_extra}\n## raw: {run_file} · exit 1"
+        tid = f"toolu_{i:024d}"
+        events.append({"type": "assistant", "message": {"role": "assistant", "content": [
+            {"type": "tool_use", "id": tid, "name": "Bash", "input": {"command": command}}]}})
+        events.append({"type": "user", "sessionId": "s1", "timestamp": f"2026-10-0{i}T10:00:00Z",
+                       "message": {"role": "user", "content": [
+                           {"type": "tool_result", "tool_use_id": tid, "content": summary, "is_error": True}]},
+                       "toolUseResult": {"stdout": summary, "stderr": ""}})
+        for f in follow:
+            events.append({"type": "assistant", "message": {"role": "assistant", "content": [f]}})
+        events.append({"type": "user", "message": {"role": "user", "content": "next"}})
+        return run_file
+
+    quiet = call(1, "cargo test", "".join(f"test t{i} ... ok\n" for i in range(120)) + "test t_last ... FAILED\n",
+                 "T1 ×1 E L121: test t_last ... FAILED")
+    run_file = tmp_path / "runs" / "r2.log"
+    loud_text = ("".join(f"PASSED tests/test_a.py::test_{i}\n" for i in range(120))
+                 + "FAILED tests/test_inner.py::test_x - see conftest.py\n")
+    follow = [
+        {"type": "tool_use", "id": "y1", "name": "Bash", "input": {"command": f"pare --only T3 < {run_file}"}},
+        {"type": "tool_use", "id": "y2", "name": "Bash", "input": {"command": f"grep -n FAILED {run_file}"}},
+        {"type": "tool_use", "id": "y3", "name": "Bash", "input": {"command": "npm test 2>&1 | tail -50"}},
+        {"type": "tool_use", "id": "y3b", "name": "Bash", "input": {"command": "npm test"}},  # the hook wraps it again
+        {"type": "tool_use", "id": "y4", "name": "Read", "input": {"file_path": "/work/app/tests/conftest.py"}},
+        {"type": "tool_use", "id": "y5", "name": "Read", "input": {"file_path": "/work/app/README.md"}},  # not in the log
+    ]
+    call(2, "npm test", loud_text, "T2 ×120 . PASSED <*>", follow)
+    transcript = tmp_path / "projects" / "p" / "s1.jsonl"
+    transcript.parent.mkdir(parents=True)
+    transcript.write_text("\n".join(json.dumps(e) for e in events) + "\n")
+    corpus = tmp_path / "heldout"
+    p = harvest(["--corpus", str(corpus), "scan", "--projects", str(tmp_path / "projects"), "--no-identity",
+                 "--min-lines", "40"])
+    assert p.returncode == 0, p.stderr
+    assert "2 candidate(s)" in p.stdout and "1 candidate(s) where the agent went past" in p.stdout, p.stdout
+    listed = [ln.split()[0] for ln in p.stdout.splitlines() if ln.startswith("  ") and " lines " in ln]
+    inbox = corpus / "inbox"
+    metas = {n: json.loads((inbox / f"{n}.json").read_text()) for n in listed}
+    first, second = listed
+    assert metas[first]["summary_score"] == 3 + 3 + 2 + 1 and metas[second]["summary_score"] == 0
+    assert [sg["kind"] for sg in metas[first]["summary_signals"]] == [
+        "expanded", "read the run file", "reran without pare", "opened a file the summary did not show"]
+    assert (inbox / f"{first}.cmd").read_text().strip() == "npm test"
+    assert (inbox / f"{first}.log").read_text() == loud_text  # the raw run file
+    assert "T2 ×120" in (inbox / f"{first}.summary").read_text()  # what the agent saw
+    assert "!9" in p.stdout and quiet.exists()

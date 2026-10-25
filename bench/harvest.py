@@ -36,6 +36,16 @@ still exists, and skipped otherwise. Outputs that are mostly lines from the
 dev corpora (corpus/, corpus-generated/) are skipped, since pare was tuned
 on those. Identical outputs are harvested once.
 
+Where pare's summary fell short. For an output the agent saw as a pare
+summary (the hook's or its own `pare -- CMD`), scan also looks at what the
+agent did next: expanded the summary (`pare --only T7 < run file`, or
+--since/--until/--except/--min-severity), read the run file itself, ran
+the command again without pare, or opened a file the raw output names and
+the summary does not. Each is a sign the summary did not show what the
+agent needed; those candidates are listed first, ranked by a weighted
+count (`!score`), their NAME.json has the signals, and NAME.summary keeps
+the summary the agent saw, to set beside the raw log.
+
 Proposals never use pare's scoring or vocabulary: they come only from what
 the agent did after seeing the output. They lean toward what the agent saw,
 which for a saved large output is a 2 KB preview unless it read further, so
@@ -151,7 +161,7 @@ def bash_calls(path: str):
 def followup(events: list[dict], idx: int) -> dict:
     """What the agent wrote and did after this output, until the person's
     next message: its text, and the inputs of its tool calls."""
-    texts, inputs, paths = [], [], []
+    texts, inputs, paths, calls = [], [], [], []
     seen = 0
     for ev in events[idx + 1:]:
         msg = ev.get("message") or {}
@@ -169,13 +179,14 @@ def followup(events: list[dict], idx: int) -> dict:
             elif b.get("type") == "tool_use":
                 inp = b.get("input") or {}
                 inputs.append(json.dumps(inp, ensure_ascii=False))
+                calls.append({"name": b.get("name"), "input": inp})
                 for k in ("file_path", "path", "notebook_path"):
                     if isinstance(inp.get(k), str):
                         paths.append(inp[k])
             seen += 1
         if seen >= FOLLOW_EVENTS:
             break
-    return {"text": "\n".join(texts), "inputs": "\n".join(inputs), "paths": paths}
+    return {"text": "\n".join(texts), "inputs": "\n".join(inputs), "paths": paths, "calls": calls}
 
 
 # --------------------------------------------------------------------------
@@ -223,15 +234,17 @@ def pare_inner(command: str) -> str | None:
     return None
 
 
-def unwrap_pare(command: str, output: str) -> tuple[str | None, str | None, str]:
+def unwrap_pare(command: str, output: str) -> tuple[str | None, str | None, str, str | None]:
     """A pare-wrapped command's output is pare's summary. Return the inner
-    command and the raw run file's text, when the run file still exists."""
+    command, the raw run file's text when the run file still exists, where
+    the output came from, and the run file's path."""
     inner = pare_inner(command)
     raw = RAW_LINE.search(output)
-    if raw and os.path.isfile(raw.group(1)):
-        with open(raw.group(1), encoding="utf-8", errors="replace") as f:
-            return inner, f.read(), "pare run file"
-    return inner, None, "pare summary without its run file"
+    path = raw.group(1) if raw else None
+    if path and os.path.isfile(path):
+        with open(path, encoding="utf-8", errors="replace") as f:
+            return inner, f.read(), "pare run file", path
+    return inner, None, "pare summary without its run file", path
 
 
 def command_words(command: str):
@@ -259,6 +272,72 @@ def invokes_pare(command: str) -> bool:
                 a in ("pare.py", "run.py", "ablate.py", "tokens.py", "harvest.py", "collect.py") for a in args)):
             return True
     return False
+
+
+# What the agent did after a pare summary that says the summary was not
+# enough, and how much each counts toward ranking the candidate.
+SIGNAL_WEIGHTS = {"expanded": 3, "read the run file": 3, "reran without pare": 2,
+                  "opened a file the summary did not show": 1}
+SELECTION_FLAGS = ("--only", "--except", "--since", "--until", "--min-severity")
+FILE_NAME = re.compile(r"[\w.-]+\.[A-Za-z]\w{0,7}")
+
+
+def hook_would_wrap(command: str) -> bool:
+    """Whether the Claude Code hook rewrites `command` to run through pare,
+    whatever this machine's pare install and hook settings."""
+    keys = ("PARE_BIN", "PARE_HOOK_DISABLE", "PARE_HOOK_BUDGET")
+    saved = {k: os.environ.get(k) for k in keys}
+    os.environ["PARE_BIN"] = sys.executable  # any executable: plan() only checks that it exists
+    os.environ.pop("PARE_HOOK_DISABLE", None)
+    os.environ.pop("PARE_HOOK_BUDGET", None)
+    try:
+        return HOOK.plan(command)[0] is not None
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+def summary_signals(inner: str | None, summary: str, raw: str, run_file: str | None,
+                    follow: dict, hooked: bool) -> list[dict]:
+    """Signs, in the agent's next moves, that a pare summary did not show
+    what it needed: it expanded the summary (`pare --only T7 < run file`),
+    read the run file itself, ran the command again without pare (in a form
+    the hook leaves alone, such as `npm test 2>&1 | tail -80`), or opened a
+    file that the raw output names and the summary does not. These are the
+    held-out cases most worth reading: where pare's summary fell short.
+    `hooked`: the hook wrapped the command (the transcript holds it bare),
+    so a later bare rerun went through pare again and does not count."""
+    out: list[dict] = []
+    inner_words = next(command_words(inner), None) if inner else None
+    for call in follow.get("calls", []):
+        inp = call.get("input") or {}
+        if call.get("name") == "Bash":
+            command = inp.get("command") or ""
+            words_list = list(command_words(command))
+            selection = [w for words in words_list if os.path.basename(words[0]) in ("pare", "pare.py")
+                         for w in words if w.split("=")[0] in SELECTION_FLAGS]
+            if selection:
+                out.append({"kind": "expanded", "detail": command})
+            elif run_file and run_file in command:
+                out.append({"kind": "read the run file", "detail": command})
+            elif inner_words and not invokes_pare(command) and any(
+                    words[:2] == inner_words[:2] for words in words_list) and not (
+                    hooked and hook_would_wrap(command)):
+                out.append({"kind": "reran without pare", "detail": command})
+        else:
+            path = inp.get("file_path") or inp.get("path") or inp.get("notebook_path")
+            if not isinstance(path, str):
+                continue
+            if run_file and os.path.abspath(path) == os.path.abspath(run_file):
+                out.append({"kind": "read the run file", "detail": f"{call.get('name')} {path}"})
+                continue
+            name = os.path.basename(path)
+            if FILE_NAME.fullmatch(name) and name in raw and name not in summary:
+                out.append({"kind": "opened a file the summary did not show", "detail": f"{call.get('name')} {path}"})
+    return out
 
 
 def is_noisy(command: str) -> bool:
@@ -473,12 +552,18 @@ def cmd_scan(args) -> int:
             if output is None:
                 skip(origin)
                 continue
-            if pare_inner(command) or output.lstrip().startswith("# pare"):
-                inner, raw, origin = unwrap_pare(command, output)
+            summary, signals = None, []
+            hooked = pare_inner(command) is None
+            if not hooked or output.lstrip().startswith("# pare"):
+                inner, raw, origin, run_file = unwrap_pare(command, output)
                 if raw is None:
                     skip("pare summary, run file gone")
                     continue
-                command, output = inner or command, raw
+                # The hook rewrites commands after the agent wrote them, so
+                # the transcript may hold the bare command: it is the inner one.
+                inner = inner or command
+                signals = summary_signals(inner, output, raw, run_file, call["follow"], hooked)
+                summary, command, output = output, inner, raw
             elif invokes_pare(command):
                 skip("other pare invocation")
                 continue
@@ -504,7 +589,9 @@ def cmd_scan(args) -> int:
                 scrubbed[k] = scrubbed.get(k, 0) + v
             proposals = propose(clean, call["follow"])
             name = case_name(clean_cmd, call["timestamp"], call["tool_use_id"])
-            written.append((name, nlines, exit_code, len(proposals), clean_cmd, scrubbed))
+            score = sum(SIGNAL_WEIGHTS[sg["kind"]] for sg in signals)
+            written.append((name, nlines, exit_code, len(proposals), clean_cmd, scrubbed, score,
+                            [sg["kind"] for sg in signals]))
             if args.dry_run:
                 continue
             base = os.path.join(INBOX_DIR, name)
@@ -514,11 +601,17 @@ def cmd_scan(args) -> int:
                 f.write(clean_cmd.strip() + "\n")
             with open(base + ".keep.proposed", "w", encoding="utf-8") as f:
                 f.writelines(line + "\n" for line, _ in proposals)
+            if summary is not None:
+                with open(base + ".summary", "w", encoding="utf-8") as f:
+                    f.write(scrub(summary)[0])
             meta = {
                 "sha256": digest, "transcript": scrub(call["transcript"])[0], "session": call["session"],
                 "tool_use_id": call["tool_use_id"], "timestamp": call["timestamp"], "exit": exit_code,
                 "lines": nlines, "output_from": origin, "scrubbed": scrubbed,
                 "proposed": [{"line": line, "why": why} for line, why in proposals],
+                "summary_shown": summary is not None,
+                "summary_signals": [{"kind": sg["kind"], "detail": scrub(sg["detail"])[0]} for sg in signals],
+                "summary_score": score,
                 "harvested": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "pare": collect.pare_version(), "commit": collect.git_commit(),
             }
@@ -529,10 +622,18 @@ def cmd_scan(args) -> int:
     total = sum(stats.values()) + len(written)
     print(f"{len(files)} transcript(s), {total} Bash calls; {len(written)} candidate(s)"
           + (" (dry run, nothing written)" if args.dry_run else f" written to {INBOX_DIR}"))
-    for name, nlines, code, nprop, cmd, scrubbed in written:
+    # Where a pare summary fell short first: the agent expanded it, read the
+    # run file, reran the command without pare, or opened a file it did not show.
+    written.sort(key=lambda w: -w[6])
+    for name, nlines, code, nprop, cmd, scrubbed, score, kinds in written:
         note = ", ".join(f"{v} {k}" for k, v in scrubbed.items())
+        flag = f"  !{score} " + "; ".join(sorted(set(kinds))) if score else ""
         print(f"  {name:<44} {nlines:>6} lines  exit {code if code is not None else '?':<3} {nprop:>2} proposed"
-              + (f"  scrubbed: {note}" if note else "") + f"\n      {cmd[:100]}")
+              + (f"  scrubbed: {note}" if note else "") + flag + f"\n      {cmd[:100]}")
+    short = sum(1 for w in written if w[6])
+    if short:
+        print(f"{short} candidate(s) where the agent went past pare's summary (ranked first, !score); "
+              "NAME.summary is what it saw")
     if stats:
         print("skipped: " + "; ".join(f"{v} {k}" for k, v in sorted(stats.items(), key=lambda kv: -kv[1])))
     if written and not args.dry_run:

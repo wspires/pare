@@ -31,6 +31,27 @@ preview. Promoted cases record `transcript` as their source and whether
 the keep list started from the proposals, and results should be reported
 by source.
 
+**Where pare's summary fell short.** With the Claude Code hook on (or
+`pare -- CMD` in the agent's instructions), many outputs the agent saw
+were pare summaries; scan swaps in the raw run file (keep pare's run files
+for the week: they last 14 days or 500 MB by default) and also reads what
+the agent did next. It ranks first the candidates where the agent went
+past the summary, with a weighted count shown as `!score`:
+
+| signal | weight |
+|---|---|
+| expanded it: `pare --only T7` (or `--since`, `--until`, `--except`, `--min-severity`) on the run file | 3 |
+| read the run file itself (`cat`, `grep`, `tail`, the Read tool) | 3 |
+| ran the command again without pare: `npm test 2>&1 \| tail -80` (a bare rerun the hook wraps again does not count) | 2 |
+| opened a file the raw output names and the summary does not | 1 |
+
+Their `NAME.json` lists the signals (`summary_signals`), and
+`NAME.summary` keeps the summary the agent saw, to read beside
+`NAME.log`. These are the failure modes the datasets cannot show: a
+summary that dropped what a real task needed. A high score is a lead,
+not a verdict (an agent may read a run file out of habit); the keep list
+still comes from the raw log.
+
 ## SWE-bench cases
 
 `bench/swebench_cases.py` produces held-out cases with labels nobody

@@ -179,8 +179,12 @@ The blocker for stage 1 is friction, so this comes first in practice.
   output size and pare's; `pare --stats` totals them (an upper bound:
   see `integrations/README.md`). *Done.*
 - [ ] **Use it for a while.** Run files accumulate from normal work; then
-  `bench/collect.py` turns the interesting ones into held-out cases.
-  *Maintainer.*
+  `bench/collect.py` turns the interesting ones into held-out cases. With
+  the Claude Code hook on for a week, `bench/harvest.py scan` ranks first
+  the outputs where the agent went past pare's summary (expanded it, read
+  the run file, reran without pare, opened a file it did not show): the
+  failure modes the datasets cannot show (`corpus-heldout/README.md`).
+  *Maintainer, on a machine whose transcripts persist.*
 
 ## 3. Fix only what the held-out set shows
 
