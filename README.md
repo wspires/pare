@@ -78,92 +78,13 @@ T25  ×6 S --- Captured log <*> ---
 307: FAILED tests/test_net.py::test_deep - RuntimeError: deep failure at level 3
 308: ============= 5 failed, 163 passed, 1 skipped, 1 xfailed in 0.51s ==============
 ## omitted 266/308 lines (86.4%): T5 ×120, T28 ×24, T18 ×16, T21 ×13, T23 ×12, T6 ×10, T7 ×10, T8 ×10, T9 ×10, T20 ×8, T25 ×5, T26 ×4, T12 ×3, T15 ×2, T19 ×2, T10 ×1, T11 ×1, T16 ×1 · 23 templates not listed; 25 blank
-## raw: /root/.cache/pare/runs/d0ec7c06b92d.log
+## raw: ~/.cache/pare/runs/d0ec7c06b92d.log
    expand with: pare --only T<n> < raw   ·   drop noise: pare --except T<n>,T<m> < raw
 ```
 
 `pare --only T5 < runfile` then prints the 120 omitted lines of one
 template; `--except`, `--min-severity error` and `--since L200` narrow it
 further. Template ids are stable because the pipeline is deterministic.
-In command mode (`pare -- CMD`), `pare --stats` totals what the command
-printed against what pare printed, over every run so far.
-
-Run files live in `~/.cache/pare/runs` (`$PARE_RUN_DIR`). pare prunes
-them itself, at most hourly: those older than 14 days go, then the oldest
-until the rest fit in 500 MB, never one less than a day old
-(`$PARE_RUN_KEEP_DAYS`, `$PARE_RUN_MAX_MB`, 0 for no limit;
-`$PARE_RUN_PRUNE=off` stops it). `pare --prune [--dry-run]` sweeps now.
-Only files pare named are touched, and a pruned run keeps its small
-`.json` record, so `--stats` still counts it.
-
-Tokens are estimated as bytes / 2.8, the rate measured with tiktoken on
-pare's output (cl100k and o200k agree); `--chars-per-token` changes it,
-and 4 gives the prose rule of thumb. The budget is a hard ceiling.
-
-By default the size follows the log (`auto`): pare stops once what is
-left is below error level, at most 2,000 tokens, so 1,200 warning lines
-and one error come out at about 250 tokens instead of 950. `auto:4000`
-raises the ceiling; a number (`--budget 2000`) is a fixed budget the
-summary fills, which is what pare did before. On four fresh held-out
-samples `auto` kept what `--budget 2000` kept at 69 to 79 % of its
-tokens; see [docs/DESIGN.md](docs/DESIGN.md#automatic-budget). Without
-`--budget`, pare takes `$PARE_BUDGET`, else `auto`, so a harness can set
-it once for every call. Small outputs pass through untouched. See
-[docs/DESIGN.md](docs/DESIGN.md#tokens-and-the-budget).
-
-## Command mode and agents
-
-`pare -- CMD ARGS` runs the command itself instead of reading a pipe:
-
-```
-pare -- ./gradlew build
-```
-
-The exit code survives (a pipe reports pare's), the summary ends with the
-exit status (`## raw: … · exit 1`), and the command is recorded next to
-the run file. Output that fits the budget is printed as it is, with no
-`## raw:` line (it is already all of it), plus `## exit N` when N is not 0. stdout and stderr are merged in the order the command wrote
-them. A SIGTERM from a tool's timeout is passed to the command, and pare
-still summarises what it printed; once the command has exited, pare does
-not wait for a background process it left holding the pipe.
-
-[integrations/README.md](integrations/README.md) has two ways to route an
-agent's noisy commands through it: an instruction for `CLAUDE.md` or
-`AGENTS.md`, and a Claude Code hook that rewrites test, build and install
-commands automatically. Every such run leaves a run file, and
-`bench/collect.py` turns run files into held-out cases (see
-[ROADMAP.md](ROADMAP.md)).
-
-## Following a stream
-
-`pare --follow` (or `-f`) summarises input as it arrives instead of at end
-of input: a long build, a server log, a `tail -f`. Each window becomes one
-block in the usual format, budgeted on its own, and the blocks are
-separated by a blank line:
-
-```
-kubectl logs -f deploy/api | pare -f --interval 30 --budget 600
-```
-
-A window closes after `--every` lines (default 20,000, also the window
-cap), after `--interval` seconds even while the stream is idle, half a
-second after a line at `--flush-on` severity arrives (default `error`,
-at most one such flush per `--min-interval` seconds), and at end of
-input. A line-count cut waits for the next record head, a timed cut
-carries the open record into the next window (its frames keep inheriting
-the error head's salience and are attributed to the same template), and
-a window holding only blank lines is neither printed nor cut, so a stack
-trace is never split and the template ids are the ones a batch run over
-the finished run file would assign (a randomized differential test
-against the batch pass checks this). A window with no new shape and nothing above the salience
-floor is one heartbeat line (`--quiet` drops it); a template first seen
-in a window is marked `new`, and one arriving much faster than its
-running rate gets a rate note. A block that starts inside a record opens
-with `↳ continues L1: ERROR …`, naming the head its first lines belong
-to. Blocks start with a `# pare #` line; split the stream on that, since
-a verbatim block can contain the input's own blank lines. The run file is named up front and
-appended as the stream runs, so every block's `--since/--until` range can
-be expanded with the usual flags afterwards.
 
 ## Install
 
@@ -182,118 +103,74 @@ cargo install pare-cli                           # built from source (Rust 1.87+
 Or download an archive for Linux (x86-64 and ARM, statically linked),
 macOS (Apple Silicon and Intel) or Windows from the
 [releases](https://github.com/wspires/pare/releases) page; each has a
-`SHA256SUMS` entry. Then:
+`SHA256SUMS` entry.
 
-```
-pytest -v 2>&1 | pare
-pare -- make test
-```
-
-pare is written in Rust. It began as a Python prototype, which is kept as
-the reference the Rust version is tested against byte for byte
-([reference/pare.py](reference/pare.py), one file, Python 3.10+, no
-dependencies); building from a checkout and running the tests are in
+pare is written in Rust. It began as a Python prototype, kept in
+[reference/](reference/pare.py) as the reference the Rust version is
+tested against byte for byte. Building from a checkout is in
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Template clustering uses the Drain algorithm, built in: a copy of the
-core of [drain3](https://github.com/logpai/Drain3) 0.9.11 (MIT), which
-pare depended on until it was vendored. A test checks it clusters exactly
-as drain3 does on every log in the repository, so template ids from
-either version mean the same thing.
+## Use
 
-## Benchmark
+### The budget
 
-`bench/run.py` runs pare, [sqz](https://github.com/ojuschugh1/sqz) and
-[tidyout](https://github.com/sathish-2000/tidyout) over `corpus/` and
-reports output tokens and the share of must-survive lines (`<name>.keep`,
-substring match, after pare's compact lists of failing tests are written
-out in full; `--strict` matches the literal text; a keep line may list
-equivalent forms as `a || b`) that each tool keeps. Tokens are bytes / 2.8, pare's
-default and the measured cl100k/o200k rate for this text
-(`bench/tokens.py`), so a budget of 2000 is 2,000 real tokens. Eight logs (a ninth, a synthetic Android logcat capture, was added later
-and is reported in `docs/DESIGN.md`), 488k input tokens: real pytest, go test,
-cargo, make and npm runs, plus three seeded synthetic logs (a Jest run, a
-535 KB service outage, a 750 KB CI job). Versions: pare 0.1.0 (Drain as in
-drain3 0.9.11), sqz 1.9.0, tidyout-cli 0.2.0; sqz runs one-shot
-(`compress --no-cache`), tidyout with a fake command on PATH that replays
-the log.
+The budget is a hard ceiling in tokens on what pare prints. Tokens are
+estimated as bytes / 2.8, the rate measured on pare's output with the
+cl100k and o200k tokenizers (`--chars-per-token` changes it).
 
-| tool | budget 2000: out tok, ratio, recall (min per case) | budget 600 |
-|---|---|---|
-| raw | 487,810, 100%, 100% | same |
-| pare | 8,494, 1.7%, 100% (100%) | 4,341, 0.9%, 79.5% (60%) |
-| sqz | 268,054, 55%, 55% (14%) | no budget knob |
-| tidyout | 293,653, 60%, 89% (11%) | no budget knob |
+By default the size follows the log (`auto`): pare stops once what is
+left is below error level, at most 2,000 tokens, so 1,200 warning lines
+and one error come out at about 250 tokens instead of 950. On four fresh
+held-out samples it kept what a fixed 2,000 kept at 69 to 79 % of the
+tokens. `--budget auto:4000` raises the ceiling; `--budget N` is a fixed
+budget the summary fills (1,000 to 2,000 suits an agent loop). Without
+`--budget`, pare takes `$PARE_BUDGET`, else `auto`, so a harness can set
+it once for every call. Output that already fits passes through
+untouched. Details: [docs/DESIGN.md](docs/DESIGN.md#tokens-and-the-budget).
 
-A real 600-token ceiling is tight: 2,000 is the budget to use for an agent
-loop, and 600 is the floor at which the skeleton (header, windows, ledger)
-starts to crowd out content. `docs/DESIGN.md` has the per-case tables,
-and the same tables in the bytes/4 units used while the heuristics were
-developed.
+### Running the command
 
-On `corpus-generated/`, real Maven, tsc, Terraform and kubectl output from
-small projects written to fail (seven logs, 36k input tokens, not used for
-tuning): pare keeps 98% at 2000 (7,317 tok, 20%; the one miss is the
-reactor summary's FAILURE line in the cold-cache Maven build) and 60% at
-600 (3,532 tok, min 11% on the Terraform apply, whose 20 near-identical plan
-blocks crowd out the three check-block warnings). sqz keeps 74% at 20%, tidyout
-everything at 100%. These logs are short and dense in signal, which is
-where a 600-token summary has the least room.
-
-**Read this as a training score.** The misses were fixed by looking at
-these same eight cases, three of which are synthetic. The first held-out
-numbers, on test runs labelled by datasets rather than by anyone working
-on pare, were much lower: on 16 SWE-bench Verified tasks pare kept 60% of
-the failing tests at 2,000 tokens, and on 11 Defects4J bugs 29% of the
-failing tests and exceptions at 600. Both had one cause, several failing
-tests named in lines of one shape and listed once with a count, which is
-now fixed (`docs/DESIGN.md`, "First change from held-out evidence"). On
-fresh samples drawn after the fix and never tuned on, pare keeps 89% of
-17 SWE-bench tasks' failing tests at 2,000 tokens (63% before the fix,
-output 11% of the input) and 51% of 16 Defects4J bugs' tests and
-exceptions at 600 (30% before); tidyout keeps everything at 98 to 100% of
-the input size. The misses those samples showed are fixed since: runs
-with more failing tests than lines fit (now listed compactly, the shared
-prefix once and one short item per test), parametrized test names that
-differ only in numbers, the few failures that matter among many that fail
-one way (listed first), and Maven's build chatter at small budgets. On a
-third pair of samples drawn after all that and never read (16 SWE-bench
-tasks, 18 Defects4J bugs), pare keeps 100% and 98% at 2,000 tokens and
-86% and 67% at 600, where the same cases gave 95% and 86%, 77% and 33%
-before any of these fixes (`corpus-heldout/README.md`; 76.5% on
-Defects4J at 600 once a keep line accepts Maven's short form of a test
-name). On a fourth sample, 18 Defects4J bugs drawn after the last change
-and never read, pare keeps 92% at 600 and 100% at 1,000 and 2,000 tokens,
-where the same cases gave 41%, 79% and 97% before any of these fixes.
-Its misses at 600, JUnit 3 assertion messages crowded out by framework
-stack frames and one-off build warnings, are fixed since (seed 4 is spent
-now: 100% at every budget, and Defects4J seeds 2 and 3 gain 6 to 11
-points at 600). A fifth sample drawn after that fix and never read
-(17 Defects4J bugs) gives 87%, 91% and 100% at 600, 1,000 and 2,000
-tokens, where the same cases gave 46%, 67% and 96% before any of these
-fixes; the JUnit 3 fix itself is worth 80 → 87% at 600 there. On 15
-fresh SWE-bench tasks drawn at the same time, pare keeps 94% at 600 and
-100% at 1,000 and 2,000 tokens (77% at 600 before any of these fixes),
-with output 5 to 14% of the input; none of the Java-motivated changes
-cost pytest a line. Two messages that differ in one word (Gson-7:
-"Expected an int", "Expected a long") are both shown since, where pare
-used to show their shared pattern; that, and a label form Surefire 3
-prints, spent the Defects4J sample (93.5 / 97.8 / 100% there now). With all tool-specific rules off, pare reaches 71% at 600 and 96%
-at 2,000 on this corpus; on held-out Defects4J the rules change nothing
-and on held-out SWE-bench they are worth up to 18 points, almost all of
-it from the pytest markers and the blank-line-in-a-block rule
-(`docs/DESIGN.md`, "Tool-specific rules").
+`pare -- CMD ARGS` runs the command itself instead of reading a pipe:
 
 ```
-python3 -m venv .venv && .venv/bin/pip install -r bench/requirements.txt
-.venv/bin/python bench/run.py [--budget 2000] [--corpus DIR] [--show-misses] [--json out.json]
-.venv/bin/python bench/ablate.py        # recall with each heuristic switched off, or a removed one back on
-.venv/bin/python bench/tokens.py        # the byte proxy vs tiktoken counts (needs tiktoken)
+pare -- ./gradlew build
 ```
 
-On macOS: `uv tool install tidyout-cli` puts `tidyout` on PATH; for sqz,
-`brew install ojuschugh1/sqz/sqz`, `npm i -g sqz-cli` or `cargo install
-sqz-cli` (not `pip install sqz`, which fetches a pinned 0.1.0 binary).
+The command's exit code survives (a pipe would report pare's), the
+summary ends with the exit status, stdout and stderr are merged in the
+order the command wrote them, and the command is recorded next to the run
+file. `pare --stats` totals what commands printed against what pare
+printed, over every run so far.
+
+[integrations/README.md](integrations/README.md) has two ways to route an
+agent's noisy commands through pare: an instruction for `CLAUDE.md` or
+`AGENTS.md`, and a Claude Code hook that rewrites test, build and install
+commands automatically.
+
+### Following a stream
+
+`pare --follow` (or `-f`) summarises input as it arrives: a long build, a
+server log, a `tail -f`. Each window becomes one block in the usual
+format, budgeted on its own:
+
+```
+kubectl logs -f deploy/api | pare -f --interval 30 --budget 600
+```
+
+A window closes after `--every` lines, after `--interval` seconds, or
+half a second after a line at `--flush-on` severity (default `error`)
+arrives. A stack trace is never split across windows, and template ids
+are the ones a batch run over the finished run file would assign, so
+every block can be expanded afterwards with `--only` and `--since`.
+Details: [docs/USAGE.md](docs/USAGE.md#follow-mode).
+
+### Run files
+
+Run files live in `~/.cache/pare/runs` (`$PARE_RUN_DIR`). pare prunes
+them itself: runs older than 14 days go, then the oldest until the rest
+fit in 500 MB (`$PARE_RUN_KEEP_DAYS`, `$PARE_RUN_MAX_MB`;
+`$PARE_RUN_PRUNE=off` stops it; `pare --prune [--dry-run]` sweeps now).
+Details: [docs/USAGE.md](docs/USAGE.md#run-files).
 
 ## Teaching pare your logs
 
@@ -344,14 +221,8 @@ is recognized on its own, and when it is longer than `--width` pare keeps
 its start and then the fields that say what went wrong (`err`,
 `exception`, `panic`, `stack`, `msg`, ...) instead of cutting them off.
 An escaped stack trace inside a field is shown decoded, as its message
-and the frame nearest it:
-
-```
-T7   ×1 E L1257: {"level":50,"time":1791363827985,…"err":‹TypeError: Cannot destructure property 'width' of 'meta.dimensions' as it is undefined. ⏎ at thumbSize (file:///home/dev/proj/worker.js:44:11)›…(+447c)
-```
-
-pino's and bunyan's numeric levels (`"level":50`) count as levels.
-`pare --only T7` prints the whole line.
+and the frame nearest it; pino's and bunyan's numeric levels
+(`"level":50`) count as levels. `pare --only T7` prints the whole line.
 
 ## How it works
 
@@ -362,7 +233,8 @@ pino's and bunyan's numeric levels (`"level":50`) count as levels.
 2. **Segment** lines into records: indented continuations, stack frames and
    compiler gutters join the line above.
 3. **Mask** timestamps, IPs, hashes, paths and numbers, then **cluster** the
-   masked head lines into templates with Drain (built in).
+   masked head lines into templates with Drain (built in, from
+   [drain3](https://github.com/logpai/Drain3)).
 4. **Score** each line by its structural severity (log level, HTTP status,
    exit code) and vocabulary (error, warning, summary, frame, pass, noise),
    and each template by its head line plus its rarity.
@@ -372,68 +244,63 @@ pino's and bunyan's numeric levels (`"level":50`) count as levels.
 6. **End** with a ledger of what was omitted and the run-file path.
 
 Every scoring term survived an ablation; nine that did not were removed.
-The details, the full per-case tables, the miss-by-miss history and notes
-for a native port are in [docs/DESIGN.md](docs/DESIGN.md).
+The details, the per-case tables and the miss-by-miss history are in
+[docs/DESIGN.md](docs/DESIGN.md).
 
-## Tests
+## Results
 
-Setting up, building and testing, and the checks CI runs, are in
-[CONTRIBUTING.md](CONTRIBUTING.md). In short: `cargo test` for the Rust
-version (unit tests, end-to-end tests and golden files of the Python
-version's results), `bench/parity.py` for byte-for-byte parity with the
-Python reference over every corpus log, and for the reference itself:
+Recall is the share of must-survive lines (the failing tests, the error
+messages, the verdict) that a tool's output keeps; `bench/run.py`
+measures it. Two kinds of number, reported apart:
 
-```
-.venv/bin/pip install -r reference/requirements.txt    # pytest and drain3
-.venv/bin/python -m pytest -q reference/
-```
+**The development corpus** (`corpus/`, nine logs, 583k tokens: real
+pytest, go test, cargo, make and npm runs, three seeded synthetic logs
+and a synthetic Android logcat), against
+[sqz](https://github.com/ojuschugh1/sqz) and
+[tidyout](https://github.com/sathish-2000/tidyout), which have no budget
+knob. The misses here were fixed by looking at these cases, so pare's
+rows are training scores.
 
-The reference's 268 tests: severity forms and their false positives, vocabulary files, the
-shortcuts in the per-line checks against the regexes they skip, the
-built-in Drain against drain3, the hard budget limit on every corpus file
-at several sizes, determinism,
-pass-through, the selection flags, memory on a large input, follow mode
-(including a randomized differential test against the batch pass),
-command mode, the per-line dump and the parity check, the collection,
-harvest, SWE-bench and Defects4J helpers, and the Claude Code hook.
+| tool | output tokens | share of input | lines kept |
+|---|---|---|---|
+| pare 0.2.0, `--budget 2000` | 10,481 | 1.8 % | 100 % |
+| pare 0.2.0, `--budget auto` | 9,477 | 1.6 % | 98.8 % |
+| pare 0.2.0, `--budget 600` | 4,934 | 0.8 % | 77.8 % |
+| sqz 1.9.0 | 268,054 | 55 % | 55 % |
+| tidyout 0.2.0 | 293,653 | 60 % | 89 % |
 
-## Layout
+(The sqz and tidyout rows were measured in October 2026 on the eight logs
+the corpus then had, 488k tokens, with pare 0.1.0 at 100 % and 79.5 %
+for budgets 2,000 and 600.)
 
-```
-src/                      the Rust version: the pare library and command (docs/ARCHITECTURE.md)
-tests/                    end-to-end tests of the binary, golden files of the reference's results
-Cargo.toml                the crate (pare-cli on crates.io), its dependencies, lints and release profile
-pyproject.toml            the PyPI wheels (pare-cli): the binary packaged by maturin
-install.sh                the install script for the release binaries
-packaging/                the Homebrew formula template, the install script's test
-reference/pare.py         the Python prototype (one file, standard library only); the reference for the Rust version
-reference/test_pare.py    its pytest suite
-reference/vocab.example   example vocabulary extension (German)
-bench/run.py              benchmark runner
-bench/ablate.py           ablation study of the scoring heuristics
-bench/tokens.py           byte proxy vs real tokenizer counts
-bench/gen_synthetic.py    generator for the seeded synthetic corpus files
-bench/collect.py          turn run files into held-out cases (never shows pare's output)
-bench/harvest.py          harvest held-out candidates from Claude Code transcripts (scrubbed, staged for review)
-bench/swebench_cases.py   held-out cases from SWE-bench tasks, labelled by their failing tests (needs Docker)
-bench/defects4j_cases.py  held-out Java cases from Defects4J bugs, labelled by their trigger tests (needs Docker)
-bench/parity.py           compare two pare implementations byte for byte (the Rust version against reference/pare.py)
-bench/gen_fixtures.py     write tests/data/ from the reference
-bench/gen_pyunicode.py    write src/pyunicode.rs, Python's character classes
-integrations/             agent instructions and a Claude Code hook (integrations/README.md)
-corpus/                   dev corpus: *.log, *.keep, *.cmd
-corpus-generated/         real Maven, tsc, Terraform and kubectl output from small projects in src/ (a second dev corpus, not held-out)
-corpus-dev/defects4j/     Defects4J development sample (seed 1), used to tune the failing-test fix
-corpus-heldout/           protocol and held-out cases: SWE-bench, Defects4J (results in its README)
-docs/DESIGN.md            design notes, full results, port notes
-docs/ARCHITECTURE.md      the Rust code: crate layout, data flow, memory model, Python-to-Rust map
-docs/RUST.md              Rust for C++ developers, through pare's code
-.github/workflows/        CI (Rust checks, Python tests, parity, packaging) and the release
-ROADMAP.md                what comes next, in order, and who can do it
-CONTRIBUTING.md           setting up, building and testing (Rust and Python), the CI checks, parity
-RELEASING.md              how to make a release, and the one-time setup of the channels
-CHANGELOG.md              what changed in each release
-```
+**Held-out samples**, labelled by datasets rather than by anyone working
+on pare: Defects4J bugs (real Java builds, labelled with the failing tests
+and their exceptions) and SWE-bench Verified tasks (real Python test
+runs, labelled with the tests the fix makes pass). Each sample is drawn
+fresh with earlier ones excluded and measured before anyone reads it;
+once a miss has been fixed by looking at it, the sample counts as
+training data and a new one is drawn. The latest, measured blind:
+
+| sample | cases | before any held-out fix (600 / 1,000 / 2,000) | pare 0.2.0 (600 / 1,000 / 2,000) | `auto` |
+|---|---:|---|---|---|
+| Defects4J, seed 7 | 16 | 54 / 78 / 89 % | 92 / 100 / 100 % | 100 % at 69 % of the tokens of 2,000 |
+| SWE-bench Verified, seed 5 | 18 | 70 / 80 / 83 % | 90 / 97 / 97 % | 97 % at 77 % |
+
+Seven Defects4J and five SWE-bench samples so far; the full record, with
+every miss and what was done about it, is in
+[corpus-heldout/README.md](corpus-heldout/README.md). The tool-specific
+rules (pytest markers, rustc gutters, logcat levels) are worth up to 18
+points at 600 on SWE-bench and nothing on Defects4J
+([docs/DESIGN.md](docs/DESIGN.md#tool-specific-rules)).
+
+## Contributing
+
+`cargo test` runs the Rust tests; `bench/parity.py` checks the binary
+against the Python reference byte for byte over every log in the
+repository; `bench/run.py` is the benchmark. Setting up, the CI checks,
+the benchmark tools and the repository layout are in
+[CONTRIBUTING.md](CONTRIBUTING.md); what comes next is in
+[ROADMAP.md](ROADMAP.md).
 
 ## License
 

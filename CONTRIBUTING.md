@@ -1,9 +1,9 @@
 # Building, running and testing pare
 
-pare has two implementations while it is being ported (ROADMAP.md, stage
-5): the Rust version in `src/`, in progress, and the Python version in
-`reference/pare.py`, which is the reference the Rust one must match byte for
-byte. This page covers both. How the Rust code is organised is in
+pare has two implementations: the Rust version in `src/`, which is what
+is released, and the Python prototype in `reference/pare.py`, frozen as
+the reference the Rust one is tested against byte for byte. This page
+covers both, the benchmark tools, and the repository layout. How the Rust code is organised is in
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); the Rust-specific parts,
 explained for a C++ reader, are in [docs/RUST.md](docs/RUST.md).
 
@@ -201,3 +201,85 @@ was made, and CI holds the Rust version to it byte for byte. A change to
 pare's behaviour is made in the Rust version; parity then shows exactly
 what changed, and the change also updates the golden files and the parity
 check (ROADMAP.md says how).
+
+The reference's tests cover: severity forms and their false positives,
+vocabulary files, the shortcuts in the per-line checks against the
+regexes they skip, the built-in Drain against drain3, the hard budget
+limit on every corpus file at several sizes, determinism, pass-through,
+the selection flags, memory on a large input, follow mode (including a
+randomized differential test against the batch pass), command mode, the
+per-line dump and the parity check, the collection, harvest, SWE-bench
+and Defects4J helpers, and the Claude Code hook.
+
+## Benchmark
+
+`bench/run.py` runs pare, [sqz](https://github.com/ojuschugh1/sqz) and
+[tidyout](https://github.com/sathish-2000/tidyout) over a corpus
+directory and reports output tokens and the share of must-survive lines
+(`<name>.keep`) each tool keeps. A keep line matches as a substring of
+the stripped output, after pare's compact lists of failing tests are
+written out in full; `--strict` matches the literal text; a keep line may
+list equivalent forms as `a || b`. Tokens are bytes / 2.8, so a budget of
+2,000 is 2,000 real tokens (`bench/tokens.py` checks the rate against
+tiktoken).
+
+```
+.venv/bin/pip install -r bench/requirements.txt
+.venv/bin/python bench/run.py --tools pare --pare-bin target/release/pare [--budget 2000|auto] [--corpus DIR] [--show-misses] [--json out.json]
+.venv/bin/python bench/run.py                     # all three tools, the Python reference for pare
+.venv/bin/python bench/ablate.py                  # recall with each heuristic switched off, or a removed one back on
+.venv/bin/python bench/tokens.py                  # the byte proxy vs tiktoken counts (needs tiktoken)
+```
+
+sqz runs one-shot (`compress --no-cache`); tidyout runs with a fake
+command on PATH that replays the log. On macOS: `uv tool install
+tidyout-cli` puts `tidyout` on PATH; for sqz, `brew install
+ojuschugh1/sqz/sqz`, `npm i -g sqz-cli` or `cargo install sqz-cli` (not
+`pip install sqz`, which fetches a pinned 0.1.0 binary).
+
+The corpora: `corpus/` is the development corpus (tuned on);
+`corpus-generated/` holds real Maven, tsc, Terraform, kubectl and
+structured-logger output from small projects written to fail (a second
+development corpus); `corpus-dev/defects4j/` is the Defects4J sample the
+failing-test fix was tuned on; `corpus-heldout/` holds the held-out
+SWE-bench and Defects4J samples, with the protocol and every result in
+its README. Report held-out numbers apart from the others, and never
+tune on a held-out set without marking it spent there.
+
+## Layout
+
+```
+src/                      the Rust version: the pare library and command (docs/ARCHITECTURE.md)
+tests/                    end-to-end tests of the binary; tests/data/ holds golden files of the reference's results
+Cargo.toml                the crate (pare-cli on crates.io), its dependencies, lints and release profile
+pyproject.toml            the PyPI wheels (pare-cli): the binary packaged by maturin
+install.sh                the install script for the release binaries
+packaging/                the Homebrew formula template, the install script's test
+reference/pare.py         the Python prototype (one file, standard library only); the reference for the Rust version
+reference/test_pare.py    its pytest suite
+reference/vocab.example   example vocabulary extension (German)
+bench/run.py              benchmark runner
+bench/ablate.py           ablation study of the scoring heuristics
+bench/tokens.py           byte proxy vs real tokenizer counts
+bench/gen_synthetic.py    generator for the seeded synthetic corpus files
+bench/collect.py          turn run files into held-out cases (never shows pare's output)
+bench/harvest.py          harvest held-out candidates from Claude Code transcripts (scrubbed, staged for review)
+bench/swebench_cases.py   held-out cases from SWE-bench tasks, labelled by their failing tests (needs Docker)
+bench/defects4j_cases.py  held-out Java cases from Defects4J bugs, labelled by their trigger tests (needs Docker)
+bench/parity.py           compare two pare implementations byte for byte (the Rust version against reference/pare.py)
+bench/gen_fixtures.py     write tests/data/ from the reference
+bench/gen_pyunicode.py    write src/pyunicode.rs, Python's character classes
+integrations/             agent instructions and a Claude Code hook (integrations/README.md)
+corpus/                   dev corpus: *.log, *.keep, *.cmd
+corpus-generated/         real tool output from small projects in its src/ (a second dev corpus)
+corpus-dev/defects4j/     Defects4J development sample (seed 1)
+corpus-heldout/           protocol and held-out cases: SWE-bench, Defects4J (results in its README)
+docs/USAGE.md             command mode, follow mode, run files and tokens in detail
+docs/DESIGN.md            design notes, full results, the miss-by-miss history
+docs/ARCHITECTURE.md      the Rust code: crate layout, data flow, memory model, Python-to-Rust map
+docs/RUST.md              Rust for C++ developers, through pare's code
+.github/workflows/        CI (Rust checks, Python tests, parity, packaging) and the release
+ROADMAP.md                what comes next, in order, and who can do it
+RELEASING.md              how to make a release, and the one-time setup of the channels
+CHANGELOG.md              what changed in each release
+```
