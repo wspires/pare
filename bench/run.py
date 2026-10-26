@@ -18,7 +18,7 @@ Usage
     python bench/run.py [--budget 2000] [--corpus corpus] [--tools pare,sqz,tidyout] [--json out.json]
     python bench/run.py --tools pare --pare-bin target/release/pare --budget auto   # the Rust binary
 
-Tokens are approximated as ceil(bytes / 2.8) everywhere (--chars-per-token),
+Tokens are approximated as ceil(bytes / 2.8) everywhere (--bytes-per-token),
 matching pare's own budget accounting. Tools that are not installed are reported as "n/a".
 """
 
@@ -42,7 +42,7 @@ import collect  # noqa: E402  (keep-line matching)
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-CHARS_PER_TOKEN = 2.8  # set from --chars-per-token
+CHARS_PER_TOKEN = 2.8  # set from --bytes-per-token
 
 
 def tokens(data: bytes) -> int:
@@ -104,6 +104,7 @@ class Pare(Tool):
             p = subprocess.run(
                 # --no-tee: the run-file path is part of pare's output, and temp
                 # paths differ in length between machines (macOS /var/folders/...).
+                # --chars-per-token: the reference's name for the flag; the Rust version takes it as an alias
                 pare_cmd() + ["--budget", str(budget), "--no-tee", "--chars-per-token", str(CHARS_PER_TOKEN)] + self.extra_args,
                 stdin=f, capture_output=True,
             )
@@ -255,7 +256,7 @@ def main() -> int:
     ap.add_argument("--strict", action="store_true",
                     help="match keep lines against the literal output, without expanding pare's compact lists")
     ap.add_argument("--pare-args", default="", help='extra flags for pare, e.g. "--max-templates 8"')
-    ap.add_argument("--chars-per-token", type=float, default=2.8,
+    ap.add_argument("--bytes-per-token", "--chars-per-token", dest="chars_per_token", type=float, metavar="N", default=2.8,
                     help="bytes per token for every tool's count and pare's budget (default 2.8, pare's default)")
     args = ap.parse_args()
     global CHARS_PER_TOKEN

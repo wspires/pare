@@ -51,7 +51,7 @@ CASES = [
     ["--budget", "1000"],
     ["--budget", "600"],
     ["--budget", "300", "--width", "80"],
-    ["--budget", "600", "--chars-per-token", "4"],
+    ["--budget", "600", "--chars-per-token", "4"],  # the reference's name; the Rust version's alias
     ["--budget", "1000", "--max-templates", "5"],
     ["--budget", "1000", "--head", "2", "--tail", "3"],
     ["--budget", "1000", "--vocab", os.path.join(ROOT, "reference", "vocab.example")],

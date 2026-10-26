@@ -4,12 +4,12 @@
 For every corpus/<name>.log, counts the raw file and pare's output at each
 budget with tiktoken's cl100k_base and o200k_base (and any Hugging Face
 tokenizer JSON given with --hf), and prints bytes per token for each, next to the bytes/4 rule of thumb.
-The pare runs use --chars-per-token 4 so the proxy error is visible; with
---chars-per-token it also runs pare calibrated to that value (pare's
+The pare runs use --bytes-per-token 4 so the proxy error is visible; with
+--bytes-per-token it also runs pare calibrated to that value (pare's
 default is 2.8) and reports the real token count and recall per case.
 
 Usage
-    python bench/tokens.py [--budgets 600,2000] [--chars-per-token 2.8] [--hf tokenizer.json] [--anthropic MODEL]
+    python bench/tokens.py [--budgets 600,2000] [--bytes-per-token 2.8] [--hf tokenizer.json] [--anthropic MODEL]
 
 Needs `pip install tiktoken` (and `tokenizers` for --hf). tiktoken fetches
 its vocabularies on first use; behind a proxy, point TIKTOKEN_CACHE_DIR at
@@ -65,6 +65,7 @@ def counts(encs: dict, data: bytes) -> dict:
 
 def pare(log_path: str, budget: int, cpt: float) -> bytes:
     with open(log_path, "rb") as f:
+        # --chars-per-token: the reference's name for the flag; the Rust version takes it as an alias
         return subprocess.run(pare_cmd() + ["--budget", str(budget), "--no-tee", "--chars-per-token", str(cpt)],
                               stdin=f, capture_output=True, check=True).stdout
 
@@ -86,7 +87,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--corpus", default=os.path.join(ROOT, "corpus"))
     ap.add_argument("--budgets", default="600,2000")
-    ap.add_argument("--chars-per-token", type=float, help="also run pare calibrated to this value")
+    ap.add_argument("--bytes-per-token", "--chars-per-token", dest="chars_per_token", type=float, metavar="N",
+                    help="also run pare calibrated to this value")
     ap.add_argument("--hf", help="a Hugging Face tokenizer.json to count with as well")
     ap.add_argument("--anthropic", metavar="MODEL",
                     help="also count with Anthropic's count_tokens API for this model (e.g. claude-opus-5-5); "
@@ -99,13 +101,13 @@ def main() -> int:
 
     table("raw corpus", encs, [(name(p), open(p, "rb").read()) for p in logs])
     for b in budgets:
-        table(f"pare --budget {b} --chars-per-token 4", encs, [(name(p), pare(p, b, 4.0)) for p in logs])
+        table(f"pare --budget {b} --bytes-per-token 4", encs, [(name(p), pare(p, b, 4.0)) for p in logs])
 
     if args.chars_per_token:
         cpt = args.chars_per_token
         first = next(iter(encs))
         for b in budgets:
-            print(f"\n== pare --budget {b} --chars-per-token {cpt:g}: {first} tokens and recall")
+            print(f"\n== pare --budget {b} --bytes-per-token {cpt:g}: {first} tokens and recall")
             tot = hit = total_keep = 0
             worst = 1.0
             for p in logs:
