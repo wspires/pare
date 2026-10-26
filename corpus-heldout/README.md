@@ -285,7 +285,7 @@ The misses, read after scoring (no code changed on them):
 
 **Spent since.** pytest-8399 led to the tail window's verdict rule (an
 error line of a common shape stays when it is the only one of its shape
-near the end; `docs/DESIGN.md`, "The verdict that repeats a shape"). With
+near the end; `docs/HISTORY.md`, "The verdict that repeats a shape"). With
 it this sample scores 93.3 / 100 / 100 % at 600 / 1,000 / 2,000 and 100 %
 with `auto`; that is a training score now.
 
@@ -466,7 +466,7 @@ What is still missed (from the miss list only; no code changed on it):
 
 **Spent since.** Gson-7 led to two changes (a template seen twice lists
 both lines; a line is not clipped when the marker saves nothing;
-`docs/DESIGN.md`, "Messages that differ in one word") and to the `#`
+`docs/HISTORY.md`, "Messages that differ in one word") and to the `#`
 label form above (which also credits Gson-4's missing test). With the new
 labels, measured on this sample: 91.3 / 93.5 / 100 % before the changes,
 **93.5 / 97.8 / 100 %** after; Gson-7 at 1,000 goes 4 → 6 of 6. That is

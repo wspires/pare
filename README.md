@@ -244,8 +244,8 @@ and the frame nearest it; pino's and bunyan's numeric levels
 6. **End** with a ledger of what was omitted and the run-file path.
 
 Every scoring term survived an ablation; nine that did not were removed.
-The details, the per-case tables and the miss-by-miss history are in
-[docs/DESIGN.md](docs/DESIGN.md).
+The details are in [docs/DESIGN.md](docs/DESIGN.md); the experiments
+behind each rule, in order, in [docs/HISTORY.md](docs/HISTORY.md).
 
 ## Results
 

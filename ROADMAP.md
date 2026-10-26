@@ -67,7 +67,7 @@ The gate for everything after it.
   quarters, so a one-off POM warning no longer outranks two tests failing
   the same way. Seed 4 92 → 100 % at 600; seed 3 82 → 88 %; seed 2 80 →
   91 %; seed 0 84 → 90 %; android-logcat +1 line; no case worse. Seed 4
-  is spent. Details: `docs/DESIGN.md`, "JUnit 3 assertion messages".
+  is spent. Details: `docs/HISTORY.md`, "JUnit 3 assertion messages".
   *Done.*
 - [x] **Fifth fresh sample.** Defects4J seed 5 (17 bugs,
   `corpus-heldout/defects4j-5/`), drawn with every earlier set excluded
@@ -113,7 +113,7 @@ The gate for everything after it.
   routine errors recur to the end); keeping an error line that is the
   only one of its template near the end gains pytest-8399 at every budget
   and loses one line (ci-pipeline at 1,000, a budget edge). Shipped the
-  second (`docs/DESIGN.md`, "The verdict that repeats a shape"). SWE-bench
+  second (`docs/HISTORY.md`, "The verdict that repeats a shape"). SWE-bench
   seed 4 is spent; the next fresh samples are its test. *Done.*
 - [x] **Seventh fresh Defects4J sample.** Seed 7, 16 bugs
   (`corpus-heldout/defects4j-7/`), drawn after the verdict rule and
@@ -206,7 +206,7 @@ held-out evidence asks for it.
   600-token budget on Maven runs. SWE-bench 60 → 82.5 % at 2,000;
   Defects4J 29 → 48 % at 600; a separate Defects4J dev sample 43 → 68 %
   at 600; dev corpus 79.5 → 78 % at 600 (one pytest line), unchanged at
-  2,000. Details in `docs/DESIGN.md`, "First change from held-out
+  2,000. Details in `docs/HISTORY.md`, "First change from held-out
   evidence". *Done.*
 - [x] **List many failing tests compactly.** A list of failures is one
   header with the shared prefix (`FAILED test_requests.py::RequestsTestCase::{…}`)
@@ -245,7 +245,7 @@ held-out evidence asks for it.
   longer dropped as a restatement of its class summary; JUnit's
   `ComparisonFailure` counts as an error. Fresh Defects4J seed 3: 47 →
   67 % at 600, 71 → 94 % at 1,000, no case worse. Build warnings stay.
-  Details: `docs/DESIGN.md`, "Maven chatter". *Done.*
+  Details: `docs/HISTORY.md`, "Maven chatter". *Done.*
 - [x] **Keep lines with alternative forms.** A keep line may list
   equivalent forms separated by ` || `; it counts when any form appears,
   and a form must not run on into a longer name (`…Resolve1` is not shown
@@ -494,4 +494,4 @@ which changes output and so comes after the parity decision above.
 The prototype, the benchmark against sqz and tidyout, the dev and
 generated corpora, real-tokenizer calibration, the single pass with
 bounded memory, follow mode with record-preserving cuts, and the
-differential tests. History is in `docs/DESIGN.md` and the git log.
+differential tests. History is in `docs/HISTORY.md` and the git log.

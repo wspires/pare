@@ -275,7 +275,8 @@ corpus-generated/         real tool output from small projects in its src/ (a se
 corpus-dev/defects4j/     Defects4J development sample (seed 1)
 corpus-heldout/           protocol and held-out cases: SWE-bench, Defects4J (results in its README)
 docs/USAGE.md             command mode, follow mode, run files and tokens in detail
-docs/DESIGN.md            design notes, full results, the miss-by-miss history
+docs/DESIGN.md            design notes: how pare works and why, each rule with its evidence in brief
+docs/HISTORY.md           the experiments behind the rules, in order, with the numbers of the time
 docs/ARCHITECTURE.md      the Rust code: crate layout, data flow, memory model, Python-to-Rust map
 docs/RUST.md              Rust for C++ developers, through pare's code
 .github/workflows/        CI (Rust checks, Python tests, parity, packaging) and the release
