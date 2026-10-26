@@ -114,17 +114,17 @@ counted as spent once a change was measured on it.
 
 | done | what | record |
 |---|---|---|
-| SWE-bench cases | `bench/swebench_cases.py`: failing test runs reproduced from SWE-bench tasks, labelled by FAIL_TO_PASS. Seed 0: 60 % at 2,000, which found the failing-test collapse | `corpus-heldout/README.md`, "SWE-bench cases" and "First samples: found the problem, now dev data" |
+| SWE-bench cases | `bench/swebench_cases.py`: failing test runs reproduced from SWE-bench tasks, labelled by FAIL_TO_PASS. Seed 0: 60 % at 2,000, which found the failing-test collapse | `corpus-heldout/README.md`, "SWE-bench cases" and "SWE-bench seed 0 and Defects4J seed 0" |
 | Defects4J cases | `bench/defects4j_cases.py`: Java test runs rebuilt from Defects4J bugs in a JDK 8 container, labelled by trigger tests and exceptions. Seed 0: 29 % at 600. Maven projects only | same, "Defects4J cases" |
-| SWE-bench seed 1, Defects4J seed 2 | the failing-test fix holds on unseen data: 63 → 89 % and 30 → 51 % | same, "Fresh samples: the honest measurement" |
-| SWE-bench seed 2, Defects4J seed 3 | 86 / 91 / 100 % and 67 / 94 / 98 % at 600 / 1,000 / 2,000 | same, "Third fresh samples" |
-| Defects4J seed 4 | 92 / 100 / 100 %; its misses led to the JUnit 3 rules | same, "Fourth fresh sample: Defects4J seed 4" |
-| Defects4J seed 5 | 87 / 91 / 100 %; the JUnit 3 rules hold (80 → 87 % at 600); its misses led to the pair and clip rules | same, "Fifth fresh Defects4J sample: seed 5" |
+| SWE-bench seed 1, Defects4J seed 2 | the failing-test fix holds on unseen data: 63 → 89 % and 30 → 51 % | same, "SWE-bench seed 1 and Defects4J seed 2" |
+| SWE-bench seed 2, Defects4J seed 3 | 86 / 91 / 100 % and 67 / 94 / 98 % at 600 / 1,000 / 2,000 | same, "SWE-bench seed 2 and Defects4J seed 3" |
+| Defects4J seed 4 | 92 / 100 / 100 %; its misses led to the JUnit 3 rules | same, "Defects4J seed 4" |
+| Defects4J seed 5 | 87 / 91 / 100 %; the JUnit 3 rules hold (80 → 87 % at 600); its misses led to the pair and clip rules | same, "Defects4J seed 5" |
 | SWE-bench seed 3 | 94 / 100 / 100 %; none of the Java-motivated changes cost pytest a line | same, "SWE-bench seed 3" |
-| Defects4J seed 6 | 92.5 / 100 / 100 %, and 100 % with `auto` at 71 % of the tokens of 2,000; the pair rule earns one line | same, "Sixth fresh Defects4J sample: seed 6" |
+| Defects4J seed 6 | 92.5 / 100 / 100 %, and 100 % with `auto` at 71 % of the tokens of 2,000; the pair rule earns one line | same, "Defects4J seed 6" |
 | SWE-bench seed 4 | 90 / 97 / 97 %; its miss (pytest-8399) led to the tail verdict rule | same, "SWE-bench seed 4" |
-| Defects4J seed 7 | 92 / 100 / 100 %, and 100 % with `auto` at 69 %; the verdict rule changes nothing on Java | same, "Seventh fresh Defects4J sample: seed 7" |
-| SWE-bench seed 5 | 67 / 70 / 100 %, and 100 % with `auto`; every miss is pytest-7205's inner runs | same, "Latest fresh SWE-bench sample: seed 5" |
+| Defects4J seed 7 | 92 / 100 / 100 %, and 100 % with `auto` at 69 %; the verdict rule changes nothing on Java | same, "Defects4J seed 7" |
+| SWE-bench seed 5 | 67 / 70 / 100 %, and 100 % with `auto`; every miss is pytest-7205's inner runs | same, "SWE-bench seed 5" |
 
 ### Stage 2: make collection a side effect of use
 

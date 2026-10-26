@@ -15,10 +15,8 @@ node_modules/
 terraform.tfstate*
 # harvested candidates awaiting review; may hold unreviewed personal data
 corpus-heldout/inbox/
-# full eval logs of SWE-bench tasks that did not produce a case (debugging only)
-corpus-heldout/swebench/_failed/
-# full build logs of Defects4J bugs that did not produce a case (debugging only)
-corpus-heldout/defects4j/_failed/
+# full logs of SWE-bench tasks and Defects4J bugs that did not produce a case (debugging only)
+corpus-heldout/*/_failed/
 
 # Rust build output
 /target/
