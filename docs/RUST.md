@@ -3,24 +3,38 @@
 A guide to the Rust in this repository for a reader who knows C++. It
 skips what carries over (memory layout, RAII, templates, why allocation
 matters) and covers what Rust does differently, each time pointing at
-where pare does it and why. It grows with the port: each stage adds the
-concepts its code introduces.
+where pare does it and why. It grows with the code: a change that makes
+a Rust-specific choice adds a note, and the note gets a home here.
 
-In the code, comments marked `// Rust note:` sit where a Rust-specific
-choice is made. `grep -rn "Rust note" src tests` lists them; read in the
-order of the sections below, they make a short tour.
+In the code, comments marked `// Rust note:` sit where such a choice is
+made. `grep -rn "Rust note" src tests` lists them; read in the order of
+the sections below, they make a short tour, and the last section lists
+the ones too small for a section of their own.
 
-Contents: [Tooling](#tooling) · [Crates and modules](#crates-and-modules)
-· [Ownership and moves](#ownership-and-moves) · [Drop](#drop-raii-without-surprises)
-· [Borrowing](#borrowing-one-writer-or-many-readers) · [Slices and lifetimes](#slices-and-lifetimes)
-· [Strings](#strings-bytes-and-utf-8) · [Cow](#cow-borrow-when-you-can-own-when-you-must)
-· [Errors](#errors-are-values) · [Enums and match](#enums-and-match)
-· [Generics and traits](#generics-and-traits) · [Closures](#closures)
-· [Iterators](#iterators) · [Collections and indices](#collections-and-indices)
-· [Numbers](#numbers-no-implicit-conversions) · [Statics](#statics-and-initialisation)
-· [Macros](#macros) · [Regular expressions](#regular-expressions-two-engines)
-· [Generated code](#generated-code) · [I/O details](#io-details) · [Tests](#tests)
-· [Performance](#performance-notes)
+Contents: [Tooling](#tooling) ·
+[Packaging: one crate, three registries](#packaging-one-crate-three-registries) ·
+[Crates and modules](#crates-and-modules) ·
+[Ownership and moves](#ownership-and-moves) ·
+[Drop: RAII without surprises](#drop-raii-without-surprises) ·
+[Borrowing: one writer or many readers](#borrowing-one-writer-or-many-readers) ·
+[Slices and lifetimes](#slices-and-lifetimes) ·
+[Strings, bytes and UTF-8](#strings-bytes-and-utf-8) ·
+[Cow: borrow when you can, own when you must](#cow-borrow-when-you-can-own-when-you-must) ·
+[Errors are values](#errors-are-values) ·
+[Enums and match](#enums-and-match) ·
+[Generics and traits](#generics-and-traits) ·
+[Closures](#closures) ·
+[Iterators](#iterators) ·
+[Collections and indices](#collections-and-indices) ·
+[Numbers: no implicit conversions](#numbers-no-implicit-conversions) ·
+[Statics, atomics and `cfg`](#statics-atomics-and-cfg) ·
+[Macros](#macros) ·
+[Regular expressions: two engines](#regular-expressions-two-engines) ·
+[Generated code](#generated-code) ·
+[Platform: threads, signals, pipes and I/O](#platform-threads-signals-pipes-and-io) ·
+[Tests](#tests) ·
+[Performance notes](#performance-notes) ·
+[Smaller notes](#smaller-notes)
 
 ## Tooling
 
@@ -46,6 +60,29 @@ C++ disappears: with no C dependencies, `cargo build --release --target
 x86_64-unknown-linux-musl` gives a statically linked binary with no extra
 packages installed. `.github/workflows/release.yml` builds Linux, macOS
 and Windows binaries that way.
+
+## Packaging: one crate, three registries
+
+A *package* (what `Cargo.toml` describes and crates.io hosts) can hold a
+library and binaries, each with its own name. pare's package is
+`pare-cli`, because `pare` was taken on crates.io, while `[lib] name =
+"pare"` and `[[bin]] name = "pare"` keep `use pare::...` in the code and
+`pare` as the command. In C++ terms: the package is the distribution
+tarball, the library and binary are its build targets.
+
+- `include` in `Cargo.toml` lists what `cargo publish` uploads: the source
+  and licenses, not the corpora. `cargo package` builds the crate from
+  exactly those files, which CI runs, so a missing file shows up before a
+  release.
+- `Cargo.lock` is published and every release build uses `--locked`: the
+  dependency versions are the ones CI tested, as a pinned lockfile in any
+  ecosystem.
+- `[package.metadata.binstall]` is ignored by Cargo itself and read by
+  `cargo binstall`, which then downloads the release archive instead of
+  compiling: the `package.metadata` table is the place for tools' settings.
+- maturin (`pyproject.toml`, `bindings = "bin"`) puts the same binary in a
+  Python wheel, so `pipx install pare-cli` needs no Rust toolchain; the
+  wheel's version comes from `Cargo.toml`, the one source of truth.
 
 ## Crates and modules
 
@@ -110,11 +147,16 @@ value meanwhile). At any moment a value has any number of `&T` or exactly
 one `&mut T`, never both. This one rule is what makes iterator
 invalidation, aliasing bugs and data races compile errors.
 
-Where: in `Pass::feed` (`src/pass.rs`), `self.seg.add_line(&self.rest)`
-borrows two *different fields* of `self`, one mutably and one not. That
-is allowed, because the compiler can see they do not overlap. A
-`&mut self` method on `Pass` taking `&self.rest` would need all of
-`self` exclusively while part of it is borrowed, and would not compile.
+Where: in `Pass::feed` (`src/pass.rs`), `take_line(&mut self.seg,
+&self.rest, ..)` borrows two *different fields* of `self`, one mutably
+and one not. That is allowed, because the compiler can see they do not
+overlap. A `&mut self` method on `Pass` taking `&self.rest` would need
+all of `self` exclusively while part of it is borrowed, and would not
+compile; that is why `take_line` is a free function taking the fields.
+In `Summarizer::text` (`src/summary.rs`) the same rule shows the other
+way round: `b1` is read into a local first, because the call that
+follows borrows `self.file` mutably and a `&self` method in its
+arguments would borrow all of `self` too.
 `Drain::add_to_tree` (`src/drain.rs`) borrows the tree mutably and a
 cluster's tokens immutably at once for the same reason: different fields.
 
@@ -140,6 +182,17 @@ Where:
 
 Most of the time lifetimes are inferred and never written; they appear
 in signatures only when a function returns a borrow.
+
+### Lifetimes in a struct
+
+`pass::Segmenter<'v>` holds `vocab: &'v Vocab`: a reference to a
+vocabulary it does not own. The lifetime parameter `'v` is how the type
+says so, and the compiler checks that no segmenter outlives its
+vocabulary; in C++ it would be a `const Vocab&` member with the same rule
+left to the programmer. `vocab::Line<'v, 't>` has two: it borrows the
+vocabulary and the line's text. Python reads a global `VOCAB` that
+`--vocab` reassigns; passing the vocabulary in instead makes the
+dependency visible and lets tests build their own.
 
 ## Strings, bytes and UTF-8
 
@@ -220,7 +273,19 @@ that needs to handle it.
 Where: `Error` and its `match`es in `exit_status` and `Display`;
 `ignore_broken_pipe` in `src/cli.rs` matches one variant with a
 condition (`Error::Io { source, .. } if source.kind() == BrokenPipe`).
-`Option` and `Result` are ordinary enums.
+`Option` and `Result` are ordinary enums. A C-like enum with
+`#[repr(usize)]` (`vocab::Class`) has the values 0, 1, 2, ... so `class as
+usize` indexes per-class arrays, as a C++ enum used as an index; unlike
+C++, an integer never converts back to the enum implicitly. An enum can
+also be local to a function (`vocab::parse_vocab`'s `Header`).
+
+### Ordering `Option`
+
+`Option<T>` is ordered with `None` below every `Some`, so where Python
+writes `-1` for "no severity" and compares integers, Rust compares
+`Option<u8>` directly: `sev > tpl.best_sev`, and
+`detect_level(t).max(http_severity(t))` is Python's `max` over the
+signals that are present. The type keeps "none" distinct from 0 (debug).
 
 ## Generics and traits
 
@@ -233,15 +298,18 @@ code is *monomorphised* (one copy per type, direct calls), as templates
 are; `dyn Trait` is the explicit opt-in to a vtable.
 
 Where:
-- `Pass<W: Write>` writes the spool to a `File` in pare and to a
-  `Vec<u8>` in the tests, with no virtual calls.
+- `Pass<'v, W: Write>` writes the spool to a `File` in pare and to a
+  `Vec<u8>` in the tests, with no virtual calls (the `'v` is the
+  vocabulary's lifetime: "Lifetimes in a struct" above).
 - `Error::io(context: impl Into<String>, ...)` accepts `&str` or
   `String`; `impl Trait` in argument position is a generic parameter
   without a name.
 - `Store::for_each_raw<F: FnMut(&[u8]) -> io::Result<()>>` takes a
   closure (next section).
 - `#[derive(Debug, Clone, Copy, PartialEq)]` implements standard traits
-  for a type automatically.
+  for a type automatically. Implementing `Index` by hand
+  (`vocab::Entries`) makes `entries[c]` work, like overloading
+  `operator[]`; `IndexMut` is the non-const overload.
 
 ## Closures
 
@@ -272,15 +340,18 @@ the loop you would have written, usually without bounds checks.
 Where:
 - `py_split` returns `impl Iterator<Item = &str>`: some iterator type,
   unnamed, producing slices of the input on demand. `drain_message` takes
-  the first 40 with `.take(40)` and joins them; nothing else is built.
+  the first 40 with `.take(DRAIN_MAX_TOKENS)` and joins them; nothing
+  else is built. `select::select` chains record ranges with `flat_map`
+  into one lazy sequence of line numbers, Python's generator.
 - Drain's loops use `(1..).zip(tokens)` for a counter starting at 1
   instead of a `depth += 1` at the bottom (clippy's
   `explicit_counter_loop`), and `cluster.tokens.iter_mut().zip(&tokens)`
   to update a template in place.
 - `std::array::from_fn(|g| ...)` builds a fixed-size array from a closure
   (the logcat header's eight capture groups).
-- `chars().peekable()` gives one character of look-ahead (`py_pattern`,
-  `rules`).
+- `chars().peekable()` gives one character of look-ahead (`mask::rules`,
+  `vocab::py_splitlines`); `pyclass::try_py_pattern` walks a `Vec<char>`
+  by index instead, because it looks several characters ahead.
 
 ## Collections and indices
 
@@ -306,6 +377,11 @@ patterns from the port:
   handle `None`. It costs 8 bytes a line instead of 4. A `u32` with a
   sentinel, or `Option<NonZeroU32>` (which is 4 bytes, since 0 can mean
   `None`), would halve that if memory mattered.
+
+`Rc<str>` is a shared, reference-counted string (`shared_ptr<const
+string>` without atomics): the line cache hands out clones of a line's
+text, an increment rather than a copy, so a caller keeps the text while
+the cache changes.
 
 ## Numbers: no implicit conversions
 
@@ -333,16 +409,62 @@ happens to make the two agree, but the faithful translation keeps it
 right if the clamp ever changes. `%` likewise follows the dividend's sign,
 like C++; `rem_euclid` is Python's `%`.
 
-## Statics and initialisation
+### Floating point: the same bits
+
+Scores are `f64` in both languages, and the dump compares them to six
+decimals, so they must be computed identically, not just closely:
+
+- **Same operations, same order.** IEEE 754 arithmetic is deterministic,
+  but `a + b + c` and `a + (b + c)` can differ in the last bit. The port
+  copies Python's expressions term for term (`vocab_score`,
+  `score_templates`), and a golden file holds Python's scores as `repr()`
+  strings, which read back to the exact same `f64`; the test compares
+  `to_bits()`.
+- **`max` is not `max`.** Python's `max(0.0, x)` returns `0.0` unless `x`
+  is greater, so `max(0.0, -0.0)` is `0.0`; Rust's `f64::max` may return
+  either zero. `score::py_max0` spells out Python's rule.
+- **Library functions.** `log2` comes from the platform's C library in
+  both languages, so on one machine they agree. A static musl build uses
+  musl's `log2`, which could differ from glibc's in the last bit for some
+  counts; parity runs on glibc.
+- **Formatting.** Rust's `{:.6}` and Python's `%.6f` both round the exact
+  binary value half to even and both print `-0.000000`, so the text
+  matches too. `{:e}` prints the shortest digits that round-trip, the
+  same digits Python's `repr` uses; `pyjson::py_float_repr` rebuilds
+  Python's layout around them for the `.json` records.
+
+### Ordering floats for a heap
+
+`BinaryHeap` (a max-heap, like `std::priority_queue`) needs `Ord`, a
+total order, and `f64` has only `PartialOrd`, because NaN compares with
+nothing. The summary's queue item (`summary::Item`) implements `Ord` by
+hand: the priority with `partial_cmp`, then the kind and id, as Python
+compares its `(-priority, kind, id)` tuples, and `Reverse` turns the
+max-heap into Python's min-heap. `f64::total_cmp` would be the usual
+choice for a total order, but it puts `-0.0` before `0.0`, where Python
+(and `partial_cmp`) treat them as equal.
+
+## Statics, atomics and `cfg`
 
 Rust runs no code before `main`: a `static` must be a constant, or be
 built lazily. `LazyLock<T>` builds its value on first use, once, safely
 from any thread, like a function-local static in C++, and there is no
-static initialisation order problem. Atomics (`AtomicU32`) behave as
-`std::atomic`.
+static initialisation order problem. `OnceLock<T>` is the same for a
+member (`PyRegex` compiles its backtracking half on first use, behind
+`&self`, since `OnceLock` provides the interior mutability). Atomics
+behave as `std::atomic`.
 
-Where: `ANSI_RE` in `src/text.rs` is a `LazyLock<Regex>`, compiled once;
-`Spool::temporary` numbers temporary files with an `AtomicU32`.
+Where: `ANSI_RE` in `src/text.rs` and the masks in `src/mask.rs` are
+`LazyLock`s, compiled once; `Spool::temporary` numbers temporary files
+with an `AtomicU32`; `text::set_ascii` records `--ascii` in an
+`AtomicBool` read by `text::glyphs()` from every site that writes an
+output mark (`Relaxed` ordering: nothing else is ordered by it).
+
+`#[cfg(unix)]` on a whole function picks one definition per platform at
+compile time, like `#ifdef`, but each version is still parsed and must be
+valid Rust: `command::killed_status` has a Unix and a Windows body.
+`Cargo.toml` does the same for dependencies (`[target.'cfg(unix)'.dependencies]`
+for `signal-hook` and `nix`).
 
 ## Macros
 
@@ -355,10 +477,17 @@ they cannot capture names by accident or break operator precedence.
   (`py_isspace`).
 - `env!("CARGO_PKG_VERSION")` reads a variable at compile time
   (`pare::VERSION`).
-- `#[derive(Parser)]` (in `src/cli.rs`) is a *procedural macro*: Rust code
-  that runs during compilation, reads the `Args` struct and generates the
-  argument parser, with the doc comments as help text. The generated code
-  is ordinary type-checked Rust.
+- `concat!` joins string literals at compile time (`mask::SPECS`), so a
+  long pattern can be split over lines and still be a `&'static str`;
+  raw strings (`r"..."`) take backslashes literally, as Python's do.
+- `#[derive(Parser)]` and `#[derive(Subcommand)]` (in `src/cli.rs`) are
+  *procedural macros*: Rust code that runs during compilation, reads the
+  `Args` struct and the `Cmd` enum and generates the argument parser,
+  with the doc comments as help text, `help_heading` attributes as the
+  groups and `after_long_help` as the trailing text. The generated code
+  is ordinary type-checked Rust. `value_parser = parse_budget` names a
+  function from a flag's text to its type; clap reports its `Err` as an
+  invalid value.
 
 ## Regular expressions: two engines
 
@@ -401,69 +530,30 @@ Two smaller points:
 - Compiling a regex is expensive, so each one is compiled once, in a
   `LazyLock` static.
 - Replacement: `fancy-regex` and `regex` expand `$name` in a replacement
-  string; `NoExpand(&s)` or a closure avoids surprises. `replace_all`
-  returns a `Cow`: borrowed when nothing matched.
+  string, so pare replaces through closures (`|_| Cow::Borrowed(" ")`)
+  or a literal with no `$`. `replace_all` returns a `Cow`: borrowed when
+  nothing matched.
 
-## Ordering floats for a heap
+## Generated code
 
-`BinaryHeap` (a max-heap, like `std::priority_queue`) needs `Ord`, a
-total order, and `f64` has only `PartialOrd`, because NaN compares with
-nothing. The summary's queue item (`summary::Item`) implements `Ord` by
-hand: the priority with `partial_cmp`, then the kind and id, as Python
-compares its `(-priority, kind, id)` tuples, and `Reverse` turns the
-max-heap into Python's min-heap. `f64::total_cmp` would be the usual
-choice for a total order, but it puts `-0.0` before `0.0`, where Python
-(and `partial_cmp`) treat them as equal.
+`src/pyunicode.rs` is generated by `bench/gen_pyunicode.py` from Python
+and checked in, like a generated header. It holds Python's character
+classes as `const` arrays of `(u32, u32)` ranges, baked into the binary,
+with no allocation or start-up cost. `pyclass::in_table` looks a
+character up with `binary_search_by`. CI regenerates the file and fails
+if it differs, so it cannot drift from the Python version it describes.
+`#[rustfmt::skip]` keeps `cargo fmt` from reflowing the tables.
 
-`Rc<str>` is a shared, reference-counted string (`shared_ptr<const
-string>` without atomics): the line cache hands out clones of a line's
-text, an increment rather than a copy, so a caller keeps the text while
-the cache changes.
+The alternative, a `build.rs` build script that generates code at
+compile time, would make every build depend on Python; a checked-in file
+does not. Another option is a crate that ships Unicode tables (as
+`regex-syntax` does internally), but none ships *Python's* definitions,
+which are the point here.
 
-## Floating point: the same bits
+## Platform: threads, signals, pipes and I/O
 
-Scores are `f64` in both languages, and the dump compares them to six
-decimals, so they must be computed identically, not just closely:
-
-- **Same operations, same order.** IEEE 754 arithmetic is deterministic,
-  but `a + b + c` and `a + (b + c)` can differ in the last bit. The port
-  copies Python's expressions term for term (`vocab_score`,
-  `score_templates`), and a golden file holds Python's scores as `repr()`
-  strings, which read back to the exact same `f64`; the test compares
-  `to_bits()`.
-- **`max` is not `max`.** Python's `max(0.0, x)` returns `0.0` unless `x`
-  is greater, so `max(0.0, -0.0)` is `0.0`; Rust's `f64::max` may return
-  either zero. `score::py_max0` spells out Python's rule.
-- **Library functions.** `log2` comes from the platform's C library in
-  both languages, so on one machine they agree. A static musl build uses
-  musl's `log2`, which could differ from glibc's in the last bit for some
-  counts; parity runs on glibc.
-- **Formatting.** Rust's `{:.6}` and Python's `%.6f` both round the exact
-  binary value half to even and both print `-0.000000`, so the text
-  matches too.
-
-## Lifetimes in a struct
-
-`pass::Segmenter<'v>` holds `vocab: &'v Vocab`: a reference to a
-vocabulary it does not own. The lifetime parameter `'v` is how the type
-says so, and the compiler checks that no segmenter outlives its
-vocabulary; in C++ it would be a `const Vocab&` member with the same rule
-left to the programmer. `vocab::Line<'v, 't>` has two: it borrows the
-vocabulary and the line's text. Python reads a global `VOCAB` that
-`--vocab` reassigns; passing the vocabulary in instead makes the
-dependency visible and lets tests build their own.
-
-## Ordering `Option`
-
-`Option<T>` is ordered with `None` below every `Some`, so where Python
-writes `-1` for "no severity" and compares integers, Rust compares
-`Option<u8>` directly: `sev > tpl.best_sev`, and
-`detect_level(t).max(http_severity(t))` is Python's `max` over the
-signals that are present. The type keeps "none" distinct from 0 (debug).
-
-## Threads and channels instead of `select()`
-
-Python's follow and command modes wait on a file descriptor with
+**Threads and channels instead of `select()`.** Python's follow and
+command modes wait on a file descriptor with
 `select()` and a timeout, so they can flush on time or notice that the
 command exited while the stream is quiet. Rust's std has no `select()`
 on pipes. The idiomatic replacement (`command::read_in_background`): a
@@ -482,55 +572,25 @@ pointer, called through a vtable, like a `std::function&`. A flush that
 fails inside the callback cannot return the error through the pass, so it
 records it, and the caller checks after the pass returns.
 
-## Signals without `unsafe`
+**Signals without `unsafe`.** A signal handler may only do
+async-signal-safe things, and installing one is `unsafe` in Rust (it is
+`sigaction`). The `signal-hook` crate does the unsafe part once,
+correctly, and hands the signals to an ordinary thread as an iterator;
+there command mode passes SIGTERM and SIGHUP on to the command with
+`nix::sys::signal::kill`. Registering SIGINT and doing nothing with it is
+how it is ignored. pare keeps `#![forbid(unsafe_code)]`.
 
-A signal handler may only do async-signal-safe things, and installing one
-is `unsafe` in Rust (it is `sigaction`). The `signal-hook` crate does the
-unsafe part once, correctly, and hands the signals to an ordinary thread
-as an iterator; there command mode passes SIGTERM and SIGHUP on to the
-command with `nix::sys::signal::kill`. Registering SIGINT and doing
-nothing with it is how it is ignored. pare keeps `#![forbid(unsafe_code)]`.
+**Pipes.** `io::pipe()` (Rust 1.87, which is why `rust-version` says
+so) makes an anonymous pipe; command mode gives the command its write end
+twice, as stdout and as stderr, which merges them in the order written
+(`2>&1`). A process status is 0 to 255 on Unix, so `as u8` keeps the low
+byte, as a shell does.
 
-## Packaging: one crate, three registries
+**Dates.** std has no calendar. `runs::utc_stamp` uses Howard Hinnant's
+days-to-civil algorithm (the one behind C++20's `<chrono>` dates) rather
+than pull in a date crate for one timestamp format.
 
-A *package* (what `Cargo.toml` describes and crates.io hosts) can hold a
-library and binaries, each with its own name. pare's package is
-`pare-cli`, because `pare` was taken on crates.io, while `[lib] name =
-"pare"` and `[[bin]] name = "pare"` keep `use pare::...` in the code and
-`pare` as the command. In C++ terms: the package is the distribution
-tarball, the library and binary are its build targets.
-
-- `include` in `Cargo.toml` lists what `cargo publish` uploads: the source
-  and licenses, not the corpora. `cargo package` builds the crate from
-  exactly those files, which CI runs, so a missing file shows up before a
-  release.
-- `Cargo.lock` is published and every release build uses `--locked`: the
-  dependency versions are the ones CI tested, as a pinned lockfile in any
-  ecosystem.
-- `[package.metadata.binstall]` is ignored by Cargo itself and read by
-  `cargo binstall`, which then downloads the release archive instead of
-  compiling: the `package.metadata` table is the place for tools' settings.
-- maturin (`pyproject.toml`, `bindings = "bin"`) puts the same binary in a
-  Python wheel, so `pipx install pare-cli` needs no Rust toolchain; the
-  wheel's version comes from `Cargo.toml`, the one source of truth.
-
-## Generated code
-
-`src/pyunicode.rs` is generated by `bench/gen_pyunicode.py` from Python
-and checked in, like a generated header. It holds Python's character
-classes as `const` arrays of `(u32, u32)` ranges, baked into the binary,
-with no allocation or start-up cost. `pyclass::in_table` looks a
-character up with `binary_search_by`. CI regenerates the file and fails
-if it differs, so it cannot drift from the Python version it describes.
-`#[rustfmt::skip]` keeps `cargo fmt` from reflowing the tables.
-
-The alternative, a `build.rs` build script that generates code at
-compile time, would make every build depend on Python; a checked-in file
-does not. Another option is a crate that ships Unicode tables (as
-`regex-syntax` does internally), but none ships *Python's* definitions,
-which are the point here.
-
-## I/O details
+**I/O details.**
 
 - **Interrupted reads.** `read` can fail with `ErrorKind::Interrupted`
   when a signal arrives; that means "try again", and `pass::read_all`
@@ -553,8 +613,9 @@ which are the point here.
   the documentation cannot drift from the code (`Budget::tokens_in`,
   `clean_line`, `py_isspace`, `mask`, `Drain::add`).
 - Golden files: `tests/data/mask.tsv`, `vocab.tsv`, `vocab.txt` and
-  `vocab-example.txt` hold Python's results, and the unit tests read them with `concat!(env!("CARGO_MANIFEST_DIR"), "/tests/...")`,
-  a path fixed at compile time so the test works from any directory.
+  `vocab-example.txt` hold Python's results, and the unit tests read
+  them through `concat!(env!("CARGO_MANIFEST_DIR"), "/tests/...")`, a
+  path fixed at compile time so the test works from any directory.
 - A test that checks the tests: breaking a fast mask pattern on purpose
   makes four tests fail; that is how the superset test was checked.
 
@@ -575,14 +636,56 @@ which are the point here.
   by path, timing one function on real lines) showed the Python classes
   were not the cost, the backtracking engine was, which led to the
   two-engine design. After it, the segmentation pass over a 30 MB log
-  took 2.1 s; with severity and scoring (stage 3) it takes 5.4 s and
-  51 MB, against Python's 28.5 s and 65 MB.
+  took 2.1 s where it had taken 25 s; the whole run today, with severity,
+  scoring and the summary, is in DESIGN.md, "Performance" (4.4 s and
+  71 MB on 30 MB; the Python version took 28 s).
 - **Start-up counts too.** pare runs on every command an agent sends
   through it, mostly short ones. Python's classes make the patterns large
   (`\b` is four copies of a 12 KB class), and `fancy-regex` takes
   milliseconds to compile one; compiling them all cost 110 ms per run.
   `PyRegex` compiles its backtracking half on the first candidate
-  (`OnceLock`), and start-up went back to about 50 ms.
+  (`OnceLock`), and start-up is about 20 ms.
 - **ASCII first.** `py_isspace` and friends answer for ASCII characters
   with a `match` before falling back to a binary search in the tables;
   nearly every character in a log is ASCII.
+
+## Smaller notes
+
+The remaining `// Rust note:` comments, one line each, so the tour has
+no gaps:
+
+- `env::var_os` returns `Option<OsString>`: an unset variable is a value
+  to handle, not a null to forget (`runfile::default_run_dir`).
+- `components()` on a path drops `.` and repeated separators; `..` is
+  left to the caller, as `normpath` does by name (`cli::py_abspath`).
+- `fs::metadata` follows symlinks, as Python's `os.stat` (`runs`).
+- `sort_by` and `sort_by_key` are stable, as Python's `sorted`
+  (`runs::stats`, `summary`, `vocab`).
+- `map_or` turns an `Option` into text in one expression (`dump`).
+- `write!` into a `String` formats in place; `fmt::Write` makes a
+  `String` a formatting target, like an `ostringstream` (`pyclass`).
+- `encode_utf16` gives one unit for a character in the Basic
+  Multilingual Plane and a surrogate pair beyond it, which is what
+  Python's `\u` escapes are made of (`pyjson`).
+- `unsigned_abs` and `try_from` keep arithmetic in unsigned types with
+  no cast that could wrap (`pyjson::py_float_repr`).
+- A nested `Result` keeps two failures apart without a new error type:
+  the outer `Err` means "no output", the inner says whose fault
+  (`select::select`).
+- `&[&[&str]]` is static data in the binary: the default vocabulary
+  allocates nothing until a `Vocab` is built (`vocab::DEFAULT_VOCAB`).
+- `[Option<PyRegex>; N]` is a fixed-size array stored inline, like
+  `std::array<std::optional<T>, N>` (`vocab::Vocab`).
+- `read` returning 0 means end of input; `Interrupted` means read again
+  (`pass::read_all`).
+- `as f64` on a small integer is exact; `as` from `f64` to `i64`
+  truncates and saturates, and after a `ceil` loses nothing
+  (`pass`, `summary::tokens`).
+- A `usize::try_from` that fails only for a negative bound is how an
+  `i64` range becomes an empty slice range, as Python's `range()` with a
+  negative span is empty (`Summarizer::windowed`).
+- The spool is opened on first need with `if let ... else` and `?`, and
+  the `File` closes when it goes out of scope, not when a collector gets
+  to it (`score::score_templates`).
+- `take()` moves a child's stdin pipe out so it is closed at the end of
+  the statement and the child sees end of input (`tests/cli.rs`).
