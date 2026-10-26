@@ -179,7 +179,7 @@ written to be read: `//!` module docs naming the Python counterpart,
 | done | what | record |
 |---|---|---|
 | 0. Comparison tooling | `bench/parity.py`: outputs, exit codes and per-line dumps (`$PARE_DUMP`) byte for byte over every log and generated edge case under 14 flag sets | `CONTRIBUTING.md`, "Parity with the Python version" |
-| 1. Crate skeleton | options, input, run file, pass-through, CI, release builds | `docs/ARCHITECTURE.md`, "Status" |
+| 1. Crate skeleton | options, input, run file, pass-through, CI, release builds | `CHANGELOG.md`, 0.2.0; `docs/ARCHITECTURE.md` |
 | 2. Segmentation, masking, Drain | template ids match; Python's character classes generated from 3.13 (`src/pyunicode.rs`); a two-engine regex scan for lookaround | same |
 | 3. Vocabulary, severity, scoring | the whole dump matches, scores to the bit | same |
 | 4. Summary and allocation | batch output identical on every run | same |

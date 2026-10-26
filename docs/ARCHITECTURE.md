@@ -1,47 +1,23 @@
-# pare: architecture of the Rust port
+# pare: architecture
 
-How the Rust code is organised, how data flows through it, and how it
-maps onto the Python reference (`reference/pare.py`). What the algorithm does
-and why is in [DESIGN.md](DESIGN.md); what is Rust-specific, explained for
-a C++ reader, is in [RUST.md](RUST.md). The port's plan and its stages are
-in [ROADMAP.md](../ROADMAP.md), stage 5; setting up, building and
-testing are in [CONTRIBUTING.md](../CONTRIBUTING.md).
+How the Rust code is organised, how data flows through it, and where it
+differs from the Python prototype it began as (`reference/pare.py`), which
+is kept frozen as the reference the binary is tested against byte for
+byte. What the algorithm does and why is in [DESIGN.md](DESIGN.md); what
+is Rust-specific, explained for a C++ reader, is in [RUST.md](RUST.md);
+setting up, building and testing are in
+[CONTRIBUTING.md](../CONTRIBUTING.md). The port's stages are recorded in
+[ROADMAP.md](../ROADMAP.md), stage 5.
 
-## Status
-
-| stage | what | state |
-|---|---|---|
-| 0 | parity tooling (`bench/parity.py`, `$PARE_DUMP`) | done |
-| 1 | crate, options, input, run file, pass-through, CI, release builds | done |
-| 2 | segmentation, masking, Drain: template ids | done |
-| 3 | vocabulary, severity, scoring | done |
-| 4 | summary and allocation | done |
-| 5 | selection flags, command mode, follow mode, prune, stats | done |
-| 6 | distribution; Python moves to `reference/` | |
-
-Every mode and flag of the Python version is ported. After stage 5, on
-2,730 parity runs (195 inputs, 14 flag sets): the output of every run is
-identical to the Python version's, byte for byte, and so is its exit
-status: summaries at budgets from 300 to 2,000 tokens, with a narrow
-width, the prose token rate, a template cap, small windows and
-`--vocab reference/vocab.example`; input that fits, passed through; the
-selection flags; follow mode with 300- and 5,000-line windows. Command
-mode, `pare prune`, `pare stats` and follow mode's time-driven flushes are
-not in the parity runs (they depend on time, processes or the run
-directory); they were compared with the Python version by hand, output
-and `.json` records byte for byte, and have integration tests.
-On all 1,552 batch runs the whole dump is identical too: every line's record, depth, severity,
-blank flag, template, score, rendered size and stripped length, and every
-template's counts, best severity, marker, salience, vocabulary score,
-exemplar, levels and text. Scores match to the bit (the dump prints six
-decimals; the unit tests compare the bits). That includes the generated
-edge cases (CRLF, ANSI codes, carriage returns, invalid UTF-8, NUL bytes,
-case-folding letters such as `İNFO` and the Kelvin sign, deep
-indentation, characters on which Python's and Rust's Unicode classes
-disagree, German vocabulary). `--vocab`, `$PARE_VOCAB` and
-`pare vocab` are ported, with Python's messages; only a bad regex in a
-vocabulary file is reported in the regex engine's words rather than
-Python's.
+Every mode and flag of the Python version is here, with the same output
+under `PARE_REFERENCE_RULES=1` ("Testing" below): on 3,766 parity runs
+(269 inputs under 14 flag sets) every output and exit status is
+identical, and on the 2,144 batch runs so is every line's record, depth,
+severity, template, score and sizes, and every template's counts,
+marker, salience and text, scores to the bit. Rules added since the port
+(structured lines, the tail window's verdict rule, `auto` as the default
+budget, and the smaller changes "Output marks and the reference switch"
+lists) are what the switch turns off.
 
 ## Crate layout
 
@@ -51,14 +27,16 @@ One package with a library and a binary:
 Cargo.toml          dependencies, lints, release profile
 src/main.rs         the binary: hands the arguments to cli::run, nothing else
 src/lib.rs          the library root: module list and crate docs
-src/cli.rs          options (every Python flag), checks, dispatch, batch mode
+src/cli.rs          options and the prune/stats/vocab subcommands, checks, dispatch,
+                    batch mode
 src/error.rs        Error (Usage, Io) and exit statuses
 src/budget.rs       Budget: tokens <-> bytes, as tokens()/budget_bytes_for();
                     an automatic budget's pass-through and window sizes
 src/pass.rs         Pass: chunks in, lines out, spool and hash on the way;
                     Segmenter: lines into records, heads into templates
 src/store.rs        Store: per-line, per-record and per-template columns
-src/text.rs         clean_line, indent_of, clip: a raw line to its text
+src/text.rs         clean_line, indent_of, clip: a raw line to its text; Glyphs, the
+                    marks the output is built from (--ascii)
 src/structured.rs   JSON and logfmt lines: a clip that keeps the telling fields,
                     escaped traces as message and frame, pino's numeric levels
 src/mask.rs         the masks (<TS>, <NUM>, ...), a file's UserMasks, drain_message
@@ -89,6 +67,24 @@ tests/data/        golden files from the Python version: mask.tsv (mask() on
 The library holds everything so that each piece has unit tests next to it
 and documentation as an API (`cargo doc --open`); `main.rs` is a few
 lines.
+
+## The command line
+
+`cli::Args` is a clap derive struct; the doc comment on each field is its
+help text, `help_heading` groups the flags (Summary, Selecting from a run
+file, Run files, Follow mode, Vocabulary), and `after_long_help` adds the
+environment variables and exit statuses to `--help` but not to `-h`.
+`cli::Cmd` holds the three subcommands that do not summarise (`prune`,
+`stats`, `vocab`); `--run-dir` and `--vocab` are `global`, so they apply
+to a subcommand as well as to a summary. Two things happen before clap
+sees the arguments: `cli::run` splits them at the first `--`, so a
+command to run is never parsed as flags (as Python's `main()` did), and
+`Args::resolve_budget` reads `$PARE_BUDGET` itself rather than through
+clap's `env`, so an empty variable counts as unset and the error names
+the variable. `dispatch` then runs the checks in the Python version's
+order, sets the output marks (`text::set_ascii`) once, builds the
+vocabulary once and lends it to the pass, and hands off to a subcommand,
+follow mode or batch mode.
 
 ## Data flow (batch mode)
 
@@ -164,11 +160,11 @@ Each window is scored and summarised like a batch input, with a novelty
 bonus for templates first seen in it; a window with nothing worth showing
 is one line, or none with `--quiet`.
 
-Python waits on stdin with `select()` and a timeout so it can flush on
-time while the stream is idle. Here a thread reads the stream into a
-bounded channel (`command::read_in_background`) and the main loop waits
-on the channel with `recv_timeout`: the same effect, with no
-platform-specific polling.
+The Python version waits on stdin with `select()` and a timeout so it
+can flush on time while the stream is idle. Here a thread reads the
+stream into a bounded channel (`command::read_in_background`) and the
+main loop waits on the channel with `recv_timeout`: the same effect,
+with no platform-specific polling, and it builds on Windows.
 
 The vocabulary is built once in `cli::dispatch` (the built-in one, or
 with `--vocab` applied) and lent to the pass: `Segmenter<'v>` holds a
@@ -202,7 +198,7 @@ match:
   test checks that on corpus lines, and golden files of Python's results
   check the outcome. Masking became 14 times faster. A pattern without
   assertions runs on `regex` alone; the `fancy-regex` half is compiled on
-  its first candidate, which keeps start-up at about 50 ms.
+  its first candidate, which keeps start-up at about 20 ms.
 - **Case-insensitivity.** Python's `(?i)` equates `İ` and `ı` with `i`,
   and Rust's does not; and Rust's folds the members of a class, so
   Python's word table under `(?i)` would gain characters (U+0345, which
@@ -230,11 +226,34 @@ header) reads them in blocks and keeps none.
 The queue is Python's `heapq` of `(-priority, kind, id)` tuples: a
 `BinaryHeap` of `Reverse<Item>`, with `Item` ordered as the tuple is,
 `-0.0` and `0.0` equal. Every choice depends on exact float comparisons
-(a stale priority is detected by `!=`), which is why stage 3 made the
-scores bit-identical.
+(a stale priority is detected by `!=`), which is why the scores had to
+be bit-identical to the reference's before the summary could be.
 
-A summary costs little next to the pass: on the 30 MB log the whole run
-takes 5.8 s, the pass alone 5.4 s.
+A summary costs little next to the pass: a few hundred milliseconds of
+the 4.4 s a 30 MB log takes (DESIGN.md, "Performance").
+
+## Output marks and the reference switch
+
+The marks pare's output is built from (`→ · × – ┆ … ≤ ↳ ⏎ ‹›`) come
+from one table, `text::Glyphs`, read through `text::glyphs()` at every
+site that writes one: the header, the gap markers, the ledger, the list
+items, the clip marker, a follow block's `↳ continues`, a decoded
+trace's `‹…⏎…›`. `--ascii` switches the table (`text::set_ascii`, once,
+before any output) to `-> | x - | ... <= -> \n <>`. Producing the marks
+rather than substituting them in the finished text is what keeps two
+promises: a log line that happens to contain `→` is never rewritten, and
+the budget is measured on the bytes actually written, since every size
+the allocator sees is of a rendered string.
+
+`pass::rust_rules()` is the one switch between the reference's output and
+pare's own: true unless `PARE_REFERENCE_RULES` is set. It gates
+structured lines (`text::clip`, `vocab`'s numeric levels), the tail
+window's verdict rule (`Summarizer::windowed`), `auto` as the default
+budget (`cli::Args::budget_for_summary`), the usage exit status
+(`error::Error::exit_status`), the expand-with hint's dependence on a
+run file and the ledger's singular forms (`summary`). The parity check
+and the golden-summary test set the variable; everything else runs with
+the rules on. `grep -rn "rust_rules()" src` is the current list.
 
 ## Memory model
 
@@ -246,11 +265,97 @@ its first and last line and template (12 bytes); and the templates. A
 line's text is read back from the spool when the output needs it. Drain
 keeps its clusters' tokens and its prefix tree, which grow with the
 number of distinct shapes, not with the input. The compiled patterns and
-the `regex` crate's search caches take about 15 MB. On a 30 MB log
-(500,000 lines) the process peaks at 51 MB and takes 5.4 s (the Python
-version: 65 MB and 28.5 s); on a small log, 16 MB.
+the `regex` crate's search caches take about 15 MB, which is most of a
+small log's footprint. Measured times and peak memory, on one stated
+log, are in DESIGN.md, "Performance" (24 MB on 0.75 MB of input, 71 MB on
+30 MB; the Python version took 65 MB and 28 s on a 30 MB log of its
+own).
 
-## Module map: Python to Rust
+## Errors and exit statuses
+
+Failures are values (`error::Error`), passed up with `?` and reported in
+one place, `cli::run`, which prints `pare: ...` on stderr and returns the
+status:
+
+| status | meaning |
+|---|---|
+| 0 | success (also `--help`, `--version`, and a reader that closed the pipe) |
+| 1 | an I/O error: reading the input, writing the run file or the output |
+| 2 | a usage error: clap's (an unknown flag or value, a count or budget below its floor) or pare's (flags that contradict each other, a bad `--vocab` file or `$PARE_BUDGET`), with the Python version's messages where it has them; 1 under `PARE_REFERENCE_RULES`, the Python version's status |
+| the command's | command mode: the command's own status (128 + n if a signal killed it; 127 not found, 126 not executable) |
+
+## Testing
+
+- **Unit tests** sit at the bottom of each module (`#[cfg(test)] mod
+  tests`), and code examples in `///` docs are compiled and run as tests.
+- **Integration tests** in `tests/cli.rs` run the binary: pass-through,
+  the run file and its name, empty input, usage errors, the dump against
+  Python's, `pare vocab`, bad vocabulary files, whole
+  summaries against Python's (`tests/data/summary/`), the budget as a
+  hard limit, the run line, command mode and its records, `pare stats`,
+  `pare prune`, follow mode.
+- **Golden files** in `tests/data/`, written by `bench/gen_fixtures.py`
+  from the Python version: `mask()` on 4,045 real record heads and
+  awkward Unicode lines; severity, vocabulary classes and both
+  `vocab_score`s of 6,032 lines (the scores as `repr()` strings, compared
+  bit for bit); `pare vocab` with and without `reference/vocab.example`.
+- **Parity** (`bench/parity.py --candidate target/release/pare`)
+  compares the binary with the Python version byte for byte over every
+  corpus log and the generated edge cases, under 14 flag sets; `--dump` also compares the per-line results and reports the first
+  row that differs. It runs the binary with `PARE_REFERENCE_RULES=1`
+  (`pass::rust_rules`; "Output marks and the reference switch" above),
+  as the golden-summary test does; the rules behind the switch have
+  tests of their own.
+- **CI** (`.github/workflows/ci.yml`, Linux): `cargo fmt --check`, `cargo
+  clippy -D warnings`, `cargo test`, `cargo doc` with warnings as errors,
+  the Python test suite on Python 3.13, that `src/pyunicode.rs` is what
+  `bench/gen_pyunicode.py` writes, parity with `--dump`, and packaging:
+  `cargo package`, the maturin wheel installed and run, `install.sh`
+  against a release laid out on disk, and the Homebrew formula rendered.
+
+## Builds and releases
+
+`cargo build --release` gives `target/release/pare`, about 3.5 MB,
+stripped, with link-time optimisation. The package is `pare-cli` (the
+name `pare` is taken on crates.io and PyPI); `Cargo.toml` names its
+library and binary `pare` (`[lib]`, `[[bin]]`), so the code says
+`use pare::...` and the command is `pare`.
+
+`.github/workflows/release.yml` runs on each version tag (`v0.2.0`, not
+`v0.1-python`) and publishes:
+
+- archives for `x86_64-unknown-linux-musl` and `aarch64-unknown-linux-musl`
+  (statically linked, any Linux), `aarch64-apple-darwin`,
+  `x86_64-apple-darwin` and `x86_64-pc-windows-msvc`, with `SHA256SUMS`,
+  to a GitHub release (`install.sh` and `cargo binstall` download these);
+- a Homebrew formula pointing at them, tested with Homebrew and pushed to
+  the `wspires/homebrew-tap` repository;
+- PyPI wheels built by maturin (`pyproject.toml`, `bindings = "bin"`):
+  the binary in a wheel, for `pipx install pare-cli`;
+- the crate, to crates.io.
+
+RELEASING.md has the checklist and the one-time setup.
+
+## Dependencies
+
+Each one earns its place; the binary has no C dependencies, which is what
+makes the static build and cross-compilation trivial.
+
+| crate | why |
+|---|---|
+| `clap` (derive, env) | the standard argument parser; derives the parser, the subcommands and the grouped help from `Args` and `Cmd`, accepts unambiguous prefixes like argparse, reads `$PARE_VOCAB` (`$PARE_BUDGET` is read by `Args::resolve_budget`, so an empty value can count as unset) |
+| `regex` | linear-time regular expressions (RE2-style): the ANSI pattern, segmentation, and the scanning half of every mask |
+| `fancy-regex` | backtracking regular expressions with lookaround and `\G`, like Python's `re`: the exact half of the masks, tried only at the positions `regex` finds |
+| `memchr` | SIMD byte search for line splitting; already a dependency of `regex`, so free |
+| `sha2` | SHA-256 for the run file's name, as `hashlib.sha256` |
+| `serde_json` (preserve_order) | reading the `.json` run records (`pare stats`, `pare prune`); writing them is `pyjson`, to match Python's format |
+| `signal-hook` (Unix) | command mode's signal handling without `unsafe`: SIGINT ignored, SIGTERM and SIGHUP received on a thread |
+| `nix` (Unix, `signal` only) | sending those signals on to the command (`kill(2)`), which std cannot |
+
+## Appendix: the Python reference, symbol by symbol
+
+The `//!` docs of each module name its Python counterpart; this table is
+the same map in one place, for reading the two side by side.
 
 | Python (`reference/pare.py`) | Rust |
 |---|---|
@@ -288,83 +393,3 @@ version: 65 MB and 28.5 s); on a small log, 16 MB.
 | `summarize()` and its closures | `summary::summarize`, `Summarizer` methods of the same names |
 | `Line.memo`, `line_has()`, `line_params()`, `name_key()`, `shape_key()`, `is_chatter()`, `is_error_line()` | `summary::Lines` and `Facts` |
 | `is_near_duplicate()`, `token_set()`, `fmt_int()`, `render_ranges()`, `nbytes()` | `Summarizer::is_near_duplicate`, `summary::token_set`, `fmt_int`, `Summarizer::render_ranges`, `nbytes` |
-
-## Errors and exit statuses
-
-Failures are values (`error::Error`), passed up with `?` and reported in
-one place, `cli::run`, which prints `pare: ...` on stderr and returns the
-status:
-
-| status | meaning |
-|---|---|
-| 0 | success (also `--help`, `--version`, and a reader that closed the pipe) |
-| 1 | a usage error or an I/O error; messages match the Python version's |
-| 2 | the arguments could not be parsed (clap's message) |
-| the command's | command mode: the command's own status (128 + n if a signal killed it; 127 not found, 126 not executable) |
-
-## Testing
-
-- **Unit tests** sit at the bottom of each module (`#[cfg(test)] mod
-  tests`), and code examples in `///` docs are compiled and run as tests.
-- **Integration tests** in `tests/cli.rs` run the binary: pass-through,
-  the run file and its name, empty input, usage errors, the dump against
-  Python's, `pare vocab`, bad vocabulary files, whole
-  summaries against Python's (`tests/data/summary/`), the budget as a
-  hard limit, the run line, command mode and its records, `pare stats`,
-  `pare prune`, follow mode.
-- **Golden files** in `tests/data/`, written by `bench/gen_fixtures.py`
-  from the Python version: `mask()` on 4,045 real record heads and
-  awkward Unicode lines; severity, vocabulary classes and both
-  `vocab_score`s of 6,032 lines (the scores as `repr()` strings, compared
-  bit for bit); `pare vocab` with and without `reference/vocab.example`.
-- **Parity** (`bench/parity.py --candidate target/release/pare`) compares the binary with the Python version byte for
-  byte over every corpus log and the generated edge cases, under 14 flag
-  sets; `--dump` also compares the per-line results and reports the first
-  row that differs. It runs the binary with `PARE_REFERENCE_RULES=1`
-  (`pass::rust_rules`), which turns off the Rust-only rules that change
-  default output: structured lines (`src/structured.rs`) and the tail
-  window's verdict rule (`Summarizer::windowed`). The golden-summary test
-  does the same; the rules have tests of their own.
-- **CI** (`.github/workflows/ci.yml`, Linux): `cargo fmt --check`, `cargo
-  clippy -D warnings`, `cargo test`, `cargo doc` with warnings as errors,
-  the Python test suite on Python 3.13, that `src/pyunicode.rs` is what
-  `bench/gen_pyunicode.py` writes, and parity with `--dump`.
-
-## Builds and releases
-
-`cargo build --release` gives `target/release/pare`, about 3.5 MB,
-stripped, with link-time optimisation. The package is `pare-cli` (the
-name `pare` is taken on crates.io and PyPI); `Cargo.toml` names its
-library and binary `pare` (`[lib]`, `[[bin]]`), so the code says
-`use pare::...` and the command is `pare`.
-
-`.github/workflows/release.yml` runs on each version tag (`v0.2.0`, not
-`v0.1-python`) and publishes:
-
-- archives for `x86_64-unknown-linux-musl` and `aarch64-unknown-linux-musl`
-  (statically linked, any Linux), `aarch64-apple-darwin`,
-  `x86_64-apple-darwin` and `x86_64-pc-windows-msvc`, with `SHA256SUMS`,
-  to a GitHub release (`install.sh` and `cargo binstall` download these);
-- a Homebrew formula pointing at them, tested with Homebrew and pushed to
-  the `wspires/homebrew-tap` repository;
-- PyPI wheels built by maturin (`pyproject.toml`, `bindings = "bin"`):
-  the binary in a wheel, for `pipx install pare-cli`;
-- the crate, to crates.io.
-
-RELEASING.md has the checklist and the one-time setup.
-
-## Dependencies
-
-Each one earns its place; the binary has no C dependencies, which is what
-makes the static build and cross-compilation trivial.
-
-| crate | why |
-|---|---|
-| `clap` (derive, env) | the standard argument parser; derives the parser and help from the `Args` struct, accepts unambiguous prefixes like argparse, reads `$PARE_VOCAB` (`$PARE_BUDGET` is read by `Args::resolve_budget`, so an empty value can count as unset) |
-| `regex` | linear-time regular expressions (RE2-style): the ANSI pattern, segmentation, and the scanning half of every mask |
-| `fancy-regex` | backtracking regular expressions with lookaround and `\G`, like Python's `re`: the exact half of the masks, tried only at the positions `regex` finds |
-| `memchr` | SIMD byte search for line splitting; already a dependency of `regex`, so free |
-| `sha2` | SHA-256 for the run file's name, as `hashlib.sha256` |
-| `serde_json` (preserve_order) | reading the `.json` run records (`pare stats`, `pare prune`); writing them is `pyjson`, to match Python's format |
-| `signal-hook` (Unix) | command mode's signal handling without `unsafe`: SIGINT ignored, SIGTERM and SIGHUP received on a thread |
-| `nix` (Unix, `signal` only) | sending those signals on to the command (`kill(2)`), which std cannot |
