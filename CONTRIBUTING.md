@@ -238,8 +238,8 @@ each on purpose rather than by accident:
    and must say so in the CHANGELOG.
 
 Anything a user can see (a flag, an output form, a changed default) gets
-a line in `CHANGELOG.md`, under an "Unreleased" heading until the next
-release moves it (RELEASING.md).
+a line in `CHANGELOG.md`, under an "Unreleased" heading that the next
+release renames (RELEASING.md).
 
 ## Benchmark
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0
+## Unreleased
 
 pare is now a single native binary, written in Rust, and installable with
 Homebrew, an install script, pipx/uv (`pare-cli`) or cargo (`pare-cli`).
