@@ -1,16 +1,12 @@
 //! pare: summarize noisy command output (test runs, builds, logs) to a
 //! token budget, for AI agents and humans.
 //!
-//! This crate is the Rust port of `reference/pare.py`, which stays the
-//! reference until the two produce identical output (`bench/parity.py`).
-//! The port is staged (ROADMAP.md, stage 5); what is ported so far:
-//!
-//! - reading input in chunks, splitting it into lines, saving it to a
-//!   content-hashed run file ([`pass`], [`store`], [`runfile`]);
-//! - cleaning a line as the Python version does ([`text`]);
-//! - passing input that fits the budget through unchanged ([`summary`]).
-//!
-//! Anything else exits with status 70 and says it is not ported yet.
+//! This crate is the Rust version of pare. It began as a port of
+//! `reference/pare.py`, the Python prototype, which is kept frozen as the
+//! reference it is tested against byte for byte (`bench/parity.py`;
+//! ROADMAP.md, stage 5, lists the port's stages). Rules added since the
+//! port (structured lines, the tail verdict rule, `--budget auto` as the
+//! default) are switched off by `PARE_REFERENCE_RULES=1` for that check.
 //!
 //! `docs/ARCHITECTURE.md` describes the layout and data flow, and
 //! `docs/RUST.md` explains the Rust-specific choices for a C++ reader;
