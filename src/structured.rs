@@ -297,7 +297,9 @@ fn trace_digest(trace: &str) -> Vec<String> {
         });
         // A function line's arguments are pointers and offsets: `main.charge(…)`.
         let short = |l: &str| match l.find('(') {
-            Some(p) if l.ends_with(')') => format!("{}(…)", &l[..p]),
+            Some(p) if l.ends_with(')') => {
+                format!("{}({})", &l[..p], crate::text::glyphs().ellipsis)
+            }
             _ => l.to_owned(),
         };
         return lines.iter().skip(start).take(2).map(|l| short(l)).collect();
@@ -331,7 +333,13 @@ fn show_field(text: &str, f: &Field) -> String {
     match trace {
         Some(t) => {
             let key = &text[f.span.start..f.value.start];
-            format!("{key}‹{}›", trace_digest(&t).join(" ⏎ "))
+            let g = crate::text::glyphs();
+            format!(
+                "{key}{}{}{}",
+                g.open,
+                trace_digest(&t).join(&format!(" {} ", g.newline)),
+                g.close
+            )
         }
         None => span.to_owned(),
     }
@@ -412,10 +420,11 @@ pub fn clip(text: &str, width: i64) -> Option<String> {
     if left_out == 0 {
         return None;
     }
+    let e = crate::text::glyphs().ellipsis;
     let out = if sep == "," {
-        format!("{head},…{tail_cut}…(+{left_out}c)")
+        format!("{head},{e}{tail_cut}{e}(+{left_out}c)")
     } else {
-        format!("{head} … {tail_cut}…(+{left_out}c)")
+        format!("{head} {e} {tail_cut}{e}(+{left_out}c)")
     };
     (out.chars().count() < len).then_some(out)
 }

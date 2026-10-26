@@ -133,7 +133,7 @@ drain3, by tests on every log in the repository.
 **What a token is here.** pare counts tokens as `ceil(bytes / 2.8)` of
 UTF-8 text, for its own output and for the budget, and the benchmark uses
 the same rule for every tool. This is a proxy, not a tokenizer; 2.8 is the
-measured rate below, and `--chars-per-token` changes it. Four bytes per
+measured rate below, and `--bytes-per-token` changes it. Four bytes per
 token is the usual rule of thumb for English prose, and the default while
 the heuristics were developed; log text is denser in tokens because
 paths, hashes, hex, punctuation and digits split into many short pieces.
@@ -166,16 +166,16 @@ above. `bench/tokens.py --anthropic claude-opus-5-5` counts the same
 outputs through Anthropic's `count_tokens` API (it needs the `anthropic`
 package and credentials, which the development container did not have);
 run it before trusting the 2.8 default for a Claude agent, and pass the
-measured value as `--chars-per-token` if it differs much.
+measured value as `--bytes-per-token` if it differs much.
 
-So the default is `--chars-per-token 2.8`, the measured value for these
+So the default is `--bytes-per-token 2.8`, the measured value for these
 tokenizers on this corpus, and the budget is a real-token ceiling. At
 `--budget 2000` that produced at most 1,982 cl100k tokens per file (9,794
 in total) and kept 72 of 73 must-survive lines (98.6 %, min 93 %). At 600
 it is 30 % less text than the bytes/4 setting and recall drops to 75 %
 (min 53 %): the tight setting in the bytes/4 tables below is really about
 850 tokens. One file (go test, 2.6 bytes per token) still exceeded 600 by
-7 %; set `--chars-per-token 2.5` for a strict ceiling on dense logs, or
+7 %; set `--bytes-per-token 2.5` for a strict ceiling on dense logs, or
 `4` to reproduce the bytes/4 tables. The bench has the same flag.
 
 **How to set the budget.** The budget is a hard ceiling on what reaches
@@ -361,7 +361,7 @@ weights:
 Words match whole, case-insensitively, and not inside a hyphenated flag or
 identifier (`--timeout=300s` is not an error). A zero count before an error
 noun (`0 errors`, `0 failed`) is removed before matching. `pare
---dump-vocab` prints the lists as a file; `--vocab FILE` or `$PARE_VOCAB`
+pare vocab` prints the lists as a file; `--vocab FILE` or `$PARE_VOCAB`
 loads one back, where `[error]` adds to a class and `[error replace]`
 replaces it, a plain line is a phrase and a `/.../` line a regex. See
 `reference/vocab.example` for a German extension. The `continuation`
@@ -486,7 +486,7 @@ columns, not shown, grow with every term on.
 
 ## Allocation
 
-The budget is `--budget` tokens at `bytes / 2.8` (`--chars-per-token`),
+The budget is `--budget` tokens at `bytes / 2.8` (`--bytes-per-token`),
 and it is a hard limit.
 
 - A head and a tail window (`--head 5`, `--tail 10`, at most 30 % of the

@@ -1,7 +1,7 @@
 //! The command line: the options of `main()` in `reference/pare.py`, its
 //! checks in the same order, and the dispatch to batch mode, command mode,
-//! follow mode, the selection flags, `--prune`, `--stats` and
-//! `--dump-vocab`.
+//! follow mode, the selection flags, and the `prune`, `stats` and `vocab`
+//! subcommands.
 //!
 //! Every Python option is accepted with the same name, default and meaning,
 //! so scripts and the agent hook work unchanged.
@@ -11,7 +11,7 @@ use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use clap::Parser;
+use clap::{Parser, Subcommand};
 
 use crate::budget::{Budget, DEFAULT_CHARS_PER_TOKEN};
 use crate::command::CommandRun;
@@ -31,17 +31,22 @@ use crate::vocab::{self, Vocab};
 /// noisy-command 2>&1 | pare [--budget auto|N]
 /// pare [--budget auto|N] -- noisy-command args (runs it; keeps its exit code)
 /// pare --only T3,T7 < run-file                 (raw lines of those templates)
+/// pare prune | stats | vocab                   (run files, savings, the word lists)
 // Rust note: `#[derive(Parser)]` runs a procedural macro: Rust code that
 // runs at compile time, reads this struct definition and generates the
 // argument parser for it. The doc comments become the help text. It is
 // closer to code generation than to C++ templates or the preprocessor, and
 // what it generates is ordinary, type-checked Rust.
 #[derive(Parser, Debug)]
-#[command(name = "pare", version, verbatim_doc_comment, infer_long_args = true)]
+#[command(name = "pare", version, verbatim_doc_comment, infer_long_args = true, after_long_help = ENV_HELP)]
 // `infer_long_args`: accept unambiguous prefixes (--bud 600), as Python's
 // argparse does by default.
 #[allow(clippy::struct_excessive_bools)] // one bool per flag, as the CLI has
 pub struct Args {
+    /// A mode that does not summarise (`prune`, `stats`, `vocab`), if one
+    /// was named.
+    #[command(subcommand)]
+    pub cmd: Option<Cmd>,
     /// Output budget in tokens (bytes/2.8 by default). `auto` or `auto:N`
     /// stops early when little is left worth showing, at most 2000 (or N);
     /// a number is a fixed budget the summary fills
@@ -50,86 +55,165 @@ pub struct Args {
     // agent harness can set the budget once for every call), else `auto`.
     // Rust note: `value_parser` names a function from the flag's text to
     // the field's type; clap reports its `Err` as an invalid value.
-    #[arg(long, allow_negative_numbers = true, value_name = "N|auto[:N]", value_parser = parse_budget)]
+    #[arg(long, allow_negative_numbers = true, value_name = "N|auto[:N]", value_parser = parse_budget, help_heading = "Summary")]
     pub budget: Option<BudgetArg>,
     /// Lines to keep from the start
-    #[arg(long, default_value_t = 5)]
+    #[arg(long, default_value_t = 5, value_parser = clap::value_parser!(i64).range(0..), help_heading = "Summary")]
     pub head: i64,
     /// Lines to keep from the end
-    #[arg(long, default_value_t = 10)]
+    #[arg(long, default_value_t = 10, value_parser = clap::value_parser!(i64).range(0..), help_heading = "Summary")]
     pub tail: i64,
-    /// Clip lines longer than this
-    #[arg(long, default_value_t = 200)]
+    /// Clip lines longer than this (at least 10)
+    #[arg(long, default_value_t = 200, value_parser = clap::value_parser!(i64).range(10..), help_heading = "Summary")]
     pub width: i64,
     /// Bytes per token for the budget and the token estimate (2.8, measured
     /// on common tokenizers; 4 is the prose rule of thumb)
-    #[arg(long, value_name = "N", default_value_t = DEFAULT_CHARS_PER_TOKEN)]
+    #[arg(long = "bytes-per-token", alias = "chars-per-token", value_name = "N", default_value_t = DEFAULT_CHARS_PER_TOKEN, help_heading = "Summary")]
     pub chars_per_token: f64,
+    /// pare's own marks in ASCII (-> x | ... <=) instead of → × · ┆ … ≤
+    #[arg(long, help_heading = "Summary")]
+    pub ascii: bool,
     /// List at most N templates (highest salience first); 0 = all that fit
-    #[arg(long, value_name = "N", default_value_t = 0)]
+    #[arg(long, value_name = "N", default_value_t = 0, value_parser = clap::value_parser!(i64).range(0..), help_heading = "Summary")]
     pub max_templates: i64,
     /// Print raw lines of these templates only
-    #[arg(long, value_name = "T<n>[,T<m>]")]
+    #[arg(
+        long,
+        value_name = "T<n>[,T<m>]",
+        help_heading = "Selecting from a run file"
+    )]
     pub only: Option<String>,
     /// Print raw lines except these templates
-    #[arg(long = "except", value_name = "T<n>[,T<m>]")]
+    #[arg(
+        long = "except",
+        value_name = "T<n>[,T<m>]",
+        help_heading = "Selecting from a run file"
+    )]
     pub exclude: Option<String>,
     /// Print raw lines from this line on: L3001, 3001, or -200 for the last 200
-    #[arg(long, value_name = "L<n>", allow_hyphen_values = true)]
+    #[arg(
+        long,
+        value_name = "L<n>",
+        allow_hyphen_values = true,
+        help_heading = "Selecting from a run file"
+    )]
     pub since: Option<String>,
     /// Print raw lines up to and including this line (same forms)
-    #[arg(long, value_name = "L<n>", allow_hyphen_values = true)]
+    #[arg(
+        long,
+        value_name = "L<n>",
+        allow_hyphen_values = true,
+        help_heading = "Selecting from a run file"
+    )]
     pub until: Option<String>,
     /// Print only records whose head carries a structural severity at or
     /// above LEVEL
-    #[arg(long, value_name = "LEVEL", value_parser = ["debug", "info", "warn", "error", "fatal"])]
+    #[arg(long, value_name = "LEVEL", value_parser = ["debug", "info", "warn", "error", "fatal"], help_heading = "Selecting from a run file")]
     pub min_severity: Option<String>,
-    /// Directory for the raw run file (default $PARE_RUN_DIR or ~/.cache/pare/runs)
-    #[arg(long)]
+    /// Directory for the raw run files (default $PARE_RUN_DIR or ~/.cache/pare/runs)
+    #[arg(long, global = true, help_heading = "Run files")]
     pub run_dir: Option<PathBuf>,
     /// Explicit path for the raw run file
-    #[arg(long)]
+    #[arg(long, help_heading = "Run files")]
     pub run_file: Option<PathBuf>,
     /// Do not save the raw input
-    #[arg(long)]
+    #[arg(long, help_heading = "Run files")]
     pub no_tee: bool,
     /// Summarise a stream as it arrives: one block per window
-    #[arg(long, short = 'f')]
+    #[arg(long, short = 'f', help_heading = "Follow mode")]
     pub follow: bool,
-    /// Follow: flush a window after N lines; also the window cap
-    #[arg(long, value_name = "N", default_value_t = 20000)]
+    /// Flush a window after N lines; also the window cap
+    #[arg(
+        long,
+        value_name = "N",
+        default_value_t = 20000,
+        help_heading = "Follow mode"
+    )]
     pub every: i64,
-    /// Follow: flush a non-empty window every S seconds (0 = off)
-    #[arg(long, value_name = "S", default_value_t = 0.0)]
+    /// Flush a non-empty window every S seconds (0 = off)
+    #[arg(
+        long,
+        value_name = "S",
+        default_value_t = 30.0,
+        help_heading = "Follow mode"
+    )]
     pub interval: f64,
-    /// Follow: flush soon after a line at this severity arrives
-    #[arg(long, default_value = "error", value_parser = ["error", "fatal", "none"])]
+    /// Flush soon after a line at this severity arrives
+    #[arg(long, default_value = "error", value_parser = ["error", "fatal", "none"], help_heading = "Follow mode")]
     pub flush_on: String,
-    /// Follow: wait S seconds after a --flush-on line so its record can finish
-    #[arg(long, value_name = "S", default_value_t = 0.5)]
+    /// Wait S seconds after a --flush-on line so its record can finish
+    #[arg(
+        long,
+        value_name = "S",
+        default_value_t = 0.5,
+        help_heading = "Follow mode"
+    )]
     pub settle: f64,
-    /// Follow: at most one --flush-on flush per S seconds
-    #[arg(long, value_name = "S", default_value_t = 2.0)]
+    /// At most one --flush-on flush per S seconds
+    #[arg(
+        long,
+        value_name = "S",
+        default_value_t = 2.0,
+        help_heading = "Follow mode"
+    )]
     pub min_interval: f64,
-    /// Follow: no heartbeat line for a window with nothing new
-    #[arg(long)]
+    /// No heartbeat line for a window with nothing new
+    #[arg(long, help_heading = "Follow mode")]
     pub quiet: bool,
     /// Vocabulary file that extends or replaces the built-in word lists
-    #[arg(long, value_name = "FILE", env = "PARE_VOCAB")]
+    #[arg(
+        long,
+        value_name = "FILE",
+        env = "PARE_VOCAB",
+        global = true,
+        help_heading = "Vocabulary"
+    )]
     pub vocab: Option<PathBuf>,
-    /// Print the built-in vocabulary in file format and exit
-    #[arg(long)]
-    pub dump_vocab: bool,
-    /// Remove old run files now
-    #[arg(long)]
-    pub prune: bool,
-    /// With --prune: list what would be removed
-    #[arg(long)]
-    pub dry_run: bool,
-    /// Print what command mode saved, from the run directory's records
-    #[arg(long)]
-    pub stats: bool,
 }
+
+/// The modes that do not summarise: each reads the run directory or the
+/// vocabulary and prints a report.
+#[derive(Subcommand, Debug)]
+pub enum Cmd {
+    /// Remove old run files now (older than 14 days, then the oldest past
+    /// 500 MB; automatic pruning does the same at most hourly)
+    Prune {
+        /// List what would be removed, removing nothing
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// Print what command mode saved, from the run directory's records
+    Stats,
+    /// Print the vocabulary in file format: the built-in one, or with
+    /// --vocab applied
+    Vocab,
+}
+
+impl Cmd {
+    fn name(&self) -> &'static str {
+        match self {
+            Cmd::Prune { .. } => "prune",
+            Cmd::Stats => "stats",
+            Cmd::Vocab => "vocab",
+        }
+    }
+}
+
+/// The environment, listed after the long help (`--help`, not `-h`).
+const ENV_HELP: &str = "\
+Subcommands: pare prune [--dry-run], pare stats, pare vocab (`pare <command> --help`).
+
+Environment:
+  PARE_BUDGET         the budget when --budget is not given: N, auto or auto:N
+  PARE_RUN_DIR        where run files go (default ~/.cache/pare/runs)
+  PARE_RUN_KEEP_DAYS  prune run files older than this (default 14; 0 = no age limit)
+  PARE_RUN_MAX_MB     ...then the oldest until the rest fit (default 500; 0 = no limit)
+  PARE_RUN_PRUNE      off: never prune automatically
+  PARE_VOCAB          a vocabulary file, as --vocab
+
+Exit status: the command's in command mode; otherwise 0, 1 for an I/O
+error, 2 for a usage error.
+";
 
 /// The ceiling of `auto`, the budget when neither `--budget` nor
 /// `$PARE_BUDGET` gives one (and, under `$PARE_REFERENCE_RULES`, the fixed
@@ -167,7 +251,10 @@ pub fn parse_budget(text: &str) -> std::result::Result<BudgetArg, String> {
             auto: false,
         }),
     };
-    parsed.ok_or_else(|| "expected a whole number of tokens, auto, or auto:N".to_owned())
+    match parsed {
+        Some(b) if b.tokens >= 1 => Ok(b),
+        _ => Err("expected a whole number of tokens (at least 1), auto, or auto:N".to_owned()),
+    }
 }
 
 impl Args {
@@ -272,33 +359,36 @@ fn dispatch(args: &Args, command: Option<&[OsString]>) -> Result<u8> {
     }
     // NaN too: Python lets it through and then fails with a traceback.
     if args.chars_per_token <= 0.0 || args.chars_per_token.is_nan() {
-        return Err(Error::Usage("--chars-per-token must be positive".into()));
+        return Err(Error::Usage("--bytes-per-token must be positive".into()));
+    }
+    crate::text::set_ascii(args.ascii);
+    if args.no_tee && args.run_file.is_some() {
+        return Err(Error::Usage(
+            "--no-tee saves nothing; --run-file names the file to save the input in".into(),
+        ));
     }
     let vocab = match args.vocab.as_deref().filter(|p| !p.as_os_str().is_empty()) {
         Some(path) => load_vocab(path)?,
         None => Vocab::builtin(),
     };
     let run_dir = || args.run_dir.clone().unwrap_or_else(default_run_dir);
-    if args.stats {
-        runs::stats(&run_dir(), &mut io::stdout().lock())
-            .map_err(|e| Error::io("writing the output", e))
-            .or_else(ignore_broken_pipe)?;
-        return Ok(0);
-    }
-    if args.dry_run && !args.prune {
-        return Err(Error::Usage("--dry-run goes with --prune".into()));
-    }
-    if args.prune {
-        runs::prune_command(&run_dir(), args.dry_run, &mut io::stdout().lock())
-            .map_err(|e| Error::io("writing the output", e))
-            .or_else(ignore_broken_pipe)?;
-        return Ok(0);
-    }
-    if args.dump_vocab {
-        write_out(
-            &mut io::stdout().lock(),
-            vocab::dump_vocab(vocab.entries()).as_bytes(),
-        )?;
+    if let Some(cmd) = &args.cmd {
+        if command.is_some() || args.follow || args.selecting() {
+            return Err(Error::Usage(format!(
+                "pare {} neither reads input nor runs a command",
+                cmd.name()
+            )));
+        }
+        let mut out = io::stdout().lock();
+        match cmd {
+            Cmd::Prune { dry_run } => runs::prune_command(&run_dir(), *dry_run, &mut out)
+                .map_err(|e| Error::io("writing the output", e))
+                .or_else(ignore_broken_pipe)?,
+            Cmd::Stats => runs::stats(&run_dir(), &mut out)
+                .map_err(|e| Error::io("writing the output", e))
+                .or_else(ignore_broken_pipe)?,
+            Cmd::Vocab => write_out(&mut out, vocab::dump_vocab(vocab.entries()).as_bytes())?,
+        }
         return Ok(0);
     }
     if command.is_some() && args.selecting() {
@@ -457,7 +547,7 @@ fn batch(args: &Args, vocab: &Vocab, mut run: Option<&mut CommandRun>) -> Result
     if store.total_bytes == 0 {
         // The spool is dropped, and with it removed, on the way out.
         let msg = match &note {
-            Some(note) => format!("# pare: no output · {note}\n"),
+            Some(note) => format!("# pare: no output {} {note}\n", crate::text::glyphs().dot),
             None => "# pare: empty input\n".to_owned(),
         };
         write_out(&mut out, msg.as_bytes())?;
@@ -561,7 +651,7 @@ fn batch(args: &Args, vocab: &Vocab, mut run: Option<&mut CommandRun>) -> Result
         .map_err(|e| Error::io("writing the output", e))
         .or_else(ignore_broken_pipe)?;
     if let (Some(r), true) = (run.as_deref(), tee) {
-        // What the command printed against what pare printed, for --stats.
+        // What the command printed against what pare printed, for `pare stats`.
         r.write_meta(
             &spool_path,
             store.len(),
@@ -671,10 +761,12 @@ mod tests {
     fn budget_values() {
         let b = |tokens, auto| Ok(BudgetArg { tokens, auto });
         assert_eq!(parse_budget("600"), b(600, false));
-        assert_eq!(parse_budget("-5"), b(-5, false));
+        assert_eq!(parse_budget("1"), b(1, false));
         assert_eq!(parse_budget("auto"), b(2000, true));
         assert_eq!(parse_budget(" auto:4000 "), b(4000, true));
-        for bad in ["", "auto:", "auto4000", "autox", "lots", "1.5"] {
+        for bad in [
+            "", "auto:", "auto4000", "autox", "lots", "1.5", "0", "-5", "auto:0",
+        ] {
             assert!(parse_budget(bad).is_err(), "{bad:?}");
         }
         assert!(parse(&["--budget", "auto"]).budget_for_summary().auto);

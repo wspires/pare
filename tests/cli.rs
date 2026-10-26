@@ -122,13 +122,24 @@ fn empty_input_leaves_no_run_file() {
 }
 
 #[test]
-fn usage_errors_match_python() {
+fn usage_errors_exit_2_with_pythons_messages() {
     for (args, msg) in [
-        (vec!["--dry-run"], "pare: --dry-run goes with --prune"),
+        (
+            vec!["--follow", "stats"],
+            "pare: pare stats neither reads input nor runs a command",
+        ),
+        (
+            vec!["--no-tee", "--run-file", "x.log"],
+            "pare: --no-tee saves nothing; --run-file names the file to save the input in",
+        ),
         (vec!["--"], "pare: -- must be followed by a command to run"),
         (
-            vec!["--chars-per-token", "0"],
-            "pare: --chars-per-token must be positive",
+            vec!["--bytes-per-token", "0"],
+            "pare: --bytes-per-token must be positive",
+        ),
+        (
+            vec!["--chars-per-token", "0"], // the old name is an alias
+            "pare: --bytes-per-token must be positive",
         ),
         (
             vec!["--follow", "--every", "0"],
@@ -136,9 +147,122 @@ fn usage_errors_match_python() {
         ),
     ] {
         let out = pare(&args, b"");
-        assert_eq!(out.status.code(), Some(1), "{args:?}");
+        assert_eq!(out.status.code(), Some(2), "{args:?}");
         assert_eq!(String::from_utf8_lossy(&out.stderr).trim_end(), msg);
     }
+}
+
+#[test]
+fn numeric_flags_have_floors() {
+    // A budget, a width or a count that makes no summary is refused up
+    // front, with status 2 like any other usage error.
+    for args in [
+        vec!["--budget", "0"],
+        vec!["--budget", "-5"],
+        vec!["--budget", "auto:0"],
+        vec!["--width", "9"],
+        vec!["--head", "-1"],
+        vec!["--tail", "-1"],
+        vec!["--max-templates", "-1"],
+    ] {
+        let out = pare(&args, b""); // refused before any input is read
+        assert_eq!(out.status.code(), Some(2), "{args:?}");
+        assert!(out.stdout.is_empty(), "{args:?}");
+    }
+    assert!(
+        pare(&["--budget", "1", "--no-tee"], b"x\n")
+            .status
+            .success()
+    );
+    assert!(
+        pare(&["--width", "10", "--no-tee"], b"x\n")
+            .status
+            .success()
+    );
+}
+
+#[test]
+fn help_is_grouped_and_lists_the_environment() {
+    let text = String::from_utf8(pare(&["--help"], b"").stdout).unwrap();
+    for heading in [
+        "Summary:",
+        "Selecting from a run file:",
+        "Run files:",
+        "Follow mode:",
+        "Vocabulary:",
+        "Commands:",
+        "Environment:",
+        "PARE_RUN_KEEP_DAYS",
+        "Exit status:",
+    ] {
+        assert!(text.contains(heading), "{heading}");
+    }
+    let short = String::from_utf8(pare(&["-h"], b"").stdout).unwrap();
+    assert!(short.contains("Follow mode:") && !short.contains("PARE_RUN_KEEP_DAYS"));
+}
+
+#[test]
+fn ascii_marks_keep_the_budget_and_touch_no_log_text() {
+    // A log line with pare's own marks in it: --ascii must not rewrite it.
+    let mut input = std::fs::read(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/corpus/cargo-build.log"
+    ))
+    .unwrap();
+    input.extend_from_slice("ERROR: étape → 3 × failed · see ┆ log\n".as_bytes());
+    let text = String::from_utf8(pare(&["--budget", "600", "--no-tee", "--ascii"], &input).stdout)
+        .unwrap();
+    let own: Vec<&str> = text.lines().filter(|l| !l.contains("étape")).collect();
+    assert!(own.iter().all(|l| l.is_ascii()), "{text}");
+    assert!(text.contains("étape → 3 × failed · see ┆ log"), "{text}");
+    assert!(
+        text.starts_with("# pare: ") && text.contains(" -> ~") && text.contains("(budget 600) | "),
+        "{text}"
+    );
+    assert!(text.lines().any(|l| l.starts_with("  | (")), "{text}");
+    assert!(text.len() <= 600 * 28 / 10, "{}", text.len());
+    let auto = String::from_utf8(pare(&["--no-tee", "--ascii"], &input).stdout).unwrap();
+    assert!(auto.contains("(budget auto <=2,000)"), "{auto}");
+}
+
+#[test]
+fn the_expand_hint_needs_a_run_file() {
+    let input = std::fs::read(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/corpus/ci-pipeline.log"
+    ))
+    .unwrap();
+    let text = String::from_utf8(pare(&["--budget", "2000", "--no-tee"], &input).stdout).unwrap();
+    assert!(
+        text.contains("## raw: (not saved)") && !text.contains("expand with:"),
+        "{text}"
+    );
+    let dir = TempDir::new("hint");
+    let text = String::from_utf8(
+        pare(
+            &[
+                "--budget",
+                "2000",
+                "--run-dir",
+                dir.path().to_str().unwrap(),
+            ],
+            &input,
+        )
+        .stdout,
+    )
+    .unwrap();
+    assert!(text.contains("expand with: pare --only"), "{text}");
+    // The reference printed the hint without a run file; parity keeps that.
+    let text = String::from_utf8(
+        pare_with(
+            &["--budget", "2000", "--no-tee"],
+            &input,
+            &[("PARE_REFERENCE_RULES", "1")],
+        )
+        .stdout,
+    )
+    .unwrap();
+    assert!(text.contains("expand with:"), "{text}");
 }
 
 #[test]
@@ -203,11 +327,11 @@ fn dump_vocab_is_pythons() {
             "{ours}"
         );
     };
-    let out = pare(&["--dump-vocab"], b"");
+    let out = pare(&["vocab"], b"");
     assert!(out.status.success());
     check(out.stdout, golden("vocab.txt"));
     let example = concat!(env!("CARGO_MANIFEST_DIR"), "/reference/vocab.example");
-    let out = pare(&["--vocab", example, "--dump-vocab"], b"");
+    let out = pare(&["vocab", "--vocab", example], b"");
     check(out.stdout, golden("vocab-example.txt"));
 }
 
@@ -311,8 +435,8 @@ fn bad_vocab_files_are_usage_errors() {
     let dir = TempDir::new("vocab");
     let bad = dir.path().join("bad.vocab");
     fs::write(&bad, "[error]\nok\n[level-warn]\n/W/\n").unwrap();
-    let out = pare(&["--vocab", bad.to_str().unwrap(), "--dump-vocab"], b"");
-    assert_eq!(out.status.code(), Some(1));
+    let out = pare(&["--vocab", bad.to_str().unwrap(), "vocab"], b"");
+    assert_eq!(out.status.code(), Some(2));
     let want = format!(
         "pare: {}:4: level classes take plain tokens, not regexes: '/W/'\n",
         bad.display()
@@ -448,13 +572,10 @@ fn command_mode_keeps_the_exit_code_and_records_the_run() {
         text.contains("\n  \"exit\": 3,\n") && text.contains("\n  \"chars_per_token\": 2.8\n}\n"),
         "{text}"
     );
-    // --stats reads the records back.
-    let (code, out) = pare_in(d, &["--stats"], &[]);
+    // `pare stats` reads the records back.
+    let (code, out) = pare_in(d, &["stats"], &[]);
     assert_eq!(code, Some(0));
-    assert!(
-        out.starts_with("# pare --stats: 2 command runs in "),
-        "{out}"
-    );
+    assert!(out.starts_with("# pare stats: 2 command runs in "), "{out}");
     assert!(
         out.contains("1 run fit the budget and passed through whole\n## largest\n"),
         "{out}"
@@ -479,13 +600,13 @@ fn prune_removes_old_and_excess_run_files() {
         f.set_modified(SystemTime::now() - day * age).unwrap();
     }
     fs::write(d.join("aaaaaaaaaaaa.json"), "{\"exit\": 1}\n").unwrap();
-    let (_, out) = pare_in(d, &["--prune", "--dry-run"], &[]);
+    let (_, out) = pare_in(d, &["prune", "--dry-run"], &[]);
     assert!(
-        out.starts_with("# pare --prune: would remove 1 file, 0.3 MB, in "),
+        out.starts_with("# pare prune: would remove 1 file, 0.3 MB, in "),
         "{out}"
     );
     assert!(out.ends_with("(keep 14 days, at most 500 MB; $PARE_RUN_KEEP_DAYS, $PARE_RUN_MAX_MB)\naaaaaaaaaaaa.log  293 KB  older than 14 days\n"), "{out}");
-    let (_, out) = pare_in(d, &["--prune"], &[("PARE_RUN_MAX_MB", "0.5")]);
+    let (_, out) = pare_in(d, &["prune"], &[("PARE_RUN_MAX_MB", "0.5")]);
     assert!(
         out.contains("bbbbbbbbbbbb.log  293 KB  over 0.5 MB in all"),
         "{out}"
@@ -683,7 +804,7 @@ fn budget_from_the_environment() {
             .contains("(budget 600)")
     ); // the flag wins
     let (code, msg) = run(Some("lots"), &[]);
-    assert_eq!(code, Some(1));
+    assert_eq!(code, Some(2));
     assert_eq!(
         msg,
         "pare: $PARE_BUDGET must be a whole number of tokens, auto, or auto:N; got \"lots\""

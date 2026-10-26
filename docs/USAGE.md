@@ -1,23 +1,27 @@
 # Using pare: the details
 
-What the README leaves out: the exact behaviour of command mode, follow
-mode and run files, and how tokens are counted. `pare --help` lists every
-flag; [DESIGN.md](DESIGN.md) says why things work as they do.
+What the README leaves out: the exact behaviour of the budget, command
+mode, follow mode and run files, the subcommands, what pare prints and
+returns, and what a script or an agent can rely on. `pare --help` lists
+every flag and variable; [DESIGN.md](DESIGN.md) says why things work as
+they do.
 
 ## Tokens and the budget
 
 Tokens are estimated as bytes / 2.8, the rate measured with tiktoken on
 pare's output (cl100k and o200k agree to within 1 %; the older public
-Claude tokenizer gives 2.74 to 2.80). `--chars-per-token` changes it: 4
-gives the prose rule of thumb, 2.5 a strict ceiling on dense logs
-(timestamps, IPs and hex on every line), where the real rate is lower
-and a budget-600 summary can run a few per cent over.
+Claude tokenizer gives 2.74 to 2.80). `--bytes-per-token` changes it
+(`--chars-per-token` is accepted as an alias): 4 gives the prose rule of
+thumb, 2.5 a strict ceiling on dense logs (timestamps, IPs and hex on
+every line), where the real rate is lower and a budget-600 summary can
+run a few per cent over.
 
 The budget is a hard ceiling on the rendered output, header and ledger
-included. Below about 1,000 tokens it gets tight, and below about 400 the
-fixed skeleton (header, head and tail windows, ledger) is most of the
-output. Output that already fits the budget is printed as it is, with no
-`## raw:` line (it is already all of it).
+included, and must be at least 1. Below about 1,000 tokens it gets
+tight, and below about 400 the fixed skeleton (header, head and tail
+windows, ledger) is most of the output. Output that already fits the
+budget is printed as it is, with no `## raw:` line (it is already all of
+it).
 
 Without `--budget`, pare reads `$PARE_BUDGET` (an empty value counts as
 unset; `auto` and `auto:N` work there too), else uses `auto`.
@@ -30,6 +34,32 @@ are sized for 2,000 whatever the ceiling. A number, `--budget 2000`, is a
 fixed budget the summary fills, as the Python version's default was. The
 measurements behind it are in [DESIGN.md](DESIGN.md#automatic-budget).
 
+## What pare prints
+
+A summary is plain text in sections, each starting with `#`:
+
+```
+# pare: 308 lines, 19,046 B (~6,803 tok) → ~1,249 tok (budget 2,000) · 35 templates
+## head (L1–L5)          the first lines
+## templates (by salience)   one entry per shape, with its count and an example
+## selected lines        other lines worth their cost, with ┆ gap markers
+## tail (L285–L308)      the last lines
+## omitted 266/308 lines (86.4%): T5 ×120, …   the ledger
+## raw: ~/.cache/pare/runs/d0ec7c06b92d.log    the run file (and · exit N in command mode)
+   expand with: pare --only T<n> < raw …       a hint, at budgets of 1,000 and up, when there is a run file
+```
+
+Its marks (`→ · × – ┆ … ≤ ↳`) are a few per cent of a small summary's
+bytes. `--ascii` writes them as `-> | x - | ... <= ->` instead; only
+pare's own marks change, never a line of the log. With `--ascii` the
+budget still holds, since the marks are measured as written.
+
+A follow window starts with `# pare #N:`; `pare --only` and the other
+selection flags start with `# pare --only T1: 215 of 239 lines`; empty
+input prints `# pare: empty input`; `pare stats` and `pare prune` start
+with `# pare stats:` and `# pare prune:`. The ledger and the gap markers
+spell their counts out (`1 template not listed`, `(+1 more line)`).
+
 ## Command mode
 
 `pare [flags] -- CMD ARGS` runs the command instead of reading stdin.
@@ -41,7 +71,7 @@ measurements behind it are in [DESIGN.md](DESIGN.md#automatic-budget).
   output fits the budget and passes through, `## exit N` is printed only
   when N is not 0.
 - The command line is recorded in a `.json` sidecar next to the run file,
-  with the input and output sizes and the budget; `pare --stats` totals
+  with the input and output sizes and the budget; `pare stats` totals
   these over every run so far: what commands printed against what pare
   printed.
 - A SIGTERM from a tool's timeout is passed to the command, and pare still
@@ -59,7 +89,8 @@ block can contain the input's own blank lines.
 A window closes:
 
 - after `--every` lines (default 20,000, which is also the window cap);
-- after `--interval` seconds, even while the stream is idle;
+- after `--interval` seconds (default 30; 0 turns it off), even while
+  the stream is idle, so a quiet log still reports;
 - half a second (`--settle`) after a line at `--flush-on` severity
   arrives (default `error`; `fatal` or `none`), at most one such flush
   per `--min-interval` seconds;
@@ -88,8 +119,8 @@ can be expanded with the usual flags afterwards.
 
 Every run saves its input to a run file, named by a hash of the content,
 in `~/.cache/pare/runs` (`$PARE_RUN_DIR`, or `--run-dir`; `--run-file`
-names one file; `--no-tee` saves nothing). The summary's last lines name
-the file and show how to expand it:
+names one file; `--no-tee` saves nothing, and refuses `--run-file`). The
+summary's last lines name the file and show how to expand it:
 
 ```
 pare --only T5 < runfile                 # the raw lines of one template
@@ -101,7 +132,8 @@ pare --since L200 --until L400 < runfile # a line range (or -200: the last 200)
 Template ids are stable for a given input and flags: the pipeline is
 deterministic and the ids are numbered in order of first appearance. They
 depend on the masks in use, so a run file saved with `--vocab` needs the
-same `--vocab` to expand.
+same `--vocab` to expand, and a pare version that clusters differently
+(the CHANGELOG says when one does) numbers an old run file differently.
 
 pare prunes its own run directory, at most once an hour, when it writes a
 run file:
@@ -111,9 +143,65 @@ run file:
 - then the oldest go until the rest fit in 500 MB (`$PARE_RUN_MAX_MB`; 0
   for no size limit), never a file less than a day old, since a summary
   may still point at it;
-- `$PARE_RUN_PRUNE=off` disables it; `pare --prune [--dry-run]` sweeps
-  now and reports what goes.
+- `$PARE_RUN_PRUNE=off` disables it; `pare prune [--dry-run]` sweeps now
+  and reports what goes.
 
 Only files pare named are touched: run files, follow run files and stale
 spool files. A pruned run keeps its small `.json` record, with a
-`"pruned"` timestamp, so `--stats` still counts it.
+`"pruned"` timestamp, so `pare stats` still counts it.
+
+## Subcommands
+
+The modes that do not summarise are subcommands; each takes `--run-dir`
+or `--vocab` as the summary does, and `--help`:
+
+| command | prints |
+|---|---|
+| `pare prune [--dry-run]` | what it removed from the run directory, or with `--dry-run` what it would, and the limits in force |
+| `pare stats` | what command mode saved: raw tokens against printed tokens over every recorded run, and the ten largest |
+| `pare vocab` | the vocabulary in file format, built in or with `--vocab FILE` applied, to edit and pass back with `--vocab` |
+
+## Exit status
+
+| status | when |
+|---|---|
+| the command's | command mode (`pare -- CMD`), whatever pare printed; 127 when the command could not be found, 128 + n when a signal killed it |
+| 0 | a summary, a selection, a subcommand, `--help`, `--version` |
+| 1 | an I/O error: the input could not be read, or the run file or the output written |
+| 2 | a usage error: an unknown flag or value, flags that contradict each other (`--follow` with `--only`, `--no-tee` with `--run-file`), a budget or width below its floor, a bad `--vocab` file or `$PARE_BUDGET` |
+
+A broken pipe on stdout (`pare … | head`) ends the output quietly with
+status 0.
+
+## Environment
+
+| variable | meaning |
+|---|---|
+| `PARE_BUDGET` | the budget when `--budget` is not given: a number, `auto` or `auto:N`; empty counts as unset |
+| `PARE_RUN_DIR` | where run files go (default `~/.cache/pare/runs`); `--run-dir` overrides it |
+| `PARE_RUN_KEEP_DAYS` | prune run files older than this many days (default 14; 0 for no age limit) |
+| `PARE_RUN_MAX_MB` | then remove the oldest until the rest fit (default 500; 0 for no size limit) |
+| `PARE_RUN_PRUNE` | `off`: never prune automatically |
+| `PARE_VOCAB` | a vocabulary file, as `--vocab`; empty counts as unset |
+
+Two more exist for testing pare itself and change its output:
+`PARE_REFERENCE_RULES=1` turns off the rules added since the Python
+version (the parity check's setting), and `PARE_DUMP=1` prints every
+line's analysis instead of a summary.
+
+## What you can rely on
+
+pare is at 0.2; what follows is what the code holds today, written down
+so a script or an agent knows what to parse. A release that changes any
+of it says so in the CHANGELOG.
+
+- The section markers: `# pare:` opens a summary, `# pare #N:` a follow
+  block, `## ` each section, `## raw:` the run file line, `## omitted`
+  the ledger, `## exit N` a non-zero status on a pass-through.
+- The flags in `pare --help`, their names and defaults; `--chars-per-token`
+  stays as an alias of `--bytes-per-token`.
+- Template ids within one version, for one input and one vocabulary.
+- The exit statuses above.
+- The `.json` record's fields (`command`, `cwd`, `exit`, `seconds`, `lines`,
+  `bytes`, `out_bytes`, `budget`, `chars_per_token`, `pare`), which `pare stats` and
+  `bench/collect.py` read.

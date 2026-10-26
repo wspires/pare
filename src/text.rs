@@ -8,8 +8,84 @@
 
 use std::borrow::Cow;
 use std::sync::LazyLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use regex::Regex;
+
+/// The marks pare's own output is built from. Unicode by default; ASCII
+/// with `--ascii`, for terminals, tokenizers and diff tools that handle it
+/// better. Only pare's marks change: log text is never rewritten.
+pub struct Glyphs {
+    /// Omitted lines, at the start of a line: `  ┆ (12 lines)`.
+    pub gap: &'static str,
+    /// Input to output in the header: `~6,803 tok → ~1,249 tok`.
+    pub arrow: &'static str,
+    /// Between facts on one line: `(budget 2,000) · 35 templates`.
+    pub dot: &'static str,
+    /// A template's count: `T2 ×65`.
+    pub times: &'static str,
+    /// A line range: `L1–L5`.
+    pub dash: &'static str,
+    /// A clipped line, a list item, a list header's `{…}`.
+    pub ellipsis: &'static str,
+    /// An automatic budget's ceiling: `auto ≤2,000`.
+    pub le: &'static str,
+    /// A follow window that starts inside a record: `↳ continues L1`.
+    pub cont: &'static str,
+    /// A line break inside a decoded stack trace: `msg ⏎ at frame`.
+    pub newline: &'static str,
+    /// Around a decoded trace in a structured line: `‹…›`.
+    pub open: &'static str,
+    /// ...and its close.
+    pub close: &'static str,
+}
+
+const UNICODE: Glyphs = Glyphs {
+    gap: "┆",
+    arrow: "→",
+    dot: "·",
+    times: "×",
+    dash: "–",
+    ellipsis: "…",
+    le: "≤",
+    cont: "↳",
+    newline: "⏎",
+    open: "‹",
+    close: "›",
+};
+
+const ASCII: Glyphs = Glyphs {
+    gap: "|",
+    arrow: "->",
+    dot: "|",
+    times: "x",
+    dash: "-",
+    ellipsis: "...",
+    le: "<=",
+    cont: "->",
+    newline: "\\n",
+    open: "<",
+    close: ">",
+};
+
+static USE_ASCII: AtomicBool = AtomicBool::new(false);
+
+/// Switches pare's marks to ASCII (`--ascii`); set once, before any output.
+// Rust note: a process-wide flag read from many places, like a global
+// `std::atomic<bool>`. `Relaxed` is enough: nothing else is ordered by it.
+pub fn set_ascii(on: bool) {
+    USE_ASCII.store(on, Ordering::Relaxed);
+}
+
+/// The marks in use.
+#[must_use]
+pub fn glyphs() -> &'static Glyphs {
+    if USE_ASCII.load(Ordering::Relaxed) {
+        &ASCII
+    } else {
+        &UNICODE
+    }
+}
 
 /// ANSI escape sequences: CSI (`ESC [ ... final`), OSC (`ESC ] ... BEL` or
 /// `ESC ] ... ESC \`), and two-byte escapes. Same pattern as `ANSI_RE`.
@@ -136,7 +212,7 @@ pub fn clip(text: &str, width: i64) -> Cow<'_, str> {
         }
     }
     let cut = len - width + 1;
-    let marker = format!("…(+{cut}c)");
+    let marker = format!("{}(+{cut}c)", glyphs().ellipsis);
     if i64::try_from(marker.chars().count()).unwrap_or(0) >= cut {
         return Cow::Borrowed(text);
     }

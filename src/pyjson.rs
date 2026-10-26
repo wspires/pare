@@ -1,6 +1,6 @@
 //! JSON as Python's `json.dump(value, f, indent=2)` writes it, for the
-//! `.json` record next to a run file (command mode writes it, `--prune`
-//! rewrites it, `--stats` reads it).
+//! `.json` record next to a run file (command mode writes it, `pare prune`
+//! rewrites it, `pare stats` reads it).
 //!
 //! Parsing is `serde_json`'s; writing is done here, because the files must
 //! be byte for byte what the Python version writes, and Python's defaults

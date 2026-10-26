@@ -136,7 +136,7 @@ The blocker for stage 1 was friction, so this came first in practice.
 | `bench/collect.py` | turns a run file into a held-out case with its `.cmd`, scrubbed, never showing pare's summary | `corpus-heldout/README.md`, "Protocol" |
 | Agent integration | an instruction for `CLAUDE.md` or `AGENTS.md`, and a Claude Code hook that rewrites test, build and install commands; tried in a real session and registered for this repository | `integrations/README.md` |
 | `bench/harvest.py` | mines Claude Code transcripts for long outputs, scrubs them, proposes keep lines from what the agent did next, and ranks first the outputs where the agent went past pare's summary | `corpus-heldout/README.md`, "Harvesting from existing transcripts" |
-| `pare --stats` | totals what commands printed against what pare printed, an upper bound on the saving | `integrations/README.md` |
+| `pare stats` | totals what commands printed against what pare printed, an upper bound on the saving | `integrations/README.md` |
 
 ### Stage 3: fix only what the held-out set showed
 

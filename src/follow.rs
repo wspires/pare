@@ -56,7 +56,7 @@ pub struct Settings {
     pub quiet: bool,
 }
 
-/// Bytes written to the output, for the command's `--stats` record.
+/// Bytes written to the output, for the command's `pare stats` record.
 /// `CountingWriter` in Python.
 struct Counting<W: Write> {
     out: W,
@@ -287,8 +287,9 @@ pub fn follow(
     };
     let total_bytes = pass.total_bytes();
     let seg = pass.segmenter();
+    let dot = crate::text::glyphs().dot;
     let mut end = format!(
-        "# pare: end of input · {} lines, {} B (~{} tok) · {} templates · ",
+        "# pare: end of input {dot} {} lines, {} B (~{} tok) {dot} {} templates {dot} ",
         fmt_int(seg.nlines() as i64),
         fmt_int(i64::try_from(total_bytes).unwrap_or(i64::MAX)),
         fmt_int(i64::try_from(settings.budget.tokens_in(total_bytes)).unwrap_or(i64::MAX)),
@@ -299,7 +300,7 @@ pub fn follow(
         None => end.push_str("raw: (not saved)"),
     }
     if let Some(code) = exit_code {
-        end.push_str(&format!(" · exit {code}"));
+        end.push_str(&format!(" {dot} exit {code}"));
     }
     end.push('\n');
     state

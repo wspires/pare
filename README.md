@@ -116,7 +116,7 @@ tested against byte for byte. Building from a checkout is in
 
 The budget is a hard ceiling in tokens on what pare prints. Tokens are
 estimated as bytes / 2.8, the rate measured on pare's output with the
-cl100k and o200k tokenizers (`--chars-per-token` changes it).
+cl100k and o200k tokenizers (`--bytes-per-token` changes it).
 
 By default the size follows the log (`auto`): pare stops once what is
 left is below error level, at most 2,000 tokens, so 1,200 warning lines
@@ -126,7 +126,10 @@ tokens. `--budget auto:4000` raises the ceiling; `--budget N` is a fixed
 budget the summary fills (1,000 to 2,000 suits an agent loop). Without
 `--budget`, pare takes `$PARE_BUDGET`, else `auto`, so a harness can set
 it once for every call. Output that already fits passes through
-untouched. Details: [docs/DESIGN.md](docs/DESIGN.md#tokens-and-the-budget).
+untouched. `--ascii` writes pare's own marks (`→ · × ┆ …`) as ASCII; the
+log's text is never changed. Details:
+[docs/DESIGN.md](docs/DESIGN.md#tokens-and-the-budget) and
+[docs/USAGE.md](docs/USAGE.md).
 
 ### Running the command
 
@@ -139,7 +142,7 @@ pare -- ./gradlew build
 The command's exit code survives (a pipe would report pare's), the
 summary ends with the exit status, stdout and stderr are merged in the
 order the command wrote them, and the command is recorded next to the run
-file. `pare --stats` totals what commands printed against what pare
+file. `pare stats` totals what commands printed against what pare
 printed, over every run so far.
 
 [integrations/README.md](integrations/README.md) has two ways to route an
@@ -157,7 +160,8 @@ format, budgeted on its own:
 kubectl logs -f deploy/api | pare -f --interval 30 --budget 600
 ```
 
-A window closes after `--every` lines, after `--interval` seconds, or
+A window closes after `--every` lines, after `--interval` seconds (30
+by default), or
 half a second after a line at `--flush-on` severity (default `error`)
 arrives. A stack trace is never split across windows, and template ids
 are the ones a batch run over the finished run file would assign, so
@@ -169,7 +173,7 @@ Details: [docs/USAGE.md](docs/USAGE.md#follow-mode).
 Run files live in `~/.cache/pare/runs` (`$PARE_RUN_DIR`). pare prunes
 them itself: runs older than 14 days go, then the oldest until the rest
 fit in 500 MB (`$PARE_RUN_KEEP_DAYS`, `$PARE_RUN_MAX_MB`;
-`$PARE_RUN_PRUNE=off` stops it; `pare --prune [--dry-run]` sweeps now).
+`$PARE_RUN_PRUNE=off` stops it; `pare prune [--dry-run]` sweeps now).
 Details: [docs/USAGE.md](docs/USAGE.md#run-files).
 
 ## Teaching pare your logs
@@ -180,7 +184,7 @@ summary and noise words, log-level tokens, the shapes of stack frames)
 which a file can extend for your tools or language:
 
 ```
-pare --dump-vocab > my.vocab          # every built-in entry, in file format
+pare vocab > my.vocab                 # every built-in entry, in file format
 pare --vocab my.vocab ...             # or: export PARE_VOCAB=my.vocab
 ```
 

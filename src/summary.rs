@@ -128,7 +128,9 @@ const LIST_MIN_COUNT: u32 = 3;
 /// ...when the shared prefix saves at least this many characters per item.
 const LIST_MIN_SHARED: usize = 16;
 /// An item line: this, then the item.
-const LIST_ITEM: &str = "  …";
+fn list_item() -> String {
+    format!("  {}", crate::text::glyphs().ellipsis)
+}
 /// The shared prefix ends after one of these.
 const LIST_CUT: &str = " :/.#(";
 /// Salience added to a listed failure that fails unlike most of the list...
@@ -156,8 +158,12 @@ const NEAR_DUP_CONTAINMENT: f64 = 0.8;
 
 const LEVEL_NAME: [&str; 5] = ["DEBUG", "INFO", "WARN", "ERROR", "FATAL"];
 
-const RUN_HINT: &str =
-    "   expand with: pare --only T<n> < raw   ·   drop noise: pare --except T<n>,T<m> < raw";
+fn run_hint() -> String {
+    format!(
+        "   expand with: pare --only T<n> < raw   {}   drop noise: pare --except T<n>,T<m> < raw",
+        crate::text::glyphs().dot
+    )
+}
 
 /// A bracketed parameter list right after a name: pytest's
 /// `test_x[numpy-3-1]`, JUnit 4's `testFoo[2]`. Its digits are part of
@@ -215,9 +221,22 @@ fn all_digits(t: &str) -> bool {
 
 /// `gap_marker()`: the marker between non-adjacent lines.
 #[must_use]
+/// `word` or `word`s for a count. The reference wrote the plural for every
+/// count ("1 templates not listed"); under `PARE_REFERENCE_RULES` so does
+/// this.
+fn plural(n: usize, word: &str) -> String {
+    if n == 1 && crate::pass::rust_rules() {
+        word.to_owned()
+    } else {
+        format!("{word}s")
+    }
+}
+
+/// `  ┆ (12 lines)`: the marker for lines left out between shown ones.
 pub fn gap_marker(gap: usize) -> String {
     format!(
-        "  ┆ ({} line{})",
+        "  {} ({} line{})",
+        crate::text::glyphs().gap,
         fmt_int(gap as i64),
         if gap == 1 { "" } else { "s" }
     )
@@ -604,11 +623,13 @@ pub fn summarize(store: &Store, vocab: &Vocab, spool: &Path, opts: &Options) -> 
         (None, _) => "## raw: (not saved)".to_owned(),
     };
     if let Some(note) = &opts.note {
-        run_line.push_str(&format!(" · {note}"));
+        run_line.push_str(&format!(" {} {note}", crate::text::glyphs().dot));
     }
     if let Some(f) = opts.follow {
         let total = store.len();
         let lines_word = if total == 1 { "line" } else { "lines" };
+        let g = crate::text::glyphs();
+        let (dot, times, dash) = (g.dot, g.times, g.dash);
         // A window with nothing above the salience floor and no new shape is
         // one line, so a quiet stream costs almost nothing to watch.
         let anything = (0..total)
@@ -624,19 +645,19 @@ pub fn summarize(store: &Store, vocab: &Vocab, spool: &Path, opts: &Options) -> 
                 .iter()
                 .map(|&t| {
                     format!(
-                        "{} ×{}",
+                        "{} {times}{}",
                         store.templates[t].tid(),
                         fmt_int(i64::from(store.templates[t].count))
                     )
                 })
                 .collect();
             let more = if store.templates.len() > top.len() {
-                format!(" · +{} more", store.templates.len() - top.len())
+                format!(" {dot} +{} more", store.templates.len() - top.len())
             } else {
                 String::new()
             };
             return Ok(format!(
-                "# pare #{}: L{}–L{} · {} {lines_word}, nothing new · {}{more}\n",
+                "# pare #{}: L{}{dash}L{} {dot} {} {lines_word}, nothing new {dot} {}{more}\n",
                 f.k,
                 fmt_int(b1 as i64),
                 fmt_int(last as i64),
@@ -647,7 +668,7 @@ pub fn summarize(store: &Store, vocab: &Vocab, spool: &Path, opts: &Options) -> 
         // Small input: never make it bigger. A follow window keeps its
         // header line so blocks stay delimited, and its run line.
         let mut verbatim = vec![format!(
-            "# pare #{}: L{}–L{} · {} {lines_word}, verbatim",
+            "# pare #{}: L{}{dash}L{} {dot} {} {lines_word}, verbatim",
             f.k,
             fmt_int(b1 as i64),
             fmt_int(last as i64),
@@ -657,7 +678,8 @@ pub fn summarize(store: &Store, vocab: &Vocab, spool: &Path, opts: &Options) -> 
             // The window starts inside a record: say what its first lines
             // belong to.
             verbatim.push(format!(
-                "  ↳ continues L{}: {}",
+                "  {} continues L{}: {}",
+                g.cont,
                 c.no,
                 clip(py_strip(&c.text), opts.width)
             ));
@@ -702,7 +724,11 @@ pub fn summarize(store: &Store, vocab: &Vocab, spool: &Path, opts: &Options) -> 
         budget_bytes,
         compact: tokens < COMPACT_BUDGET,
         run_line,
-        show_hint: tokens >= HINT_BUDGET && !later_window,
+        // The hint says how to expand the run file; without one (--no-tee)
+        // there is nothing to expand. The reference printed it regardless.
+        show_hint: tokens >= HINT_BUDGET
+            && !later_window
+            && (opts.run_path.is_some() || !crate::pass::rust_rules()),
         // Rust note: `div_euclid` floors like Python's `//` (the budget can
         // be negative).
         ledger_reserve: budget_bytes.div_euclid(divisor).clamp(120, 400),
@@ -760,10 +786,13 @@ impl Summarizer<'_> {
     /// `"L1–L300 · 300 lines"`: a follow window's span.
     fn span(&self) -> String {
         let total = self.total as i64;
+        let g = crate::text::glyphs();
         format!(
-            "L{}–L{} · {} line{}",
+            "L{}{}L{} {} {} line{}",
             fmt_int(self.b1 as i64),
+            g.dash,
             fmt_int((self.store.base + self.total) as i64),
+            g.dot,
             fmt_int(total),
             if total == 1 { "" } else { "s" }
         )
@@ -772,6 +801,8 @@ impl Summarizer<'_> {
     fn header(&self, out_bytes: i64) -> String {
         let total = self.total as i64;
         let in_bytes = i64::try_from(self.opts.in_bytes).unwrap_or(i64::MAX);
+        let g = crate::text::glyphs();
+        let (arrow, dot) = (g.arrow, g.dot);
         if let Some(f) = &self.opts.follow {
             let news = if self.later_window && self.new_count > 0 {
                 format!(", {} new", self.new_count)
@@ -779,7 +810,7 @@ impl Summarizer<'_> {
                 String::new()
             };
             return format!(
-                "# pare #{}: {}, {} B (~{} tok) → ~{} tok (budget {}) · {} templates{news}",
+                "# pare #{}: {}, {} B (~{} tok) {arrow} ~{} tok (budget {}) {dot} {} templates{news}",
                 f.k,
                 self.span(),
                 fmt_int(in_bytes),
@@ -790,7 +821,7 @@ impl Summarizer<'_> {
             );
         }
         format!(
-            "# pare: {} line{}, {} B (~{} tok) → ~{} tok (budget {}) · {} templates",
+            "# pare: {} line{}, {} B (~{} tok) {arrow} ~{} tok (budget {}) {dot} {} templates",
             fmt_int(total),
             if total == 1 { "" } else { "s" },
             fmt_int(in_bytes),
@@ -805,7 +836,7 @@ impl Summarizer<'_> {
     fn budget_label(&self) -> String {
         let tokens = fmt_int(self.opts.budget.tokens);
         if self.opts.budget.auto {
-            format!("auto ≤{tokens}")
+            format!("auto {}{tokens}", crate::text::glyphs().le)
         } else {
             tokens
         }
@@ -1143,7 +1174,7 @@ impl Summarizer<'_> {
 
     fn item_cost(&mut self, no: usize) -> i64 {
         let item = self.item_of(no).unwrap_or_default();
-        (LIST_ITEM.len() + item.len()) as i64 + 1
+        (list_item().len() + item.len()) as i64 + 1
     }
 
     /// `as_item()`: whether a line renders as an item of its placed list.
@@ -1303,7 +1334,14 @@ impl Summarizer<'_> {
             // Mixed levels inside one template: say so.
             let hist: Vec<String> = levels
                 .iter()
-                .map(|&k| format!("{}×{}", LEVEL_NAME[k], fmt_int(i64::from(tpl.levels[k]))))
+                .map(|&k| {
+                    format!(
+                        "{}{}{}",
+                        LEVEL_NAME[k],
+                        crate::text::glyphs().times,
+                        fmt_int(i64::from(tpl.levels[k]))
+                    )
+                })
                 .collect();
             extra.push_str(&format!(" [{}]", hist.join(" ")));
         }
@@ -1311,7 +1349,12 @@ impl Summarizer<'_> {
             extra.push_str(" new");
         }
         extra.push_str(&tpl.rate_note);
-        let head = format!("{tid:<4} ×{}{extra} {marker}", fmt_int(i64::from(count)));
+        let g = crate::text::glyphs();
+        let times = g.times;
+        let head = format!(
+            "{tid:<4} {times}{}{extra} {marker}",
+            fmt_int(i64::from(count))
+        );
         if let Some((pre, suf)) = self.list_affixes(t) {
             // A list of failures: the shared text once, the items under it,
             // those that fail unlike the rest first.
@@ -1322,10 +1365,10 @@ impl Summarizer<'_> {
                 String::new()
             };
             let head = format!(
-                "{tid:<4} ×{}{extra}{rare} {marker}",
+                "{tid:<4} {times}{}{extra}{rare} {marker}",
                 fmt_int(i64::from(count))
             );
-            return vec![format!("{head} {pre}{{…}}{suf}")];
+            return vec![format!("{head} {pre}{{{}}}{suf}", g.ellipsis)];
         }
         let ex_ref = self.ref_of(ex_no);
         if let Some(other) = self.pair_of(t) {
@@ -1555,8 +1598,10 @@ impl Summarizer<'_> {
             .count();
         if unseen > nos.len() {
             out.push(format!(
-                "  ┆ (+{} more lines)",
-                fmt_int((unseen - nos.len()) as i64)
+                "  {} (+{} more {})",
+                crate::text::glyphs().gap,
+                fmt_int((unseen - nos.len()) as i64),
+                plural(unseen - nos.len(), "line")
             ));
         }
         (out, nos.into_iter().collect())
@@ -1607,7 +1652,10 @@ impl Summarizer<'_> {
         );
         let mut tail_bits: Vec<String> = Vec::new();
         if tpl_omitted > 0 {
-            tail_bits.push(format!("{tpl_omitted} templates not listed"));
+            tail_bits.push(format!(
+                "{tpl_omitted} {} not listed",
+                plural(tpl_omitted, "template")
+            ));
         }
         let blank_total = store.blank.iter().filter(|&&b| b).count();
         if blank_total > blank_shown {
@@ -1621,7 +1669,12 @@ impl Summarizer<'_> {
         let mut shown_parts: Vec<String> = Vec::new();
         let mut used = head.chars().count() as i64 + 2;
         for &(om, t) in &per_tpl {
-            let p = format!("{} ×{}", store.templates[t].tid(), fmt_int(om));
+            let p = format!(
+                "{} {}{}",
+                store.templates[t].tid(),
+                crate::text::glyphs().times,
+                fmt_int(om)
+            );
             let len = p.chars().count() as i64;
             if !self.ledger_detail || used + len + 2 > self.ledger_reserve - 40 {
                 break;
@@ -1639,7 +1692,7 @@ impl Summarizer<'_> {
             line.push_str(&shown_parts.join(", "));
         }
         if !tail_bits.is_empty() {
-            line.push_str(" · ");
+            line.push_str(&format!(" {} ", crate::text::glyphs().dot));
             line.push_str(&tail_bits.join("; "));
         }
         line
@@ -1649,7 +1702,10 @@ impl Summarizer<'_> {
     fn render(&mut self) -> Vec<String> {
         let mut out: Vec<String> = Vec::new();
         if let (Some(&first), Some(&last)) = (self.head_nos.first(), self.head_nos.last()) {
-            out.push(format!("## head (L{first}–L{last})"));
+            out.push(format!(
+                "## head (L{first}{}L{last})",
+                crate::text::glyphs().dash
+            ));
             let head = self.head_nos.clone();
             out.extend(self.render_ranges(&head));
         }
@@ -1681,7 +1737,7 @@ impl Summarizer<'_> {
                     items.sort_by_key(|n| (!rare.contains(n), *n));
                     for &n in &items {
                         let item = self.item_of(n).unwrap_or_default();
-                        out.push(format!("{LIST_ITEM}{item}"));
+                        out.push(format!("{}{item}", list_item()));
                     }
                     let in_windows = self
                         .window_nos
@@ -1700,7 +1756,11 @@ impl Summarizer<'_> {
                         - in_windows
                         - ex_extra;
                     if rest > 0 {
-                        out.push(format!("  ┆ (+{} more)", fmt_int(rest)));
+                        out.push(format!(
+                            "  {} (+{} more)",
+                            crate::text::glyphs().gap,
+                            fmt_int(rest)
+                        ));
                     }
                     in_bodies.extend(items);
                 }
@@ -1721,7 +1781,10 @@ impl Summarizer<'_> {
             out.extend(self.render_ranges(&rest_nos));
         }
         if let (Some(&first), Some(&last)) = (self.tail_nos.first(), self.tail_nos.last()) {
-            out.push(format!("## tail (L{first}–L{last})"));
+            out.push(format!(
+                "## tail (L{first}{}L{last})",
+                crate::text::glyphs().dash
+            ));
             let tail = self.tail_nos.clone();
             out.extend(self.render_ranges(&tail));
         }
@@ -1738,7 +1801,7 @@ impl Summarizer<'_> {
         out.push(self.ledger(&shown_set));
         out.push(self.run_line.clone());
         if self.show_hint {
-            out.push(RUN_HINT.to_owned());
+            out.push(run_hint());
         }
         out
     }
@@ -1804,7 +1867,7 @@ impl Summarizer<'_> {
             self.header(self.budget_bytes),
             self.run_line.clone(),
             if self.show_hint {
-                RUN_HINT.to_owned()
+                run_hint()
             } else {
                 String::new()
             },
@@ -1993,6 +2056,8 @@ mod tests {
             "ab"
         );
         assert_eq!(common_prefix(&[Rc::from("é1"), Rc::from("é2")]), "é");
+        assert_eq!(plural(1, "template"), "template");
+        assert_eq!(plural(2, "template"), "templates");
         assert_eq!(gap_marker(1), "  ┆ (1 line)");
         assert_eq!(gap_marker(1200), "  ┆ (1,200 lines)");
         assert_eq!(truncate("ab é", 4), "ab\n"); // the cut splits é; the space is stripped

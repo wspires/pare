@@ -26,7 +26,7 @@ status: summaries at budgets from 300 to 2,000 tokens, with a narrow
 width, the prose token rate, a template cap, small windows and
 `--vocab reference/vocab.example`; input that fits, passed through; the
 selection flags; follow mode with 300- and 5,000-line windows. Command
-mode, `--prune`, `--stats` and follow mode's time-driven flushes are
+mode, `pare prune`, `pare stats` and follow mode's time-driven flushes are
 not in the parity runs (they depend on time, processes or the run
 directory); they were compared with the Python version by hand, output
 and `.json` records byte for byte, and have integration tests.
@@ -39,7 +39,7 @@ edge cases (CRLF, ANSI codes, carriage returns, invalid UTF-8, NUL bytes,
 case-folding letters such as `İNFO` and the Kelvin sign, deep
 indentation, characters on which Python's and Rust's Unicode classes
 disagree, German vocabulary). `--vocab`, `$PARE_VOCAB` and
-`--dump-vocab` are ported, with Python's messages; only a bad regex in a
+`pare vocab` are ported, with Python's messages; only a bad regex in a
 vocabulary file is reported in the regex engine's words rather than
 Python's.
 
@@ -64,7 +64,7 @@ src/structured.rs   JSON and logfmt lines: a clip that keeps the telling fields,
 src/mask.rs         the masks (<TS>, <NUM>, ...), a file's UserMasks, drain_message
 src/drain.rs        Drain, the template miner (as drain3 0.9.11)
 src/vocab.rs        vocabulary classes, levels, HTTP and exit codes, vocab_score;
-                    --vocab files and --dump-vocab
+                    --vocab files and pare vocab
 src/score.rs        scoring constants; template salience and markers
 src/pyre.rs         PyRegex: Python patterns on two engines
 src/pyclass.rs      Python's \w, \d, \s, isdigit, strip, split, int, repr;
@@ -72,7 +72,7 @@ src/pyclass.rs      Python's \w, \d, \s, isdigit, strip, split, int, repr;
 src/pyunicode.rs    the tables behind them, generated from Python 3.13
 src/dump.rs         $PARE_DUMP, in the Python version's format
 src/runfile.rs      run directory, Spool (the file that becomes the run file)
-src/runs.rs         --prune and automatic pruning, --stats
+src/runs.rs         `pare prune` and automatic pruning, `pare stats`
 src/command.rs      command mode: running CMD, its output, signals, the .json record
 src/follow.rs       follow mode: windows, flushes, the end line
 src/select.rs       --only, --except, --since, --until, --min-severity
@@ -83,7 +83,7 @@ tests/cli.rs        end-to-end tests of the binary
 tests/data/        golden files from the Python version: mask.tsv (mask() on
                     4,045 record heads), vocab.tsv (severity, classes and
                     scores of 6,032 lines), vocab.txt and vocab-example.txt
-                    (--dump-vocab), summary/ (whole summaries of 5 logs)
+                    (pare vocab), summary/ (whole summaries of 5 logs)
 ```
 
 The library holds everything so that each piece has unit tests next to it
@@ -308,15 +308,15 @@ status:
   tests`), and code examples in `///` docs are compiled and run as tests.
 - **Integration tests** in `tests/cli.rs` run the binary: pass-through,
   the run file and its name, empty input, usage errors, the dump against
-  Python's, `--dump-vocab`, bad vocabulary files, whole
+  Python's, `pare vocab`, bad vocabulary files, whole
   summaries against Python's (`tests/data/summary/`), the budget as a
-  hard limit, the run line, command mode and its records, `--stats`,
-  `--prune`, follow mode.
+  hard limit, the run line, command mode and its records, `pare stats`,
+  `pare prune`, follow mode.
 - **Golden files** in `tests/data/`, written by `bench/gen_fixtures.py`
   from the Python version: `mask()` on 4,045 real record heads and
   awkward Unicode lines; severity, vocabulary classes and both
   `vocab_score`s of 6,032 lines (the scores as `repr()` strings, compared
-  bit for bit); `--dump-vocab` with and without `reference/vocab.example`.
+  bit for bit); `pare vocab` with and without `reference/vocab.example`.
 - **Parity** (`bench/parity.py --candidate target/release/pare`) compares the binary with the Python version byte for
   byte over every corpus log and the generated edge cases, under 14 flag
   sets; `--dump` also compares the per-line results and reports the first
@@ -365,6 +365,6 @@ makes the static build and cross-compilation trivial.
 | `fancy-regex` | backtracking regular expressions with lookaround and `\G`, like Python's `re`: the exact half of the masks, tried only at the positions `regex` finds |
 | `memchr` | SIMD byte search for line splitting; already a dependency of `regex`, so free |
 | `sha2` | SHA-256 for the run file's name, as `hashlib.sha256` |
-| `serde_json` (preserve_order) | reading the `.json` run records (`--stats`, `--prune`); writing them is `pyjson`, to match Python's format |
+| `serde_json` (preserve_order) | reading the `.json` run records (`pare stats`, `pare prune`); writing them is `pyjson`, to match Python's format |
 | `signal-hook` (Unix) | command mode's signal handling without `unsafe`: SIGINT ignored, SIGTERM and SIGHUP received on a thread |
 | `nix` (Unix, `signal` only) | sending those signals on to the command (`kill(2)`), which std cannot |

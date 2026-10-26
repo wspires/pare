@@ -15,7 +15,7 @@
 //!   (which decides whether a record body counts as an error).
 //!
 //! A vocabulary file (`--vocab FILE`, `$PARE_VOCAB`) extends or replaces any
-//! class; `--dump-vocab` prints the classes in that format.
+//! class; `pare vocab` prints the classes in that format.
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -26,7 +26,7 @@ use crate::pyclass::{py_int, py_isupper, py_repr, py_split, py_strip};
 use crate::pyre::PyRegex;
 
 /// The vocabulary classes, in Python's order (which is also the order of
-/// `--dump-vocab` and of the error message listing them).
+/// `pare vocab` and of the error message listing them).
 // Rust note: a C-like enum with `#[repr(usize)]` has the integer values
 // 0, 1, 2, ... so `class as usize` indexes the per-class arrays below,
 // like a C++ `enum` used as an index; unlike C++, an integer does not
@@ -76,7 +76,7 @@ const LEVEL_CLASSES: std::ops::Range<usize> = NWORD_CLASSES..NWORD_CLASSES + 5;
 struct ClassInfo {
     name: &'static str,
     weight: f64,
-    /// `--dump-vocab`'s comment: the description, and the weight as
+    /// `pare vocab`'s comment: the description, and the weight as
     /// Python's `f"{weight:+g}"` prints it.
     comment: &'static str,
 }
@@ -210,7 +210,7 @@ const LEVEL_SCORE: [f64; 5] = [-1.0, -0.5, 1.5, 3.0, 4.0];
 
 /// The built-in vocabulary, one list per class in [`Class`] order, exactly
 /// as `DEFAULT_VOCAB` in Python (`tests/data/vocab.txt`, Python's
-/// `--dump-vocab`, checks it).
+/// `pare vocab`, checks it).
 // Rust note: `&[&[&str]]` is a slice of slices of string slices, all of
 // it static data in the binary: no allocation until a vocabulary is built.
 #[rustfmt::skip]
@@ -991,7 +991,7 @@ fn py_splitlines(text: &str) -> Vec<&str> {
     out
 }
 
-/// The vocabulary in file format, as `--dump-vocab` prints it.
+/// The vocabulary in file format, as `pare vocab` prints it.
 /// `dump_vocab()`.
 #[must_use]
 pub fn dump_vocab(entries: &Entries) -> String {
@@ -1141,7 +1141,7 @@ mod tests {
         Vocab::new(entries).unwrap();
     }
 
-    /// The continuation class as `--dump-vocab` prints it by default.
+    /// The continuation class as `pare vocab` prints it by default.
     fn continuation_section() -> String {
         let info = &INFO[Class::Continuation as usize];
         let mut s = format!("\n# {}\n[{} replace]\n", info.comment, info.name);

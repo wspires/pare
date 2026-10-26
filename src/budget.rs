@@ -8,7 +8,7 @@
 //! An automatic budget (`--budget auto`, not in Python) is a ceiling the
 //! summary need not reach: see [`Budget::auto`].
 
-/// Bytes per token unless `--chars-per-token` says otherwise.
+/// Bytes per token unless `--bytes-per-token` says otherwise.
 pub const DEFAULT_CHARS_PER_TOKEN: f64 = 2.8;
 
 /// An automatic budget passes input through whole only up to this many

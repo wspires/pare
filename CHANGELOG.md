@@ -52,6 +52,19 @@ Homebrew, an install script, pipx/uv (`pare-cli`) or cargo (`pare-cli`).
   site-specific ids (order numbers, tenant names, build hashes) do not
   split one kind of line into many templates. They run before the
   built-in masks; there are none by default.
+- **The command line, before the first release.** `pare prune`,
+  `pare stats` and `pare vocab` are subcommands (they were `--prune`,
+  `--stats` and `--dump-vocab`); `--bytes-per-token` is the name of
+  `--chars-per-token`, which stays as an alias; `--ascii` writes pare's
+  own marks (`→ · × – ┆ … ≤ ↳`) as ASCII, leaving log text alone; follow
+  mode's `--interval` defaults to 30 seconds instead of off; `--help`
+  groups the flags and lists the environment variables and exit
+  statuses. A usage error exits 2 (it was 1, the Python version's; an
+  I/O error still is), a budget below 1, a width below 10 or a negative
+  count is refused up front, `--no-tee` with `--run-file` is refused
+  instead of ignored, the "expand with" hint is printed only when there
+  is a run file to expand, and the ledger and gap markers say
+  `1 template` and `1 line`.
 - **License:** MIT OR Apache-2.0.
 - The Python version is kept in `reference/` as the reference the Rust
   version is tested against; it is no longer packaged.

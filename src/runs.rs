@@ -1,12 +1,12 @@
-//! Looking after the run directory: pruning old run files (`--prune`, and
-//! automatically at most hourly) and `--stats`, what command mode saved.
+//! Looking after the run directory: pruning old run files (`pare prune`, and
+//! automatically at most hourly) and `pare stats`, what command mode saved.
 //! `prune_runs()`, `maybe_prune()`, `prune_command()` and `stats()` in
 //! `reference/pare.py`.
 //!
 //! Only files pare named itself are ever removed: a run file
 //! (`<12 hex>.log`, `follow-<time>-<pid>.log`) and a spool a killed pare
 //! left behind (`.pare-<pid>.tmp`). The small `.json` record next to a
-//! pruned run file stays, marked `"pruned"`, so `--stats` keeps its
+//! pruned run file stays, marked `"pruned"`, so `pare stats` keeps its
 //! history.
 
 use std::fs;
@@ -297,7 +297,7 @@ pub fn maybe_prune(run_dir: &Path) {
     }
 }
 
-/// `--prune [--dry-run]`: prunes now and lists what went.
+/// `pare prune [--dry-run]`: prunes now and lists what went.
 ///
 /// # Errors
 ///
@@ -321,7 +321,7 @@ pub fn prune_command(run_dir: &Path, dry_run: bool, out: &mut impl Write) -> io:
     let mb = total as f64 / 1024.0 / 1024.0;
     writeln!(
         out,
-        "# pare --prune: {} {} file{}, {mb:.1} MB, in {} ({limits})",
+        "# pare prune: {} {} file{}, {mb:.1} MB, in {} ({limits})",
         if dry_run { "would remove" } else { "removed" },
         removed.len(),
         if removed.len() == 1 { "" } else { "s" },
@@ -350,7 +350,7 @@ fn py_str(v: Option<&Value>) -> String {
     }
 }
 
-/// One command-mode run, as `--stats` sees it.
+/// One command-mode run, as `pare stats` sees it.
 struct Row {
     started: String,
     command: String,
@@ -360,7 +360,7 @@ struct Row {
     exit: String,
 }
 
-/// `--stats`: what command mode saved, from the `.json` records next to
+/// `pare stats`: what command mode saved, from the `.json` records next to
 /// the run files: per command, what it printed against what pare printed.
 ///
 /// # Errors
@@ -411,7 +411,7 @@ pub fn stats(run_dir: &Path, out: &mut impl Write) -> io::Result<()> {
     if rows.is_empty() {
         return writeln!(
             out,
-            "# pare --stats: no command-mode runs with output sizes in {}",
+            "# pare stats: no command-mode runs with output sizes in {}",
             run_dir.display()
         );
     }
@@ -421,7 +421,7 @@ pub fn stats(run_dir: &Path, out: &mut impl Write) -> io::Result<()> {
     let shown: i64 = rows.iter().map(|r| tok(r.out_bytes, r.cpt)).sum();
     writeln!(
         out,
-        "# pare --stats: {} command run{} in {}",
+        "# pare stats: {} command run{} in {}",
         rows.len(),
         if rows.len() == 1 { "" } else { "s" },
         run_dir.display()
@@ -432,9 +432,11 @@ pub fn stats(run_dir: &Path, out: &mut impl Write) -> io::Result<()> {
     } else {
         0.0
     };
+    let g = crate::text::glyphs();
+    let (arrow, dot) = (g.arrow, g.dot);
     writeln!(
         out,
-        "raw ~{} tok → printed ~{} tok · saved ~{} tok ({pct:.1} %)",
+        "raw ~{} tok {arrow} printed ~{} tok {dot} saved ~{} tok ({pct:.1} %)",
         fmt_int(raw),
         fmt_int(shown),
         fmt_int((raw - shown).max(0))
@@ -454,7 +456,7 @@ pub fn stats(run_dir: &Path, out: &mut impl Write) -> io::Result<()> {
     for r in rows.iter().take(10) {
         writeln!(
             out,
-            "{}  ~{:>8} → ~{:>6} tok  exit {}  {}",
+            "{}  ~{:>8} {arrow} ~{:>6} tok  exit {}  {}",
             r.started,
             fmt_int(tok(r.bytes, r.cpt)),
             fmt_int(tok(r.out_bytes, r.cpt)),

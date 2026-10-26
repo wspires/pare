@@ -108,7 +108,7 @@ cargo test -- --nocapture      # show println! output from tests
 
 Unit tests sit at the bottom of each module (`#[cfg(test)] mod tests`),
 some against golden files in `tests/data/` written by the Python version
-(masks, severity, scores, `--dump-vocab`; "Generated files" below);
+(masks, severity, scores, `pare vocab`; "Generated files" below);
 `tests/cli.rs` runs the built binary end to end, including whole
 summaries of five corpus logs against golden files; examples in `///`
 docs are compiled and run, so the docs cannot drift from the code.
@@ -166,7 +166,7 @@ the scripts after changing what they are made from:
   file is not what the script writes.
 - `tests/data/*`, golden files: Python's `mask()` on 4,045 real record
   heads (`mask.tsv`); severity, vocabulary classes and scores of 6,032
-  lines (`vocab.tsv`); `--dump-vocab` (`vocab.txt`, and with
+  lines (`vocab.tsv`); `pare vocab` (`vocab.txt`, and with
   `reference/vocab.example`, `vocab-example.txt`); whole summaries of
   five corpus logs under three flag sets (`summary/`). All from
   `python3.13 bench/gen_fixtures.py`.

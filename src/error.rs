@@ -3,7 +3,9 @@
 //! The Python version stops with `sys.exit("pare: ...")` (status 1) for a
 //! usage error and lets an I/O error raise. Here every failure is a value of
 //! [`Error`], returned up the call stack and turned into a message and a
-//! status in one place ([`crate::cli::run`]).
+//! status in one place ([`crate::cli::run`]): 2 for a usage error, as for
+//! an argument clap rejects, and 1 for an I/O error. In command mode the
+//! command's own status is passed through, so 1 and 2 there are its.
 
 use std::fmt;
 use std::io;
@@ -30,6 +32,9 @@ impl Error {
     #[must_use]
     pub fn exit_status(&self) -> u8 {
         match self {
+            // 1 under $PARE_REFERENCE_RULES: the Python version's status,
+            // which the parity check compares.
+            Error::Usage(_) if crate::pass::rust_rules() => 2,
             Error::Usage(_) | Error::Io { .. } => 1,
         }
     }
@@ -83,9 +88,9 @@ mod tests {
 
     #[test]
     fn statuses_and_messages() {
-        let e = Error::Usage("--dry-run goes with --prune".into());
-        assert_eq!(e.exit_status(), 1);
-        assert_eq!(e.to_string(), "pare: --dry-run goes with --prune");
+        let e = Error::Usage("--follow summarises a stream".into());
+        assert_eq!(e.exit_status(), 2);
+        assert_eq!(e.to_string(), "pare: --follow summarises a stream");
         let e = Error::io("reading the input", io::Error::other("boom"));
         assert_eq!(e.exit_status(), 1);
         assert_eq!(e.to_string(), "pare: reading the input: boom");

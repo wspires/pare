@@ -185,7 +185,7 @@ impl CommandRun {
 
     /// `write_meta()`: `<run file>.json` next to the run file: what produced
     /// it, and how much of it pare printed (`out` is the bytes printed, the
-    /// budget and the token rate). Read by `--stats` and
+    /// budget and the token rate). Read by `pare stats` and
     /// `bench/collect.py`. Errors are ignored: the summary matters more.
     pub fn write_meta(
         &self,

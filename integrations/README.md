@@ -120,7 +120,7 @@ signal to the command and still prints a summary of what it saw.
 | variable | default | |
 |---|---|---|
 | `PARE_BIN` | `pare` | the pare executable |
-| `PARE_HOOK_BUDGET` | `2000` | `--budget` for rewritten commands (the hook always passes one, so `$PARE_BUDGET` does not change hook-wrapped commands; it applies where pare is called without `--budget`) |
+| `PARE_HOOK_BUDGET` | unset | adds `--budget N`, `auto` or `auto:N` to every rewrite; unset, the rewrite is bare `pare -- CMD` and pare's own default applies (`auto`, or `$PARE_BUDGET` if set) |
 | `PARE_HOOK_DECISION` | unset | `ask` or `allow`; see above |
 | `PARE_HOOK_EXTRA` | unset | an extra regex of commands to wrap, matched against the command without its path, e.g. `^(just|nx) ` |
 | `PARE_HOOK_DISABLE` | unset | any value turns the hook off |
@@ -128,11 +128,11 @@ signal to the command and still prints a summary of what it saw.
 ### What it saved
 
 Command mode records, next to each run file, how many bytes the command
-printed and how many pare printed. `pare --stats` totals them:
+printed and how many pare printed. `pare stats` totals them:
 
 ```
-$ pare --stats
-# pare --stats: 14 command runs in /root/.cache/pare/runs
+$ pare stats
+# pare stats: 14 command runs in /root/.cache/pare/runs
 raw ~212,480 tok → printed ~18,233 tok · saved ~194,247 tok (91.4 %)
 3 runs fit the budget and passed through whole
 ## largest
@@ -153,6 +153,6 @@ pare prunes them itself, at most once an hour: run files older than 14
 days, then the oldest until the rest fit in 500 MB, but never one less
 than a day old, since a summary in the current session may point at it.
 `PARE_RUN_KEEP_DAYS`, `PARE_RUN_MAX_MB` (0 for no limit) and
-`PARE_RUN_PRUNE=off` change that; `pare --prune --dry-run` shows what a
+`PARE_RUN_PRUNE=off` change that; `pare prune --dry-run` shows what a
 sweep would remove. A run file worth keeping as a held-out case should be
 copied with `bench/collect.py add` before it ages out.

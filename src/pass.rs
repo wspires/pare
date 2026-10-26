@@ -623,8 +623,9 @@ impl<'v> Segmenter<'v> {
             );
             if now_r >= RATE_FACTOR * before_r {
                 tpl.rate_note = format!(
-                    " (rate {}/s → {}/s)",
+                    " (rate {}/s {} {}/s)",
                     py_format_g(before_r, 2),
+                    crate::text::glyphs().arrow,
                     py_format_g(now_r, 2)
                 );
             }
