@@ -645,7 +645,10 @@ fn budget_from_the_environment() {
     let input = "INFO step\n".repeat(3000) + "ERROR disk full\n";
     let run = |env: Option<&str>, args: &[&str]| {
         let mut cmd = Command::new(env!("CARGO_BIN_EXE_pare"));
-        cmd.arg("--no-tee").args(args).env_remove("PARE_BUDGET");
+        cmd.arg("--no-tee")
+            .args(args)
+            .env_remove("PARE_BUDGET")
+            .env_remove("PARE_REFERENCE_RULES");
         if let Some(v) = env {
             cmd.env("PARE_BUDGET", v);
         }
@@ -670,9 +673,10 @@ fn budget_from_the_environment() {
             text.lines().next().unwrap_or("").to_owned(),
         )
     };
-    assert!(run(None, &[]).1.contains("(budget 2,000)"));
+    assert!(run(None, &[]).1.contains("(budget auto ≤2,000)")); // the default
     assert!(run(Some("300"), &[]).1.contains("(budget 300)"));
-    assert!(run(Some(""), &[]).1.contains("(budget 2,000)")); // empty: unset
+    assert!(run(Some(""), &[]).1.contains("(budget auto ≤2,000)")); // empty: unset
+    assert!(run(Some("2000"), &[]).1.contains("(budget 2,000)")); // a number is fixed
     assert!(
         run(Some("300"), &["--budget", "600"])
             .1

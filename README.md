@@ -114,26 +114,26 @@ tested against byte for byte. Building from a checkout is in
 
 ### The budget
 
-`--budget N` is a hard ceiling in tokens on what pare prints. Tokens are
+The budget is a hard ceiling in tokens on what pare prints. Tokens are
 estimated as bytes / 2.8, the rate measured on pare's output with the
-cl100k and o200k tokenizers (`--chars-per-token` changes it). 1,000 to
-2,000 is a good default for an agent loop; output that already fits
-passes through untouched. Without `--budget`, pare takes `$PARE_BUDGET`,
-else 2,000, so a harness can set it once for every call.
+cl100k and o200k tokenizers (`--chars-per-token` changes it).
 
-`--budget auto` (or `auto:4000` for a different ceiling) lets the size
-follow the log: pare stops once what is left is below error level, so
-1,200 warning lines and one error come out at about 250 tokens instead of
-950. On the benchmark it keeps what a fixed 2,000 keeps at about three
-quarters of the tokens. It is opt-in while it earns being the default.
-Details: [docs/DESIGN.md](docs/DESIGN.md#tokens-and-the-budget).
+By default the size follows the log (`auto`): pare stops once what is
+left is below error level, at most 2,000 tokens, so 1,200 warning lines
+and one error come out at about 250 tokens instead of 950. On four fresh
+held-out samples it kept what a fixed 2,000 kept at 69 to 79 % of the
+tokens. `--budget auto:4000` raises the ceiling; `--budget N` is a fixed
+budget the summary fills (1,000 to 2,000 suits an agent loop). Without
+`--budget`, pare takes `$PARE_BUDGET`, else `auto`, so a harness can set
+it once for every call. Output that already fits passes through
+untouched. Details: [docs/DESIGN.md](docs/DESIGN.md#tokens-and-the-budget).
 
 ### Running the command
 
 `pare -- CMD ARGS` runs the command itself instead of reading a pipe:
 
 ```
-pare --budget 2000 -- ./gradlew build
+pare -- ./gradlew build
 ```
 
 The command's exit code survives (a pipe would report pare's), the

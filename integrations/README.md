@@ -41,7 +41,8 @@ agent decides when to use it.
 command is a single simple command from its list (pytest, npm/pnpm/yarn
 test and build, cargo, go test, make, Maven, Gradle, dotnet, terraform
 plan, docker build, kubectl logs, and others), it rewrites it to
-`pare --budget 2000 -- <command>`. It leaves alone:
+`pare -- <command>`, so pare's default budget (`auto`, or `$PARE_BUDGET`)
+applies; `PARE_HOOK_BUDGET=1000` adds `--budget 1000`. It leaves alone:
 
 - compound commands: `&&`, `||`, `;`, pipes, redirections, `$(...)`, `cd`.
   Wrapping them would run them in a subshell. A trailing `2>&1` is the one
@@ -87,7 +88,7 @@ return a permission decision. `PARE_HOOK_DECISION` picks what it sends:
 
 | `PARE_HOOK_DECISION` | effect |
 |---|---|
-| unset (default) | No decision is sent; the normal permission flow applies to `pare --budget 2000 -- npm test`. An allow rule written for `npm test` will not match it, so add rules for the wrapped form, for example `Bash(pare --budget 2000 -- npm test:*)`. |
+| unset (default) | No decision is sent; the normal permission flow applies to `pare -- npm test`. An allow rule written for `npm test` will not match it, so add rules for the wrapped form, for example `Bash(pare -- npm test:*)`. |
 | `ask` | Every rewritten command prompts, showing the rewritten form. |
 | `allow` | Every rewritten command runs without a prompt. Your allow and ask rules no longer gate the commands on the hook's list; deny rules still apply. Use it only if you would allow everything on that list anyway. |
 

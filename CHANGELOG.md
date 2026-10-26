@@ -30,14 +30,18 @@ Homebrew, an install script, pipx/uv (`pare-cli`) or cargo (`pare-cli`).
   such a field shows as its message and nearest frame, decoded. pino's
   numeric levels (`"level":50`) count as levels. Lines are recognized one
   by one; other lines are unchanged.
-- **`--budget auto`.** The budget becomes a ceiling (2,000, or N with
-  `auto:N`) that the summary stops short of once what is left is below
-  error level, so a log with one error gets a short summary. On the
-  benchmark: 97.4 % of must-survive lines at a mean of 1,204 tokens,
-  against 98.8 % at 1,552 for `--budget 2000`. Opt-in.
+- **The budget follows the log (`auto`), by default.** The budget is a
+  ceiling (2,000, or N with `--budget auto:N`) that the summary stops
+  short of once what is left is below error level, so a log with one
+  error gets a short summary. On four fresh held-out samples it kept
+  what a fixed 2,000 kept, at 69 to 79 % of the tokens. A number
+  (`--budget 2000`) is a fixed budget the summary fills, as before; the
+  Python version's default was a fixed 2,000.
 - **`$PARE_BUDGET`** sets the budget when `--budget` is not given (an
   empty value counts as unset; `auto` and `auto:N` work too), so an agent
-  harness can set it once; the default is still 2,000.
+  harness can set it once.
+- **The Claude Code hook** rewrites to `pare -- CMD`, so pare's default
+  (or `$PARE_BUDGET`) applies; `PARE_HOOK_BUDGET` still sets one.
 - **Continuation rules in the vocabulary file.** A `[continuation]`
   section adds regexes for lines that continue the record above (a Go
   panic's frames, a custom tool's detail lines), so a trace stays one
@@ -57,7 +61,7 @@ time in UTC (it was local time); a malformed regex in a `--vocab` file is
 reported in the Rust regex engine's words; long JSON and logfmt lines are
 clipped as above, and pino's numeric levels count; the tail window keeps
 a lone verdict line of a common shape; and `$PARE_BUDGET`,
-`--budget auto`, `--dump-vocab`'s continuation section and the
+`--budget auto` (the default, where the Python version's was a fixed 2,000), `--dump-vocab`'s continuation section and the
 `[continuation]` and `[mask NAME]` sections are new.
 
 ## 0.1 (`v0.1-python`)

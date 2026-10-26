@@ -4,8 +4,8 @@
 Reads the hook event on stdin. When the Bash command is a single simple
 command that usually prints a lot (a test suite, a build, a package
 install, terraform plan, kubectl logs, ...), it prints a rewrite to
-`pare --budget N -- <command>`; otherwise it prints nothing and the command
-runs unchanged. It never fails closed: any error, an unknown event, or pare
+`pare -- <command>` (with `--budget` if PARE_HOOK_BUDGET says); otherwise
+it prints nothing and the command runs unchanged. It never fails closed: any error, an unknown event, or pare
 missing from PATH means no rewrite.
 
 What it leaves alone, on purpose:
@@ -17,7 +17,8 @@ What it leaves alone, on purpose:
 
 Environment
   PARE_BIN            pare executable (default: pare, looked up on PATH)
-  PARE_HOOK_BUDGET    --budget for the rewrite (default 2000)
+  PARE_HOOK_BUDGET    --budget for the rewrite: N, auto or auto:N (default: none,
+                      so pare's own default applies: $PARE_BUDGET, else auto)
   PARE_HOOK_DECISION  "" (default), "ask" or "allow": the permissionDecision
                       sent with the rewrite. "allow" skips the permission
                       prompt for every rewritten command, so your allow and
@@ -38,6 +39,9 @@ import re
 import shlex
 import shutil
 import sys
+
+# A --budget value pare accepts: a number of tokens, auto, or auto:N.
+BUDGET_RX = re.compile(r"\d+|auto(?::\d+)?")
 
 # Matched against the command with the program's directory stripped and the
 # leading VAR=value assignments removed, e.g. "pytest -x tests/".
@@ -123,10 +127,11 @@ def plan(command: str) -> tuple[str | None, str]:
     pare_bin = os.environ.get("PARE_BIN", "pare")
     if not shutil.which(pare_bin):
         return None, f"{pare_bin} not found on PATH"
-    budget = os.environ.get("PARE_HOOK_BUDGET", "2000")
-    if not budget.isdigit():
-        return None, "PARE_HOOK_BUDGET is not a number"
-    return f"{env_part}{shlex.quote(pare_bin)} --budget {budget} -- {rest}", "wrapped"
+    budget = os.environ.get("PARE_HOOK_BUDGET", "").strip()
+    if budget and not BUDGET_RX.fullmatch(budget):
+        return None, "PARE_HOOK_BUDGET is not N, auto or auto:N"
+    flag = f"--budget {budget} " if budget else ""
+    return f"{env_part}{shlex.quote(pare_bin)} {flag}-- {rest}", "wrapped"
 
 
 def main() -> int:

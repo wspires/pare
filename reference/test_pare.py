@@ -1262,13 +1262,13 @@ def load_hook():
 
 
 @pytest.mark.parametrize("command,expected", [
-    ("pytest -x tests/", "{pare} --budget 2000 -- pytest -x tests/"),
-    ("pytest 2>&1", "{pare} --budget 2000 -- pytest"),
-    ("CI=1 npx jest --runInBand", "CI=1 {pare} --budget 2000 -- npx jest --runInBand"),
-    ("npm run test:unit", "{pare} --budget 2000 -- npm run test:unit"),
-    ("pytest -k 'a or b'", "{pare} --budget 2000 -- pytest -k 'a or b'"),
-    ("./gradlew build", "{pare} --budget 2000 -- ./gradlew build"),
-    ("terraform apply -auto-approve", "{pare} --budget 2000 -- terraform apply -auto-approve"),
+    ("pytest -x tests/", "{pare} -- pytest -x tests/"),
+    ("pytest 2>&1", "{pare} -- pytest"),
+    ("CI=1 npx jest --runInBand", "CI=1 {pare} -- npx jest --runInBand"),
+    ("npm run test:unit", "{pare} -- npm run test:unit"),
+    ("pytest -k 'a or b'", "{pare} -- pytest -k 'a or b'"),
+    ("./gradlew build", "{pare} -- ./gradlew build"),
+    ("terraform apply -auto-approve", "{pare} -- terraform apply -auto-approve"),
     ("npm run dev", None), ("make dev", None), ("tsc --watch", None), ("kubectl logs -f deploy/api", None),
     ("./gradlew build --continuous", None), ("terraform apply", None),
     ("npm test 2>&1 | tail -50", None), ("cd app && pytest", None), ("pytest > out.txt", None),
@@ -1280,19 +1280,32 @@ def test_hook_wraps_only_simple_noisy_commands(command, expected, monkeypatch):
     monkeypatch.setenv("PARE_BIN", sys.executable)
     monkeypatch.delenv("PARE_HOOK_DISABLE", raising=False)
     monkeypatch.delenv("PARE_HOOK_EXTRA", raising=False)
+    monkeypatch.delenv("PARE_HOOK_BUDGET", raising=False)
     new, why = hook.plan(command)
     assert new == (expected.format(pare=__import__("shlex").quote(sys.executable)) if expected else None), why
+
+
+def test_hook_budget(monkeypatch):
+    hook = load_hook()
+    monkeypatch.setenv("PARE_BIN", sys.executable)
+    q = __import__("shlex").quote(sys.executable)
+    for budget in ("1000", "auto", "auto:4000"):
+        monkeypatch.setenv("PARE_HOOK_BUDGET", budget)
+        assert hook.plan("pytest")[0] == f"{q} --budget {budget} -- pytest"
+    monkeypatch.setenv("PARE_HOOK_BUDGET", "lots")
+    assert hook.plan("pytest")[0] is None
 
 
 def test_hook_event_io(monkeypatch):
     env = dict(os.environ, PARE_BIN=sys.executable)
     env.pop("PARE_HOOK_DECISION", None)
+    env.pop("PARE_HOOK_BUDGET", None)
     event = {"hook_event_name": "PreToolUse", "tool_name": "Bash",
              "tool_input": {"command": "cargo test", "description": "Run tests", "timeout": 120000}}
     p = subprocess.run([sys.executable, HOOK], input=json.dumps(event), capture_output=True, text=True, env=env)
     out = json.loads(p.stdout)["hookSpecificOutput"]
     assert out["hookEventName"] == "PreToolUse" and "permissionDecision" not in out
-    assert out["updatedInput"] == {**event["tool_input"], "command": f"{sys.executable} --budget 2000 -- cargo test"}
+    assert out["updatedInput"] == {**event["tool_input"], "command": f"{sys.executable} -- cargo test"}
     env["PARE_HOOK_DECISION"] = "ask"
     p = subprocess.run([sys.executable, HOOK], input=json.dumps(event), capture_output=True, text=True, env=env)
     assert json.loads(p.stdout)["hookSpecificOutput"]["permissionDecision"] == "ask"
@@ -2044,3 +2057,63 @@ def test_a_template_seen_twice_lists_both_lines():
     out = run(["--budget", "1000"], ("\n".join(lines) + "\n").encode()).decode()
     assert "Expected an int" in out and "Expected a long" in out, out
     assert "Expected <*>" not in out, out
+
+
+def test_harvest_ranks_summaries_the_agent_went_past(tmp_path):
+    """Hook-style calls: the transcript holds the bare command and pare's
+    summary as its output. One summary the agent expanded, read past and
+    reran; one it took as it was. The first is ranked first, with its
+    signals and the summary it saw."""
+    runs = tmp_path / "runs"
+    runs.mkdir()
+    events = []
+
+    def call(i, command, run_text, summary_extra, follow=()):
+        run_file = runs / f"r{i}.log"
+        run_file.write_text(run_text)
+        summary = f"# pare: {run_text.count(chr(10))} lines ...\n{summary_extra}\n## raw: {run_file} · exit 1"
+        tid = f"toolu_{i:024d}"
+        events.append({"type": "assistant", "message": {"role": "assistant", "content": [
+            {"type": "tool_use", "id": tid, "name": "Bash", "input": {"command": command}}]}})
+        events.append({"type": "user", "sessionId": "s1", "timestamp": f"2026-10-0{i}T10:00:00Z",
+                       "message": {"role": "user", "content": [
+                           {"type": "tool_result", "tool_use_id": tid, "content": summary, "is_error": True}]},
+                       "toolUseResult": {"stdout": summary, "stderr": ""}})
+        for f in follow:
+            events.append({"type": "assistant", "message": {"role": "assistant", "content": [f]}})
+        events.append({"type": "user", "message": {"role": "user", "content": "next"}})
+        return run_file
+
+    quiet = call(1, "cargo test", "".join(f"test t{i} ... ok\n" for i in range(120)) + "test t_last ... FAILED\n",
+                 "T1 ×1 E L121: test t_last ... FAILED")
+    run_file = tmp_path / "runs" / "r2.log"
+    loud_text = ("".join(f"PASSED tests/test_a.py::test_{i}\n" for i in range(120))
+                 + "FAILED tests/test_inner.py::test_x - see conftest.py\n")
+    follow = [
+        {"type": "tool_use", "id": "y1", "name": "Bash", "input": {"command": f"pare --only T3 < {run_file}"}},
+        {"type": "tool_use", "id": "y2", "name": "Bash", "input": {"command": f"grep -n FAILED {run_file}"}},
+        {"type": "tool_use", "id": "y3", "name": "Bash", "input": {"command": "npm test 2>&1 | tail -50"}},
+        {"type": "tool_use", "id": "y3b", "name": "Bash", "input": {"command": "npm test"}},  # the hook wraps it again
+        {"type": "tool_use", "id": "y4", "name": "Read", "input": {"file_path": "/work/app/tests/conftest.py"}},
+        {"type": "tool_use", "id": "y5", "name": "Read", "input": {"file_path": "/work/app/README.md"}},  # not in the log
+    ]
+    call(2, "npm test", loud_text, "T2 ×120 . PASSED <*>", follow)
+    transcript = tmp_path / "projects" / "p" / "s1.jsonl"
+    transcript.parent.mkdir(parents=True)
+    transcript.write_text("\n".join(json.dumps(e) for e in events) + "\n")
+    corpus = tmp_path / "heldout"
+    p = harvest(["--corpus", str(corpus), "scan", "--projects", str(tmp_path / "projects"), "--no-identity",
+                 "--min-lines", "40"])
+    assert p.returncode == 0, p.stderr
+    assert "2 candidate(s)" in p.stdout and "1 candidate(s) where the agent went past" in p.stdout, p.stdout
+    listed = [ln.split()[0] for ln in p.stdout.splitlines() if ln.startswith("  ") and " lines " in ln]
+    inbox = corpus / "inbox"
+    metas = {n: json.loads((inbox / f"{n}.json").read_text()) for n in listed}
+    first, second = listed
+    assert metas[first]["summary_score"] == 3 + 3 + 2 + 1 and metas[second]["summary_score"] == 0
+    assert [sg["kind"] for sg in metas[first]["summary_signals"]] == [
+        "expanded", "read the run file", "reran without pare", "opened a file the summary did not show"]
+    assert (inbox / f"{first}.cmd").read_text().strip() == "npm test"
+    assert (inbox / f"{first}.log").read_text() == loud_text  # the raw run file
+    assert "T2 ×120" in (inbox / f"{first}.summary").read_text()  # what the agent saw
+    assert "!9" in p.stdout and quiet.exists()
