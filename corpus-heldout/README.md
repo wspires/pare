@@ -355,9 +355,10 @@ instead; it counts every compacted name as missed (SWE-bench seed 1 at
 
 Drawn after the compact list form and the changes before it, with
 `--exclude` every earlier set, and measured before anyone read them.
-Three versions of pare on the same cases: before any held-out fix (`d730e86`), before the Maven chatter fix
-(`2f13edb`: failing-test lists, parametrized names, compact lists, rare
-failures first), and with it.
+Three versions of pare on the same cases: before any held-out fix
+(`d730e86`), before the Maven chatter fix (`2f13edb`: failing-test
+lists, parametrized names, compact lists, rare failures first), and with
+it.
 
 ```
 python3 bench/swebench_cases.py run --seed 2 --exclude corpus-heldout/swebench --exclude corpus-heldout/swebench-2 --out corpus-heldout/swebench-3
