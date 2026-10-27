@@ -28,10 +28,13 @@ run a cluster: a Terraform plan with a real provider diff, kubectl output
 from a live cluster (rollouts, events, pod logs), and an Android Gradle
 build. Those have to come from a developer machine.
 
-Files follow the `corpus/` convention: `<name>.log`, `<name>.keep` (lines
-that must survive, substring match), `<name>.cmd` (the command). Paths are
-scrubbed to `/home/dev/proj`; the JVM's `Picked up JAVA_TOOL_OPTIONS`
-line, an artifact of the capture container, is removed.
+Files follow the `corpus/` convention, written up at the top of
+`bench/run.py`: `<name>.log`, `<name>.keep` (lines that must survive; a
+keep line counts when it appears whole, not run on into a longer name,
+and `a || b` lists forms that each count), `<name>.cmd` (the command).
+Where a log printed a checkout path it is scrubbed to `/home/dev/proj`,
+and the JVM's `Picked up JAVA_TOOL_OPTIONS` line, an artifact of the
+capture container, is removed.
 
 ## Regenerating
 
@@ -54,11 +57,13 @@ cd src/structlog-proj && pip install -r requirements.txt && python etl.py     # 
 
 The structured-log programs are seeded and stamp time from a clock of
 their own, so a rerun gives the same lines, apart from the pointer values
-in the Go stack trace. Their checkouts' paths were scrubbed to
-`/home/dev/proj` (in pino's and structlog's traces) with `sed`. These four
-logs exercise Rust-only behaviour, which `bench/parity.py` turns off
-(`PARE_REFERENCE_RULES=1`) to compare them with the Python version.
+in the Go stack trace. These four logs exercise Rust-only behaviour,
+which `bench/parity.py` turns off (`PARE_REFERENCE_RULES=1`) to compare
+them with the Python version.
+
+To measure pare on this corpus (without `--pare-bin` the benchmark runs
+the Python reference):
 
 ```
-.venv/bin/python bench/run.py --corpus corpus-generated [--budget 600] [--show-misses]
+.venv/bin/python bench/run.py --corpus corpus-generated --pare-bin target/release/pare [--budget 600] [--show-misses]
 ```

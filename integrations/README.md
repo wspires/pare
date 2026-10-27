@@ -8,8 +8,9 @@ status, and the command is recorded next to the run file so
 
 Either way, every summarised run leaves a run file in `~/.cache/pare/runs`.
 That is the point for this stage of the roadmap: normal agent work becomes
-the held-out corpus (see `corpus-heldout/README.md` and
-`python bench/collect.py list`).
+the held-out corpus. `bench/harvest.py scan` ranks the runs where the
+agent went past the summary, and `bench/collect.py add` turns a reviewed
+one into a case (`corpus-heldout/README.md`, "Protocol").
 
 ## 1. An instruction (any agent)
 
@@ -44,9 +45,12 @@ plan, docker build, kubectl logs, and others), it rewrites it to
 `pare -- <command>`, so pare's default budget (`auto`, or `$PARE_BUDGET`)
 applies; `PARE_HOOK_BUDGET=1000` adds `--budget 1000`. It leaves alone:
 
-- compound commands: `&&`, `||`, `;`, pipes, redirections, `$(...)`, `cd`.
-  Wrapping them would run them in a subshell. A trailing `2>&1` is the one
-  exception; it is dropped, since pare merges stderr itself;
+- compound commands: `&&`, `||`, `;`, pipes, redirections, `$(...)`,
+  backticks and more than one line. Wrapping them would run them in a
+  subshell. A trailing `2>&1` is the one exception; it is dropped, since
+  pare merges stderr itself;
+- commands run through another program: `cd`, `sudo`, `exec`, `time`,
+  `nohup`, `env`, `timeout`, and `pare` itself;
 - watch modes, followed logs and dev servers, which never exit;
 - everything not on the list, including `cat`, `git diff` and `grep`;
 - commands started with `run_in_background`.
@@ -92,14 +96,12 @@ return a permission decision. `PARE_HOOK_DECISION` picks what it sends:
 | `ask` | Every rewritten command prompts, showing the rewritten form. |
 | `allow` | Every rewritten command runs without a prompt. Your allow and ask rules no longer gate the commands on the hook's list; deny rules still apply. Use it only if you would allow everything on that list anyway. |
 
-Verified in a Claude Code session (cloud, October 2026): with no decision
-sent, the rewrite is applied. A listed command came back as pare's output,
-ending with its `## raw: … · exit 0` line (a run that fits now ends
-without it; see below). The hook also took effect as
-soon as `.claude/settings.json` was written, without restarting the
-session. That session's permission mode allowed the command either way,
-so how the rewrite meets a narrower allow rule is still to be seen; if a
-rewrite were ignored, nothing would break, as the command runs unwrapped.
+Tried in a Claude Code session: with no decision sent, the rewrite is
+applied (a listed command came back as pare's summary), and the hook took
+effect as soon as `.claude/settings.json` was written, with no restart.
+That session's permission mode allowed the command either way, so how
+the rewrite meets a narrower allow rule has not been seen; if a rewrite
+were ignored, nothing would break, as the command runs unwrapped.
 
 Claude Code hands the hook a command without a leading `cd` into the
 current directory, so `cd <project> && pytest` is wrapped like `pytest`.
@@ -122,7 +124,7 @@ signal to the command and still prints a summary of what it saw.
 | `PARE_BIN` | `pare` | the pare executable |
 | `PARE_HOOK_BUDGET` | unset | adds `--budget N`, `auto` or `auto:N` to every rewrite; unset, the rewrite is bare `pare -- CMD` and pare's own default applies (`auto`, or `$PARE_BUDGET` if set) |
 | `PARE_HOOK_DECISION` | unset | `ask` or `allow`; see above |
-| `PARE_HOOK_EXTRA` | unset | an extra regex of commands to wrap, matched against the command without its path, e.g. `^(just|nx) ` |
+| `PARE_HOOK_EXTRA` | unset | an extra regex of commands to wrap, matched at the start of the command with its program's path removed, e.g. `(just\|nx) ` |
 | `PARE_HOOK_DISABLE` | unset | any value turns the hook off |
 
 ### What it saved
