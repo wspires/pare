@@ -171,6 +171,42 @@ The vocabulary is built once in `cli::dispatch` (the built-in one, or
 with `--vocab` applied) and lent to the pass: `Segmenter<'v>` holds a
 `&'v Vocab`, where Python reads a global `VOCAB`.
 
+## Command mode
+
+`command::CommandRun` runs `CMD ARGS` with one anonymous pipe as both
+its stdout and stderr, so the two interleave as written. A reader thread
+moves the pipe's chunks into a bounded channel; the main thread feeds
+them to the same pass as stdin, waiting with `recv_timeout` so follow
+mode's timers still fire. Once the child has exited, one quiet second
+(`EXIT_GRACE`) ends the read even if a leftover process holds the pipe
+open. A `signal-hook` thread ignores SIGINT (the terminal's Ctrl-C
+reaches the child on its own) and forwards SIGTERM and SIGHUP, which a
+tool's timeout aims at pare alone. The exit status is the child's, and
+the `.json` record goes next to the run file.
+
+```mermaid
+flowchart LR
+    subgraph child["the command"]
+        out["stdout"]
+        err["stderr"]
+    end
+    pipe(["one pipe"])
+    out --> pipe
+    err --> pipe
+    subgraph pare["pare"]
+        reader["reader thread:<br/>chunks into a bounded channel"]
+        main["main thread: Pass::feed,<br/>recv_timeout; one quiet second<br/>after the exit ends the read"]
+        sig["signal thread:<br/>SIGINT ignored,<br/>SIGTERM and SIGHUP forwarded"]
+        reader --> main
+    end
+    pipe --> reader
+    timeout["a tool's timeout:<br/>SIGTERM to pare"] --> sig
+    sig -- "kill(pid)" --> child
+    main --> spool["spool, renamed to the run file,<br/>and its .json record"]
+    main --> summary["the summary, ending<br/>with · exit N"]
+    child -- "exit status" --> status["pare's exit status"]
+```
+
 ## Matching Python's character classes and regexes
 
 Three things had to be exactly Python's for template ids and scores to

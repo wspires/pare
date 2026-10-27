@@ -487,7 +487,28 @@ columns, not shown, grow with every term on.
 ## Allocation
 
 The budget is `--budget` tokens at `bytes / 2.8` (`--bytes-per-token`),
-and it is a hard limit.
+and it is a hard limit. In outline, with the rules below filling in each
+step:
+
+```mermaid
+flowchart TD
+    fixed["fixed skeleton: header, run line, hint,<br/>section titles, a ledger reserve"]
+    windows["head and tail windows, trimmed until<br/>together they are at most 30 % of the budget"]
+    queue["one priority queue: template entries at their<br/>salience, raw lines at their score per byte,<br/>divided for each repeat of a shape already shown"]
+    place["place greedily, highest first, charging each item<br/>a conservative allowance; what does not fit is deferred"]
+    slack{"rendered and measured:<br/>40 bytes or more of slack,<br/>and something deferred?"}
+    again["offer the deferred items against<br/>the measured slack (at most three rounds)"]
+    fit{"fits the budget?"}
+    shed["shed one thing: the last raw line placed, then a tail<br/>line, a head line, the last template entry,<br/>the ledger's detail, the hint"]
+    cut["cut lines from the end,<br/>the run line last"]
+    out["the summary, within the budget exactly"]
+    fixed --> windows --> queue --> place --> slack
+    slack -- yes --> again --> slack
+    slack -- no --> fit
+    fit -- no --> shed --> fit
+    shed -- "nothing left to shed" --> cut --> out
+    fit -- yes --> out
+```
 
 - A head and a tail window (`--head 5`, `--tail 10`, at most 30 % of the
   budget; the head shrinks to 3 below 1,000 tokens). Lines of templates
@@ -630,7 +651,8 @@ that rewrites a single, simple test, build or install command to
 would change what persists, such as `cd`), watch modes and dev servers
 (which never exit), and anything whose exact output an agent needs. It
 fails open: an error or a missing pare means no rewrite. Its permission
-behaviour is described in `integrations/README.md`.
+behaviour is described in `integrations/README.md`. ARCHITECTURE.md's
+"Command mode" draws the processes and threads.
 
 ## Selection modes
 
