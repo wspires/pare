@@ -105,6 +105,28 @@ against the batch pass checks this). A block that starts inside a record
 opens with `↳ continues L1: ERROR …`, naming the head its first lines
 belong to.
 
+One stream, cut four ways:
+
+```
+input   ERROR a       ┊ at Foo.bar      ERROR b           20,000 lines  FAILED
+        at Foo.run    ┊ at Foo.main     at Bar.go         of chatter    1 test
+                      ┊
+time  ────────────────┼───────────────┼─────────────────┼─────────────┼─▶
+                      │               │                 │             │
+cut          30 s idle       ½ s after         20,000 lines        end of
+             (--interval):   ERROR b arrived   since the last      input
+             the open record (--settle; at     cut, at the
+             is carried      most once per     next record
+                             --min-interval)   head (--every)
+
+block   # pare #1       # pare #2       # pare #3         # pare #4
+                        ↳ continues L1:
+                          ERROR a
+```
+
+The frames after the first cut belong to ERROR a's template, which the
+second block lists as `(cont.)`.
+
 A window holding only blank lines is neither printed nor cut. A window
 with no new shape and nothing above the salience floor is one heartbeat
 line (`--quiet` drops it). A template first seen in a window is marked

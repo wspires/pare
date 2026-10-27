@@ -34,8 +34,10 @@ sample, what it found and what spent it.
 2. **Write `name.keep` before running pare on the log.** One line per
    must-survive line: the lines a person fixing the problem would need (the
    error messages, the failing test names, the location, the final
-   verdict). Copy them verbatim from the log; the check is a substring
-   match on the stripped text. Record `name.cmd` with the command.
+   verdict). Copy them verbatim from the log; a keep line counts when
+   its stripped text appears whole in the output, not run on into a
+   longer name, and `a || b` lists forms that each count. Record
+   `name.cmd` with the command.
    `python bench/collect.py check` confirms every case has a command and a
    keep list whose lines are in its log.
 3. **Do not look at pare's output while writing the keep list.** If a keep
@@ -64,6 +66,22 @@ next fresh sample, drawn after the change, is its honest test. The
 directory numbers run ahead of the seeds (`swebench-2/` is seed 1,
 `swebench-6/` seed 5; `defects4j/` is seed 0 and seed 1 is the dev
 sample in `corpus-dev/`); each section's command line shows the mapping.
+
+The loop, with the one exit that spends a sample:
+
+```mermaid
+flowchart TD
+    draw["draw a seeded sample,<br/>--exclude every earlier set"]
+    keep["keep lists written blind: the dataset's<br/>labels, or by hand before pare's output is seen"]
+    measure["measure every pare version of interest on it<br/>before anyone reads a case; write the numbers in the record"]
+    read["read the misses; say what was found"]
+    fix["fix on that evidence, with a regression test"]
+    spent["measure the fix on this sample: it is now spent"]
+    draw --> keep --> measure --> read
+    read -- "a bug or a missing rule" --> fix --> spent
+    spent -- "the next fresh sample is the fix's honest test" --> draw
+    read -- "nothing to change: the sample stays unspent,<br/>and the next version is measured on it" --> measure
+```
 
 ## Sources
 

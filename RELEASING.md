@@ -15,6 +15,30 @@ command is `pare` everywhere. The tag pattern is `v` and a version
 (`v0.2.0`, `v0.3.0-beta.1`); the Python reference's tag, `v0.1-python`,
 does not match it and never ran the workflow.
 
+The jobs, in the order they depend on each other:
+
+```mermaid
+flowchart LR
+    check["check: the tag is v +<br/>Cargo.toml's version"]
+    build["build: five archives"]
+    wheels["wheels: six"]
+    sdist["sdist"]
+    github["GitHub release:<br/>archives + SHA256SUMS"]
+    homebrew["Homebrew tap<br/>(skipped for a pre-release)"]
+    pypi["PyPI<br/>(environment pypi)"]
+    crates["crates.io"]
+    check --> build --> github
+    check --> wheels --> pypi
+    check --> sdist --> pypi
+    github --> homebrew
+    github --> pypi
+    github --> crates
+```
+
+A failed job stops only what depends on it: a failed wheel stops PyPI
+and nothing else, while a failed archive build stops the GitHub release
+and the three channels after it.
+
 ## One-time setup
 
 Each channel needs something only the repository owner can create. A

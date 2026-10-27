@@ -155,7 +155,8 @@ numbered from its first line (`Store::base`). A record open at a cut is
 carried (`store::CarriedHead`): the next window's first lines may
 continue it, and the summary shows its head, from the previous window,
 as `(cont.)`. The windows therefore segment exactly as one batch pass
-does, which a unit test checks (`follow_windows_segment_as_batch_does`).
+does, which a unit test checks (`follow_windows_segment_as_batch_does`);
+USAGE.md's "Follow mode" draws the four cuts on one stream.
 Each window is scored and summarised like a batch input, with a novelty
 bonus for templates first seen in it; a window with nothing worth showing
 is one line, or none with `--quiet`.
