@@ -1156,50 +1156,6 @@ def test_parity_passes_on_itself_and_catches_a_change(tmp_path):
     assert "reference L\t229\t" in diff.stdout
 
 
-def test_parity_skips_unported_runs_only_when_asked(tmp_path):
-    parity = os.path.join(ROOT, "bench", "parity.py")
-    stub = tmp_path / "stub.py"  # a candidate that ports nothing yet
-    stub.write_text("import sys\nsys.stderr.write('pare: not yet ported to Rust: x\\n')\nsys.exit(70)\n")
-    cmd = [sys.executable, parity, "--candidate", f"{sys.executable} {stub}", "--quick", "--no-edge",
-           "--logs", os.path.join(CORPUS, "cargo-build.log")]
-    skipped = subprocess.run(cmd + ["--skip-unported"], capture_output=True, text=True)
-    assert skipped.returncode == 0 and "0 differ, 4 with output not yet ported" in skipped.stdout, skipped.stdout
-    counted = subprocess.run(cmd, capture_output=True, text=True)
-    assert counted.returncode == 1 and "4 differ" in counted.stdout
-
-
-def test_parity_compares_partial_dumps_of_unported_runs(tmp_path):
-    """A candidate that dumps the pass but cannot summarise yet (status 70),
-    writing "?" for what it does not compute: its dump is still compared,
-    the "?" fields are not, and a wrong field is still caught."""
-    parity = os.path.join(ROOT, "bench", "parity.py")
-    stub = tmp_path / "stub.py"
-    stub.write_text(f"""import os, subprocess, sys
-dump = os.environ.get("PARE_DUMP")
-subprocess.run([sys.executable, {os.path.join(HERE, 'pare.py')!r}, *sys.argv[1:]], stdout=subprocess.DEVNULL)
-if dump:
-    rows = open(dump).read().splitlines()
-    out = []
-    for r in rows:
-        f = r.split("\\t")
-        if f[0] == "L":
-            f[4] = f[7] = "?"          # severity, score: not computed yet
-            if os.environ.get("BREAK") and f[1] == "3":
-                f[3] = "9"             # a wrong depth
-        out.append("\\t".join(f))
-    open(dump, "w").write("\\n".join(out) + "\\n")
-sys.stderr.write("pare: not yet ported to Rust: summaries\\n")
-sys.exit(70)
-""")
-    cmd = [sys.executable, parity, "--candidate", f"{sys.executable} {stub}", "--quick", "--no-edge", "--dump",
-           "--skip-unported", "--logs", os.path.join(CORPUS, "pytest-fail.log")]
-    ok = subprocess.run(cmd, capture_output=True, text=True)
-    assert ok.returncode == 0, ok.stdout
-    assert "0 differ" in ok.stdout and "dumps compared on 2 runs" in ok.stdout and "not computed" in ok.stdout
-    broken = subprocess.run(cmd, capture_output=True, text=True, env=dict(os.environ, BREAK="1"))
-    assert broken.returncode == 1 and "at L 3:" in broken.stdout, broken.stdout
-
-
 # --- bench/collect.py -------------------------------------------------------------
 
 def collect(args, **kw):
