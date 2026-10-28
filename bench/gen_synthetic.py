@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Generate the synthetic corpus files (deterministic; seeded).
 
-    python bench/gen_synthetic.py corpus/
+    python bench/gen_synthetic.py corpus/dev/
 
 Writes <name>.log, <name>.keep and <name>.cmd for each synthetic case. The
-real-tool logs in corpus/ (pytest, go test, cargo, make, npm) were captured
+real-tool logs in corpus/dev/ (pytest, go test, cargo, make, npm) were captured
 from actual runs and are not regenerated here. android-logcat stands in
 for a real `adb logcat` capture, which needs an emulator or device.
 """
@@ -483,7 +483,7 @@ def android_logcat(out_dir):
 
 
 def main():
-    out_dir = sys.argv[1] if len(sys.argv) > 1 else "corpus"
+    out_dir = sys.argv[1] if len(sys.argv) > 1 else os.path.join("corpus", "dev")
     os.makedirs(out_dir, exist_ok=True)
     server_log(out_dir)
     jest_log(out_dir)

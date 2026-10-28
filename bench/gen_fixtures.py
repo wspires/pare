@@ -53,7 +53,7 @@ def esc(s: str) -> str:
 
 def logs() -> list[str]:
     out = []
-    for pat in ("corpus/*.log", "corpus-generated/*.log", "corpus-dev/*/*.log", "corpus-heldout/*/*.log"):
+    for pat in ("corpus/dev/*.log", "corpus/generated/*.log", "corpus/defects4j-dev/*.log", "corpus/heldout/*/*.log"):
         out += sorted(glob.glob(os.path.join(ROOT, pat)))
     return out
 
@@ -137,7 +137,7 @@ def main() -> None:
     for log in SUMMARY_LOGS:
         for args in SUMMARY_ARGS:
             name = f"{os.path.splitext(log)[0]}.{'_'.join(a.lstrip('-') for a in args)}.txt"
-            with open(os.path.join(ROOT, "corpus", log), "rb") as f:
+            with open(os.path.join(ROOT, "corpus", "dev", log), "rb") as f:
                 out = subprocess.run([sys.executable, os.path.join(ROOT, "reference", "pare.py"), "--no-tee", *args],
                                      stdin=f, capture_output=True, check=True,
                                      env={k: v for k, v in os.environ.items() if not k.startswith("PARE_")}).stdout

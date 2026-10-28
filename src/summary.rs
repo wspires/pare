@@ -896,7 +896,7 @@ impl Summarizer<'_> {
     /// repeats a shape seen earlier: pytest's own suite prints dozens of
     /// `FAILED` lines from the inner runs it drives, and the one real
     /// `FAILED` line near the end was folded away (SWE-bench
-    /// pytest-dev__pytest-8399, `corpus-heldout/README.md`).
+    /// pytest-dev__pytest-8399, `corpus/heldout/README.md`).
     fn windowed(
         &mut self,
         idxs: &[usize],

@@ -1,12 +1,12 @@
-# corpus-generated
+# corpus/generated
 
 Real tool output from real tools, on small projects written to fail in
 chosen ways. The logs are genuine (Maven, tsc, Terraform and kubectl ran
 and printed them), but the failures were picked by someone who knows
 pare's heuristics, and the keep lists were written by the same person.
 That makes this a second development corpus, useful for checking that
-segmentation and severity detection hold on formats `corpus/` does not
-cover. It is **not** the held-out set; `corpus-heldout/README.md` has the
+segmentation and severity detection hold on formats `corpus/dev/` does not
+cover. It is **not** the held-out set; `corpus/heldout/README.md` has the
 protocol for that, and nothing here counts toward it.
 
 | case | tool | what the log shows |
@@ -28,7 +28,7 @@ run a cluster: a Terraform plan with a real provider diff, kubectl output
 from a live cluster (rollouts, events, pod logs), and an Android Gradle
 build. Those have to come from a developer machine.
 
-Files follow the `corpus/` convention, written up at the top of
+Files follow the `corpus/dev/` convention, written up at the top of
 `bench/run.py`: `<name>.log`, `<name>.keep` (lines that must survive; a
 keep line counts when it appears whole, not run on into a longer name,
 and `a || b` lists forms that each count), `<name>.cmd` (the command).
@@ -65,5 +65,5 @@ To measure pare on this corpus (without `--pare-bin` the benchmark runs
 the Python reference):
 
 ```
-.venv/bin/python bench/run.py --corpus corpus-generated --pare-bin target/release/pare [--budget 600] [--show-misses]
+.venv/bin/python bench/run.py --corpus corpus/generated --pare-bin target/release/pare [--budget 600] [--show-misses]
 ```

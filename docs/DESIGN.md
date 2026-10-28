@@ -7,7 +7,7 @@ the tool-specific rules, follow mode and performance. Each rule says what
 it is and, in a sentence, what it earned. The experiments behind the
 rules, in the order they were run and with the numbers of the time, are
 in [HISTORY.md](HISTORY.md); the current benchmark numbers are in the
-README and `corpus-heldout/README.md`; the Rust code's organisation is in
+README and `corpus/heldout/README.md`; the Rust code's organisation is in
 [ARCHITECTURE.md](ARCHITECTURE.md) and the flags in [USAGE.md](USAGE.md).
 
 ## The algorithm at a high level
@@ -259,7 +259,7 @@ held-out numbers above are not an unbiased estimate; the next fresh
 sample should be scored with `auto` before it becomes the default.
 The first one, Defects4J seed 6 (19 bugs, drawn after `auto` was
 tuned), keeps 40 of 40 must-survive lines with `auto` at 21,086 tokens,
-as `--budget 2000` does at 29,565 (`corpus-heldout/README.md`). The
+as `--budget 2000` does at 29,565 (`corpus/heldout/README.md`). The
 second, SWE-bench seed 4 (18 tasks), keeps 29 of 30 with `auto` at
 18,698 tokens, the same as `--budget 2000` at 24,357; its one miss is
 the same at every budget and is not `auto`'s. Defects4J seed 7 and
@@ -716,7 +716,7 @@ samples; output size where it moved):
   1,000); no held-out set has Rust or C output. Kept, on that evidence.
 - **logcat/glog levels change nothing on these sets because none has
   Android or glog output.** A synthetic logcat case added since
-  (`corpus/android-logcat`, threadtime format) shows the logcat rule
+  (`corpus/dev/android-logcat`, threadtime format) shows the logcat rule
   working: 75 % at 1,000 with it, 62.5 % without (87.5 % with it since
   the entry fix below). It also found that the
   rule missed every line with a tag shorter than eight characters, which
@@ -739,7 +739,7 @@ The roadmap asked for format inference (detect logfmt, JSON lines or a
 known tool from the first few hundred lines and switch rules on) only if
 evidence showed formats the rules miss. No log in any corpus or held-out
 set was JSON or logfmt, and no held-out miss was a format problem, so
-four cases were made the way `corpus-generated/` makes them: real
+four cases were made the way `corpus/generated/` makes them: real
 loggers in small programs written to fail in chosen ways (Go's
 `log/slog` in both its JSON and text handlers, pino 9 in Node, structlog
 24 in Python). Before the change pare kept 8 of their 18 must-survive

@@ -20,9 +20,9 @@ skipped), and writes a case:
     NAME.keep  each failing FAIL_TO_PASS test id, as it appears in the log
     NAME.json  task metadata, what was checked, what could not be located
 
-Cases go to corpus-heldout/swebench/ with a MANIFEST.tsv line whose source is
+Cases go to corpus/heldout/swebench/ with a MANIFEST.tsv line whose source is
 "dataset". Report them on their own: `bench/run.py --corpus
-corpus-heldout/swebench`.
+corpus/heldout/swebench`.
 
 Usage
     python bench/swebench_cases.py run --sample 20 [--seed 0] [--dry-run]
@@ -56,7 +56,7 @@ sys.path.insert(0, HERE)
 import collect  # noqa: E402  (manifest helpers, pare version)
 
 DEFAULT_DATASET = "SWE-bench/SWE-bench_Verified"
-DEFAULT_OUT = os.path.join(ROOT, "corpus-heldout", "swebench")
+DEFAULT_OUT = os.path.join(ROOT, "corpus", "heldout", "swebench")
 START = ">>>>> Start Test Output"
 END = ">>>>> End Test Output"
 

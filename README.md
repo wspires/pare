@@ -293,7 +293,7 @@ Recall is the share of must-survive lines (the failing tests, the error
 messages, the verdict) that a tool's output keeps; `bench/run.py`
 measures it. Two kinds of number, reported apart:
 
-**The development corpus** (`corpus/`, nine logs, 583k tokens: real
+**The development corpus** (`corpus/dev/`, nine logs, 583k tokens: real
 pytest, go test, cargo, make and npm runs, three seeded synthetic logs
 and a synthetic Android logcat), against two other filters written for
 agents: [sqz](https://github.com/ojuschugh1/sqz), which compresses
@@ -331,7 +331,7 @@ training data and a new one is drawn. The latest, measured blind:
 
 Seven Defects4J and five SWE-bench samples so far; the full record, with
 every miss and what was done about it, is in
-[corpus-heldout/README.md](corpus-heldout/README.md). The tool-specific
+[corpus/heldout/README.md](corpus/heldout/README.md). The tool-specific
 rules (pytest markers, rustc gutters, logcat levels) are worth up to 18
 points at 600 on SWE-bench and nothing on Defects4J
 ([docs/DESIGN.md](docs/DESIGN.md#tool-specific-rules)).

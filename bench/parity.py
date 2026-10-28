@@ -68,7 +68,7 @@ NOT_PORTED = 70  # the Rust port's status for what it does not do yet (src/error
 
 
 def corpus_logs() -> list[str]:
-    pats = ["corpus/*.log", "corpus-generated/*.log", "corpus-dev/*/*.log", "corpus-heldout/*/*.log"]
+    pats = ["corpus/dev/*.log", "corpus/generated/*.log", "corpus/defects4j-dev/*.log", "corpus/heldout/*/*.log"]
     out = []
     for p in pats:
         out += [f for f in glob.glob(os.path.join(ROOT, p)) if "/inbox/" not in f and "/_failed/" not in f]

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Measure pare's bytes-per-token proxy against real tokenizers.
 
-For every corpus/<name>.log, counts the raw file and pare's output at each
+For every corpus/dev/<name>.log, counts the raw file and pare's output at each
 budget with tiktoken's cl100k_base and o200k_base (and any Hugging Face
 tokenizer JSON given with --hf), and prints bytes per token for each, next to the bytes/4 rule of thumb.
 The pare runs use --bytes-per-token 4 so the proxy error is visible; with
@@ -85,7 +85,7 @@ def table(title: str, encs: dict, items: list[tuple[str, bytes]]) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--corpus", default=os.path.join(ROOT, "corpus"))
+    ap.add_argument("--corpus", default=os.path.join(ROOT, "corpus", "dev"))
     ap.add_argument("--budgets", default="600,2000")
     ap.add_argument("--bytes-per-token", "--chars-per-token", dest="chars_per_token", type=float, metavar="N",
                     help="also run pare calibrated to this value")

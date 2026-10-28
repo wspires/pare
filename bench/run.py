@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Benchmark pare against sqz and tidyout on the corpus.
 
-For every corpus/<name>.log:
+For every corpus/dev/<name>.log:
   * <name>.keep  lines that must survive (one per line; a line survives if
                  its stripped text appears in the tool output, not run on
                  into a longer name; "a || b" lists equivalent forms, any of
@@ -246,7 +246,7 @@ def load_case(corpus: str, name: str):
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--corpus", default=os.path.join(ROOT, "corpus"))
+    ap.add_argument("--corpus", default=os.path.join(ROOT, "corpus", "dev"))
     ap.add_argument("--budget", default="2000",
                     help="pare token budget (default 2000); for pare also 'auto' or 'auto:N'")
     ap.add_argument("--pare-bin", help="run this pare binary (target/release/pare) instead of reference/pare.py")

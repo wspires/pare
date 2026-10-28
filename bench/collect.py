@@ -4,7 +4,7 @@
 pare saves every input it summarises to a run file (~/.cache/pare/runs by
 default), and `pare -- CMD` also records the command next to it
 (<hash>.json). This script turns those run files into held-out cases
-following corpus-heldout/README.md: it copies the raw log, writes the
+following corpus/heldout/README.md: it copies the raw log, writes the
 command, creates an empty keep list for you to fill in from the raw log,
 and records where the case came from. It never runs pare on the log, so the
 keep list is written before you have seen what pare would keep.
@@ -33,7 +33,7 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DEFAULT_CORPUS = os.path.join(ROOT, "corpus-heldout")
+DEFAULT_CORPUS = os.path.join(ROOT, "corpus", "heldout")
 MANIFEST = "MANIFEST.tsv"
 MANIFEST_HEADER = "name\tcollected\tpare\tcommit\tsha256\tlines\tbytes\texit\tcommand\tsource\tlabels\n"
 
@@ -299,7 +299,7 @@ def cmd_check(args) -> int:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--runs", default=run_dir(), help="run-file directory (default $PARE_RUN_DIR or ~/.cache/pare/runs)")
-    ap.add_argument("--corpus", default=DEFAULT_CORPUS, help="corpus directory (default corpus-heldout/)")
+    ap.add_argument("--corpus", default=DEFAULT_CORPUS, help="corpus directory (default corpus/heldout/)")
     sub = ap.add_subparsers(dest="action", required=True)
     p = sub.add_parser("list", help="list recent run files")
     p.add_argument("-n", type=int, default=20)

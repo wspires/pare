@@ -206,7 +206,7 @@ fn ascii_marks_keep_the_budget_and_touch_no_log_text() {
     // A log line with pare's own marks in it: --ascii must not rewrite it.
     let mut input = std::fs::read(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/corpus/cargo-build.log"
+        "/corpus/dev/cargo-build.log"
     ))
     .unwrap();
     input.extend_from_slice("ERROR: étape → 3 × failed · see ┆ log\n".as_bytes());
@@ -229,7 +229,7 @@ fn ascii_marks_keep_the_budget_and_touch_no_log_text() {
 fn the_expand_hint_needs_a_run_file() {
     let input = std::fs::read(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/corpus/ci-pipeline.log"
+        "/corpus/dev/ci-pipeline.log"
     ))
     .unwrap();
     let text = String::from_utf8(pare(&["--budget", "2000", "--no-tee"], &input).stdout).unwrap();
@@ -461,7 +461,7 @@ fn summaries_are_pythons() {
     let mut n = 0;
     for row in cases.lines().skip(1) {
         let f: Vec<&str> = row.split('\t').collect();
-        let input = fs::read(format!("{}/corpus/{}", env!("CARGO_MANIFEST_DIR"), f[0])).unwrap();
+        let input = fs::read(format!("{}/corpus/dev/{}", env!("CARGO_MANIFEST_DIR"), f[0])).unwrap();
         let mut args = vec!["--no-tee"];
         args.extend(f[1].split(' '));
         let out = pare_with(&args, &input, &[("PARE_REFERENCE_RULES", "1")]);

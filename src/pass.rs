@@ -967,7 +967,7 @@ mod tests {
         // A window is cut only where a record starts, and a record open at a
         // cut is carried, so every line ends up in the same template at the
         // same depth as in one pass over the whole input.
-        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/corpus/android-logcat.log");
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/corpus/dev/android-logcat.log");
         let data = std::fs::read(path).unwrap();
         let (batch, _, _) = run(&[&data]);
         for every in [1, 7, 50] {

@@ -46,8 +46,8 @@ sample, what it found and what spent it.
 4. **Run and report separately:**
 
    ```
-   .venv/bin/python bench/run.py --corpus corpus-heldout --budget 2000
-   .venv/bin/python bench/run.py --corpus corpus-heldout --budget 600 --show-misses
+   .venv/bin/python bench/run.py --corpus corpus/heldout --budget 2000
+   .venv/bin/python bench/run.py --corpus corpus/heldout --budget 600 --show-misses
    ```
 
    Report these numbers next to the dev-corpus numbers, never merged with
@@ -65,7 +65,7 @@ from those misses is measured on the sample, which marks it spent; the
 next fresh sample, drawn after the change, is its honest test. The
 directory numbers run ahead of the seeds (`swebench-2/` is seed 1,
 `swebench-6/` seed 5; `defects4j/` is seed 0 and seed 1 is the dev
-sample in `corpus-dev/`); each section's command line shows the mapping.
+sample in `corpus/defects4j-dev/`); each section's command line shows the mapping.
 
 The loop, with the one exit that spends a sample:
 
@@ -92,7 +92,7 @@ under `~/.claude/projects/`, including the full text of outputs too large
 for the model's context.
 
 ```
-python bench/harvest.py scan --redact <your-github-handle>   # candidates -> corpus-heldout/inbox/
+python bench/harvest.py scan --redact <your-github-handle>   # candidates -> corpus/heldout/inbox/
 # for each candidate: read NAME.log, write NAME.keep (NAME.keep.proposed is a draft)
 python bench/harvest.py promote NAME [NAME ...]
 python bench/collect.py check
@@ -142,8 +142,8 @@ Docker image.
 ```
 pip install 'swebench>=5'             # the dataset loader and log parser
 python bench/swebench_cases.py run --sample 20 --dry-run   # which tasks, which images
-python bench/swebench_cases.py run --sample 20             # writes corpus-heldout/swebench/
-python bench/run.py --corpus corpus-heldout/swebench --budget 2000 --show-misses
+python bench/swebench_cases.py run --sample 20             # writes corpus/heldout/swebench/
+python bench/run.py --corpus corpus/heldout/swebench --budget 2000 --show-misses
 ```
 
 The sample is seeded and spread across repositories, among tasks with at
@@ -179,8 +179,8 @@ under another exception class than Defects4J recorded).
 
 ```
 python3 bench/defects4j_cases.py run --sample 20 --dry-run
-python3 bench/defects4j_cases.py run --sample 20        # writes corpus-heldout/defects4j/
-python3 bench/run.py --corpus corpus-heldout/defects4j --budget 600 --show-misses
+python3 bench/defects4j_cases.py run --sample 20        # writes corpus/heldout/defects4j/
+python3 bench/run.py --corpus corpus/heldout/defects4j --budget 600 --show-misses
 ```
 
 Maven projects only (14 of Defects4J's 17); Ant projects (Closure, Chart)
@@ -275,7 +275,7 @@ misses as read.
 | SWE-bench seed 5 | `swebench-6/` | 17 | 27 | the verdict rule | 67 / 70 / 100 %, `auto` 100 % | pytest's inner runs crowd out the failures (pytest-7205) | nothing |
 
 Defects4J seed 1 (19 bugs) is the development sample the failing-test fix
-was built on, in `corpus-dev/defects4j/`. tidyout, run on the two seed-0
+was built on, in `corpus/defects4j-dev/`. tidyout, run on the two seed-0
 sets, kept everything at 96 to 100 % of the input size; sqz and tidyout
 have no budget and were not run on later sets.
 
@@ -292,7 +292,7 @@ a run with several failing tests names each in a line of the same shape,
 pare listed that shape once with a count, and the tests themselves were
 dropped; on Maven at 600, the build's closing `[ERROR]` advice took the
 budget as well. The fix was developed on a separate Defects4J sample
-(`corpus-dev/defects4j/`), but these sets found the problem and were
+(`corpus/defects4j-dev/`), but these sets found the problem and were
 checked during the work, so they are no longer held out.
 
 ### SWE-bench seed 1 and Defects4J seed 2
@@ -301,8 +301,8 @@ Drawn after the failing-test fix, with `--exclude` so no task overlaps a
 set that influenced it, and not looked at before measuring:
 
 ```
-python3 bench/swebench_cases.py run --seed 1 --exclude corpus-heldout/swebench --out corpus-heldout/swebench-2
-python3 bench/defects4j_cases.py run --seed 2 --exclude corpus-heldout/defects4j --exclude corpus-dev/defects4j --out corpus-heldout/defects4j-2
+python3 bench/swebench_cases.py run --seed 1 --exclude corpus/heldout/swebench --out corpus/heldout/swebench-2
+python3 bench/defects4j_cases.py run --seed 2 --exclude corpus/heldout/defects4j --exclude corpus/defects4j-dev --out corpus/heldout/defects4j-2
 ```
 
 pare before the fix (commit `d730e86`) → after (`0fc602e`), same cases:
@@ -379,8 +379,8 @@ lists, parametrized names, compact lists, rare failures first), and with
 it.
 
 ```
-python3 bench/swebench_cases.py run --seed 2 --exclude corpus-heldout/swebench --exclude corpus-heldout/swebench-2 --out corpus-heldout/swebench-3
-python3 bench/defects4j_cases.py run --sample 20 --seed 3 --exclude corpus-heldout/defects4j --exclude corpus-heldout/defects4j-2 --exclude corpus-dev/defects4j --out corpus-heldout/defects4j-3
+python3 bench/swebench_cases.py run --seed 2 --exclude corpus/heldout/swebench --exclude corpus/heldout/swebench-2 --out corpus/heldout/swebench-3
+python3 bench/defects4j_cases.py run --sample 20 --seed 3 --exclude corpus/heldout/defects4j --exclude corpus/heldout/defects4j-2 --exclude corpus/defects4j-dev --out corpus/heldout/defects4j-3
 ```
 
 | source | cases | version | 600 | 1,000 | 2,000 |
@@ -411,7 +411,7 @@ exceptions being one line each with their own summary forms).
 
 | Defects4J set | budget | old labels | + boundary | + alternatives |
 |---|---|---|---|---|
-| seed 1 (`corpus-dev/defects4j/`) | 600 / 1,000 / 2,000 | 90.9 / 95.5 / 100 % | same | 90.9 / 100 / 100 % |
+| seed 1 (`corpus/defects4j-dev/`) | 600 / 1,000 / 2,000 | 90.9 / 95.5 / 100 % | same | 90.9 / 100 / 100 % |
 | seed 0 (`defects4j/`) | 600 / 1,000 / 2,000 | 64.5 / 93.5 / 100 % | same | 67.7 / 96.8 / 100 % |
 | seed 2 (`defects4j-2/`) | 600 / 1,000 / 2,000 | 72.1 / 93.0 / 97.7 % | 69.8 / 93.0 / 97.7 % | 75.0 / 93.2 / 100 % |
 | seed 3 (`defects4j-3/`) | 600 / 1,000 / 2,000 | 66.7 / 94.1 / 98.0 % | same | **76.5** / 98.0 / 98.0 % |
@@ -427,7 +427,7 @@ it. Seed 3 above is spent: the Maven chatter fix and the tail-window
 change were both measured on it.
 
 ```
-python3 bench/defects4j_cases.py run --sample 20 --seed 4 --exclude corpus-heldout/defects4j --exclude corpus-heldout/defects4j-2 --exclude corpus-heldout/defects4j-3 --exclude corpus-dev/defects4j --out corpus-heldout/defects4j-4
+python3 bench/defects4j_cases.py run --sample 20 --seed 4 --exclude corpus/heldout/defects4j --exclude corpus/heldout/defects4j-2 --exclude corpus/heldout/defects4j-3 --exclude corpus/defects4j-dev --out corpus/heldout/defects4j-4
 ```
 
 18 of 20 bugs gave a case (Collections-3 has no Maven build at that
@@ -467,7 +467,7 @@ it. It is the first fresh test of that change, whose weights were chosen
 on seed 4.
 
 ```
-python3 bench/defects4j_cases.py run --sample 20 --seed 5 --exclude corpus-heldout/defects4j --exclude corpus-heldout/defects4j-2 --exclude corpus-heldout/defects4j-3 --exclude corpus-heldout/defects4j-4 --exclude corpus-dev/defects4j --out corpus-heldout/defects4j-5
+python3 bench/defects4j_cases.py run --sample 20 --seed 5 --exclude corpus/heldout/defects4j --exclude corpus/heldout/defects4j-2 --exclude corpus/heldout/defects4j-3 --exclude corpus/heldout/defects4j-4 --exclude corpus/defects4j-dev --out corpus/heldout/defects4j-5
 ```
 
 17 of 20 bugs gave a case (Collections-1 has no Maven build at that
@@ -532,7 +532,7 @@ change; none of them is aimed at pytest, so this checks they cost nothing
 there.
 
 ```
-python3 bench/swebench_cases.py run --sample 20 --seed 3 --exclude corpus-heldout/swebench --exclude corpus-heldout/swebench-2 --exclude corpus-heldout/swebench-3 --out corpus-heldout/swebench-4
+python3 bench/swebench_cases.py run --sample 20 --seed 3 --exclude corpus/heldout/swebench --exclude corpus/heldout/swebench-2 --exclude corpus/heldout/swebench-3 --out corpus/heldout/swebench-4
 ```
 
 15 tasks gave a case (four more ran but their FAIL_TO_PASS tests did not
@@ -567,7 +567,7 @@ before anyone read it. It is the first fresh test of the Gson-7 change
 marker saves nothing) and of `--budget auto`.
 
 ```
-python3 bench/defects4j_cases.py run --sample 20 --seed 6 --exclude corpus-heldout/defects4j --exclude corpus-heldout/defects4j-2 --exclude corpus-heldout/defects4j-3 --exclude corpus-heldout/defects4j-4 --exclude corpus-heldout/defects4j-5 --exclude corpus-dev/defects4j --out corpus-heldout/defects4j-6
+python3 bench/defects4j_cases.py run --sample 20 --seed 6 --exclude corpus/heldout/defects4j --exclude corpus/heldout/defects4j-2 --exclude corpus/heldout/defects4j-3 --exclude corpus/heldout/defects4j-4 --exclude corpus/heldout/defects4j-5 --exclude corpus/defects4j-dev --out corpus/heldout/defects4j-6
 ```
 
 19 of 20 bugs gave a case (Csv-13's build failed before any test ran).
@@ -610,7 +610,7 @@ Gson-7 change, and the first since the tail-window and JUnit 3 changes
 were last measured here.
 
 ```
-python3 bench/swebench_cases.py run --sample 20 --seed 4 --exclude corpus-heldout/swebench --exclude corpus-heldout/swebench-2 --exclude corpus-heldout/swebench-3 --exclude corpus-heldout/swebench-4 --out corpus-heldout/swebench-5 --docker-arg=--volume=/root/.ccr/ca-bundle.crt:/pare-ca.crt:ro --docker-arg=--env=PIP_CERT=/pare-ca.crt
+python3 bench/swebench_cases.py run --sample 20 --seed 4 --exclude corpus/heldout/swebench --exclude corpus/heldout/swebench-2 --exclude corpus/heldout/swebench-3 --exclude corpus/heldout/swebench-4 --out corpus/heldout/swebench-5 --docker-arg=--volume=/root/.ccr/ca-bundle.crt:/pare-ca.crt:ro --docker-arg=--env=PIP_CERT=/pare-ca.crt
 ```
 
 18 of 20 tasks gave a case: pylint-dev__pylint-4551's FAIL_TO_PASS tests
@@ -668,7 +668,7 @@ read it. It is the first fresh test of that rule on Java builds, where it
 was not chosen.
 
 ```
-python3 bench/defects4j_cases.py run --sample 20 --seed 7 --exclude corpus-heldout/defects4j --exclude corpus-heldout/defects4j-2 --exclude corpus-heldout/defects4j-3 --exclude corpus-heldout/defects4j-4 --exclude corpus-heldout/defects4j-5 --exclude corpus-heldout/defects4j-6 --exclude corpus-dev/defects4j --out corpus-heldout/defects4j-7
+python3 bench/defects4j_cases.py run --sample 20 --seed 7 --exclude corpus/heldout/defects4j --exclude corpus/heldout/defects4j-2 --exclude corpus/heldout/defects4j-3 --exclude corpus/heldout/defects4j-4 --exclude corpus/heldout/defects4j-5 --exclude corpus/heldout/defects4j-6 --exclude corpus/defects4j-dev --out corpus/heldout/defects4j-7
 ```
 
 (with the truststore of the capture notes above.) 16 of 20 bugs gave a
@@ -712,7 +712,7 @@ before anyone read it. It is the first fresh test of that rule on the
 kind of log it was made for.
 
 ```
-python3 bench/swebench_cases.py run --sample 20 --seed 5 --exclude corpus-heldout/swebench --exclude corpus-heldout/swebench-2 --exclude corpus-heldout/swebench-3 --exclude corpus-heldout/swebench-4 --exclude corpus-heldout/swebench-5 --out corpus-heldout/swebench-6 --docker-arg=--volume=/root/.ccr/ca-bundle.crt:/pare-ca.crt:ro --docker-arg=--env=PIP_CERT=/pare-ca.crt
+python3 bench/swebench_cases.py run --sample 20 --seed 5 --exclude corpus/heldout/swebench --exclude corpus/heldout/swebench-2 --exclude corpus/heldout/swebench-3 --exclude corpus/heldout/swebench-4 --exclude corpus/heldout/swebench-5 --out corpus/heldout/swebench-6 --docker-arg=--volume=/root/.ccr/ca-bundle.crt:/pare-ca.crt:ro --docker-arg=--env=PIP_CERT=/pare-ca.crt
 ```
 
 17 of 20 tasks gave a case. Three ran but SWE-bench's parser found their

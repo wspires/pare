@@ -13,7 +13,7 @@ Usage
     python bench/harvest.py scan [--projects DIR | --transcript FILE ...] [--min-lines 80] [--all] [--dry-run]
     python bench/harvest.py promote NAME [NAME ...]
 
-scan writes each candidate to corpus-heldout/inbox/ (ignored by git):
+scan writes each candidate to corpus/heldout/inbox/ (ignored by git):
     NAME.log            the full output, scrubbed (see below)
     NAME.cmd            the command
     NAME.keep.proposed  candidate keep lines: output lines the agent quoted,
@@ -24,7 +24,7 @@ scan writes each candidate to corpus-heldout/inbox/ (ignored by git):
 
 You then write NAME.keep from the raw log (the proposals are a starting
 point: confirm, cut or add), and `promote` moves the case into
-corpus-heldout/ with a MANIFEST.tsv line. promote refuses a case without a
+corpus/heldout/ with a MANIFEST.tsv line. promote refuses a case without a
 keep list, with keep lines missing from its log, or with credential-shaped
 strings left in it.
 
@@ -33,7 +33,7 @@ installs and the like (the list the Claude Code hook in integrations/ uses),
 with at least --min-lines lines. --all takes any command. Outputs that are
 pare's own summaries are replaced by the raw run file they name when it
 still exists, and skipped otherwise. Outputs that are mostly lines from the
-dev corpora (corpus/, corpus-generated/) are skipped, since pare was tuned
+dev corpora (corpus/dev/, corpus/generated/) are skipped, since pare was tuned
 on those. Identical outputs are harvested once.
 
 Where pare's summary fell short. For an output the agent saw as a pare
@@ -81,9 +81,9 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 import collect  # noqa: E402  (SECRET_RX, manifest helpers)
 
-HELDOUT = os.path.join(ROOT, "corpus-heldout")
+HELDOUT = os.path.join(ROOT, "corpus", "heldout")
 INBOX = os.path.join(HELDOUT, "inbox")
-DEV_CORPORA = [os.path.join(ROOT, "corpus"), os.path.join(ROOT, "corpus-generated")]
+DEV_CORPORA = [os.path.join(ROOT, "corpus", "dev"), os.path.join(ROOT, "corpus", "generated")]
 MAX_PROPOSALS = 20
 FOLLOW_EVENTS = 30  # assistant blocks after the output that count as the agent's response to it
 
@@ -695,7 +695,7 @@ HELDOUT_DIR = HELDOUT
 def main() -> int:
     global INBOX_DIR, HELDOUT_DIR
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--corpus", default=HELDOUT, help="held-out corpus directory (default corpus-heldout/); "
+    ap.add_argument("--corpus", default=HELDOUT, help="held-out corpus directory (default corpus/heldout/); "
                                                      "candidates go to its inbox/ subfolder")
     sub = ap.add_subparsers(dest="action", required=True)
     p = sub.add_parser("scan", help="find candidate cases in transcripts")

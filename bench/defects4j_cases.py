@@ -15,10 +15,10 @@ list is those tests and their exceptions, as they appear in the output:
     NAME.keep  each trigger test's id and its exception line, in the form the log shows
     NAME.json  bug metadata, what was located, what was not
 
-Cases go to corpus-heldout/defects4j/ with a MANIFEST.tsv line whose source
+Cases go to corpus/heldout/defects4j/ with a MANIFEST.tsv line whose source
 is "dataset". Nobody's judgement is involved, so the labels are blind to
 pare by construction. Report them on their own:
-`bench/run.py --corpus corpus-heldout/defects4j`.
+`bench/run.py --corpus corpus/heldout/defects4j`.
 
 Usage
     python bench/defects4j_cases.py run --sample 20 [--seed 0] [--dry-run]
@@ -63,7 +63,7 @@ import collect  # noqa: E402  (manifest helpers, pare version)
 DEFECTS4J_GIT = "https://github.com/rjust/defects4j"
 DEFAULT_META = os.path.join(os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache"),
                             "pare", "defects4j")
-DEFAULT_OUT = os.path.join(ROOT, "corpus-heldout", "defects4j")
+DEFAULT_OUT = os.path.join(ROOT, "corpus", "heldout", "defects4j")
 DEFAULT_IMAGE = "maven:3.9-eclipse-temurin-8"
 M2_VOLUME = "pare-defects4j-m2"
 START, EXIT = ">>>>> pare start", ">>>>> pare exit"

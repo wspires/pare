@@ -10,7 +10,7 @@ Either way, every summarised run leaves a run file in `~/.cache/pare/runs`.
 That is the point for this stage of the roadmap: normal agent work becomes
 the held-out corpus. `bench/harvest.py scan` ranks the runs where the
 agent went past the summary, and `bench/collect.py add` turns a reviewed
-one into a case (`corpus-heldout/README.md`, "Protocol").
+one into a case (`corpus/heldout/README.md`, "Protocol").
 
 ## 1. An instruction (any agent)
 

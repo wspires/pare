@@ -90,7 +90,7 @@ def main():
     args = ap.parse_args()
     budgets = [int(b) for b in args.budgets.split(",")]
     corpora = [(os.path.basename(os.path.normpath(c)), load_cases(c))
-               for c in (args.corpus or [os.path.join(ROOT, "corpus")])]
+               for c in (args.corpus or [os.path.join(ROOT, "corpus", "dev")])]
     many = len(corpora) > 1
 
     defaults = {k: getattr(pare, k) for v in ABLATIONS.values() for k in v}

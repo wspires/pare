@@ -20,9 +20,9 @@ sys.path.insert(0, HERE)
 
 import pare  # noqa: E402
 
-CORPUS = os.path.join(ROOT, "corpus")
+CORPUS = os.path.join(ROOT, "corpus", "dev")
 LOGS = sorted(f for f in os.listdir(CORPUS) if f.endswith(".log"))
-GENERATED = os.path.join(ROOT, "corpus-generated")
+GENERATED = os.path.join(ROOT, "corpus", "generated")
 GUTTER = re.compile(r"^\d+: ")  # a rendered input line
 GENERATED_LOGS = sorted(f for f in os.listdir(GENERATED) if f.endswith(".log"))
 
@@ -417,8 +417,8 @@ def _corpus_logs():
     out = []
     for d, subdirs, files in os.walk(ROOT):
         rel = os.path.relpath(d, ROOT)
-        if rel.split(os.sep)[0] not in ("corpus", "corpus-generated", "corpus-dev", "corpus-heldout"):
-            subdirs[:] = [s for s in subdirs if s.startswith("corpus")] if rel == "." else []
+        if rel.split(os.sep)[0] != "corpus":
+            subdirs[:] = ["corpus"] if rel == "." else []
             continue
         out += [os.path.join(d, f) for f in files if f.endswith(".log")]
     return sorted(out)

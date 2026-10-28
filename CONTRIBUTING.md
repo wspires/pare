@@ -69,7 +69,7 @@ cargo build                    # debug build    → target/debug/pare
 cargo build --release          # optimised, LTO → target/release/pare
 
 printf 'hello\nworld\n' | target/release/pare --no-tee
-target/release/pare --no-tee < corpus/cargo-build.log
+target/release/pare --no-tee < corpus/dev/cargo-build.log
 ```
 
 The first build downloads the dependencies (about 55 crates) from
@@ -80,7 +80,7 @@ arguments from pare's, and pare's own `--` (command mode) comes after
 that:
 
 ```
-cargo run --release -- --no-tee --budget 2000 < corpus/cargo-build.log
+cargo run --release -- --no-tee --budget 2000 < corpus/dev/cargo-build.log
 cargo run --release -- --budget 2000 -- make test     # command mode
 ```
 
@@ -222,12 +222,12 @@ each on purpose rather than by accident:
    files from the Rust version instead is the planned end of parity
    (ROADMAP.md, "Retire parity"), not something a single change does.
 2. **The evidence.** Every rule in pare was measured before it shipped:
-   `bench/run.py --pare-bin target/release/pare` over `corpus/`,
-   `corpus-generated/`, `corpus-dev/defects4j/` and every set under
-   `corpus-heldout/`, at 600, 1,000, 2,000 and `auto`, before and after.
+   `bench/run.py --pare-bin target/release/pare` over `corpus/dev/`,
+   `corpus/generated/`, `corpus/defects4j-dev/` and every set under
+   `corpus/heldout/`, at 600, 1,000, 2,000 and `auto`, before and after.
    A change should not lose a must-survive line on any set at any budget
    without saying why, and a held-out sample a change was judged on is
-   spent: record it as such in `corpus-heldout/README.md` and draw a
+   spent: record it as such in `corpus/heldout/README.md` and draw a
    fresh one to confirm the change (its "Protocol" section). Write the
    result into `docs/DESIGN.md` as a rule and into `docs/HISTORY.md` as
    what was tried.
@@ -267,11 +267,11 @@ tidyout-cli` puts `tidyout` on PATH; for sqz, `brew install
 ojuschugh1/sqz/sqz`, `npm i -g sqz-cli` or `cargo install sqz-cli` (not
 `pip install sqz`, which fetches a pinned 0.1.0 binary).
 
-The corpora: `corpus/` is the development corpus (tuned on);
-`corpus-generated/` holds real Maven, tsc, Terraform, kubectl and
+The corpora: `corpus/dev/` is the development corpus (tuned on);
+`corpus/generated/` holds real Maven, tsc, Terraform, kubectl and
 structured-logger output from small projects written to fail (a second
-development corpus); `corpus-dev/defects4j/` is the Defects4J sample the
-failing-test fix was tuned on; `corpus-heldout/` holds the held-out
+development corpus); `corpus/defects4j-dev/` is the Defects4J sample the
+failing-test fix was tuned on; `corpus/heldout/` holds the held-out
 SWE-bench and Defects4J samples, with the protocol and every result in
 its README. Report held-out numbers apart from the others.
 
@@ -313,10 +313,11 @@ bench/gen_fixtures.py     write tests/data/ from the reference
 bench/gen_pyunicode.py    write src/pyunicode.rs, Python's character classes
 integrations/             agent instructions and a Claude Code hook (integrations/README.md)
 .claude/settings.json     registers that hook for work in this repository
-corpus/                   dev corpus: *.log, *.keep, *.cmd
-corpus-generated/         real tool output from small projects in its src/ (a second dev corpus)
-corpus-dev/defects4j/     Defects4J development sample (seed 1)
-corpus-heldout/           protocol and held-out cases: SWE-bench, Defects4J (results in its README)
+corpus/README.md          the case convention (*.log, *.keep, *.cmd) and which set is which
+corpus/dev/               the dev corpus: nine logs pare was tuned on
+corpus/generated/         real tool output from small projects in its src/ (a second dev corpus)
+corpus/defects4j-dev/     the Defects4J development sample (seed 1)
+corpus/heldout/           protocol and held-out cases: SWE-bench, Defects4J (results in its README)
 docs/USAGE.md             command mode, follow mode, run files and tokens in detail
 docs/DESIGN.md            design notes: how pare works and why, each rule with its evidence in brief
 docs/HISTORY.md           the experiments behind the rules, in order, with the numbers of the time

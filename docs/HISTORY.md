@@ -2,7 +2,7 @@
 
 What was tried, in the order it was tried, with the numbers at the time.
 [DESIGN.md](DESIGN.md) states each rule as it stands now and points here
-for its evidence; `corpus-heldout/README.md` has every held-out sample
+for its evidence; `corpus/heldout/README.md` has every held-out sample
 with its misses; ROADMAP.md says what came next. Sections are kept as
 written, with a note where a measurement has since been superseded.
 Budgets are in tokens at bytes / 2.8 unless a section says bytes/4, the
@@ -11,7 +11,7 @@ unit the heuristics were first developed in.
 ## The benchmark when the heuristics were frozen
 
 *pare 0.1.0, the Python prototype, October 2026, on the eight logs
-`corpus/` then had. Current numbers: the README.*
+`corpus/dev/` then had. Current numbers: the README.*
 
 Methodology: CONTRIBUTING.md, "Benchmark". Versions: pare 0.1.0 with drain3 0.9.11 (now built in), sqz
 1.9.0, tidyout-cli 0.2.0. Modes: pare `--no-tee`; sqz
@@ -156,8 +156,8 @@ come from:
 1. A held-out corpus of 15 to 20 real logs from actual agent sessions,
    ideally tools not yet covered (Maven, Terraform, kubectl, Bazel, Next.js
    build, tsc), with `.keep` files written **before** pare is run on them.
-   `corpus-heldout/README.md` has the protocol; `bench/run.py --corpus
-   corpus-heldout` reports it separately.
+   `corpus/heldout/README.md` has the protocol; `bench/run.py --corpus
+   corpus/heldout` reports it separately.
 2. An agent-success evaluation: a few real tasks (fix a failing test, fix a
    broken build, find an outage cause) run with the full output, with pare,
    with sqz and with tidyout in the agent's context, reporting task success
@@ -166,7 +166,7 @@ come from:
 ## First change from held-out evidence
 
 The first held-out numbers (SWE-bench Verified and Defects4J, labelled by
-the datasets; `corpus-heldout/README.md`) showed one failure on both
+the datasets; `corpus/heldout/README.md`) showed one failure on both
 sources: a run with several failing tests lists each in a line of the
 same shape, and pare showed one exemplar and a count. Two changes, both
 in DESIGN.md, "Allocation" and "Vocabulary":
@@ -184,7 +184,7 @@ in DESIGN.md, "Allocation" and "Vocabulary":
    chatter".)
 
 Developed on a separate Defects4J sample (seed 1, 19 bugs, none in the
-held-out set: `corpus-dev/defects4j/`) and checked against both dev
+held-out set: `corpus/defects4j-dev/`) and checked against both dev
 corpora. Recall, before → after:
 
 | set | 600 | 1,000 | 2,000 |
@@ -208,7 +208,7 @@ after:
 
 The gains match the burned sets, so the fix was not fitted to them. The
 fresh misses, with the candidates in `ROADMAP.md` stage 3, are in
-`corpus-heldout/README.md`.
+`corpus/heldout/README.md`.
 
 One of those misses is fixed since: parametrized test ids that differ
 only in numbers (`[numpy-3-True-1]`, `[numpy-3-True-2]`) masked to one
@@ -364,7 +364,7 @@ have tests of their own.
 
 ## Android logcat entries
 
-*Found on the synthetic logcat case (`corpus/android-logcat`), added to
+*Found on the synthetic logcat case (`corpus/dev/android-logcat`), added to
 exercise the logcat level rule when the tool-specific rules were
 rechecked (DESIGN.md, "Tool-specific rules").*
 
@@ -427,7 +427,7 @@ without that loss. The value was chosen on these sets, so it was a
 training number until a fresh sample said otherwise. Defects4J seed 5,
 drawn afterwards and measured before reading, says it holds: 80.4 → 87.0 %
 at 600 (Codec-5, Math-101 and Cli-12 one line each), nothing changed at
-1,000 or 2,000, no case worse (`corpus-heldout/README.md`).
+1,000 or 2,000, no case worse (`corpus/heldout/README.md`).
 
 Gains per set, before → after (pare `821097f` → this change); no case lost
 a line anywhere, at any budget:
@@ -471,7 +471,7 @@ causes, one fixed in the labels:
   the marker would be no shorter than what it cuts (at most 6 characters
   over the width).
 - **Surefire 3's `Cls#testX` form was not a label form**
-  (`corpus-heldout/README.md`, "Labels"): Gson-7's third test was on
+  (`corpus/heldout/README.md`, "Labels"): Gson-7's third test was on
   screen and scored as missing.
 
 With the new labels on every set, before → after (pare `27c905c` → this
@@ -492,11 +492,11 @@ for a pair` switches the pair rule off.
 
 ## Generated corpus: real tools, chosen failures
 
-`corpus-generated/` holds output captured from real Maven, tsc, Terraform
+`corpus/generated/` holds output captured from real Maven, tsc, Terraform
 and kubectl runs on small projects written to fail (sources in its `src/`,
 provenance in its README). The tools and their formatting are genuine; the
 failures and the keep lists are not blind, so this is a second development
-corpus for formats `corpus/` lacks, and it does not count toward the
+corpus for formats `corpus/dev/` lacks, and it does not count toward the
 held-out set. Nothing was tuned on it. Scores as of the tail-window
 change, seven cases (four structured-log cases were added later:
 DESIGN.md, "Structured lines"):

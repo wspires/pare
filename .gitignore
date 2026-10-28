@@ -7,16 +7,16 @@ bench/results*.json
 build/
 dist/
 *.egg-info/
-# corpus-generated/src: build outputs of the capture projects
+# corpus/generated/src: build outputs of the capture projects
 target/
 node_modules/
 .terraform/
 .terraform.lock.hcl
 terraform.tfstate*
 # harvested candidates awaiting review; may hold unreviewed personal data
-corpus-heldout/inbox/
+corpus/heldout/inbox/
 # full logs of SWE-bench tasks and Defects4J bugs that did not produce a case (debugging only)
-corpus-heldout/*/_failed/
+corpus/heldout/*/_failed/
 
 # Rust build output
 /target/

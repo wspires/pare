@@ -5,7 +5,7 @@ the Python prototype it replaced, measured on twelve held-out samples
 drawn blind from SWE-bench and Defects4J, and not yet released. This file
 says what comes next, in order, and keeps one line per finished item with
 a pointer to its record. The experiments are in `docs/HISTORY.md`, the
-held-out samples in `corpus-heldout/README.md`, the changes in
+held-out samples in `corpus/heldout/README.md`, the changes in
 `CHANGELOG.md`.
 
 Each item says who can do it. **Repo** means it is code or docs that can
@@ -37,7 +37,7 @@ real credentials or a decision that is not the code's to make.
   (expanded it, read the run file, reran without pare, opened a file the
   summary did not show), and `bench/collect.py` turns the reviewed ones
   into held-out cases with keep lists written before pare's output is
-  looked at (`corpus-heldout/README.md`, "Protocol"). Aim for 15 to 20.
+  looked at (`corpus/heldout/README.md`, "Protocol"). Aim for 15 to 20.
   *Maintainer, on a machine whose transcripts persist.*
 - [ ] **Claude token rate.** `bench/tokens.py --anthropic claude-opus-5-5`
   on a machine with credentials. If the rate differs much from the 2.8
@@ -47,14 +47,14 @@ real credentials or a decision that is not the code's to make.
   few real tasks (fix a failing test, fix a broken build, find an
   outage's cause) run with raw output, pare, sqz and tidyout as the tool
   result; report task success and tokens side by side. Design:
-  `corpus-heldout/README.md`, "Agent-success evaluation". *Maintainer,
+  `corpus/heldout/README.md`, "Agent-success evaluation". *Maintainer,
   with a harness from the repo.*
 
 ### Candidates, not before evidence asks
 
 Each is a miss the current sets show. None changes before a fresh sample
 or real logs say it matters, and a change spends the sample it is
-measured on (`corpus-heldout/README.md`).
+measured on (`corpus/heldout/README.md`).
 
 - [ ] **Inner runs in pytest's own suite.** Both pytest misses on fresh
   data (pytest-8399, pytest-7205) come from the inner pytest sessions
@@ -64,7 +64,7 @@ measured on (`corpus-heldout/README.md`).
   captured-output section) and score its lines as body, not verdicts.
   Narrow (pytest's own repository, and plugins tested with pytester).
 - [ ] **The template table at 600.** On the cold-cache Maven build
-  (`corpus-generated/maven-compile`) pare 0.2.0 at 600 shows twelve
+  (`corpus/generated/maven-compile`) pare 0.2.0 at 600 shows twelve
   template entries and no selected lines, and misses a compile error, the
   reactor's `FAILURE` line and `BUILD FAILURE`; the Terraform plan spends
   its 600 on twenty near-identical resource blocks. Candidate: cap the
@@ -114,7 +114,7 @@ counted as spent once a change was measured on it.
 
 | done | what | record |
 |---|---|---|
-| SWE-bench cases | `bench/swebench_cases.py`: failing test runs reproduced from SWE-bench tasks, labelled by FAIL_TO_PASS. Seed 0: 60 % at 2,000, which found the failing-test collapse | `corpus-heldout/README.md`, "SWE-bench cases" and "SWE-bench seed 0 and Defects4J seed 0" |
+| SWE-bench cases | `bench/swebench_cases.py`: failing test runs reproduced from SWE-bench tasks, labelled by FAIL_TO_PASS. Seed 0: 60 % at 2,000, which found the failing-test collapse | `corpus/heldout/README.md`, "SWE-bench cases" and "SWE-bench seed 0 and Defects4J seed 0" |
 | Defects4J cases | `bench/defects4j_cases.py`: Java test runs rebuilt from Defects4J bugs in a JDK 8 container, labelled by trigger tests and exceptions. Seed 0: 29 % at 600. Maven projects only | same, "Defects4J cases" |
 | SWE-bench seed 1, Defects4J seed 2 | the failing-test fix holds on unseen data: 63 → 89 % and 30 → 51 % | same, "SWE-bench seed 1 and Defects4J seed 2" |
 | SWE-bench seed 2, Defects4J seed 3 | 86 / 91 / 100 % and 67 / 94 / 98 % at 600 / 1,000 / 2,000 | same, "SWE-bench seed 2 and Defects4J seed 3" |
@@ -133,9 +133,9 @@ The blocker for stage 1 was friction, so this came first in practice.
 | done | what | record |
 |---|---|---|
 | Command mode | `pare -- CMD`: the exit code survives and the command is recorded next to the run file | `docs/DESIGN.md`, "Command mode" |
-| `bench/collect.py` | turns a run file into a held-out case with its `.cmd`, scrubbed, never showing pare's summary | `corpus-heldout/README.md`, "Protocol" |
+| `bench/collect.py` | turns a run file into a held-out case with its `.cmd`, scrubbed, never showing pare's summary | `corpus/heldout/README.md`, "Protocol" |
 | Agent integration | an instruction for `CLAUDE.md` or `AGENTS.md`, and a Claude Code hook that rewrites test, build and install commands; tried in a real session and registered for this repository | `integrations/README.md` |
-| `bench/harvest.py` | mines Claude Code transcripts for long outputs, scrubs them, proposes keep lines from what the agent did next, and ranks first the outputs where the agent went past pare's summary | `corpus-heldout/README.md`, "Harvesting from existing transcripts" |
+| `bench/harvest.py` | mines Claude Code transcripts for long outputs, scrubs them, proposes keep lines from what the agent did next, and ranks first the outputs where the agent went past pare's summary | `corpus/heldout/README.md`, "Harvesting from existing transcripts" |
 | `pare stats` | totals what commands printed against what pare printed, an upper bound on the saving | `integrations/README.md` |
 
 ### Stage 3: fix only what the held-out set showed
@@ -150,7 +150,7 @@ measured on the next fresh sample.
 | Which of many failures matter | a failure that fails unlike most of its list gets +2 salience and is listed first | same |
 | Names that differ only in numbers | a name's bracketed parameters stay in the shape key | same |
 | Maven chatter at 600 | level-only and advice lines score −1 whatever their level, and the head and tail windows skip them; `ComparisonFailure` is an error | `docs/HISTORY.md`, "Maven chatter" |
-| Keep lines with alternative forms | `a \|\| b` in a keep line counts when either appears; the Defects4J labeller lists every id form the log shows | `corpus-heldout/README.md`, "Labels" |
+| Keep lines with alternative forms | `a \|\| b` in a keep line counts when either appears; the Defects4J labeller lists every id form the log shows | `corpus/heldout/README.md`, "Labels" |
 | Removed terms re-ablated | the four position terms, back at weight 0, earn nothing on nine sets | `docs/DESIGN.md`, "Scoring model" |
 | Tool-specific rules rechecked | each rule has a switch and an ablation row; the pytest markers and the blank-in-block rule earn their place, Maven needs none | `docs/DESIGN.md`, "Tool-specific rules" |
 | Android logcat | a synthetic threadtime case: padded tags, entries split by message, a crashed process's death as an error. A real capture is still wanted | `docs/HISTORY.md`, "Android logcat entries" |
