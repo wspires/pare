@@ -91,6 +91,8 @@ follow mode or batch mode.
 ```
 stdin ──read 1 MiB──▶ Pass::feed ──▶ spool file (write as read)
                          │       └──▶ SHA-256 (hash as read)
+                         │  (a NUL in the first 8 KiB: binary; spooled and
+                         │   hashed, no further, and batch prints one line)
                          ▼
                split on '\n' (memchr), a line cut by a chunk carried over
                          │

@@ -3,7 +3,8 @@
 How pare works and why: the algorithm, how it differs from Drain, what
 "tokens" means here and how to pick a budget, the pipeline, the
 structural and vocabulary signals, the scoring model and the allocation,
-the tool-specific rules, follow mode and performance. Each rule says what
+command and selection modes, the tool-specific rules, performance and
+follow mode. Each rule says what
 it is and, in a sentence, what it earned. The experiments behind the
 rules, in the order they were run and with the numbers of the time, are
 in [HISTORY.md](HISTORY.md); the current benchmark numbers are in the
@@ -280,7 +281,10 @@ parity is unchanged (it passes `--budget` on every run anyway).
    (`$PARE_RUN_DIR` or `~/.cache/pare/runs/<sha>.log`), so nothing is lost
    and the same input always maps to the same path. Run files are pruned
    after 14 days, or past 500 MB in all, oldest first and never one under
-   a day old (USAGE.md, "Run files").
+   a day old (USAGE.md, "Run files"). Input with a NUL byte in its first
+   8 KiB (git's and grep's test for a binary file) is saved and hashed
+   but not segmented: the steps below are skipped and the output is one
+   line saying so, plus the run-file line.
 2. **Segment.** Lines become records: a line indented deeper than the
    previous record's head, or shaped like a continuation (stack frame,
    caret marker, `Caused by:`, assertion detail, diff hunk; plus the
@@ -303,8 +307,8 @@ parity is unchanged (it passes `--budget` on every run anyway).
 5. **Score.** See **Scoring model**.
 6. **Allocate.** See **Allocation**.
 7. **Ledger.** The output ends with how many lines were omitted and from
-   which templates, the run-file path, and (above 1,000 tokens) a usage
-   hint.
+   which templates, the run-file path, and (at 1,000 tokens and up, when
+   there is a run file) a usage hint.
 
 ## Structural severity
 
@@ -628,8 +632,10 @@ shell reports pare's) and the command line itself. In command mode:
   is printed byte for byte, with no run line, and only a non-zero status
   added (`## exit 1`): exit 0 adds nothing.
 - **Metadata.** `<hash>.json` next to the run file records the command,
-  working directory, exit code, start time, duration, line and byte counts
-  and pare version. `bench/collect.py` reads it to fill in a held-out
+  working directory, exit code, start time, duration, line and byte
+  counts, pare's version, and what pare printed (output bytes, budget,
+  bytes per token). `pare stats` totals the last against the input over
+  every run; `bench/collect.py` reads the command to fill in a held-out
   case's `.cmd`. The file is content-addressed like the run file, so two
   runs with identical output share one record, the later one.
 - **Signals.** Ctrl-C reaches the whole process group from the terminal,
@@ -644,13 +650,14 @@ shell reports pare's) and the command line itself. In command mode:
 - **Not combined** with `--only/--except/--since/--until/--min-severity`,
   which read a run file.
 
-`integrations/` builds on it: an instruction for agents' instruction files,
-and a Claude Code PreToolUse hook (`integrations/claude-code/pare-hook.py`)
-that rewrites a single, simple test, build or install command to
-`pare -- CMD` (pare's default budget, `auto`, applies). The hook skips compound commands (a subshell
-would change what persists, such as `cd`), watch modes and dev servers
-(which never exit), and anything whose exact output an agent needs. It
-fails open: an error or a missing pare means no rewrite. Its permission
+`integrations/` builds on it: an instruction for agents' instruction
+files, and a Claude Code PreToolUse hook
+(`integrations/claude-code/pare-hook.py`) that rewrites a single, simple
+test, build or install command to `pare -- CMD` (pare's default budget,
+`auto`, applies). The hook skips compound commands (a subshell would
+change what persists, such as `cd`), watch modes and dev servers (which
+never exit), and anything whose exact output an agent needs. It fails
+open: an error or a missing pare means no rewrite. Its permission
 behaviour is described in `integrations/README.md`. ARCHITECTURE.md's
 "Command mode" draws the processes and threads.
 
@@ -739,7 +746,7 @@ The roadmap asked for format inference (detect logfmt, JSON lines or a
 known tool from the first few hundred lines and switch rules on) only if
 evidence showed formats the rules miss. No log in any corpus or held-out
 set was JSON or logfmt, and no held-out miss was a format problem, so
-four cases were made the way `corpus/generated/` makes them: real
+four cases were added to `corpus/generated/` the way it makes them: real
 loggers in small programs written to fail in chosen ways (Go's
 `log/slog` in both its JSON and text handlers, pino 9 in Node, structlog
 24 in Python). Before the change pare kept 8 of their 18 must-survive
@@ -857,13 +864,14 @@ T30  ×1 (34 lines) new E L6888: FAIL src/api/useFetch3.test.tsx
 
 **Flush conditions.** Any of: `--every N` lines (default 20,000, which
 is also the window cap when another trigger is in force), `--interval S`
-seconds (the read loop waits with that timeout, so an idle stream still
-flushes on time), end of input, and a line at `--flush-on` severity
-(default `error`; `fatal` or `none`), which schedules a flush `--settle`
-seconds later (default 0.5, so the rest of the record can arrive on a
-live pipe that delivers a line at a time) and no sooner than
+seconds (default 30; the read loop waits with that timeout, so an idle
+stream still flushes on time), end of input, and a line at `--flush-on`
+severity (default `error`; `fatal` or `none`), which schedules a flush
+`--settle` seconds later (default 0.5, so the rest of the record can
+arrive on a live pipe that delivers a line at a time) and no sooner than
 `--min-interval` after the previous flush (default 2 s), so an error
-storm is not a flush storm.
+storm is not a flush storm. USAGE.md, "Follow mode", draws the four cuts
+on one stream.
 
 **Windows end at record boundaries, or carry the record.** The line
 cap is checked when a line arrives that starts a record; a continuation

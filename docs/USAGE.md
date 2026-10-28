@@ -253,8 +253,9 @@ file names the pare version that wrote it, so the mismatch can be seen.
   keeps working. A renamed flag keeps its old name as an alias for the
   rest of 0.x (`--chars-per-token` for `--bytes-per-token`).
 - The exit statuses in the table above.
-- The `.json` record's fields (`command`, `cwd`, `exit`, `seconds`,
-  `lines`, `bytes`, `out_bytes`, `budget`, `chars_per_token`, `pare`),
+- The `.json` record's fields (`command`, `cwd`, `exit`, `started`,
+  `seconds`, `lines`, `bytes`, `out_bytes`, `budget`, `chars_per_token`,
+  `pare`),
   which `pare stats` and `bench/collect.py` read. Fields may be added;
   none is removed or changes meaning.
 - Output that fits the budget is printed as it is, byte for byte, and
