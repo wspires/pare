@@ -131,7 +131,7 @@ documentation in a browser: module docs, item docs and examples, a
 readable way into the code.
 
 `bench/check.sh` runs all four jobs in CI's order and stops at the first
-failure: about five minutes, or three with `--quick`, which runs parity
+failure: about eight minutes, or five with `--quick`, which runs parity
 under 4 flag sets instead of 14; `--rust` runs the Rust job alone, in
 under a minute. A packaging tool it cannot find (maturin, shellcheck,
 ruby) is reported and skipped, since CI still runs it. It needs the

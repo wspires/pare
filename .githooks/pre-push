@@ -4,9 +4,10 @@
 #
 #   git config core.hooksPath .githooks
 #
-# git push --no-verify skips it.
+# git push --no-verify skips it. When the files cannot be worked out (a
+# remote commit this clone does not have), the checks run.
 set -eu
-cd "$(dirname "$0")/.."
+cd "$(git rev-parse --show-toplevel)"
 
 changed=""
 while read -r _local_ref local_sha _remote_ref remote_sha; do
@@ -18,7 +19,7 @@ while read -r _local_ref local_sha _remote_ref remote_sha; do
             base=$(git merge-base origin/main "$local_sha" 2>/dev/null) || base=""
             if [ -n "$base" ]; then files=$(git diff --name-only "$base" "$local_sha")
             else files=$(git log --name-only --format= "$local_sha"); fi ;;
-        *) files=$(git diff --name-only "$remote_sha" "$local_sha") ;;
+        *) files=$(git diff --name-only "$remote_sha" "$local_sha" 2>/dev/null) || files="(unknown)" ;;
     esac
     changed="$changed
 $files"

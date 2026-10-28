@@ -3,9 +3,9 @@
 # stopping at the first failure: the Rust job (fmt, clippy, tests, docs),
 # the Python reference's tests, the Unicode tables and parity, packaging.
 #
-#   bench/check.sh            everything, as CI does (about five minutes)
-#   bench/check.sh --quick    parity under 4 flag sets instead of 14
-#   bench/check.sh --rust     the Rust job only (about half a minute)
+#   bench/check.sh            everything, as CI does (about eight minutes)
+#   bench/check.sh --quick    parity under 4 flag sets instead of 14 (five)
+#   bench/check.sh --rust     the Rust job only (under a minute)
 #
 # A packaging tool that is not installed (maturin, shellcheck, ruby) is
 # reported and skipped; CI still runs it. .githooks/pre-push runs this
@@ -30,7 +30,7 @@ step "cargo fmt --check";                         cargo fmt --check
 step "cargo clippy --all-targets -- -D warnings"; cargo clippy --all-targets -q -- -D warnings
 step "cargo test";                                cargo test -q
 step "cargo doc --no-deps (warnings are errors)"; RUSTDOCFLAGS="-D warnings" cargo doc --no-deps -q
-[ -n "$rust_only" ] && { printf '\nok: the Rust job\n'; exit 0; }
+if [ -n "$rust_only" ]; then printf '\nok: the Rust job\n'; exit 0; fi
 
 step "python -m pytest -q reference/"
 "$py" -c 'import pytest, drain3' 2>/dev/null || {
