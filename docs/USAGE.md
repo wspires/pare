@@ -213,17 +213,50 @@ line's analysis instead of a summary.
 
 ## What you can rely on
 
-pare is at 0.2; what follows is what the code holds today, written down
-so a script or an agent knows what to parse. A release that changes any
-of it says so in the CHANGELOG.
+pare's version is 0.MINOR.PATCH, and the number says what a release may
+change. This is the promise from 0.2.0 on; a release that breaks any
+line of it is a mistake to report.
+
+**A patch release changes no output.** For the same input, flags and
+vocabulary, a patch prints the same bytes as the release before it, with
+the same template ids and exit status. Patches fix crashes, I/O errors,
+packaging and documentation. A fix that changes a summary, even to
+improve it, waits for a minor release.
+
+**A minor release may change what a summary holds**: which lines and
+templates are chosen, their scores, the wording of pare's own lines (the
+header, the ledger, the hint, the marks), the built-in vocabulary and
+masks, and a flag's default. Every such change is a CHANGELOG entry.
+Template ids are kept unless a change to clustering, to the built-in
+masks or to segmentation renumbers them; then the entry says
+"renumbers templates", and `--only T<n>` on a run file from an earlier
+minor version selects something else. The `.json` record next to a run
+file names the pare version that wrote it, so the mismatch can be seen.
+
+**Across every 0.x release, these hold:**
 
 - The section markers: `# pare:` opens a summary, `# pare #N:` a follow
   block, `## ` each section, `## raw:` the run file line, `## omitted`
-  the ledger, `## exit N` a non-zero status on a pass-through.
-- The flags in `pare --help`, their names and defaults; `--chars-per-token`
-  stays as an alias of `--bytes-per-token`.
+  the ledger, `## exit N` a non-zero status on a pass-through. Split a
+  stream on `# pare` and a summary on `## `.
+- Every flag, subcommand and environment variable in `pare --help`
+  keeps working. A renamed flag keeps its old name as an alias for the
+  rest of 0.x (`--chars-per-token` for `--bytes-per-token`).
+- The exit statuses in the table above.
+- The `.json` record's fields (`command`, `cwd`, `exit`, `seconds`,
+  `lines`, `bytes`, `out_bytes`, `budget`, `chars_per_token`, `pare`),
+  which `pare stats` and `bench/collect.py` read. Fields may be added;
+  none is removed or changes meaning.
+- Output that fits the budget is printed as it is, byte for byte, and
+  a selection (`--only`, `--since`, ...) prints the log's own bytes: pare
+  rewrites none of the input, only its own lines change between
+  versions.
 - Template ids within one version, for one input and one vocabulary.
-- The exit statuses above.
-- The `.json` record's fields (`command`, `cwd`, `exit`, `seconds`, `lines`,
-  `bytes`, `out_bytes`, `budget`, `chars_per_token`, `pare`), which `pare stats` and
-  `bench/collect.py` read.
+
+**Not promised:** which lines a summary selects, the token estimate (the
+bytes-per-token rate may be re-measured), the built-in vocabulary's
+words, and anything behind `PARE_REFERENCE_RULES` or `PARE_DUMP`, which
+exist for testing pare itself.
+
+**At 1.0** "the rest of 0.x" becomes "until 2.0", and a change that
+renumbers templates needs a major version.

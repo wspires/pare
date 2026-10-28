@@ -19,13 +19,14 @@ real credentials or a decision that is not the code's to make.
 - [ ] **First release.** The one-time setup in RELEASING.md (the tap
   repository, two secrets, PyPI's trusted publisher), then tag `v0.2.0`.
   Until then every install line in the README fails. *Maintainer.*
-- [ ] **Version and the compatibility promise.** What 0.x means, and what
-  a user may rely on across versions: the output's section markers
-  (`# pare`, `## templates`, `## raw:`), the flags, and template ids,
-  which `--only T7 < runfile` depends on. A proposal: template ids are
-  stable within a minor version; a change to clustering or masking that
-  renumbers them is a minor bump that says so in the CHANGELOG, and a run
-  file's `.json` record names the version that wrote it. *Maintainer.*
+- [ ] **Version and the compatibility promise.** Drafted in
+  `docs/USAGE.md`, "What you can rely on": a patch release prints the
+  same bytes; a minor release may change what a summary holds and says
+  so in the CHANGELOG, and says "renumbers templates" when it does; the
+  section markers, flags (renamed ones keep an alias), exit statuses and
+  the `.json` record's fields hold across 0.x; the record already names
+  the pare version that wrote a run file. To accept or amend before
+  0.2.0, since the release makes the promise. *Maintainer.*
 
 ### Evidence
 
