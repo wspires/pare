@@ -1,7 +1,7 @@
 # Roadmap
 
 pare 0.2.0 is built: a single Rust binary, verified byte for byte against
-the Python prototype it replaced, measured on twelve held-out samples
+the Python prototype it replaced, measured on thirteen held-out samples
 drawn blind from SWE-bench and Defects4J, and not yet released. This file
 says what comes next, in order, and keeps one line per finished item with
 a pointer to its record. The experiments are in `docs/HISTORY.md`, the
@@ -96,7 +96,8 @@ measured on (`corpus/heldout/README.md`).
 - [ ] **Retire parity.** `bench/parity.py` holds the Rust version to the
   Python reference, with `PARE_REFERENCE_RULES=1` turning off the
   Rust-only rules (structured lines, the tail verdict rule, `auto` as the
-  default). Once those rules outnumber what parity still checks,
+  default, the binary-input check). Once those rules outnumber what
+  parity still checks,
   regenerate the golden files from the Rust version and drop the
   reference from CI. *Repo.*
 
@@ -109,7 +110,7 @@ that references to "stage 3" and "stage 5" elsewhere still land.
 ### Stage 1: validate on real data
 
 The gate for everything after it: no tuning before held-out numbers
-existed. Twelve blind samples were drawn, seven from Defects4J and five
+existed. Thirteen blind samples were drawn, seven from Defects4J and six
 from SWE-bench Verified; each was measured before anyone read it, and
 counted as spent once a change was measured on it.
 
@@ -199,7 +200,7 @@ default, and the command-line changes made before the first release.
 | Configurable continuation rules | a `[continuation]` class in the vocabulary file; the built-in rules became its defaults | `docs/DESIGN.md`, "Vocabulary" |
 | Configurable masks | `[mask NAME]` sections, run before the built-in masks | same |
 | `--budget auto` | the budget as a ceiling the summary stops short of; the default since four fresh samples kept what 2,000 kept at 69 to 79 % of its tokens | `docs/DESIGN.md`, "Automatic budget" |
-| The command line | `prune`, `stats` and `vocab` as subcommands, `--ascii`, `--bytes-per-token`, grouped `--help`, usage errors exit 2, `--interval` defaults to 30 | `CHANGELOG.md`, "The command line, before the first release"; `docs/USAGE.md` |
+| The command line | `prune`, `stats` and `vocab` as subcommands, `--ascii`, `--bytes-per-token`, grouped `--help`, usage errors exit 2, `--interval` defaults to 30 | `CHANGELOG.md`, Unreleased; `docs/USAGE.md` |
 | Binary input | a NUL byte in the first 8 KiB: saved, not summarised, two lines out | `docs/USAGE.md`, "What pare prints" |
 | Structured lines | JSON and logfmt lines recognized one by one and clipped keeping the fields that say what went wrong; pino's numeric levels count. Real structured logs in a held-out sample are still owed | `docs/DESIGN.md`, "Structured lines" |
 
