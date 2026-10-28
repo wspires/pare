@@ -1,0 +1,13 @@
+{
+  "kind": "diagnose",
+  "log": "../../dev/server-outage.log",
+  "command": "docker logs inventory-api",
+  "prompt": "An API service went down and came back. From the output of this command, say what caused the outage: which component failed, what the first error was, how the service responded, and what the final outcome was. Be concrete: name the component, the host and the error text from the log.",
+  "expect": [
+    ["db-primary.internal:5432", "connection reset by peer || connection to db-primary.internal:5432 lost"],
+    ["pool exhausted"],
+    ["circuit breaker || giving up after 30 reconnect attempts"],
+    ["reconnected"]
+  ],
+  "notes": "A 4,813-line synthetic log (corpus/dev/server-outage.log); the expect terms are the keep list's events: the lost connection, the exhausted pool, the breaker, the recovery."
+}

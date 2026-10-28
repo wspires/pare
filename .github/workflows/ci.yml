@@ -39,7 +39,7 @@ jobs:
         with:
           python-version: "3.13"
       - run: pip install -r reference/requirements.txt
-      - run: python -m pytest -q reference/
+      - run: python -m pytest -q reference/ bench/
 
   parity:
     name: Parity with the Python version

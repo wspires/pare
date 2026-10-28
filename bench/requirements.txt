@@ -1,2 +1,4 @@
 # comparison tools; see README for the sqz binary
 tidyout-cli
+# the agent-success evaluation (bench/agent_eval.py)
+anthropic

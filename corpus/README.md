@@ -15,6 +15,7 @@ and its docstring has the details. A directory may also carry a
 | `generated/` | real Maven, tsc, Terraform, kubectl and structured-log output from the small projects in its `src/` ([README](generated/README.md)) | yes: a second development corpus |
 | `defects4j-dev/` | the Defects4J development sample, seed 1 ([README](defects4j-dev/README.md)) | yes |
 | `heldout/` | SWE-bench and Defects4J samples drawn fresh and measured before anyone reads them ([README](heldout/README.md), with the protocol and every result) | no: a sample is spent once a change has been judged on it |
+| `agent/` | tasks for the agent-success evaluation: projects to fix and logs to explain, run by `bench/agent_eval.py` ([README](agent/README.md)) | not a recall corpus: it measures task success and tokens per condition |
 
 ```
 .venv/bin/python bench/run.py --corpus corpus/dev --pare-bin target/release/pare

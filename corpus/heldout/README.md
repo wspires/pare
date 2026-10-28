@@ -757,3 +757,12 @@ outage from a log) and run an agent on each with the full output, with
 pare's summary, with sqz's output and with tidyout's output as the tool
 result. Report task success and tokens side by side. A summary that keeps
 every must-survive line but buries it in forty others may still lose here.
+
+The harness is `bench/agent_eval.py`; its tasks and their format are in
+`corpus/agent/README.md`, and `--heldout DIR` turns the cases here into
+diagnose tasks (name every failing test and its error) graded by the
+dataset's labels. A run writes `bench/agent-runs/<stamp>/summary.md`;
+the ones worth keeping go here, with the model, effort, pare version
+and number of trials.
+
+No run has been recorded yet.

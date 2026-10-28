@@ -1,0 +1,9 @@
+{
+  "kind": "fix",
+  "workspace": "proj",
+  "command": "cargo test",
+  "check": "cargo test -q",
+  "requires": ["cargo"],
+  "prompt": "This Rust crate does not compile, and once it does, one of its unit tests fails. Fix the code under src/ so that `cargo test` passes. Do not change the tests. When it passes, stop and say what you changed.",
+  "notes": "Two compile errors (a u64/u32 mismatch and a call to a method that does not exist) and one logic bug (weight_kg rounds to nearest instead of down), with unused-variable warnings around them."
+}

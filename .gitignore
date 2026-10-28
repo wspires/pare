@@ -18,3 +18,5 @@ corpus/heldout/*/_failed/
 
 # Rust build output
 /target/
+# agent-success runs: transcripts hold model output and may be large
+bench/agent-runs/

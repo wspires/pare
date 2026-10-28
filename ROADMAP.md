@@ -44,12 +44,15 @@ real credentials or a decision that is not the code's to make.
   on a machine with credentials. If the rate differs much from the 2.8
   bytes per token measured on cl100k and o200k, change the default.
   *Maintainer.*
-- [ ] **Agent-success eval.** Recall measures presence, not usefulness. A
-  few real tasks (fix a failing test, fix a broken build, find an
-  outage's cause) run with raw output, pare, sqz and tidyout as the tool
-  result; report task success and tokens side by side. Design:
-  `corpus/heldout/README.md`, "Agent-success evaluation". *Maintainer,
-  with a harness from the repo.*
+- [ ] **Agent-success eval.** Recall measures presence, not usefulness.
+  The harness is built: `bench/agent_eval.py` runs an agent on each task
+  in `corpus/agent/` (fix a Python library, fix a Rust crate, explain an
+  outage, read a Maven failure) and on held-out cases, with the raw
+  output, a head-and-tail truncation, pare's summary, sqz or tidyout as
+  its tool result, and reports success, tokens and turns side by side
+  (`corpus/agent/README.md`). What is left is running it: three or more
+  trials per cell on a machine with credentials, and the table in
+  `corpus/heldout/README.md`, "Agent-success evaluation". *Maintainer.*
 
 ### Candidates, not before evidence asks
 

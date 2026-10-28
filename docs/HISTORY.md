@@ -143,7 +143,8 @@ cause rather than a weight:
 *As written before any held-out sample existed. Item 1 was answered in
 part: the held-out samples that follow are drawn from datasets, and logs
 from real agent sessions are still wanted (ROADMAP.md, "Real logs");
-item 2 is still open (ROADMAP.md, "Agent-success eval").*
+item 2 has its harness, `bench/agent_eval.py`, and no recorded run yet
+(ROADMAP.md, "Agent-success eval").*
 
 The numbers above are a **training score**. The misses were fixed by
 looking at the same eight cases, and three of the eight (jest-fail,

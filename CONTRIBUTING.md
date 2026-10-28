@@ -291,6 +291,17 @@ failing-test fix was tuned on; `corpus/heldout/` holds the held-out
 SWE-bench and Defects4J samples, with the protocol and every result in
 its README. Report held-out numbers apart from the others.
 
+`bench/agent_eval.py` is the other measurement: an agent runs each task
+in `corpus/agent/` (fix a project, explain a log) with the full output,
+a truncation, pare's summary, sqz or tidyout as its tool result, and the
+run reports success, tokens and turns per condition. It calls a model,
+so it needs `pip install anthropic` and credentials, and every trial
+costs money; `--dry-run` shows what each condition would hand the agent
+without calling anything. `corpus/agent/README.md` has the task format
+and how to add one; `python -m pytest -q bench/` tests the harness and
+checks the shipped tasks are broken as given and fixed by the intended
+change.
+
 ## Submitting a change
 
 Branch from `main` and open a pull request; the four CI jobs must pass
@@ -319,6 +330,8 @@ reference/pare.py         the Python prototype (one file, standard library only)
 reference/test_pare.py    its pytest suite
 reference/vocab.example   example vocabulary extension (German)
 bench/run.py              benchmark runner
+bench/agent_eval.py       the agent-success evaluation: task success and tokens per condition (calls a model)
+bench/test_agent_eval.py  its tests, and the check that corpus/agent's tasks are broken as shipped
 bench/ablate.py           ablation study of the scoring heuristics (runs the reference)
 bench/tokens.py           byte proxy vs real tokenizer counts
 bench/gen_synthetic.py    generator for the seeded synthetic corpus files
@@ -330,6 +343,7 @@ bench/parity.py           compare two pare implementations byte for byte (the Ru
 bench/gen_fixtures.py     write tests/data/ from the reference
 bench/gen_pyunicode.py    write src/pyunicode.rs, Python's character classes
 bench/check.sh            what CI runs, locally, in order (--quick, --rust)
+corpus/                   the logs pare is measured on, and corpus/agent/ the tasks the agent runs (corpus/README.md)
 .githooks/pre-push        runs it before a push that changes more than Markdown (git config core.hooksPath .githooks)
 AGENTS.md, CLAUDE.md      the one instruction for an agent working here: run bench/check.sh before pushing
 integrations/             agent instructions and a Claude Code hook (integrations/README.md)
