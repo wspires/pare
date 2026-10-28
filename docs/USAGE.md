@@ -60,6 +60,13 @@ input prints `# pare: empty input`; `pare stats` and `pare prune` start
 with `# pare stats:` and `# pare prune:`. The ledger and the gap markers
 spell their counts out (`1 template not listed`, `(+1 more line)`).
 
+Binary input is not summarised. A NUL byte in the first 8 KiB (git's and
+grep's test; an executable, an image, an archive, UTF-16 text) gets two
+lines, `# pare: binary input (NUL at byte 3), 300,000 B · not
+summarised` and the `## raw:` line, with the exit status in command
+mode. The input is still saved to the run file in full, and the exit
+status is as usual. Follow mode takes its stream to be text.
+
 ## Command mode
 
 `pare [flags] -- CMD ARGS` runs the command instead of reading stdin.

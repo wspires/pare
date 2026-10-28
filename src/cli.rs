@@ -573,6 +573,34 @@ fn batch(args: &Args, vocab: &Vocab, mut run: Option<&mut CommandRun>) -> Result
         r.write_meta(&spool_path, store.len(), store.total_bytes, None);
     }
 
+    if let Some(at) = store.binary_at {
+        // Not a log: say so in one line, with the run file, and stop. The
+        // lines were not segmented, so there is nothing to score.
+        let dot = crate::text::glyphs().dot;
+        let mut run_line = match &run_path {
+            Some(p) => format!("## raw: {p}"),
+            None => "## raw: (not saved)".to_owned(),
+        };
+        if let Some(n) = &note {
+            run_line.push_str(&format!(" {dot} {n}"));
+        }
+        let text = format!(
+            "# pare: binary input (NUL at byte {}), {} B {dot} not summarised\n{run_line}\n",
+            summary::fmt_int(i64::try_from(at).unwrap_or(i64::MAX)),
+            summary::fmt_int(i64::try_from(store.total_bytes).unwrap_or(i64::MAX)),
+        );
+        write_out(&mut out, text.as_bytes())?;
+        if let (Some(r), true) = (run.as_deref(), tee) {
+            r.write_meta(
+                &spool_path,
+                0,
+                store.total_bytes,
+                Some((text.len() as u64, args.budget(), args.chars_per_token)),
+            );
+        }
+        return Ok(exit_code);
+    }
+
     score::score_templates(&mut store, vocab, &spool_path)
         .map_err(|e| Error::io("reading the run file back", e))?;
 

@@ -124,8 +124,10 @@ Use it for anything whose output can be long and whose failures are the
 point: test suites, builds, linters, package installs, `terraform plan`,
 `kubectl logs`, CI runs. Do not use it for output you need exactly: a
 file you are reading, `git diff`, `grep`, anything you will edit from.
-Output that already fits the budget passes through untouched, so wrapping
-a short command costs nothing but its run file.
+Source code is not a log either; pare summarises it, pointlessly. A
+binary file (an executable, an image, an archive) gets one line saying
+so, not a summary. Output that already fits the budget passes through
+untouched, so wrapping a short command costs nothing but its run file.
 
 ## Install
 

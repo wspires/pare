@@ -56,6 +56,10 @@ pub(crate) const TOOL_LOGCAT: bool = true;
 /// (`crate::structured`).
 pub(crate) const TOOL_STRUCTURED: bool = true;
 
+/// How far into the input a NUL byte makes it binary (git's and grep's
+/// test, and their distance: 8 KiB).
+pub const BINARY_SCAN: u64 = 8192;
+
 /// `$PARE_REFERENCE_RULES` set (and not `0`): the Rust-only rules that
 /// change default output (`TOOL_STRUCTURED`, the tail window's verdict
 /// rule in `crate::summary`) are off, so the output is the Python
@@ -691,6 +695,12 @@ pub struct Pass<'v, W: Write> {
     spool: W,
     hasher: Sha256,
     total_bytes: u64,
+    /// Look for a NUL byte in the first [`BINARY_SCAN`] bytes (batch mode;
+    /// off under `$PARE_REFERENCE_RULES`, which has no such rule).
+    detect_binary: bool,
+    /// Where the NUL was found: the input is binary, and from here on it is
+    /// spooled and hashed but not segmented.
+    binary_at: Option<u64>,
     /// The start of a line that the last chunk cut off.
     rest: Vec<u8>,
     seg: Segmenter<'v>,
@@ -704,9 +714,19 @@ impl<'v, W: Write> Pass<'v, W> {
             spool,
             hasher: Sha256::new(),
             total_bytes: 0,
+            detect_binary: false,
+            binary_at: None,
             rest: Vec::new(),
             seg: Segmenter::new(vocab, width),
         }
+    }
+
+    /// Treat input with a NUL byte in its first [`BINARY_SCAN`] bytes as
+    /// binary (the test git and grep use): it is saved to the spool but not
+    /// segmented, and the store says where the NUL was. Batch mode only; a
+    /// followed stream is taken to be text.
+    pub fn check_binary(&mut self) {
+        self.detect_binary = rust_rules();
     }
 
     /// Takes the next chunk of input.
@@ -735,7 +755,18 @@ impl<'v, W: Write> Pass<'v, W> {
     ) -> io::Result<()> {
         self.spool.write_all(chunk)?;
         self.hasher.update(chunk);
+        let before = self.total_bytes;
         self.total_bytes += chunk.len() as u64;
+        if self.detect_binary && self.binary_at.is_none() && before < BINARY_SCAN {
+            let scan =
+                usize::try_from(BINARY_SCAN - before).map_or(chunk.len(), |n| n.min(chunk.len()));
+            if let Some(i) = memchr::memchr(0, &chunk[..scan]) {
+                self.binary_at = Some(before + i as u64);
+            }
+        }
+        if self.binary_at.is_some() {
+            return Ok(());
+        }
 
         let mut start = 0;
         // Rust note: `memchr_iter` finds every newline with SIMD, the way
@@ -776,6 +807,7 @@ impl<'v, W: Write> Pass<'v, W> {
         let hex: String = digest.iter().take(6).map(|b| format!("{b:02x}")).collect();
         let mut store = self.seg.cut();
         store.total_bytes = self.total_bytes;
+        store.binary_at = self.binary_at;
         Ok((store, hex, self.spool))
     }
 
@@ -833,6 +865,7 @@ pub fn read_all<R: Read, W: Write>(
     width: i64,
 ) -> io::Result<(Store, String, W)> {
     let mut pass = Pass::new(spool, vocab, width);
+    pass.check_binary();
     let mut buf = vec![0u8; CHUNK];
     loop {
         // Rust note: `read` returns how many bytes it filled; 0 means end

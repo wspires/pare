@@ -136,6 +136,10 @@ pub struct Store {
     end: u64,
     /// Bytes of input in all, newlines included.
     pub total_bytes: u64,
+    /// Batch mode: the offset of a NUL byte in the input's first 8 KiB,
+    /// which makes it binary (an executable, an image, UTF-16 text), so
+    /// the lines were not segmented and there is nothing to summarise.
+    pub binary_at: Option<u64>,
     /// Bytes of the cleaned text with one newline per line: the size of a
     /// verbatim pass-through.
     pub verbatim_bytes: u64,

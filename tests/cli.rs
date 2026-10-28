@@ -821,3 +821,61 @@ fn budget_from_the_environment() {
             .contains("(budget auto ≤4,000)")
     );
 }
+
+#[test]
+fn binary_input_is_one_line_and_still_saved() {
+    let dir = TempDir::new("binary");
+    let mut input = b"ELF\x00\x01\x02 not a log\n".to_vec();
+    input.extend(std::iter::repeat_n(0xff_u8, 20_000));
+    let out = pare(&["--run-dir", dir.path().to_str().unwrap()], &input);
+    assert!(out.status.success());
+    let text = String::from_utf8_lossy(&out.stdout);
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 2, "{text}");
+    assert!(
+        lines[0].starts_with("# pare: binary input (NUL at byte 3), 20,017 B"),
+        "{text}"
+    );
+    let path = lines[1].strip_prefix("## raw: ").expect("the run line");
+    assert_eq!(fs::read(path).unwrap(), input, "the input is saved whole");
+
+    // --no-tee: nothing saved, and the run line says so.
+    let out = pare(&["--no-tee"], &input);
+    assert!(String::from_utf8_lossy(&out.stdout).ends_with("## raw: (not saved)\n"));
+
+    // A NUL past the first 8 KiB does not make the input binary.
+    let mut late = vec![b'x'; 9_000];
+    late.extend_from_slice(b"\n\x00\n");
+    let out = pare(&["--no-tee"], &late);
+    assert!(out.status.success());
+    assert!(!String::from_utf8_lossy(&out.stdout).starts_with("# pare: binary"));
+
+    // The Python version has no such rule: under the reference switch the
+    // bytes are summarised like any other input.
+    let out = pare_with(
+        &["--no-tee", "--budget", "600"],
+        &input,
+        &[("PARE_REFERENCE_RULES", "1")],
+    );
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        text.starts_with("# pare: ") && text.contains("templates"),
+        "{text}"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn binary_output_in_command_mode_keeps_the_exit_status() {
+    let out = pare(
+        &["--no-tee", "--", "sh", "-c", "printf 'a\\0b'; exit 3"],
+        b"",
+    );
+    assert_eq!(out.status.code(), Some(3));
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        text.starts_with("# pare: binary input (NUL at byte 1), 3 B"),
+        "{text}"
+    );
+    assert!(text.trim_end().ends_with("exit 3"), "{text}");
+}

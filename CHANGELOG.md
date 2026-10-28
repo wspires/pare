@@ -65,6 +65,12 @@ Homebrew, an install script, pipx/uv (`pare-cli`) or cargo (`pare-cli`).
   instead of ignored, the "expand with" hint is printed only when there
   is a run file to expand, and the ledger and gap markers say
   `1 template` and `1 line`.
+- **Binary input is two lines, not a summary.** A NUL byte in the first
+  8 KiB (an executable, an image, an archive piped in by mistake) used
+  to come out as a budget's worth of NUL bytes and fragments marked as
+  errors. pare now prints `# pare: binary input (NUL at byte N), … B ·
+  not summarised` and the run-file line, saves the input as usual, and
+  exits as usual.
 - **License:** MIT OR Apache-2.0.
 - The Python version is kept in `reference/` as the reference the Rust
   version is tested against; it is no longer packaged.
