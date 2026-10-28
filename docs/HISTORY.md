@@ -140,9 +140,10 @@ cause rather than a weight:
 
 ## Validation status when the heuristics were frozen
 
-*As written before any held-out sample existed. Item 1 was answered by
-the SWE-bench and Defects4J samples that follow; item 2 is still open
-(ROADMAP.md, "Agent-success eval").*
+*As written before any held-out sample existed. Item 1 was answered in
+part: the held-out samples that follow are drawn from datasets, and logs
+from real agent sessions are still wanted (ROADMAP.md, "Real logs");
+item 2 is still open (ROADMAP.md, "Agent-success eval").*
 
 The numbers above are a **training score**. The misses were fixed by
 looking at the same eight cases, and three of the eight (jest-fail,
@@ -396,6 +397,138 @@ capture with those kills; instead pare remembers the pids that logged a
 level. The case goes to 100 % at 1,000 and 2,000 (from 87.5 %); at 600
 it does not fit. No other log's output changed.
 
+## Performance of the Python version
+
+*The Python reference, `reference/pare.py`, when it was the shipped
+version. The Rust version's numbers are in DESIGN.md, "Performance".*
+
+About 0.9 s on the 750 KB / 17,832-line CI log (1.5 s before the
+shortcuts below). Clustering itself is under 0.05 s of that (the built-in
+Drain over every line of the log; drain3 took 0.065 s); the rest is
+masking, the vocabulary and severity checks, and Python's per-line
+overhead. Start-up, with nothing to read, is about 0.08 s (0.12 s while
+pare imported drain3).
+
+**Shortcuts in the per-line checks.** Each line was searched by about
+twenty regexes: one per vocabulary class (a case-insensitive alternation
+of its words, tried at every position, was the slowest), the severity
+forms, the zero-count rule, and on record heads twelve masks. Most lines
+match almost none of them, so each now has a cheap test that must pass
+before the regex runs, and every test is a necessary condition, so no
+result changes:
+
+- A class's plain words: a word matches only where the line has a whole
+  run of letters equal to the word's first run (a non-letter on each side),
+  so the line's runs of letters are collected once and a class none of
+  whose first runs is among them is skipped.
+- Each built-in `/regex/` entry, the HTTP status, exit code and level-key
+  forms and the zero-count rule: a short list of lowercase strings one of
+  which the line must contain (`REGEX_NEEDS`, `HTTP_NEEDS`, ...).
+- A bare level token is a whole run of letters in the scanned head.
+- Each mask: a digit, a character or a word the line must contain (a `:`
+  for a time, a `.` for an IP or a version, `-`, `/` or a month name for a
+  date), checked against the line as the earlier masks left it, so a time
+  pass is skipped once the timestamp mask took the colons.
+- ANSI stripping only on lines with an escape character.
+
+The letter-run and lowercase tests hold for lines whose non-ASCII
+characters cannot match an ASCII letter case-insensitively and are not
+whitespace (`plain_text`: a ✓ is fine, the Kelvin sign, ſ, ß and ligatures
+are not, judged per character by the running Python); other lines take
+every regex as before. A user vocabulary's `/regex/` entries have no
+strings listed and always run. `test_pare.py` checks every test against its
+regex on sampled corpus lines and on random awkward lines, and checks that
+every class and the severity come out as without shortcuts, with and
+without a user vocabulary; every log in the repository, at four budgets,
+with `--only` and in follow mode, gives byte-identical output before and
+after. The random lines found one crash, now fixed: case-insensitive
+matching takes the Turkish İ for an i, so `İNFO:` matched a level token
+whose uppercase form is not a level, and pare stopped with a `KeyError`.
+
+**Memory.** The prototype makes a single pass over stdin. Each chunk is
+written to the spool (the run file, or a temporary file under `--no-tee`)
+as it is read, split into lines, and each line is segmented, clustered and
+scored on arrival. What survives the pass is a set of typed arrays with
+about 40 bytes per line (spool offset, record, depth, severity, rendered
+size, score) and per record, plus the templates; a line's text is read
+back from the spool only when the allocator looks at it, through a small
+cache of materialised lines. The output is byte-identical to the earlier
+all-in-memory design (checked against it on every corpus file, budget and
+flag combination). Measured on the CI log concatenated to size, when the
+single pass was built:
+
+| input | wall time | peak memory | before (all in memory) |
+|---|---|---|---|
+| 0.75 MB | 1.9 s | 29 MB | 2.3 s, 46 MB |
+| 7.5 MB | 13.6 s | 41 MB | 19 s, 231 MB |
+| 30 MB | 54 s | 65 MB | 76 s, 849 MB |
+
+With the shortcuts, on a 30.8 MB log of real corpus logs (CI, service,
+logcat, pytest) repeated with each copy's digits rotated, so fewer lines
+repeat exactly, and its first 7.5 MB:
+
+| input | wall time | peak memory | before the shortcuts |
+|---|---|---|---|
+| 0.75 MB (CI log) | 0.9 s | 30 MB | 1.5 s, 29 MB |
+| 7.5 MB | 6.6 s | 40 MB | 12.8 s, 40 MB |
+| 30.8 MB | 27.7 s | 64 MB | 54.7 s, 63 MB |
+
+Time is still linear in the input, now about 0.9 s per MB, and it is
+spent as the input arrives: of the 27.7 s on 30.8 MB, 0.3 s comes after
+end of input (the summary itself). A command that prints slower than
+about 1 MB/s, most builds and test runs, gets its summary a fraction of
+a second after it exits; the whole time shows when the input is already
+on disk (`pare < big.log`) or arrives faster than that.
+
+What remains is Python per line, and most of it is regex work on lines
+that do hold a candidate: record heads nearly all carry a timestamp, so
+most masks run on them, and sharper mask tests saved 8 % of mask time.
+File I/O is small: reading 30 MB in 1 MB chunks, writing the run file,
+hashing it and splitting it into lines takes about 1.4 s, 5 % of the
+total, and reading lines back for the summary is part of the 0.3 s after
+end of input. Two larger levers are left. The per-line checks (severity,
+vocabulary, masks: about two thirds of the time) depend only on a line's
+text, so worker processes could compute them in parallel ahead of the
+sequential pass; that helps only input arriving faster than pare reads
+it, at the cost of a second code path. And a native port, where the
+next large factor is. The candidate list for the
+allocator holds every non-blank line scoring at or above the floor, as
+one integer per line, which is the one structure still proportional to
+line count; the raw bytes are never held in memory beyond one chunk.
+
+pare still reads to end-of-file before it writes anything, because the
+template counts, the tail window and the rarity term all depend on the
+whole input. A long-running producer sees the summary when it exits; an
+endless stream never gets one. That is a different mode: follow mode (DESIGN.md).
+
+## Notes for a native port
+
+*Written before the port, as guidance for it. What was built is in
+ARCHITECTURE.md; the port's stages are in ROADMAP.md, stage 5.*
+
+`bench/parity.py --candidate CMD [--dump]` is the check for a port: every
+corpus log and a set of generated edge cases under 14 flag sets, outputs
+and exit codes byte for byte, and with `--dump` the pass's per-line and
+per-template results (`$PARE_DUMP`), reported from the first row that
+differs.
+
+- Template ids must stay stable across versions, or `--only T3 < runfile`
+  breaks: a native Drain must match the built-in one (drain3 0.9.11's
+  clustering) exactly, or the change is a breaking one and should say so.
+  The built-in `Drain` class, about 100 lines, is the reference, and its
+  test against drain3 is the template for the port's.
+- The single pass is already the streaming shape a native port needs:
+  tee, segment, cluster and score on arrival, keep per-line numbers and
+  per-template statistics, read line text back from the run file by
+  offset at allocation time. A native port can replace the typed arrays
+  with packed structs and the spool reads with mmap.
+- Fuse masking and clustering in one pass; with the regex costs fixed,
+  drain is the remaining per-line cost and a native implementation can
+  tokenize and mask once.
+- The vocabulary classes compile to one alternation per class; a native
+  port can use an Aho-Corasick scan for the plain words and keep the few
+  regex entries separate.
+
 ## JUnit 3 assertion messages
 
 Found on Defects4J seed 4, the fourth fresh sample (it is spent now). Its
@@ -552,135 +685,3 @@ compression competes. Observations, recorded rather than fixed:
   `Warning:` blocks with `on main.tf line N` context, and tsc's indented
   continuation messages all segment and level-detect as intended; no
   regex change was needed for these four formats.
-
-## Performance of the Python version
-
-*The Python reference, `reference/pare.py`, when it was the shipped
-version. The Rust version's numbers are in DESIGN.md, "Performance".*
-
-About 0.9 s on the 750 KB / 17,832-line CI log (1.5 s before the
-shortcuts below). Clustering itself is under 0.05 s of that (the built-in
-Drain over every line of the log; drain3 took 0.065 s); the rest is
-masking, the vocabulary and severity checks, and Python's per-line
-overhead. Start-up, with nothing to read, is about 0.08 s (0.12 s while
-pare imported drain3).
-
-**Shortcuts in the per-line checks.** Each line was searched by about
-twenty regexes: one per vocabulary class (a case-insensitive alternation
-of its words, tried at every position, was the slowest), the severity
-forms, the zero-count rule, and on record heads twelve masks. Most lines
-match almost none of them, so each now has a cheap test that must pass
-before the regex runs, and every test is a necessary condition, so no
-result changes:
-
-- A class's plain words: a word matches only where the line has a whole
-  run of letters equal to the word's first run (a non-letter on each side),
-  so the line's runs of letters are collected once and a class none of
-  whose first runs is among them is skipped.
-- Each built-in `/regex/` entry, the HTTP status, exit code and level-key
-  forms and the zero-count rule: a short list of lowercase strings one of
-  which the line must contain (`REGEX_NEEDS`, `HTTP_NEEDS`, ...).
-- A bare level token is a whole run of letters in the scanned head.
-- Each mask: a digit, a character or a word the line must contain (a `:`
-  for a time, a `.` for an IP or a version, `-`, `/` or a month name for a
-  date), checked against the line as the earlier masks left it, so a time
-  pass is skipped once the timestamp mask took the colons.
-- ANSI stripping only on lines with an escape character.
-
-The letter-run and lowercase tests hold for lines whose non-ASCII
-characters cannot match an ASCII letter case-insensitively and are not
-whitespace (`plain_text`: a ✓ is fine, the Kelvin sign, ſ, ß and ligatures
-are not, judged per character by the running Python); other lines take
-every regex as before. A user vocabulary's `/regex/` entries have no
-strings listed and always run. `test_pare.py` checks every test against its
-regex on sampled corpus lines and on random awkward lines, and checks that
-every class and the severity come out as without shortcuts, with and
-without a user vocabulary; every log in the repository, at four budgets,
-with `--only` and in follow mode, gives byte-identical output before and
-after. The random lines found one crash, now fixed: case-insensitive
-matching takes the Turkish İ for an i, so `İNFO:` matched a level token
-whose uppercase form is not a level, and pare stopped with a `KeyError`.
-
-**Memory.** The prototype makes a single pass over stdin. Each chunk is
-written to the spool (the run file, or a temporary file under `--no-tee`)
-as it is read, split into lines, and each line is segmented, clustered and
-scored on arrival. What survives the pass is a set of typed arrays with
-about 40 bytes per line (spool offset, record, depth, severity, rendered
-size, score) and per record, plus the templates; a line's text is read
-back from the spool only when the allocator looks at it, through a small
-cache of materialised lines. The output is byte-identical to the earlier
-all-in-memory design (checked against it on every corpus file, budget and
-flag combination). Measured on the CI log concatenated to size, when the
-single pass was built:
-
-| input | wall time | peak memory | before (all in memory) |
-|---|---|---|---|
-| 0.75 MB | 1.9 s | 29 MB | 2.3 s, 46 MB |
-| 7.5 MB | 13.6 s | 41 MB | 19 s, 231 MB |
-| 30 MB | 54 s | 65 MB | 76 s, 849 MB |
-
-With the shortcuts, on a 30.8 MB log of real corpus logs (CI, service,
-logcat, pytest) repeated with each copy's digits rotated, so fewer lines
-repeat exactly, and its first 7.5 MB:
-
-| input | wall time | peak memory | before the shortcuts |
-|---|---|---|---|
-| 0.75 MB (CI log) | 0.9 s | 30 MB | 1.5 s, 29 MB |
-| 7.5 MB | 6.6 s | 40 MB | 12.8 s, 40 MB |
-| 30.8 MB | 27.7 s | 64 MB | 54.7 s, 63 MB |
-
-Time is still linear in the input, now about 0.9 s per MB, and it is
-spent as the input arrives: of the 27.7 s on 30.8 MB, 0.3 s comes after
-end of input (the summary itself). A command that prints slower than
-about 1 MB/s, most builds and test runs, gets its summary a fraction of
-a second after it exits; the whole time shows when the input is already
-on disk (`pare < big.log`) or arrives faster than that.
-
-What remains is Python per line, and most of it is regex work on lines
-that do hold a candidate: record heads nearly all carry a timestamp, so
-most masks run on them, and sharper mask tests saved 8 % of mask time.
-File I/O is small: reading 30 MB in 1 MB chunks, writing the run file,
-hashing it and splitting it into lines takes about 1.4 s, 5 % of the
-total, and reading lines back for the summary is part of the 0.3 s after
-end of input. Two larger levers are left. The per-line checks (severity,
-vocabulary, masks: about two thirds of the time) depend only on a line's
-text, so worker processes could compute them in parallel ahead of the
-sequential pass; that helps only input arriving faster than pare reads
-it, at the cost of a second code path. And a native port, where the
-next large factor is. The candidate list for the
-allocator holds every non-blank line scoring at or above the floor, as
-one integer per line, which is the one structure still proportional to
-line count; the raw bytes are never held in memory beyond one chunk.
-
-pare still reads to end-of-file before it writes anything, because the
-template counts, the tail window and the rarity term all depend on the
-whole input. A long-running producer sees the summary when it exits; an
-endless stream never gets one. That is a different mode: follow mode (DESIGN.md).
-
-## Notes for a native port
-
-*Written before the port, as guidance for it. What was built is in
-ARCHITECTURE.md; the port's stages are in ROADMAP.md, stage 5.*
-
-`bench/parity.py --candidate CMD [--dump]` is the check for a port: every
-corpus log and a set of generated edge cases under 14 flag sets, outputs
-and exit codes byte for byte, and with `--dump` the pass's per-line and
-per-template results (`$PARE_DUMP`), reported from the first row that
-differs.
-
-- Template ids must stay stable across versions, or `--only T3 < runfile`
-  breaks: a native Drain must match the built-in one (drain3 0.9.11's
-  clustering) exactly, or the change is a breaking one and should say so.
-  The built-in `Drain` class, about 100 lines, is the reference, and its
-  test against drain3 is the template for the port's.
-- The single pass is already the streaming shape a native port needs:
-  tee, segment, cluster and score on arrival, keep per-line numbers and
-  per-template statistics, read line text back from the run file by
-  offset at allocation time. A native port can replace the typed arrays
-  with packed structs and the spool reads with mmap.
-- Fuse masking and clustering in one pass; with the regex costs fixed,
-  drain is the remaining per-line cost and a native implementation can
-  tokenize and mask once.
-- The vocabulary classes compile to one alternation per class; a native
-  port can use an Aho-Corasick scan for the plain words and keep the few
-  regex entries separate.
