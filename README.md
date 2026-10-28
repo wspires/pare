@@ -86,6 +86,48 @@ T25  ×6 S --- Captured log <*> ---
 template; `--except`, `--min-severity error` and `--since L200` narrow it
 further. Template ids are stable because the pipeline is deterministic.
 
+## Why pare
+
+An agent that runs a test suite or a build gets the whole output back,
+and the part it needs, one failing test with its traceback or the one
+compile error, is a few lines among thousands. The usual cuts lose
+exactly those lines:
+
+- `| tail -50` keeps the verdict and loses the failure above it; `| head`
+  keeps the start. Neither knows where the error is.
+- `| grep -i error` keeps the matching lines without their stack trace or
+  the verdict, and misses tools whose failures say `FAILED` or `panic:`.
+- A harness that truncates long tool output is head and tail applied
+  blindly, with nothing recoverable.
+- The tools' own quiet flags (`pytest -q`, `mvn -q`) cut at the source,
+  each tool in its own way, and a quiet run still prints every failure
+  in full.
+- Asking the model to summarise spends the tokens that were to be saved,
+  and what it leaves out is gone.
+
+pare keeps the lines that differ, counts the shapes that repeat, and
+fits the result to a budget. Three things make it safe to put in front
+of every command:
+
+- **Nothing is lost.** The input is saved before anything else happens;
+  the ledger names each omitted template with its count, and `--only`,
+  `--except`, `--since` and `--min-severity` pull any of it back.
+- **It is deterministic.** The same input gives the same summary and the
+  same template ids, so a summary can be quoted, diffed and expanded a
+  day later.
+- **It is one filter for every tool.** The signals are structural (log
+  levels, HTTP statuses, exit codes, indentation, stack frames) with a
+  vocabulary on top, so Maven, pytest, Terraform and a JSON log get the
+  same treatment; the tool-specific rules add a few points on one
+  dataset and nothing on the other ([Results](#results)).
+
+Use it for anything whose output can be long and whose failures are the
+point: test suites, builds, linters, package installs, `terraform plan`,
+`kubectl logs`, CI runs. Do not use it for output you need exactly: a
+file you are reading, `git diff`, `grep`, anything you will edit from.
+Output that already fits the budget passes through untouched, so wrapping
+a short command costs nothing but its run file.
+
 ## Install
 
 pare is a single binary with no dependencies. Any of these installs the
@@ -259,11 +301,14 @@ measures it. Two kinds of number, reported apart:
 
 **The development corpus** (`corpus/`, nine logs, 583k tokens: real
 pytest, go test, cargo, make and npm runs, three seeded synthetic logs
-and a synthetic Android logcat), against
-[sqz](https://github.com/ojuschugh1/sqz) and
-[tidyout](https://github.com/sathish-2000/tidyout), which have no budget
-knob. The misses here were fixed by looking at these cases, so pare's
-rows are training scores.
+and a synthetic Android logcat), against two other filters written for
+agents: [sqz](https://github.com/ojuschugh1/sqz), which compresses
+output before it reaches the model and deduplicates across a session's
+calls, and [tidyout](https://github.com/sathish-2000/tidyout), which
+wraps a command and strips its output with rules keyed on the command's
+name, passing unknown commands through. Neither takes a budget. The
+misses here were fixed by looking at these cases, so pare's rows are
+training scores.
 
 | tool | output tokens | share of input | lines kept |
 |---|---|---|---|
