@@ -84,7 +84,7 @@ T25  ×6 S --- Captured log <*> ---
 
 `pare --only T5 < runfile` then prints the 120 omitted lines of one
 template; `--except`, `--min-severity error` and `--since L200` narrow it
-further. Template ids are stable because the pipeline is deterministic.
+further.
 
 ## Why pare
 
@@ -106,15 +106,14 @@ exactly those lines:
   and what it leaves out is gone.
 
 pare keeps the lines that differ, counts the shapes that repeat, and
-fits the result to a budget. Three things make it safe to put in front
-of every command:
+fits the result to a budget. Three things make it safe to rely on:
 
-- **Nothing is lost.** The input is saved before anything else happens;
-  the ledger names each omitted template with its count, and `--only`,
-  `--except`, `--since` and `--min-severity` pull any of it back.
-- **It is deterministic.** The same input gives the same summary and the
-  same template ids, so a summary can be quoted, diffed and expanded a
-  day later.
+- **Nothing is lost.** The input is saved before anything else happens,
+  the ledger names each omitted template with its count, and the flags
+  above pull any of it back.
+- **It is deterministic.** The pipeline has no randomness, so the same
+  input gives the same summary and the same template ids, and a summary
+  can be quoted, diffed and expanded a day later.
 - **It is one filter for every tool.** The signals are structural (log
   levels, HTTP statuses, exit codes, indentation, stack frames) with a
   vocabulary on top, so Maven, pytest, Terraform and a JSON log get the
@@ -147,10 +146,7 @@ macOS (Apple Silicon and Intel) or Windows from the
 [releases](https://github.com/wspires/pare/releases) page; each has a
 `SHA256SUMS` entry.
 
-pare is written in Rust. It began as a Python prototype, kept in
-[reference/](reference/pare.py) as the reference the Rust version is
-tested against byte for byte. Building from a checkout is in
-[CONTRIBUTING.md](CONTRIBUTING.md).
+Building from a checkout is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Use
 
@@ -167,9 +163,8 @@ held-out samples it kept what a fixed 2,000 kept at 69 to 79 % of the
 tokens. `--budget auto:4000` raises the ceiling; `--budget N` is a fixed
 budget the summary fills (1,000 to 2,000 suits an agent loop). Without
 `--budget`, pare takes `$PARE_BUDGET`, else `auto`, so a harness can set
-it once for every call. Output that already fits passes through
-untouched. `--ascii` writes pare's own marks (`→ · × ┆ …`) as ASCII; the
-log's text is never changed. Details:
+it once for every call. `--ascii` writes pare's own marks (`→ · × ┆ …`)
+as ASCII; the log's text is never changed. Details:
 [docs/DESIGN.md](docs/DESIGN.md#tokens-and-the-budget) and
 [docs/USAGE.md](docs/USAGE.md).
 
@@ -199,16 +194,15 @@ server log, a `tail -f`. Each window becomes one block in the usual
 format, budgeted on its own:
 
 ```
-kubectl logs -f deploy/api | pare -f --interval 30 --budget 600
+kubectl logs -f deploy/api | pare -f --budget 600
 ```
 
-A window closes after `--every` lines, after `--interval` seconds (30
-by default), or
-half a second after a line at `--flush-on` severity (default `error`)
-arrives. A stack trace is never split across windows, and template ids
-are the ones a batch run over the finished run file would assign, so
-every block can be expanded afterwards with `--only` and `--since`.
-Details: [docs/USAGE.md](docs/USAGE.md#follow-mode).
+A window closes after `--every` lines, after `--interval` seconds (30 by
+default), or half a second after a line at `--flush-on` severity
+(default `error`) arrives. A stack trace is never split across windows,
+and template ids are the ones a batch run over the finished run file
+would assign, so every block can be expanded afterwards with `--only`
+and `--since`. Details: [docs/USAGE.md](docs/USAGE.md#follow-mode).
 
 ### Run files
 
@@ -344,11 +338,12 @@ points at 600 on SWE-bench and nothing on Defects4J
 
 ## Contributing
 
-`cargo test` runs the Rust tests; `bench/parity.py` checks the binary
-against the Python reference byte for byte over every log in the
-repository; `bench/run.py` is the benchmark. Setting up, the CI checks,
-the benchmark tools and the repository layout are in
-[CONTRIBUTING.md](CONTRIBUTING.md); what comes next is in
+pare is written in Rust. `cargo test` runs its tests; `bench/parity.py`
+checks the binary byte for byte, over every log in the repository,
+against the Python prototype pare began as, kept in
+[reference/](reference/pare.py); `bench/run.py` is the benchmark.
+Setting up, the CI checks, the benchmark tools and the repository layout
+are in [CONTRIBUTING.md](CONTRIBUTING.md); what comes next is in
 [ROADMAP.md](ROADMAP.md).
 
 ## License
