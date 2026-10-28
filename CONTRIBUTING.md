@@ -59,10 +59,6 @@ Notes:
 - **Editor.** rust-analyzer (the VS Code extension, or JetBrains
   RustRover) shows inferred types inline and jumps into library source;
   it is the quickest way to learn what the code is doing.
-- **The pre-push hook.** `git config core.hooksPath .githooks` makes
-  every push run what CI runs first (`bench/check.sh --quick`, "The
-  checks CI runs" below), unless the push changes only Markdown.
-  `git push --no-verify` skips it once.
 
 ### Build and run
 
@@ -130,12 +126,25 @@ RUSTDOCFLAGS="-D warnings" cargo doc --no-deps
 ```
 
 are the Rust job; the others are the Python reference's tests, parity
-and packaging (below). `bench/check.sh` runs all four in CI's order and
-stops at the first failure (about five minutes; `--quick` runs parity
-under 4 flag sets instead of 14, `--rust` runs the Rust job alone),
-reporting a packaging tool it cannot find rather than failing on it.
-`cargo doc --no-deps --open` opens the API documentation in a browser:
-module docs, item docs and examples, a readable way into the code.
+and packaging (below). `cargo doc --no-deps --open` opens the API
+documentation in a browser: module docs, item docs and examples, a
+readable way into the code.
+
+`bench/check.sh` runs all four jobs in CI's order and stops at the first
+failure: about five minutes, or three with `--quick`, which runs parity
+under 4 flag sets instead of 14; `--rust` runs the Rust job alone, in
+under a minute. A packaging tool it cannot find (maturin, shellcheck,
+ruby) is reported and skipped, since CI still runs it. It needs the
+Python environment from "Python (the reference)" below. To have every
+push run it first, once per clone:
+
+```
+git config core.hooksPath .githooks
+```
+
+The hook runs `bench/check.sh --quick` and refuses the push on a
+failure; a push that changes only Markdown is let through untouched,
+and `git push --no-verify` skips the hook once.
 
 ### Parity with the Python version
 
@@ -284,7 +293,9 @@ its README. Report held-out numbers apart from the others.
 
 ## Submitting a change
 
-Branch from `main` and open a pull request; the four CI jobs must pass.
+Branch from `main` and open a pull request; the four CI jobs must pass
+(`bench/check.sh` runs them before you push; the hook above runs it for
+you).
 Say in the pull request what the change does, what it was measured on
 and what moved (a before/after table from `bench/run.py` for anything
 that touches scoring, segmentation or allocation), and give any new
