@@ -196,7 +196,7 @@ or `--vocab` as the summary does, and `--help`:
 
 | status | when |
 |---|---|
-| the command's | command mode (`pare -- CMD`), whatever pare printed; 127 when the command could not be found, 128 + n when a signal killed it |
+| the command's | command mode (`pare -- CMD`), whatever pare printed; 127 when the command could not be found, 126 when it could not be run, 128 + n when a signal killed it |
 | 0 | a summary, a selection, a subcommand, `--help`, `--version` |
 | 1 | an I/O error: the input could not be read, or the run file or the output written |
 | 2 | a usage error: an unknown flag or value, flags that contradict each other (`--follow` with `--only`, `--no-tee` with `--run-file`), a budget or width below its floor, a bad `--vocab` file or `$PARE_BUDGET` |
