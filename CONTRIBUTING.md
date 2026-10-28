@@ -212,7 +212,8 @@ each on purpose rather than by accident:
 
 1. **Parity and the golden files.** A rule that changes the default
    output of plain-text logs (as structured lines, the tail window's
-   verdict rule and `auto` as the default budget did) goes behind
+   verdict rule, `auto` as the default budget and the binary-input
+   check did) goes behind
    `pass::rust_rules()`, which `PARE_REFERENCE_RULES=1` turns off; parity
    and the golden-file test in `tests/cli.rs` run with it set, so they
    keep checking everything else, and the new rule gets tests of its own
@@ -244,10 +245,11 @@ release renames (RELEASING.md).
 `bench/run.py` runs pare, [sqz](https://github.com/ojuschugh1/sqz) and
 [tidyout](https://github.com/sathish-2000/tidyout) over a corpus
 directory and reports output tokens and the share of must-survive lines
-(`<name>.keep`) each tool keeps. A keep line matches as a substring of
-the stripped output, after pare's compact lists of failing tests are
-written out in full; `--strict` matches the literal text; a keep line may
-list equivalent forms as `a || b`. Tokens are bytes / 2.8, so a budget of
+(`<name>.keep`) each tool keeps. A keep line counts when its stripped
+text appears whole in the output, not run on into a longer name, after
+pare's compact lists of failing tests are written out in full;
+`--strict` matches the literal text; a keep line may list forms that
+each count as `a || b`. Tokens are bytes / 2.8, so a budget of
 2,000 is 2,000 real tokens (`bench/tokens.py` checks the rate against
 tiktoken).
 
