@@ -1088,12 +1088,19 @@ mod tests {
             let f: Vec<&str> = row.split('\t').collect();
             let text = unescape(f[0]);
             let want_sev: i8 = f[1].parse().unwrap();
-            let sev = v.severity(&text);
-            assert_eq!(
-                sev.map_or(-1, |s| s as i8),
-                want_sev,
-                "severity of {text:?}"
-            );
+            let mut sev = v.severity(&text);
+            if crate::structured::numeric_level(&text).is_some() {
+                // pino's and bunyan's numeric levels are a Rust-only rule
+                // (`TOOL_STRUCTURED`); Python reads no level there. The
+                // rest of the row is compared at Python's severity.
+                sev = u8::try_from(want_sev).ok();
+            } else {
+                assert_eq!(
+                    sev.map_or(-1, |s| s as i8),
+                    want_sev,
+                    "severity of {text:?}"
+                );
+            }
             let mut line = v.line(&text);
             let classes: String = LETTERS
                 .iter()
