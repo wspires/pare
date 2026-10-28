@@ -16,8 +16,8 @@ identical, and on the 2,144 batch runs so is every line's record, depth,
 severity, template, score and sizes, and every template's counts,
 marker, salience and text, scores to the bit. Rules added since the port
 (structured lines, the tail window's verdict rule, `auto` as the default
-budget, and the smaller changes "Output marks and the reference switch"
-lists) are what the switch turns off.
+budget, the binary-input check, and the smaller changes "Output marks
+and the reference switch" lists) are what the switch turns off.
 
 ## Crate layout
 
@@ -58,7 +58,7 @@ src/pyjson.rs       JSON as Python's json.dump(indent=2) writes it
 src/summary.rs      output: verbatim pass-through, or the summary (allocation,
                     rendering, the exact fit)
 tests/cli.rs        end-to-end tests of the binary
-tests/data/        golden files from the Python version: mask.tsv (mask() on
+tests/data/         golden files from the Python version: mask.tsv (mask() on
                     4,045 record heads), vocab.tsv (severity, classes and
                     scores of 6,032 lines), vocab.txt and vocab-example.txt
                     (pare vocab), summary/ (whole summaries of 5 logs)
@@ -288,7 +288,8 @@ the allocator sees is of a rendered string.
 pare's own: true unless `PARE_REFERENCE_RULES` is set. It gates
 structured lines (`text::clip`, `vocab`'s numeric levels), the tail
 window's verdict rule (`Summarizer::windowed`), `auto` as the default
-budget (`cli::Args::budget_for_summary`), the usage exit status
+budget (`cli::Args::budget_for_summary`), the binary-input check
+(`Pass::check_binary`), the usage exit status
 (`error::Error::exit_status`), the expand-with hint's dependence on a
 run file and the ledger's singular forms (`summary`). The parity check
 and the golden-summary test set the variable; everything else runs with
@@ -328,7 +329,7 @@ status:
 - **Unit tests** sit at the bottom of each module (`#[cfg(test)] mod
   tests`), and code examples in `///` docs are compiled and run as tests.
 - **Integration tests** in `tests/cli.rs` run the binary: pass-through,
-  the run file and its name, empty input, usage errors, the dump against
+  the run file and its name, empty and binary input, usage errors, the dump against
   Python's, `pare vocab`, bad vocabulary files, whole
   summaries against Python's (`tests/data/summary/`), the budget as a
   hard limit, the run line, command mode and its records, `pare stats`,
@@ -354,7 +355,7 @@ status:
 
 ## Builds and releases
 
-`cargo build --release` gives `target/release/pare`, about 3.5 MB,
+`cargo build --release` gives `target/release/pare`, about 3.4 MB,
 stripped, with link-time optimisation. The package is `pare-cli` (the
 name `pare` is taken on crates.io and PyPI); `Cargo.toml` names its
 library and binary `pare` (`[lib]`, `[[bin]]`), so the code says
@@ -412,7 +413,6 @@ the same map in one place, for reading the two side by side.
 | `score_templates()`, `rarity_of()`, `INHERIT`, `DEPTH_PENALTY`, ... | `score::score_templates`, `score::rarity`, `score::INHERIT`, ... |
 | `re.compile(...)` of a pattern with lookaround | `pyre::PyRegex::new` |
 | `Pass._joins()`, `continuation_rx()`, `LOGCAT_HEADER_RX` | `Segmenter::joins`, `Vocab::continues` (the continuation class's entries), `pass::LOGCAT_HEADER` |
-| `Pass.cut()` (template texts and totals) | `Segmenter::finish` |
 | `Store` arrays, `Store.raw()` | `Store` columns, `Store::for_each_raw` |
 | `Template` | `store::Template` |
 | `clean_line()`, `ANSI_RE`, `indent_of()`, `clip()` | `text::clean_line`, `text::ANSI_RE`, `text::indent_of`, `text::clip` |
@@ -426,7 +426,7 @@ the same map in one place, for reading the two side by side.
 | `parse_lineno()`, `parse_tids()`, `select()` | `select::parse_lineno`, `select::parse_tids`, `select::select` |
 | `CommandRun`, `CommandOutput`, `write_meta()` | `command::CommandRun`, `command::CommandOutput`, `CommandRun::write_meta` |
 | `follow()`, `CountingWriter`, `FollowInfo` | `follow::follow`, `follow::Counting`, `summary::Follow` |
-| `Pass.cut()`, `_new_window()`, `_rate_notes()`, `CarriedHead`, `GlobalTemplate` | `Segmenter::cut`, `new_window`, `rate_notes`, `store::CarriedHead`, `pass::Global` |
+| `Pass.cut()` (template texts and totals), `_new_window()`, `_rate_notes()`, `CarriedHead`, `GlobalTemplate` | `Segmenter::cut`, `new_window`, `rate_notes`, `store::CarriedHead`, `pass::Global` |
 | `prune_runs()`, `maybe_prune()`, `prune_command()`, `stats()` | `runs::prune_runs`, `runs::maybe_prune`, `runs::prune_command`, `runs::stats` |
 | `json.dump(..., indent=2)`, `float.__repr__`, `format(x, "g")`, `time.strftime(..., gmtime())` | `pyjson::dumps`, `pyjson::py_float_repr`, `runs::py_format_g`, `runs::utc_stamp` |
 | `summarize()` and its closures | `summary::summarize`, `Summarizer` methods of the same names |
