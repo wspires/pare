@@ -74,15 +74,13 @@ crates.io) or fails on its own (PyPI) without stopping the others.
    `cargo publish` run with `--locked`, and a stale lockfile stops the
    release at its first build), and rename the "Unreleased" section of
    `CHANGELOG.md` to the new version.
-2. Check what CI checks, locally if you like. The Rust job:
-   `cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test`
-   and `RUSTDOCFLAGS='-D warnings' cargo doc --no-deps`; parity
-   (`python3 bench/parity.py --candidate target/release/pare --dump`);
-   and the Packaging job, the one a release depends on: `cargo package
-   --locked`, a wheel (`maturin build --release`) installed in a fresh
-   venv, `shellcheck install.sh packaging/test-install.sh`,
-   `packaging/test-install.sh target/release/pare`, and the formula
-   rendered by `packaging/homebrew/render.py` and checked with `ruby -c`.
+2. Run what CI checks, with the full parity rather than `--quick`:
+   `bench/check.sh`. Its last job, packaging, is the one a release
+   depends on: `cargo package --locked`, a wheel (`maturin build
+   --release`) installed in a fresh venv, `shellcheck`, the install
+   script against a release laid out on disk, and the Homebrew formula
+   rendered and checked with `ruby -c`; have maturin, shellcheck and
+   ruby installed so none is skipped.
 3. Merge it, then tag the merge commit and push the tag:
 
    ```

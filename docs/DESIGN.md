@@ -790,10 +790,10 @@ than per file:
 
 After the change the four cases keep 18 of 18 at 600, 1,000 and 2,000;
 the other 179 cases are unchanged at every budget (the Python version's
-output, byte for byte, on all 195 parity inputs; `bench/parity.py` runs
-with `PARE_REFERENCE_RULES=1`, which turns this rule off, so the four
-logs are compared too). A 33 MB JSON-lines log runs about 3 %
-slower, within run-to-run noise on plain logs.
+output, byte for byte, on the 195 parity inputs of the time;
+`bench/parity.py` runs with `PARE_REFERENCE_RULES=1`, which turns this
+rule off, so the four logs are compared too). A 33 MB JSON-lines log
+runs about 3 % slower, within run-to-run noise on plain logs.
 
 The cases were written by someone who knew the fix was coming, so they
 show the miss exists and is fixed, not how often it matters; real

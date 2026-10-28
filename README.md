@@ -340,12 +340,13 @@ points at 600 on SWE-bench and nothing on Defects4J
 
 ## Contributing
 
-pare is written in Rust. `cargo test` runs its tests; `bench/parity.py`
-checks the binary byte for byte, over every log in the repository,
-against the Python prototype pare began as, kept in
-[reference/](reference/pare.py); `bench/run.py` is the benchmark.
-Setting up, the CI checks, the benchmark tools and the repository layout
-are in [CONTRIBUTING.md](CONTRIBUTING.md); what comes next is in
+pare is written in Rust. `bench/check.sh` runs what CI runs: the Rust
+tests and lints, the tests of the Python prototype pare began as, kept
+in [reference/](reference/pare.py), the parity check that holds the
+binary to it byte for byte over every log in the repository, and
+packaging; `bench/run.py` is the benchmark. Setting up, the checks, the
+benchmark tools and the repository layout are in
+[CONTRIBUTING.md](CONTRIBUTING.md); what comes next is in
 [ROADMAP.md](ROADMAP.md).
 
 ## License

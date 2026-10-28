@@ -352,6 +352,9 @@ status:
   `bench/gen_pyunicode.py` writes, parity with `--dump`, and packaging:
   `cargo package`, the maturin wheel installed and run, `install.sh`
   against a release laid out on disk, and the Homebrew formula rendered.
+  `bench/check.sh` runs the same jobs locally, in the same order, and
+  `.githooks/pre-push` runs it before a push (CONTRIBUTING.md, "The
+  checks CI runs").
 
 ## Builds and releases
 
