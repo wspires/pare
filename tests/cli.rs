@@ -461,7 +461,12 @@ fn summaries_are_pythons() {
     let mut n = 0;
     for row in cases.lines().skip(1) {
         let f: Vec<&str> = row.split('\t').collect();
-        let input = fs::read(format!("{}/corpus/dev/{}", env!("CARGO_MANIFEST_DIR"), f[0])).unwrap();
+        let input = fs::read(format!(
+            "{}/corpus/dev/{}",
+            env!("CARGO_MANIFEST_DIR"),
+            f[0]
+        ))
+        .unwrap();
         let mut args = vec!["--no-tee"];
         args.extend(f[1].split(' '));
         let out = pare_with(&args, &input, &[("PARE_REFERENCE_RULES", "1")]);
