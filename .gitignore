@@ -4,9 +4,7 @@ __pycache__/
 runs/
 bench/results*.json
 .pytest-run-dir-tmp/
-build/
 dist/
-*.egg-info/
 # corpus/generated/src: build outputs of the capture projects
 target/
 node_modules/

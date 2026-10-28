@@ -152,8 +152,6 @@ template's salience and marker) and points at the first line where the
 two versions part ways. Use Python 3.13, as CI does: the Rust version's
 character classes are Python 3.13's (next section); any 3.10 or newer
 runs the script, which, like the reference, needs nothing installed.
-(`--skip-unported`, for a candidate that exits 70 on what it does not do
-yet, served the port while it was partial.)
 
 ### Generated files
 
