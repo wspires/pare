@@ -191,7 +191,7 @@ written to be read: `//!` module docs naming the Python counterpart,
 ### Stage 6: after the port
 
 Each changes nothing unless it is used, except `auto`, which became the
-default.
+default, and the command-line changes made before the first release.
 
 | done | what | record |
 |---|---|---|
@@ -199,6 +199,8 @@ default.
 | Configurable continuation rules | a `[continuation]` class in the vocabulary file; the built-in rules became its defaults | `docs/DESIGN.md`, "Vocabulary" |
 | Configurable masks | `[mask NAME]` sections, run before the built-in masks | same |
 | `--budget auto` | the budget as a ceiling the summary stops short of; the default since four fresh samples kept what 2,000 kept at 69 to 79 % of its tokens | `docs/DESIGN.md`, "Automatic budget" |
+| The command line | `prune`, `stats` and `vocab` as subcommands, `--ascii`, `--bytes-per-token`, grouped `--help`, usage errors exit 2, `--interval` defaults to 30 | `CHANGELOG.md`, "The command line, before the first release"; `docs/USAGE.md` |
+| Binary input | a NUL byte in the first 8 KiB: saved, not summarised, two lines out | `docs/USAGE.md`, "What pare prints" |
 | Structured lines | JSON and logfmt lines recognized one by one and clipped keeping the fields that say what went wrong; pino's numeric levels count. Real structured logs in a held-out sample are still owed | `docs/DESIGN.md`, "Structured lines" |
 
 Before all of that: the Python prototype, the benchmark against sqz and

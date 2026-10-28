@@ -5,12 +5,11 @@
 pare is now a single native binary, written in Rust, and installable with
 Homebrew, an install script, pipx/uv (`pare-cli`) or cargo (`pare-cli`).
 
-- **Same output as before, apart from two new rules.** With the Rust
-  version's own rules switched off (`PARE_REFERENCE_RULES=1`, for testing)
-  it prints exactly what the Python version did, byte for byte, on every
-  log in the repository under every flag set tested (3,304 runs), with the
-  same exit statuses. The two rules are the structured-log clip below and
-  a tail window that keeps a lone verdict line. Template ids are the
+- **Same output as before, with its own rules switched off.** Under
+  `PARE_REFERENCE_RULES=1` (for testing) it prints exactly what the
+  Python version did, byte for byte, on every log in the repository
+  under every flag set tested (3,766 runs), with the same exit statuses.
+  What the switch turns off is listed at the end of this section. Template ids are the
   same, so `pare --only T3 < run-file` works on run files saved by either
   version.
 - **The tail window keeps the verdict.** It skips lines of shapes seen
@@ -79,9 +78,12 @@ Differences from the Python version: a follow run file is named by the
 time in UTC (it was local time); a malformed regex in a `--vocab` file is
 reported in the Rust regex engine's words; long JSON and logfmt lines are
 clipped as above, and pino's numeric levels count; the tail window keeps
-a lone verdict line of a common shape; and `$PARE_BUDGET`,
-`--budget auto` (the default, where the Python version's was a fixed 2,000), `--dump-vocab`'s continuation section and the
-`[continuation]` and `[mask NAME]` sections are new.
+a lone verdict line of a common shape; binary input is two lines; a
+usage error exits 2; the subcommands, `--ascii`, `--bytes-per-token` and
+the 30-second `--interval` default are as above; and `$PARE_BUDGET`,
+`--budget auto` (the default, where the Python version's was a fixed
+2,000), `pare vocab`'s continuation section and the `[continuation]` and
+`[mask NAME]` sections are new.
 
 ## 0.1 (`v0.1-python`)
 

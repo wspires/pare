@@ -7,7 +7,7 @@ is a **dev** set: tune on it freely, and keep its bugs out of any new
 held-out sample with `--exclude corpus/defects4j-dev`.
 
 ```
-python3 bench/run.py --corpus corpus/defects4j-dev --budget 600 --show-misses
+python3 bench/run.py --corpus corpus/defects4j-dev --pare-bin target/release/pare --budget 600 --show-misses
 ```
 
 pare before and after the fix: 43 % → 68 % at 600, 75 % → 91 % at 1,000,
