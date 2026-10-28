@@ -59,6 +59,10 @@ Notes:
 - **Editor.** rust-analyzer (the VS Code extension, or JetBrains
   RustRover) shows inferred types inline and jumps into library source;
   it is the quickest way to learn what the code is doing.
+- **The pre-push hook.** `git config core.hooksPath .githooks` makes
+  every push run what CI runs first (`bench/check.sh --quick`, "The
+  checks CI runs" below), unless the push changes only Markdown.
+  `git push --no-verify` skips it once.
 
 ### Build and run
 
@@ -126,9 +130,12 @@ RUSTDOCFLAGS="-D warnings" cargo doc --no-deps
 ```
 
 are the Rust job; the others are the Python reference's tests, parity
-and packaging (below). `cargo doc --no-deps --open` opens the API
-documentation in a browser: module docs, item docs and examples, a
-readable way into the code.
+and packaging (below). `bench/check.sh` runs all four in CI's order and
+stops at the first failure (about five minutes; `--quick` runs parity
+under 4 flag sets instead of 14, `--rust` runs the Rust job alone),
+reporting a packaging tool it cannot find rather than failing on it.
+`cargo doc --no-deps --open` opens the API documentation in a browser:
+module docs, item docs and examples, a readable way into the code.
 
 ### Parity with the Python version
 
@@ -311,6 +318,9 @@ bench/defects4j_cases.py  held-out Java cases from Defects4J bugs, labelled by t
 bench/parity.py           compare two pare implementations byte for byte (the Rust version against reference/pare.py)
 bench/gen_fixtures.py     write tests/data/ from the reference
 bench/gen_pyunicode.py    write src/pyunicode.rs, Python's character classes
+bench/check.sh            what CI runs, locally, in order (--quick, --rust)
+.githooks/pre-push        runs it before a push that changes more than Markdown (git config core.hooksPath .githooks)
+AGENTS.md, CLAUDE.md      the one instruction for an agent working here: run bench/check.sh before pushing
 integrations/             agent instructions and a Claude Code hook (integrations/README.md)
 .claude/settings.json     registers that hook for work in this repository
 corpus/README.md          the case convention (*.log, *.keep, *.cmd) and which set is which

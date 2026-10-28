@@ -1,0 +1,33 @@
+#!/bin/sh
+# Runs what CI runs before a push (bench/check.sh --quick), unless the
+# commits being pushed change nothing but Markdown. Opt in once per clone:
+#
+#   git config core.hooksPath .githooks
+#
+# git push --no-verify skips it.
+set -eu
+cd "$(dirname "$0")/.."
+
+changed=""
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+    case "$local_sha" in 0000000000000000000000000000000000000000) continue ;; esac   # a deletion
+    case "$remote_sha" in
+        0000000000000000000000000000000000000000)
+            # A new branch: what it adds over origin/main, or every file
+            # it ever touched when there is no origin/main to compare with.
+            base=$(git merge-base origin/main "$local_sha" 2>/dev/null) || base=""
+            if [ -n "$base" ]; then files=$(git diff --name-only "$base" "$local_sha")
+            else files=$(git log --name-only --format= "$local_sha"); fi ;;
+        *) files=$(git diff --name-only "$remote_sha" "$local_sha") ;;
+    esac
+    changed="$changed
+$files"
+done
+changed=$(printf '%s\n' "$changed" | sed '/^$/d' | sort -u)
+if [ -z "$changed" ]; then exit 0; fi
+if ! printf '%s\n' "$changed" | grep -qv '\.md$'; then
+    echo "pre-push: only Markdown changed; skipping the checks"
+    exit 0
+fi
+echo "pre-push: running bench/check.sh --quick (git push --no-verify skips this)"
+exec bench/check.sh --quick
