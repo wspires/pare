@@ -9,9 +9,9 @@ Homebrew, an install script, pipx/uv (`pare-cli`) or cargo (`pare-cli`).
   `PARE_REFERENCE_RULES=1` (for testing) it prints exactly what the
   Python version did, byte for byte, on every log in the repository
   under every flag set tested (3,766 runs), with the same exit statuses.
-  What the switch turns off is listed at the end of this section. Template ids are the
-  same, so `pare --only T3 < run-file` works on run files saved by either
-  version.
+  What the switch turns off is listed at the end of this section.
+  Template ids are the same, so `pare --only T3 < run-file` works on run
+  files saved by either version.
 - **The tail window keeps the verdict.** It skips lines of shapes seen
   five or more times, so that chatter does not fill it; now an error line
   of such a shape stays when it is the only one of its shape near the
