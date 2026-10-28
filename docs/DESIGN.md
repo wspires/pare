@@ -608,7 +608,7 @@ flowchart TD
 - An input that already fits the budget is returned exactly, plus the
   run-file line when there is one.
 
-`PARE_DUMP=1` prints every line's record, depth, severity, template and
+`PARE_DUMP=FILE` writes every line's record, depth, severity, template and
 score, and every template's salience and marker (the parity check's
 input); the Python reference's `PARE_DEBUG=1` traces each placement and
 deferral.

@@ -1,10 +1,10 @@
 # Using pare: the details
 
-What the README leaves out: the exact behaviour of the budget, command
-mode, follow mode and run files, the subcommands, what pare prints and
-returns, and what a script or an agent can rely on. `pare --help` lists
-every flag and variable; [DESIGN.md](DESIGN.md) says why things work as
-they do.
+What the README leaves out: the exact behaviour of the budget, what pare
+prints, command mode, follow mode, run files and the subcommands, what
+it returns and reads from the environment, and what a script or an agent
+can rely on. `pare --help` lists every flag and variable;
+[DESIGN.md](DESIGN.md) says why things work as they do.
 
 ## Tokens and the budget
 
@@ -60,12 +60,13 @@ input prints `# pare: empty input`; `pare stats` and `pare prune` start
 with `# pare stats:` and `# pare prune:`. The ledger and the gap markers
 spell their counts out (`1 template not listed`, `(+1 more line)`).
 
-Binary input is not summarised. A NUL byte in the first 8 KiB (git's and
-grep's test; an executable, an image, an archive, UTF-16 text) gets two
-lines, `# pare: binary input (NUL at byte 3), 300,000 B · not
-summarised` and the `## raw:` line, with the exit status in command
-mode. The input is still saved to the run file in full, and the exit
-status is as usual. Follow mode takes its stream to be text.
+Binary input is not summarised. A NUL byte in the first 8 KiB, the test
+git and grep use, marks an executable, an image, an archive or UTF-16
+text as binary, and pare prints two lines instead:
+`# pare: binary input (NUL at byte 3), 300,000 B · not summarised` and
+the `## raw:` line (`· exit N` in command mode). The input is still saved
+in full and the exit status is the usual one. Follow mode takes its
+stream to be text.
 
 ## Command mode
 
@@ -162,7 +163,8 @@ Template ids are stable for a given input and flags: the pipeline is
 deterministic and the ids are numbered in order of first appearance. They
 depend on the masks in use, so a run file saved with `--vocab` needs the
 same `--vocab` to expand, and a pare version that clusters differently
-(the CHANGELOG says when one does) numbers an old run file differently.
+(its CHANGELOG entry says "renumbers templates") numbers an old run file
+differently.
 
 pare prunes its own run directory, at most once an hour, when it writes a
 run file:
@@ -213,10 +215,11 @@ status 0.
 | `PARE_RUN_PRUNE` | `off`: never prune automatically |
 | `PARE_VOCAB` | a vocabulary file, as `--vocab`; empty counts as unset |
 
-Two more exist for testing pare itself and change its output:
-`PARE_REFERENCE_RULES=1` turns off the rules added since the Python
-version (the parity check's setting), and `PARE_DUMP=1` prints every
-line's analysis instead of a summary.
+Two more exist for testing pare itself: `PARE_REFERENCE_RULES=1` turns
+off the rules added since the Python version, so the output is the
+reference's (the parity check's setting), and `PARE_DUMP=FILE` also
+writes every line's analysis (record, severity, template, score) to
+FILE, in the reference's format, which the parity check compares.
 
 ## What you can rely on
 
