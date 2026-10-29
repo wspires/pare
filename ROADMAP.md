@@ -65,13 +65,18 @@ real credentials or a decision that is not the code's to make.
   ceiling, 4,000 by default, on the three agent runs' evidence
   (`docs/DESIGN.md`, "The pass-through, from the agent runs"). The
   recall benchmark is unchanged by it.
-- [ ] **Measure the new pass-through with the agent harness.** Rerun the
-  held-out agent run (`corpus/heldout/README.md`, "Third run", the
-  command is there) on the same sixteen cases: the five 4 to 8 KB cases
-  that cost more than raw should now tie it, and the three expanded
-  cases between 8 and 20 KB say whether the factor should be higher.
-  The recall benchmark cannot measure this: it does not count a turn.
-  *Maintainer.*
+- [x] **Measure the new pass-through with the agent harness.** Done
+  the same day (`corpus/heldout/README.md`, "Fourth run"): still 48 of
+  48, pare's mean fell from 4,593 to 4,208 tokens and 1.6 to 1.5 turns,
+  the two 4 KB cases that expanded every trial print whole and take one
+  turn, and the 8 to 20 KB cases split three to two for the summary, so
+  the factor stays at two.
+- [ ] **State the harness's own overhead.** In the pare condition the
+  prompt carries the `pare` tool's schema and a paragraph on expanding,
+  about 560 tokens that raw's prompt does not, which is a third of the
+  bill on a 2 KB log and makes a passed-through case read as a loss.
+  Count the prompt once per run with an empty output, print it with the
+  totals, and show the per-task columns net of it. *Repo.*
 
 ### Candidates, not before evidence asks
 

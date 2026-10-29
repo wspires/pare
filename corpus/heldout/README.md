@@ -936,6 +936,59 @@ Per case, the raw log's size, then successes and mean input tokens:
   big logs 6k against 34k; in a long session that is the number every
   later turn carries.
 
+### Fourth run: the same cases with the pass-through at twice the ceiling
+
+The third run's sixteen cases again, three trials each, after `auto`'s
+pass-through moved from 1,000 tokens to twice the ceiling (4,000;
+`docs/DESIGN.md`, "The pass-through, from the agent runs"). Same model,
+effort and command; 144 trials, no errors. raw and truncate are
+unchanged by the change and came out as before; pare:
+
+| | third run | fourth run |
+|---|---:|---:|
+| success | 48/48 | 48/48 |
+| mean input tokens | 4,593 | 4,208 |
+| mean turns | 1.6 | 1.5 |
+| cases the agent expanded, every trial | 7 | 5 |
+| mean tokens on the 14 logs under 20 KB, against raw's 3,622 | 4,385 (+21 %) | 3,944 (+9 %) |
+
+| case | log | raw | pare, third | pare, fourth |
+|---|---:|---:|---:|---:|
+| astropy-7166 | 2 KB | 1,156 | 1,732 | 1,732 |
+| sympy-19637 | 4 KB | 1,748 | 5,599 | 2,322 |
+| Csv-5 | 4 KB | 1,901 | 1,926 | 2,465 |
+| Lang-3 | 4 KB | 1,939 | 1,903 | 2,503 |
+| Time-18 | 4 KB | 1,948 | 2,238 | 2,511 |
+| Codec-10 | 4 KB | 2,032 | 4,800 | 2,593 |
+| scikit-learn-10844 | 4 KB | 2,046 | 1,980 | 2,617 |
+| Compress-30 | 4 KB | 2,127 | 2,021 | 2,688 |
+| Jsoup-69 | 6 KB | 3,352 | 2,922 | 3,907 |
+| JxPath-15 | 9 KB | 4,557 | 7,148 | 6,869 |
+| django-13741 | 9 KB | 4,349 | 1,747 | 1,745 |
+| scikit-learn-12682 | 11 KB | 4,781 | 3,871 | 3,881 |
+| astropy-7606 | 18 KB | 8,824 | 10,092 | 7,382 |
+| Gson-5 | 19 KB | 9,954 | 13,417 | 12,005 |
+| matplotlib-24026 | 64 KB | 33,316 | 5,982 | 5,984 |
+| xarray-3305 | 68 KB | 34,104 | 6,115 | 6,122 |
+
+- **The two clear losses are gone.** Codec-10 and sympy-19637, 4 KB
+  logs the agent expanded in every trial, now print whole and take one
+  turn: 2.4 and 3.2 times raw's tokens before, 1.3 times now.
+- **Every passed-through case costs about 560 tokens more than raw,
+  and that is the harness, not pare.** The pare condition's prompt
+  carries the `pare` tool's schema and a paragraph on expanding a
+  summary; raw carries neither. On a 2 KB log that is a third of the
+  bill. Under the Claude Code hook an agent carries no such text, so
+  the fair reading of the eight small cases is a tie. The harness
+  could state the overhead per run (count the prompt once with no
+  output) and show it beside the totals; until it does, subtract about
+  560 from pare's column on any case that passed through.
+- **Between 8 and 20 KB the picture stays mixed**: django-13741,
+  scikit-learn-12682 and now astropy-7606 win for the summary; JxPath-15
+  and Gson-5 lose by half and a fifth. Three to two is not a case for
+  a higher factor.
+- **Above 60 KB nothing changed**, as it should not: 5.6 and 5.6 to one.
+
 What this set cannot show: these are test runs that fit in a context
 window with room to spare, read once. The shipped tasks' outage log
 (535 KB) and the agent sessions the roadmap still wants are where
