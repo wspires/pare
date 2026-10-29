@@ -1,15 +1,15 @@
 //! Tokens and the budget: the same arithmetic as `tokens()` and
 //! `budget_bytes_for()` in `reference/pare.py`.
 //!
-//! A token is estimated as `bytes / chars_per_token` (2.8 by default, the
-//! rate measured on cl100k and o200k, see docs/DESIGN.md), and the budget
+//! A token is estimated as `bytes / chars_per_token` (2.0 by default, the
+//! rate measured on Claude's tokenizer, see docs/DESIGN.md), and the budget
 //! in bytes is the budget in tokens times that rate, truncated.
 //!
 //! An automatic budget (`--budget auto`, not in Python) is a ceiling the
 //! summary need not reach: see [`Budget::auto`].
 
 /// Bytes per token unless `--bytes-per-token` says otherwise.
-pub const DEFAULT_CHARS_PER_TOKEN: f64 = 2.8;
+pub const DEFAULT_CHARS_PER_TOKEN: f64 = 2.0;
 
 /// An automatic budget passes input through whole only up to this many
 /// tokens (or its ceiling, if lower); a fixed budget does up to the budget.
@@ -81,13 +81,16 @@ impl Budget {
     /// ```
     /// use pare::budget::{Budget, DEFAULT_CHARS_PER_TOKEN};
     /// let b = Budget { tokens: 2000, chars_per_token: DEFAULT_CHARS_PER_TOKEN, auto: false };
+    /// assert_eq!(b.tokens_in(2000), 1000);
+    /// assert_eq!(b.bytes(), 4000);
+    /// let b = Budget { tokens: 2000, chars_per_token: 2.8, auto: false };
     /// assert_eq!(b.tokens_in(2800), 1000); // not the 1,001 that 2800 / 2.8 gives in floating point
-    /// assert_eq!(b.bytes(), 5600);
     /// ```
     #[must_use]
     pub fn tokens_in(&self, nbytes: u64) -> u64 {
-        // Less a hair, as in Python, so that 2,800 bytes at 2.8 is 1,000
-        // tokens: 2800.0 / 2.8 is 1000.0000000000001 in binary floating point.
+        // Less a hair, as in Python, so that an exact multiple stays exact
+        // at a rate like 2.8: 2800.0 / 2.8 is 1000.0000000000001 in binary
+        // floating point.
         #[allow(
             clippy::cast_possible_truncation,
             clippy::cast_precision_loss,
@@ -113,10 +116,10 @@ mod tests {
     #[test]
     fn matches_python() {
         // Values from reference/pare.py: budget_bytes_for(600) and tokens(n).
-        assert_eq!(B.bytes(), 1680);
+        assert_eq!(B.bytes(), 1200);
         assert_eq!(B.tokens_in(0), 0);
         assert_eq!(B.tokens_in(1), 1);
-        assert_eq!(B.tokens_in(19_046), 6_803);
+        assert_eq!(B.tokens_in(19_046), 9_523);
         let four = Budget {
             tokens: 600,
             chars_per_token: 4.0,
@@ -128,15 +131,15 @@ mod tests {
 
     #[test]
     fn auto_caps_passthrough_and_sizing() {
-        assert_eq!((B.passthrough_bytes(), B.sizing_bytes()), (1680, 1680));
+        assert_eq!((B.passthrough_bytes(), B.sizing_bytes()), (1200, 1200));
         let auto = |tokens| Budget {
             tokens,
             auto: true,
             ..B
         };
-        assert_eq!(auto(600).passthrough_bytes(), 1680);
-        assert_eq!(auto(4000).passthrough_bytes(), 2800);
-        assert_eq!(auto(4000).sizing_bytes(), 5600);
-        assert_eq!(auto(4000).bytes(), 11_200); // still the ceiling
+        assert_eq!(auto(600).passthrough_bytes(), 1200);
+        assert_eq!(auto(4000).passthrough_bytes(), 2000);
+        assert_eq!(auto(4000).sizing_bytes(), 4000);
+        assert_eq!(auto(4000).bytes(), 8000); // still the ceiling
     }
 }

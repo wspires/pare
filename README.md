@@ -9,11 +9,11 @@ how to get it back.
 pytest -v 2>&1 | pare --budget 2000
 ```
 
-A 308-line, 6,803-token pytest run becomes this (1,249 tokens), exactly
+A 308-line, 9,523-token pytest run becomes this (1,705 tokens), exactly
 as printed; the last lines name the run file on the machine it ran on:
 
 ```
-# pare: 308 lines, 19,046 B (~6,803 tok) → ~1,249 tok (budget 2,000) · 35 templates
+# pare: 308 lines, 19,046 B (~9,523 tok) → ~1,763 tok (budget 2,000) · 35 templates
 ## head (L1–L5)
 1: ============================= test session starts ==============================
 2: platform linux -- Python 3.13.16, pytest-9.1.1, pluggy-1.6.0 -- /home/dev/proj/.venv/bin/python
@@ -155,15 +155,17 @@ Building from a checkout is in [CONTRIBUTING.md](CONTRIBUTING.md).
 ### The budget
 
 The budget is a hard ceiling in tokens on what pare prints. Tokens are
-estimated as bytes / 2.8, the rate measured on pare's output with the
-cl100k and o200k tokenizers (`--bytes-per-token` changes it).
+estimated as bytes / 2.0, the rate measured on pare's output with the
+tokenizer of the current Claude models, through Anthropic's token-count
+API (`--bytes-per-token` changes it: 2.8 is the rate for OpenAI's cl100k
+and o200k tokenizers, and the default until October 2026).
 
 By default the size follows the log (`auto`): pare stops once what is
-left is below error level, at most 2,000 tokens, so 1,200 warning lines
-and one error come out at about 250 tokens instead of 950. On four fresh
-held-out samples it kept what a fixed 2,000 kept at 69 to 79 % of the
-tokens. `--budget auto:4000` raises the ceiling; `--budget N` is a fixed
-budget the summary fills (1,000 to 2,000 suits an agent loop). Without
+left is below error level, at most 2,000 tokens. On the latest held-out
+samples it kept what a fixed 2,000 kept at 77 to 83 % of the tokens.
+`--budget auto:4000` raises the ceiling; `--budget N` is a fixed budget
+the summary fills (1,000 to 2,000 suits an agent loop; 600 is tight, see
+[Results](#results)). Without
 `--budget`, pare takes `$PARE_BUDGET`, else `auto`, so a harness can set
 it once for every call. `--ascii` writes pare's own marks (`→ · × ┆ …`)
 as ASCII; the log's text is never changed. Details:
@@ -308,15 +310,20 @@ training scores.
 
 | tool | output tokens | share of input | lines kept |
 |---|---|---|---|
-| pare 0.2.0, `--budget 2000` | 10,481 | 1.8 % | 100 % |
-| pare 0.2.0, `--budget auto` | 9,477 | 1.6 % | 98.8 % |
-| pare 0.2.0, `--budget 600` | 4,934 | 0.8 % | 77.8 % |
-| sqz 1.9.0 | 268,054 | 55 % | 55 % |
-| tidyout 0.2.0 | 293,653 | 60 % | 89 % |
+| pare 0.2.0, `--budget 2000` | 12,812 | 1.6 % | 99 % |
+| pare 0.2.0, `--budget auto` | 11,401 | 1.4 % | 98 % |
+| pare 0.2.0, `--budget 600` | 5,017 | 0.6 % | 53 % |
+| sqz 1.9.0 | 375,276 | 55 % | 55 % |
+| tidyout 0.2.0 | 411,114 | 60 % | 89 % |
 
-(The sqz and tidyout rows were measured in October 2026 on the eight logs
-the corpus then had, 488k tokens, with pare 0.1.0 at 100 % and 79.5 %
-for budgets 2,000 and 600.)
+Tokens here are bytes / 2.0, the Claude rate, for every tool. A budget
+is a smaller summary than it was at the old rate (2.8 bytes per token:
+a 2,000 budget was 5,600 bytes and is 4,000), so 600 now keeps about half
+of the must-survive lines where it kept 78 %; 1,000 to 2,000 is the
+working range. (The sqz and tidyout rows were measured in October 2026
+on the eight logs the corpus then had, 683k tokens at this rate, with
+pare 0.1.0 at 100 % and 79.5 % for budgets 2,000 and 600 at the old
+rate; their token counts are restated at 2.0.)
 
 **Held-out samples**, labelled by datasets rather than by anyone working
 on pare: Defects4J bugs (real Java builds, labelled with the failing tests
@@ -326,14 +333,16 @@ fresh with earlier ones excluded and measured before anyone reads it;
 once a miss has been fixed by looking at it, the sample counts as
 training data and a new one is drawn. The latest, measured blind:
 
-| sample | cases | before any held-out fix (600 / 1,000 / 2,000) | pare 0.2.0 (600 / 1,000 / 2,000) | `auto` |
-|---|---:|---|---|---|
-| Defects4J, seed 7 | 16 | 54 / 78 / 89 % | 92 / 100 / 100 % | 100 % at 69 % of the tokens of 2,000 |
-| SWE-bench Verified, seed 5 | 18 | 70 / 80 / 83 % | 90 / 97 / 97 % | 97 % at 77 % |
+| sample | cases | pare 0.2.0 (600 / 1,000 / 2,000) | `auto` |
+|---|---:|---|---|
+| Defects4J, seed 7 | 16 | 86 / 92 / 100 % | 100 % at 77 % of the tokens of 2,000 |
+| SWE-bench Verified, seed 5 | 17 | 56 / 70 / 100 % | 100 % at 83 % |
 
-Seven Defects4J and five SWE-bench samples so far; the full record, with
-every miss and what was done about it, is in
-[corpus/heldout/README.md](corpus/heldout/README.md). The tool-specific
+Measured at the Claude rate of 2.0 bytes per token, the default since
+29 October 2026; the same samples at the old rate, and the numbers
+before each held-out fix, are in the record. Seven Defects4J and five
+SWE-bench samples so far; the full record, with every miss and what was
+done about it, is in [corpus/heldout/README.md](corpus/heldout/README.md). The tool-specific
 rules (pytest markers, rustc gutters, logcat levels) are worth up to 18
 points at 600 on SWE-bench and nothing on Defects4J
 ([docs/DESIGN.md](docs/DESIGN.md#tool-specific-rules)).

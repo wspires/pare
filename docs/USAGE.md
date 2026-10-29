@@ -8,9 +8,10 @@ can rely on. `pare --help` lists every flag and variable;
 
 ## Tokens and the budget
 
-Tokens are estimated as bytes / 2.8, the rate measured with tiktoken on
-pare's output (cl100k and o200k agree to within 1 %; the older public
-Claude tokenizer gives 2.74 to 2.80). `--bytes-per-token` changes it
+Tokens are estimated as bytes / 2.0, the rate measured on pare's output
+with the tokenizer of the current Claude models through Anthropic's
+token-count API (OpenAI's cl100k and o200k give 2.8, the default before
+October 2026). `--bytes-per-token` changes it
 (`--chars-per-token` is accepted as an alias): 4 gives the prose rule of
 thumb, 2.5 a strict ceiling on dense logs (timestamps, IPs and hex on
 every line), where the real rate is lower and a budget-600 summary can

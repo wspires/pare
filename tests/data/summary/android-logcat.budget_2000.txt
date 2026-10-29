@@ -1,4 +1,4 @@
-# pare: 2,470 lines, 267,515 B (~95,542 tok) → ~1,979 tok (budget 2,000) · 35 templates
+# pare: 2,470 lines, 267,515 B (~133,758 tok) → ~1,996 tok (budget 2,000) · 35 templates
 ## head (L1–L1)
 1: 10-13 09:12:00.012   512   566 I BatteryStatsService: In wakeup_callback: resumed from suspend
 ## templates (by salience)
@@ -7,29 +7,17 @@ T23  ×1 E L1609: 10-13 09:12:28.207  4321  4370 E SQLiteLog: (1) no such table:
 T24  ×1 E L1610: 10-13 09:12:28.213  4321  4370 E SQLiteDatabase: Error inserting body=Groceries for the week title=Groceries id=201 updated=1760390400
 T25  ×1 (8 lines) E L1611: 10-13 09:12:28.213  4321  4370 E SQLiteDatabase: android.database.sqlite.SQLiteException: no such table: notes_v2 (code 1 SQLITE_ERROR): , while compiling: INSERT INTO notes_v2(id,title,body,updated)…(+17c)
 1612: 10-13 09:12:28.213  4321  4370 E SQLiteDatabase: 	at android.database.sqlite.SQLiteConnection.nativePrepareStatement(Native Method)
-  ┆ (1 line)
-1614: 10-13 09:12:28.213  4321  4370 E SQLiteDatabase: 	at android.database.sqlite.SQLiteSession.prepare(SQLiteSession.java:597)
-  ┆ (1 line)
-1616: 10-13 09:12:28.213  4321  4370 E SQLiteDatabase: 	at com.example.notes.data.NoteDao.upsert(NoteDao.kt:47)
-1617: 10-13 09:12:28.213  4321  4370 E SQLiteDatabase: 	at com.example.notes.data.NoteRepository.save(NoteRepository.kt:88)
-1618: 10-13 09:12:28.213  4321  4370 E SQLiteDatabase: 	at com.example.notes.sync.NoteSync.run(NoteSync.kt:61)
-  ┆ (+2 more lines)
+  ┆ (+6 more lines)
 T31  ×1 (23 lines) E L1744: 10-13 09:12:30.489  4321  4321 E AndroidRuntime: java.lang.NullPointerException: Attempt to invoke virtual method 'java.lang.String com.example.notes.data.Note.getTitle()' on a null object reference
 1745: 10-13 09:12:30.489  4321  4321 E AndroidRuntime: 	at com.example.notes.ui.NoteListAdapter.onBindViewHolder(NoteListAdapter.kt:58)
-  ┆ (9 lines)
-1755: 10-13 09:12:30.489  4321  4321 E AndroidRuntime: 	at androidx.recyclerview.widget.RecyclerView.onLayout(RecyclerView.java:4579)
+  ┆ (10 lines)
 1756: 10-13 09:12:30.489  4321  4321 E AndroidRuntime: 	at android.view.View.layout(View.java:24529)
 1757: 10-13 09:12:30.489  4321  4321 E AndroidRuntime: 	at android.view.ViewGroup.layout(ViewGroup.java:7383)
-1758: 10-13 09:12:30.489  4321  4321 E AndroidRuntime: 	at android.view.ViewRootImpl.performLayout(ViewRootImpl.java:4422)
-1759: 10-13 09:12:30.489  4321  4321 E AndroidRuntime: 	at android.view.ViewRootImpl.performTraversals(ViewRootImpl.java:3828)
-1760: 10-13 09:12:30.489  4321  4321 E AndroidRuntime: 	at android.view.Choreographer.doFrame(Choreographer.java:1337)
-1761: 10-13 09:12:30.489  4321  4321 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+  ┆ (4 lines)
 1762: 10-13 09:12:30.489  4321  4321 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:317)
-1763: 10-13 09:12:30.489  4321  4321 E AndroidRuntime: 	at android.app.ActivityThread.main(ActivityThread.java:8705)
+  ┆ (1 line)
 1764: 10-13 09:12:30.489  4321  4321 E AndroidRuntime: 	at java.lang.reflect.Method.invoke(Native Method)
-1765: 10-13 09:12:30.489  4321  4321 E AndroidRuntime: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)
-1766: 10-13 09:12:30.489  4321  4321 E AndroidRuntime: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)
-  ┆ (+9 more lines)
+  ┆ (+17 more lines)
 T27  ×1 E L1740: 10-13 09:12:30.458  4321  4402 W OpenGLRenderer: Failed to choose config with EGL_SWAP_BEHAVIOR_PRESERVED, retrying without...
 T30  ×1 E L1743: 10-13 09:12:30.489  4321  4321 E AndroidRuntime: Process: com.example.notes, PID: 4321
 T34  ×1 E L1769: 10-13 09:12:30.555   512  1912 I ActivityManager: Process com.example.notes (pid 4321) has died: fg  TOP
@@ -42,9 +30,8 @@ T7   ×240 E L10: 10-13 09:12:00.148   441   467 E GnssHAL_GnssInterface: gnssSv
 T33  ×1 W L1768: 10-13 09:12:30.527   512  1440 W ActivityTaskManager:   Force finishing activity com.example.notes/.ui.MainActivity
 T4   ×135 W L4: 10-13 09:12:00.025   512  1440 W AppOps  : Noting op not finished: uid 10156 pkg com.google.android.gms code 79 time=1924435916621 duration=0
 T26  ×1 S L1619: 10-13 09:12:28.235  4321  4370 I NoteSync: sync finished: 199 synced, 1 skipped, 1 failed
-T32  ×1 . L1767: 10-13 09:12:30.508  4321  4321 I Process : Sending signal. PID: 4321 SIG: 9
 ## tail (L2470–L2470)
 2470: 10-13 09:12:43.176   512   660 I chatty  : uid=1000(system) android.display identical 22 lines
-## omitted 2,432/2,470 lines (98.5%): T5 ×295, T7 ×239, T10 ×232, T3 ×212, T21 ×199, T1 ×184, T8 ×177, T11 ×162, T2 ×152, T6 ×143, T4 ×134, T12 ×133, T9 ×131, T15 ×9, T31 ×9, T20 ×8, T18 ×6, T25 ×2, T13 ×1, T14 ×1, T17 ×1, T19 ×1, T28 ×1 · 17 templates not listed
+## omitted 2,445/2,470 lines (99.0%): T5 ×295, T7 ×239, T10 ×232, T3 ×212, T21 ×199, T1 ×184, T8 ×177, T11 ×162, T2 ×152, T6 ×143, T4 ×134, T12 ×133, T9 ×131, T31 ×17, T15 ×9, T20 ×8, T18 ×6, T25 ×6, T13 ×1, T14 ×1, T17 ×1, T19 ×1, T28 ×1, T32 ×1 · 18 templates not listed
 ## raw: (not saved)
    expand with: pare --only T<n> < raw   ·   drop noise: pare --except T<n>,T<m> < raw

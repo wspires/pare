@@ -5,6 +5,18 @@
 pare is now a single native binary, written in Rust, and installable with
 Homebrew, an install script, pipx/uv (`pare-cli`) or cargo (`pare-cli`).
 
+- **A token is 2.0 bytes, not 2.8.** Measured through Anthropic's
+  token-count API, the current Claude models tokenize pare's output at
+  1.96 bytes per token, against 2.82 for OpenAI's cl100k and o200k, the
+  rate the old default came from. So `--budget 2000` printed about
+  2,870 Claude tokens. The default `--bytes-per-token` is now 2.0: every
+  summary at a given budget is 30 % smaller, the token counts in the
+  header are Claude's, and `--bytes-per-token 2.8` gives the old
+  behaviour. A budget of 600 is now too small for a run with several
+  failures; 1,000 to 2,000 is the working range (README, "Results").
+  Renumbers nothing: template ids do not depend on the budget. The
+  Python reference and the golden files changed with it.
+
 - **Same output as before, with its own rules switched off.** Under
   `PARE_REFERENCE_RULES=1` (for testing) it prints exactly what the
   Python version did, byte for byte, on every log in the repository

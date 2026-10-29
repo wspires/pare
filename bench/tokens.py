@@ -6,10 +6,10 @@ budget with tiktoken's cl100k_base and o200k_base (and any Hugging Face
 tokenizer JSON given with --hf), and prints bytes per token for each, next to the bytes/4 rule of thumb.
 The pare runs use --bytes-per-token 4 so the proxy error is visible; with
 --bytes-per-token it also runs pare calibrated to that value (pare's
-default is 2.8) and reports the real token count and recall per case.
+default is 2.0) and reports the real token count and recall per case.
 
 Usage
-    python bench/tokens.py [--budgets 600,2000] [--bytes-per-token 2.8] [--hf tokenizer.json] [--anthropic MODEL]
+    python bench/tokens.py [--budgets 600,2000] [--bytes-per-token 2.0] [--hf tokenizer.json] [--anthropic MODEL]
 
 Needs `pip install tiktoken` (and `tokenizers` for --hf). tiktoken fetches
 its vocabularies on first use; behind a proxy, point TIKTOKEN_CACHE_DIR at
@@ -105,14 +105,16 @@ def main() -> int:
 
     if args.chars_per_token:
         cpt = args.chars_per_token
-        first = next(iter(encs))
+        # The count that checks the budget is the last encoder's: the Claude
+        # count with --anthropic, else the Hugging Face one, else o200k.
+        last = list(encs)[-1]
         for b in budgets:
-            print(f"\n== pare --budget {b} --bytes-per-token {cpt:g}: {first} tokens and recall")
+            print(f"\n== pare --budget {b} --bytes-per-token {cpt:g}: {last} tokens and recall")
             tot = hit = total_keep = 0
             worst = 1.0
             for p in logs:
                 out = pare(p, b, cpt)
-                n = len(encs[first](out.decode("utf-8", "replace")))
+                n = len(encs[last](out.decode("utf-8", "replace")))
                 tot += n
                 keep_path = p[:-4] + ".keep"
                 keep = [ln.strip() for ln in open(keep_path, encoding="utf-8") if ln.strip()] if os.path.exists(keep_path) else []

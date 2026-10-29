@@ -774,7 +774,7 @@ def test_chars_per_token_calibrates_the_budget():
     out_default = run(["--budget", "600"], data)
     out4 = run(["--budget", "600", "--chars-per-token", "4"], data)
     assert len(out_default) <= 600 * pare.CHARS_PER_TOKEN and len(out4) <= 600 * 4
-    assert pare.CHARS_PER_TOKEN == 2.8 and len(out_default) < len(out4)
+    assert pare.CHARS_PER_TOKEN == 2.0 and len(out_default) < len(out4)
     assert b"(budget 600)" in out_default  # the header speaks in tokens, not bytes
 
 
@@ -1804,8 +1804,13 @@ def test_command_mode_records_output_size_and_stats_totals_it(tmp_path):
 
 
 def test_tokens_round_exact_multiples_down():
-    # 2800 / 2.8 is 1000.0000000000001 in floating point; it is 1,000 tokens.
-    assert pare.tokens(2800) == 1000 and pare.tokens(2801) == 1001 and pare.tokens(0) == 0
+    assert pare.tokens(2000) == 1000 and pare.tokens(2001) == 1001 and pare.tokens(0) == 0
+    # At a rate like 2.8, 2800 / 2.8 is 1000.0000000000001 in floating point; it is 1,000 tokens.
+    saved, pare.CHARS_PER_TOKEN = pare.CHARS_PER_TOKEN, 2.8
+    try:
+        assert pare.tokens(2800) == 1000 and pare.tokens(2801) == 1001
+    finally:
+        pare.CHARS_PER_TOKEN = saved
 
 
 def test_logcat_entry_is_split_by_its_message_not_its_header(tmp_path):
@@ -1908,13 +1913,14 @@ def test_a_tiny_budget_keeps_the_run_line_over_the_ledger(tmp_path):
     # A long run directory (macOS temp paths are) and a tiny budget: when even
     # the skeleton does not fit, the run line is the last thing given up.
     # The run line ("## raw: <dir>/<12 hex>.log") at 170 bytes: it fits with
-    # the header in 280 bytes (100 tokens), but not with the ledger as well.
+    # the header in 280 bytes (100 tokens at 2.8 bytes each, the rate this
+    # test pins), but not with the ledger as well.
     run_dir = tmp_path / ("d" * (170 - len("## raw: ") - len(str(tmp_path)) - 1 - len("/0123456789ab.log")))
     data = b"a\nb\nERROR c\n" * 50
-    p = subprocess.run([sys.executable, os.path.join(HERE, "pare.py"), "--run-dir", str(run_dir), "--budget", "100"],
-                       input=data, capture_output=True, check=True)
+    p = subprocess.run([sys.executable, os.path.join(HERE, "pare.py"), "--run-dir", str(run_dir), "--budget", "100",
+                        "--chars-per-token", "2.8"], input=data, capture_output=True, check=True)
     out = p.stdout.decode()
-    assert f"## raw: {run_dir}" in out and pare.tokens(len(p.stdout)) <= 100, out
+    assert f"## raw: {run_dir}" in out and len(p.stdout) <= 280, out
 
 
 def test_the_tail_window_skips_build_advice():
@@ -1971,7 +1977,8 @@ def test_a_junit3_assertion_message_beats_its_framework_frames():
                      ["failNotEquals", "assertEquals", "assertEquals"])
     lines += ["Results :", "", "Failed tests: ", "  testEmptyOut(org.example.OutTest)", "  testEmptyIn(org.example.InTest)", "",
               "Tests run: 6, Failures: 2, Errors: 0, Skipped: 0", "[INFO] BUILD FAILURE"]
-    out = run(["--budget", "400"], ("\n".join(lines) + "\n").encode()).decode()
+    # 400 tokens at the 2.8 rate this scenario was built at (1,120 bytes).
+    out = run(["--budget", "400", "--chars-per-token", "2.8"], ("\n".join(lines) + "\n").encode()).decode()
     assert "Streaming base64 encode" in out and "EOF expected:<-1> but was:<13>" in out, out
 
 

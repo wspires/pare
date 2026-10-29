@@ -1,4 +1,4 @@
-# pare: 594 lines, 17,584 B (~6,280 tok) → ~1,043 tok (budget 2,000) · 8 templates
+# pare: 594 lines, 17,584 B (~8,792 tok) → ~1,460 tok (budget 2,000) · 8 templates
 ## head (L1–L7)
 1: PASS src/components/Button.test.ts (0.556 s)
   ┆ (5 lines)

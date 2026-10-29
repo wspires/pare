@@ -32,10 +32,10 @@ step "cargo test";                                cargo test -q
 step "cargo doc --no-deps (warnings are errors)"; RUSTDOCFLAGS="-D warnings" cargo doc --no-deps -q
 if [ -n "$rust_only" ]; then printf '\nok: the Rust job\n'; exit 0; fi
 
-step "python -m pytest -q reference/"
+step "python -m pytest -q reference/ bench/"
 "$py" -c 'import pytest, drain3' 2>/dev/null || {
     echo "pytest or drain3 is missing: python3 -m venv .venv && .venv/bin/pip install -r reference/requirements.txt" >&2; exit 1; }
-"$py" -m pytest -q reference/
+"$py" -m pytest -q reference/ bench/
 
 step "src/pyunicode.rs is what bench/gen_pyunicode.py writes"
 case "$("$py" --version)" in

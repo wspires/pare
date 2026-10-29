@@ -1,33 +1,23 @@
-# pare: 308 lines, 19,046 B (~6,803 tok) → ~982 tok (budget 1,000) · 35 templates
-## head (L1–L5)
+# pare: 308 lines, 19,046 B (~9,523 tok) → ~982 tok (budget 1,000) · 35 templates
+## head (L1–L3)
 1: ============================= test session starts ==============================
 2: platform linux -- Python 3.13.16, pytest-9.1.1, pluggy-1.6.0 -- /home/dev/proj/…(+16c)
 3: rootdir: /home/dev/proj
-4: collecting ... collected 170 items
-5: 
 ## templates (by salience)
 T10  ×1 E L166: tests/test_cart.py::test_parse_bad FAILED                                [ 94%]
+T11  ×1 E L167: tests/test_cart.py::test_total_wrong FAILED                              [ 95%]
 T17  ×1 E L177: =================================== FAILURES ===================================
-T30  ×1 E L303: FAILED tests/test_cart.py::test_parse_bad - json.decoder.JSONDecodeError: Exp...
 ## selected lines
-171: tests/test_cart.py::test_skipped SKIPPED (flaky on CI)                   [ 97%]
-172: tests/test_cart.py::test_xfail XFAIL (known bug #42)                     [ 98%]
-  ┆ (37 lines)
 210:         except StopIteration as err:
-211: >           raise JSONDecodeError("Expecting value", s, err.value) from None
+  ┆ (1 line)
 212: E           json.decoder.JSONDecodeError: Expecting value: line 1 column 7 (char 6)
   ┆ (1 line)
 214: /usr/lib/python3.13/json/decoder.py:363: JSONDecodeError
-  ┆ (8 lines)
-223: >       assert c.total() == 0.9
-224: E       assert 0.9000000000000001 == 0.9
-225: E        +  where 0.9000000000000001 = total()
-226: E        +    where total = <app.core.Cart object at 0x7f7e97197d40>.total
-  ┆ (1 line)
-228: tests/test_cart.py:18: AssertionError
-  ┆ (10 lines)
-239: tests/test_net.py:6:
   ┆ (9 lines)
+224: E       assert 0.9000000000000001 == 0.9
+  ┆ (3 lines)
+228: tests/test_cart.py:18: AssertionError
+  ┆ (20 lines)
 249: E       ConnectionRefusedError: [Errno 111] Connection refused
   ┆ (1 line)
 251: app/core.py:15: ConnectionRefusedError
@@ -35,18 +25,14 @@ T30  ×1 E L303: FAILED tests/test_cart.py::test_parse_bad - json.decoder.JSONDe
 272: E       TimeoutError: timed out
   ┆ (1 line)
 274: app/core.py:15: TimeoutError
-  ┆ (12 lines)
-287: tests/test_net.py:9: in a
-  ┆ (7 lines)
-295: >   def c(): raise RuntimeError("deep failure at level 3")
-  ┆ (1 line)
+  ┆ (22 lines)
 297: E   RuntimeError: deep failure at level 3
-## tail (L304–L308)
+  ┆ (6 lines)
 304: FAILED tests/test_cart.py::test_total_wrong - assert 0.9000000000000001 == 0.9
-305: FAILED tests/test_net.py::test_connect[127.0.0.1] - ConnectionRefusedError: [...
+## tail (L306–L308)
 306: FAILED tests/test_net.py::test_connect[10.255.255.1] - TimeoutError: timed out
 307: FAILED tests/test_net.py::test_deep - RuntimeError: deep failure at level 3
 308: ============= 5 failed, 163 passed, 1 skipped, 1 xfailed in 0.51s ==============
-## omitted 276/308 lines (89.6%): T5 ×120, T28 ×24, T18 ×17, T21 ×14, T23 ×13, T6 ×10, T7 ×10, T8 ×10, T9 ×10, T20 ×8, T25 ×6, T26 ×5, T12 ×3, T19 ×3, T15 ×2, T11 ×1, T16 ×1, T22 ×1, T24 ×1 · +2 more templates; 32 templates not listed; 26 blank
+## omitted 288/308 lines (93.5%): T5 ×120, T28 ×24, T18 ×20, T21 ×15, T23 ×14, T6 ×10, T7 ×10, T8 ×10, T9 ×10, T20 ×9 · +15 more templates; 32 templates not listed; 27 blank
 ## raw: (not saved)
    expand with: pare --only T<n> < raw   ·   drop noise: pare --except T<n>,T<m> < raw

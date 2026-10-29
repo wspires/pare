@@ -1,9 +1,12 @@
-# pare: 594 lines, 17,584 B (~6,280 tok) → ~596 tok (budget 600) · 8 templates
+# pare: 594 lines, 17,584 B (~8,792 tok) → ~595 tok (budget 600) · 8 templates
 ## head (L1–L7)
 1: PASS src/components/Button.test.ts (0.556 s)
   ┆ (5 lines)
 7: 
 ## templates (by salience)
+T3   ×1 (4 lines) E L585: Summary of all failing tests
+586:  FAIL  src/api/useAuth.test.ts
+  ┆ (+2 more lines)
 T2   ×3 (80 lines) E L324: FAIL src/utils/parse.test.ts
 325:   parse
   ┆ (8 lines)
@@ -13,34 +16,21 @@ T2   ×3 (80 lines) E L324: FAIL src/utils/parse.test.ts
 339:     + Received  + 1
   ┆ (4 lines)
 344:     +   "currency": undefined,
-  ┆ (4 lines)
-349:     > 43 |     expect(out).toEqual({ amount: 1250, currency: 'USD' });
-  ┆ (3 lines)
-353:       at Object.<anonymous> (src/utils/parse.test.ts:43:17)
-  ┆ (+16 more lines)
+  ┆ (+18 more lines)
 ## selected lines
 430:     TypeError: Cannot read properties of undefined (reading 'token')
   ┆ (2 lines)
 433:     > 18 |   return data.token;
-  ┆ (3 lines)
-437:       at useAuth (src/api/useAuth.ts:18:15)
-  ┆ (90 lines)
+  ┆ (94 lines)
 528:     thrown: "Exceeded timeout of 5000 ms for a test.
-529:     Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
-  ┆ (2 lines)
-532:     > 89 |   it('loads 10k rows', async () => {
-  ┆ (3 lines)
+  ┆ (7 lines)
 536:       at src/store/Table.test.ts:89:3
-## tail (L585–L594)
-585: Summary of all failing tests
-586:  FAIL  src/api/useAuth.test.ts
-587:  FAIL  src/store/Table.test.ts
-588:  FAIL  src/utils/parse.test.ts
+## tail (L589–L594)
 589: 
 590: Test Suites: 3 failed, 35 passed, 38 total
 591: Tests:       3 failed, 1 skipped, 418 passed, 421 total
 592: Snapshots:   0 total
 593: Time:        27.418 s
 594: Ran all test suites.
-## omitted 567/594 lines (95.5%): T1 ×465, T2 ×65 · 7 templates not listed; 51 blank
+## omitted 574/594 lines (96.6%): T1 ×465, T2 ×70, T3 ×2 · 6 templates not listed; 51 blank
 ## raw: (not saved)

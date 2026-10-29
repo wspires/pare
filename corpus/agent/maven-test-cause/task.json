@@ -1,0 +1,12 @@
+{
+  "kind": "diagnose",
+  "log": "../../generated/maven-test.log",
+  "command": "mvn -B test",
+  "prompt": "This Maven build failed. From the output, list every test that failed or errored, with its class, method and the exception or assertion message, and say which module the failure is in.",
+  "expect": [
+    ["PricingTest", "formatsThousandsSeparator", "expected: <$1,250.00> but was: <$1250.00> || $1,250.00"],
+    ["CartTest", "findMissingSkuReturnsNullNotThrows", "NullPointerException"],
+    ["shop-core"]
+  ],
+  "notes": "A real Surefire run from corpus/generated: one assertion failure, one NullPointerException."
+}

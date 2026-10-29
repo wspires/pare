@@ -1,0 +1,11 @@
+{
+  "kind": "fix",
+  "workspace": "proj",
+  "command": "python3 -m pytest",
+  "check": "python3 -m pytest -q -p no:cacheprovider",
+  "requires": [
+    "python3:pytest"
+  ],
+  "prompt": "The test suite of this small Python ledger library fails. Fix the library code (under ledger/) so that every test passes. Do not change the tests. When the suite is green, stop and say what you changed.",
+  "notes": "Four seeded bugs in four modules; five of 112 tests fail. pytest.ini turns on log_cli, so the run is about 1,900 lines."
+}

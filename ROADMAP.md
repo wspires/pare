@@ -40,16 +40,29 @@ real credentials or a decision that is not the code's to make.
   into held-out cases with keep lists written before pare's output is
   looked at (`corpus/heldout/README.md`, "Protocol"). Aim for 15 to 20.
   *Maintainer, on a machine whose transcripts persist.*
-- [ ] **Claude token rate.** `bench/tokens.py --anthropic claude-opus-5-5`
-  on a machine with credentials. If the rate differs much from the 2.8
-  bytes per token measured on cl100k and o200k, change the default.
-  *Maintainer.*
-- [ ] **Agent-success eval.** Recall measures presence, not usefulness. A
-  few real tasks (fix a failing test, fix a broken build, find an
-  outage's cause) run with raw output, pare, sqz and tidyout as the tool
-  result; report task success and tokens side by side. Design:
-  `corpus/heldout/README.md`, "Agent-success evaluation". *Maintainer,
-  with a harness from the repo.*
+- [x] **Claude token rate.** Measured on 29 October 2026: Claude Opus
+  5.5 tokenizes pare's output at 1.96 bytes per token against 2.82 for
+  cl100k and o200k, so a `--budget 2000` summary was about 2,870 Claude
+  tokens. The default is 2.0 since: summaries are 30 % smaller at the
+  same budget, the README's tables are restated, and 600 is no longer a
+  budget to recommend (`docs/DESIGN.md`, "Tokens and the budget";
+  CHANGELOG).
+- [x] **Agent-success eval.** `bench/agent_eval.py` runs an agent on each
+  task in `corpus/agent/` with the raw output, a truncation, pare's
+  summary, sqz or tidyout as its tool result (`corpus/agent/README.md`).
+  First run, 36 trials: pare matched the raw output on every task at
+  8 % of the tokens on the diagnose tasks and 30 % on the fix tasks;
+  truncation missed the outage cause every time; on a 4 KB cargo output
+  pare cost more turns than raw (`corpus/heldout/README.md`,
+  "Agent-success evaluation").
+- [ ] **Agent-success eval on held-out cases and the small-output cell.**
+  Run `--heldout corpus/heldout/defects4j --sample 8` and the SWE-bench
+  set for the same table on labels no one here wrote. And the small
+  outputs: in two runs (at 2.8 and at 2.0) pare cost more turns than raw
+  once on the 4 KB cargo output and once on the 10 KB Maven log, the
+  same outcome each time. Read those transcripts for what the agent went
+  back for; if `auto` is summarising output the agent would rather read
+  whole, raise its pass-through. *Maintainer.*
 
 ### Candidates, not before evidence asks
 

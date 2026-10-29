@@ -18,7 +18,7 @@ Usage
     python bench/run.py [--budget 2000] [--corpus corpus] [--tools pare,sqz,tidyout] [--json out.json]
     python bench/run.py --tools pare --pare-bin target/release/pare --budget auto   # the Rust binary
 
-Tokens are approximated as ceil(bytes / 2.8) everywhere (--bytes-per-token),
+Tokens are approximated as ceil(bytes / 2.0) everywhere (--bytes-per-token),
 matching pare's own budget accounting. Tools that are not installed are reported as "n/a".
 """
 
@@ -42,11 +42,11 @@ import collect  # noqa: E402  (keep-line matching)
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-CHARS_PER_TOKEN = 2.8  # set from --bytes-per-token
+CHARS_PER_TOKEN = 2.0  # set from --bytes-per-token
 
 
 def tokens(data: bytes) -> int:
-    return math.ceil(len(data) / CHARS_PER_TOKEN - 1e-9)  # 2800 / 2.8 is 1000, not 1001
+    return math.ceil(len(data) / CHARS_PER_TOKEN - 1e-9)  # at 2.8, 2800 bytes is 1000 tokens, not 1001
 
 
 def which(name: str) -> str | None:
@@ -256,8 +256,8 @@ def main() -> int:
     ap.add_argument("--strict", action="store_true",
                     help="match keep lines against the literal output, without expanding pare's compact lists")
     ap.add_argument("--pare-args", default="", help='extra flags for pare, e.g. "--max-templates 8"')
-    ap.add_argument("--bytes-per-token", "--chars-per-token", dest="chars_per_token", type=float, metavar="N", default=2.8,
-                    help="bytes per token for every tool's count and pare's budget (default 2.8, pare's default)")
+    ap.add_argument("--bytes-per-token", "--chars-per-token", dest="chars_per_token", type=float, metavar="N", default=2.0,
+                    help="bytes per token for every tool's count and pare's budget (default 2.0, pare's default)")
     args = ap.parse_args()
     global CHARS_PER_TOKEN
     CHARS_PER_TOKEN = args.chars_per_token

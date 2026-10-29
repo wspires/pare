@@ -9,6 +9,11 @@ builds, labelled by the trigger tests and their exceptions). No set yet
 holds logs from real agent sessions; that is the gap, and the first
 section says how to fill it.
 
+Every number in this record before 29 October 2026 is at 2.8 bytes per
+token, the default then; the default is 2.0 since (`docs/DESIGN.md`,
+"Tokens and the budget"), and the README's table carries the latest two
+samples at that rate. The agent-success run below used 2.8 too.
+
 One rule governs the directory: a sample is measured before anyone reads
 it, and once a change to pare has been judged on it, it is spent and the
 next fresh sample measures that change. The record below says, for each
@@ -757,3 +762,104 @@ outage from a log) and run an agent on each with the full output, with
 pare's summary, with sqz's output and with tidyout's output as the tool
 result. Report task success and tokens side by side. A summary that keeps
 every must-survive line but buries it in forty others may still lose here.
+
+The harness is `bench/agent_eval.py`; its tasks and their format are in
+`corpus/agent/README.md`, and `--heldout DIR` turns the cases here into
+diagnose tasks (name every failing test and its error) graded by the
+dataset's labels. A run writes `bench/agent-runs/<stamp>/summary.md`;
+the ones worth keeping go here, with the model, effort, pare version
+and number of trials.
+
+### First run: 29 October 2026
+
+Claude Opus 5.5 at effort `medium`, pare 0.2.0 built from the branch,
+`--budget auto`, three trials per cell, on a Mac; 36 trials, no errors.
+The two diagnose tasks are `outage-cause` (the 4,813-line synthetic
+outage log) and `maven-test-cause` (a real Surefire failure); the two fix
+tasks are `pytest-ledger` (four seeded bugs behind a 1,900-line
+`log_cli` run) and `cargo-inventory` (two compile errors and a wrong
+test, 109 lines). `truncate` is the head and tail at 30,000 characters,
+what a harness does to a long tool result.
+
+| condition | diagnose: success | input tok | turns | fix: success | input tok | turns |
+|---|---:|---:|---:|---:|---:|---:|
+| raw | 6/6 | 160,102 | 1.0 | 6/6 | 124,379 | 4.2 |
+| truncate | 3/6 | 11,542 | 1.0 | 6/6 | 53,246 | 4.7 |
+| pare | 6/6 | 12,178 | 2.3 | 6/6 | 36,693 | 5.2 |
+
+Per task, successes and mean input tokens over the whole trial:
+
+| task | raw | truncate | pare |
+|---|---:|---:|---:|
+| outage-cause | 3/3 · 315,120 | 0/3 · 18,002 | 3/3 · 20,492 |
+| maven-test-cause | 3/3 · 5,083 | 3/3 · 5,083 | 3/3 · 3,864 |
+| pytest-ledger | 3/3 · 220,591 | 3/3 · 72,153 | 3/3 · 30,157 |
+| cargo-inventory | 3/3 · 28,167 | 3/3 · 34,338 | 3/3 · 43,229 |
+
+What it shows:
+
+- **pare did every task the raw output did**, at 8 % of the input
+  tokens on the diagnose tasks and 30 % on the fix tasks. The largest
+  single prompt fell from 160k to 6k tokens on the diagnose tasks and
+  from 33k to 9k on the fix tasks, which is what a long session pays
+  for on every later turn.
+- **Truncation failed where it was supposed to.** It missed the outage
+  cause in all three trials: the lost connection, the exhausted pool
+  and the breaker are in the middle of the log, and the head and tail
+  are startup and shutdown. That is the failure the README's "Why pare"
+  section describes, measured.
+- **On the two big logs pare paid for itself in turns too**: on the
+  outage it spent two or three expansions (`--since`, `--only`) and
+  still came in at 6 % of raw's tokens; on the ledger run it fixed four
+  bugs in three to six turns against raw's four.
+- **On the small cargo output pare cost more**: 43k tokens against
+  raw's 28k and six turns against four, with the same outcome. The
+  output is 4 KB, under the ceiling, and `auto` summarised it anyway;
+  the agent then went back to the compiler's own annotated snippets.
+  That is the one cell where the summary is a tax, and a lead for
+  `auto`: an output that already fits the ceiling should pass through.
+  The transcripts (`bench/agent-runs/20261029T015127Z/transcripts/`)
+  say which lines it went back for.
+
+### Second run, the same day, at 2.0 bytes per token
+
+The same 36 trials with the default `--bytes-per-token` moved from 2.8
+to 2.0 (`docs/DESIGN.md`, "Tokens and the budget"), so every pare
+summary is 30 % smaller than in the first run; everything else the same.
+
+| condition | diagnose: success | input tok | turns | fix: success | input tok | turns |
+|---|---:|---:|---:|---:|---:|---:|
+| raw | 6/6 | 160,102 | 1.0 | 6/6 | 157,037 | 5.0 |
+| truncate | 3/6 | 11,542 | 1.0 | 6/6 | 47,183 | 4.5 |
+| pare | 6/6 | 11,404 | 2.3 | 6/6 | 28,352 | 4.2 |
+
+| task | raw | truncate | pare |
+|---|---:|---:|---:|
+| outage-cause | 3/3 · 315,120 | 0/3 · 18,002 | 3/3 · 15,287 |
+| maven-test-cause | 3/3 · 5,083 | 3/3 · 5,083 | 3/3 · 7,520 |
+| pytest-ledger | 3/3 · 281,254 | 3/3 · 61,325 | 3/3 · 23,621 |
+| cargo-inventory | 3/3 · 32,820 | 3/3 · 33,040 | 3/3 · 33,082 |
+
+- **Still 12 of 12, for less.** Against the first run pare's fix tasks
+  went from 36,693 to 28,352 tokens and from 5.2 to 4.2 turns, now
+  fewer turns than raw's 5.0; the diagnose tasks from 12,178 to 11,404.
+  The smaller summary cost the agent nothing it needed.
+- **The cargo cell evened out.** Three trials at 33k tokens and five
+  turns under every condition, where the first run had pare at 43k and
+  six turns. The lead about `auto` summarising an output that fits the
+  ceiling is not supported by this run; one run each way, so it stays a
+  lead, not a finding.
+- **The Maven cell is the new one to read.** pare took two turns and
+  7,520 tokens on a 10 KB log that raw answers in one turn at 5,083: the
+  smaller summary left out something the agent went back for. The same
+  outcome, at 1.5 times the cost of just reading the log. On output
+  this size the summary buys nothing, which argues for `auto` passing
+  through more than it does.
+- **Truncation missed the outage cause three more times.** Six of six
+  now.
+
+What neither run shows: these are four tasks, two of them synthetic and
+all four written by someone who knows pare, and success is the check
+command passing or the findings being named, not the quality of the
+explanation. The held-out cases (`--heldout corpus/heldout/defects4j`)
+are the next run, and real agent logs after that.
