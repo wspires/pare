@@ -55,14 +55,27 @@ real credentials or a decision that is not the code's to make.
   truncation missed the outage cause every time; on a 4 KB cargo output
   pare cost more turns than raw (`corpus/heldout/README.md`,
   "Agent-success evaluation").
-- [ ] **Agent-success eval on held-out cases and the small-output cell.**
-  Run `--heldout corpus/heldout/defects4j --sample 8` and the SWE-bench
-  set for the same table on labels no one here wrote. And the small
-  outputs: in two runs (at 2.8 and at 2.0) pare cost more turns than raw
-  once on the 4 KB cargo output and once on the 10 KB Maven log, the
-  same outcome each time. Read those transcripts for what the agent went
-  back for; if `auto` is summarising output the agent would rather read
-  whole, raise its pass-through. *Maintainer.*
+- [x] **Agent-success eval on held-out cases.** Sixteen cases from
+  Defects4J seed 7 and SWE-bench seed 5, 144 trials: every condition
+  named every failing test, and pare cost less than raw only on the two
+  logs over 60 KB; on the fourteen of 2 to 19 KB it cost 21 % more, at
+  1.6 turns against 1.0, because the agent expanded the summary on
+  seven of sixteen cases (`corpus/heldout/README.md`, "Third run").
+- [x] **Raise `auto`'s pass-through.** From 1,000 tokens to twice the
+  ceiling, 4,000 by default, on the three agent runs' evidence
+  (`docs/DESIGN.md`, "The pass-through, from the agent runs"). The
+  recall benchmark is unchanged by it.
+- [x] **Measure the new pass-through with the agent harness.** Done
+  the same day (`corpus/heldout/README.md`, "Fourth run"): still 48 of
+  48, pare's mean fell from 4,593 to 4,208 tokens and 1.6 to 1.5 turns,
+  the two 4 KB cases that expanded every trial print whole and take one
+  turn, and the 8 to 20 KB cases split three to two for the summary, so
+  the factor stays at two.
+- [x] **State the harness's own overhead.** Each trial counts its
+  fixed prompt (system text, tool schemas, the task prompt with no
+  output) with one free `count_tokens` call; the summary shows it and
+  the input net of it, once per turn, in the condition table and the
+  per-task cells (`corpus/agent/README.md`).
 
 ### Candidates, not before evidence asks
 

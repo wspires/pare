@@ -45,7 +45,10 @@ Homebrew, an install script, pipx/uv (`pare-cli`) or cargo (`pare-cli`).
   ceiling (2,000, or N with `--budget auto:N`) that the summary stops
   short of once what is left is below error level, so a log with one
   error gets a short summary. On four fresh held-out samples it kept
-  what a fixed 2,000 kept, at 69 to 79 % of the tokens. A number
+  what a fixed 2,000 kept, at 69 to 79 % of the tokens. Output up to
+  twice the ceiling (4,000 tokens) passes through whole: on the agent
+  runs, a summary of a log that size cost the agent a round trip to
+  expand more often than it saved tokens. A number
   (`--budget 2000`) is a fixed budget the summary fills, as before; the
   Python version's default was a fixed 2,000.
 - **`$PARE_BUDGET`** sets the budget when `--budget` is not given (an

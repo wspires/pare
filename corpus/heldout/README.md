@@ -865,5 +865,132 @@ summary is 30 % smaller than in the first run; everything else the same.
 What neither run shows: these are four tasks, two of them synthetic and
 all four written by someone who knows pare, and success is the check
 command passing or the findings being named, not the quality of the
-explanation. The held-out cases (`--heldout corpus/heldout/defects4j`)
-are the next run, and real agent logs after that.
+explanation. The held-out run below is on labels no one here wrote.
+
+### Third run: the held-out cases, 29 October 2026
+
+Sixteen cases drawn with `--sample 8 --seed 1` from Defects4J seed 7
+(`defects4j-7/`) and SWE-bench seed 5 (`swebench-6/`), each a diagnose
+task: name every failing test with its class or file and its error,
+graded against the dataset's labels. Claude Opus 5.5 at effort
+`medium`, pare 0.2.0 at 2.0 bytes per token, `--budget auto`, three
+trials per cell; 144 trials, no errors.
+
+```
+python3 bench/agent_eval.py --heldout corpus/heldout/defects4j-7 --heldout corpus/heldout/swebench-6 \
+    --sample 8 --seed 1 --tasks defects4j,swebench --conditions raw,truncate,pare --trials 3
+```
+
+| condition | success | input tok | context max | turns | tool bytes |
+|---|---:|---:|---:|---:|---:|
+| raw | 48/48 | 7,383 | 7,383 | 1.0 | 14,661 |
+| truncate | 48/48 | 5,039 | 5,039 | 1.0 | 10,172 |
+| pare | 48/48 | 4,593 | 2,937 | 1.6 | 4,131 |
+
+Per case, the raw log's size, then successes and mean input tokens:
+
+| case | log | raw | truncate | pare |
+|---|---:|---:|---:|---:|
+| swebench-6/astropy__astropy-7166 | 2 KB | 3/3 · 1,156 | 3/3 · 1,156 | 3/3 · 1,732 |
+| swebench-6/sympy__sympy-19637 | 4 KB | 3/3 · 1,748 | 3/3 · 1,748 | 3/3 · 5,599 |
+| defects4j-7/Csv-5 | 4 KB | 3/3 · 1,901 | 3/3 · 1,901 | 3/3 · 1,926 |
+| defects4j-7/Lang-3 | 4 KB | 3/3 · 1,939 | 3/3 · 1,939 | 3/3 · 1,903 |
+| defects4j-7/Time-18 | 4 KB | 3/3 · 1,948 | 3/3 · 1,948 | 3/3 · 2,238 |
+| defects4j-7/Codec-10 | 4 KB | 3/3 · 2,032 | 3/3 · 2,032 | 3/3 · 4,800 |
+| swebench-6/scikit-learn-10844 | 4 KB | 3/3 · 2,046 | 3/3 · 2,046 | 3/3 · 1,980 |
+| defects4j-7/Compress-30 | 4 KB | 3/3 · 2,127 | 3/3 · 2,127 | 3/3 · 2,021 |
+| defects4j-7/Jsoup-69 | 6 KB | 3/3 · 3,352 | 3/3 · 3,352 | 3/3 · 2,922 |
+| defects4j-7/JxPath-15 | 9 KB | 3/3 · 4,557 | 3/3 · 4,557 | 3/3 · 7,148 |
+| swebench-6/django__django-13741 | 9 KB | 3/3 · 4,349 | 3/3 · 4,349 | 3/3 · 1,747 |
+| swebench-6/scikit-learn-12682 | 11 KB | 3/3 · 4,781 | 3/3 · 4,781 | 3/3 · 3,871 |
+| swebench-6/astropy__astropy-7606 | 18 KB | 3/3 · 8,824 | 3/3 · 8,824 | 3/3 · 10,092 |
+| defects4j-7/Gson-5 | 19 KB | 3/3 · 9,954 | 3/3 · 9,954 | 3/3 · 13,417 |
+| swebench-6/matplotlib-24026 | 64 KB | 3/3 · 33,316 | 3/3 · 15,281 | 3/3 · 5,982 |
+| swebench-6/pydata__xarray-3305 | 68 KB | 3/3 · 34,104 | 3/3 · 14,627 | 3/3 · 6,115 |
+
+- **Every condition named every failing test, 144 of 144.** Including
+  truncation: only two of these logs exceed its 30,000-character cut,
+  and in both the failures are in the tail, where pytest's summary puts
+  them. So this set does not separate the conditions on success. It
+  separates them on cost.
+- **pare pays on the two big logs and nowhere else.** matplotlib and
+  xarray, 64 and 68 KB, went from 33k to 6k tokens. Take those two out
+  and the picture inverts: on the fourteen logs of 2 to 19 KB the raw
+  output averaged 3,622 tokens per trial and pare 4,385, 21 % more,
+  at 1.6 turns against 1.0. The summary of a log the model can read
+  in one turn costs a round trip whenever the agent expands it, and it
+  expanded on seven of the sixteen cases, every trial the same way:
+  Codec-10, JxPath-15, Gson-5, astropy-7606, sympy-19637 cost more
+  than raw; matplotlib, xarray and scikit-learn-12682 expanded and
+  still came out ahead.
+- **The lead from the shipped tasks is now a finding.** `auto` passes
+  input through whole only up to 1,000 tokens, 2,000 bytes at the
+  current rate, and summarises everything above. On this evidence the
+  break-even for a one-turn diagnosis is near 20 KB, ten times that.
+  Which lines the agent went back for is in the transcripts
+  (`bench/agent-runs/20261029T172823Z/transcripts/`, local); the task
+  asks for each test's error message, and a Defects4J summary lists
+  failing tests compactly, so the messages are the likely gap.
+- **Where pare does win it wins on context, not just tokens.** Its
+  largest prompt averaged 2,937 tokens against raw's 7,383, and on the
+  big logs 6k against 34k; in a long session that is the number every
+  later turn carries.
+
+### Fourth run: the same cases with the pass-through at twice the ceiling
+
+The third run's sixteen cases again, three trials each, after `auto`'s
+pass-through moved from 1,000 tokens to twice the ceiling (4,000;
+`docs/DESIGN.md`, "The pass-through, from the agent runs"). Same model,
+effort and command; 144 trials, no errors. raw and truncate are
+unchanged by the change and came out as before; pare:
+
+| | third run | fourth run |
+|---|---:|---:|
+| success | 48/48 | 48/48 |
+| mean input tokens | 4,593 | 4,208 |
+| mean turns | 1.6 | 1.5 |
+| cases the agent expanded, every trial | 7 | 5 |
+| mean tokens on the 14 logs under 20 KB, against raw's 3,622 | 4,385 (+21 %) | 3,944 (+9 %) |
+
+| case | log | raw | pare, third | pare, fourth |
+|---|---:|---:|---:|---:|
+| astropy-7166 | 2 KB | 1,156 | 1,732 | 1,732 |
+| sympy-19637 | 4 KB | 1,748 | 5,599 | 2,322 |
+| Csv-5 | 4 KB | 1,901 | 1,926 | 2,465 |
+| Lang-3 | 4 KB | 1,939 | 1,903 | 2,503 |
+| Time-18 | 4 KB | 1,948 | 2,238 | 2,511 |
+| Codec-10 | 4 KB | 2,032 | 4,800 | 2,593 |
+| scikit-learn-10844 | 4 KB | 2,046 | 1,980 | 2,617 |
+| Compress-30 | 4 KB | 2,127 | 2,021 | 2,688 |
+| Jsoup-69 | 6 KB | 3,352 | 2,922 | 3,907 |
+| JxPath-15 | 9 KB | 4,557 | 7,148 | 6,869 |
+| django-13741 | 9 KB | 4,349 | 1,747 | 1,745 |
+| scikit-learn-12682 | 11 KB | 4,781 | 3,871 | 3,881 |
+| astropy-7606 | 18 KB | 8,824 | 10,092 | 7,382 |
+| Gson-5 | 19 KB | 9,954 | 13,417 | 12,005 |
+| matplotlib-24026 | 64 KB | 33,316 | 5,982 | 5,984 |
+| xarray-3305 | 68 KB | 34,104 | 6,115 | 6,122 |
+
+- **The two clear losses are gone.** Codec-10 and sympy-19637, 4 KB
+  logs the agent expanded in every trial, now print whole and take one
+  turn: 2.4 and 3.2 times raw's tokens before, 1.3 times now.
+- **Every passed-through case costs about 560 tokens more than raw,
+  and that is the harness, not pare.** The pare condition's prompt
+  carries the `pare` tool's schema and a paragraph on expanding a
+  summary; raw carries neither. On a 2 KB log that is a third of the
+  bill. Under the Claude Code hook an agent carries no such text, so
+  the fair reading of the eight small cases is a tie. The harness now
+  counts that fixed prompt once per trial and reports input net of it
+  (`corpus/agent/README.md`); the runs above predate that column, so
+  subtract about 560 from pare's column on any case that passed
+  through.
+- **Between 8 and 20 KB the picture stays mixed**: django-13741,
+  scikit-learn-12682 and now astropy-7606 win for the summary; JxPath-15
+  and Gson-5 lose by half and a fifth. Three to two is not a case for
+  a higher factor.
+- **Above 60 KB nothing changed**, as it should not: 5.6 and 5.6 to one.
+
+What this set cannot show: these are test runs that fit in a context
+window with room to spare, read once. The shipped tasks' outage log
+(535 KB) and the agent sessions the roadmap still wants are where
+truncation fails and the summary is the only way in.

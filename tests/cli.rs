@@ -221,8 +221,12 @@ fn ascii_marks_keep_the_budget_and_touch_no_log_text() {
     );
     assert!(text.lines().any(|l| l.starts_with("  | (")), "{text}");
     assert!(text.len() <= 600 * 28 / 10, "{}", text.len());
-    let auto = String::from_utf8(pare(&["--no-tee", "--ascii"], &input).stdout).unwrap();
-    assert!(auto.contains("(budget auto <=2,000)"), "{auto}");
+    // A ceiling low enough that this 3.8 KB log is summarised, not passed
+    // through (auto passes through up to twice its ceiling).
+    let auto =
+        String::from_utf8(pare(&["--budget", "auto:600", "--no-tee", "--ascii"], &input).stdout)
+            .unwrap();
+    assert!(auto.contains("(budget auto <=600)"), "{auto}");
 }
 
 #[test]
