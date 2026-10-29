@@ -1,4 +1,4 @@
-# pare: 2,470 lines, 267,515 B (~95,542 tok) → ~593 tok (budget 600) · 35 templates
+# pare: 2,470 lines, 267,515 B (~133,758 tok) → ~579 tok (budget 600) · 35 templates
 ## head (L1–L1)
 1: 10-13 09:12:00.012   512   566 I BatteryStatsService: In wakeup_callback: resumed from suspend
 ## templates (by salience)
@@ -7,11 +7,7 @@ T23  ×1 E L1609: 10-13 09:12:28.207  4321  4370 E SQLiteLog: (1) no such table:
 T24  ×1 E L1610: 10-13 09:12:28.213  4321  4370 E SQLiteDatabase: Error inserting body=Groceries for the week title=Groceries id=201 updated=1760390400
 T25  ×1 (8 lines) E L1611: 10-13 09:12:28.213  4321  4370 E SQLiteDatabase: android.database.sqlite.SQLiteException: no such table: notes_v2 (code 1 SQLITE_ERROR): , while compiling: INSERT INTO notes_v2(id,title,body,updated)…(+17c)
   ┆ (+7 more lines)
-T31  ×1 (23 lines) E L1744: 10-13 09:12:30.489  4321  4321 E AndroidRuntime: java.lang.NullPointerException: Attempt to invoke virtual method 'java.lang.String com.example.notes.data.Note.getTitle()' on a null object reference
-  ┆ (+22 more lines)
-T27  ×1 E L1740: 10-13 09:12:30.458  4321  4402 W OpenGLRenderer: Failed to choose config with EGL_SWAP_BEHAVIOR_PRESERVED, retrying without...
-T30  ×1 E L1743: 10-13 09:12:30.489  4321  4321 E AndroidRuntime: Process: com.example.notes, PID: 4321
 ## tail (L2470–L2470)
 2470: 10-13 09:12:43.176   512   660 I chatty  : uid=1000(system) android.display identical 22 lines
-## omitted 2,461/2,470 lines (99.6%): T5 ×296, T7 ×240, T10 ×232, T3 ×212 · +26 more templates; 28 templates not listed
+## omitted 2,464/2,470 lines (99.8%): T5 ×296, T7 ×240, T10 ×232, T3 ×212 · +28 more templates; 31 templates not listed
 ## raw: (not saved)

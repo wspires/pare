@@ -1,4 +1,4 @@
-# pare: 4,813 lines, 535,403 B (~191,216 tok) → ~743 tok (budget 1,000) · 14 templates
+# pare: 4,813 lines, 535,403 B (~267,702 tok) → ~993 tok (budget 1,000) · 14 templates
 ## head (L1–L3)
 1: 2026-10-07T09:00:00.000Z INFO  [main] starting inventory-api v2.14.3 (git 9f1c2…(+12c)
 2: 2026-10-07T09:00:00.012Z INFO  [main] config: db=postgres://db-primary.internal…(+42c)
@@ -19,12 +19,11 @@ T10  ×6 (42 lines) E L3003: 2026-10-07T09:01:01.288Z ERROR [worker-0] unhandled
 3002: 2026-10-07T09:01:01.281Z ERROR [worker-0] http: GET /api/v1/cart 500 1137ms rid…(+77c)
   ┆ (7 lines)
 3010: 2026-10-07T09:01:01.301Z WARN  [db] reconnect attempt 1/30 to db-primary.intern…(+44c)
-3011: 2026-10-07T09:01:01.319Z ERROR [worker-3] http: GET /api/v1/cart 500 4200ms rid…(+77c)
-  ┆ (33 lines)
+  ┆ (34 lines)
 3045: 2026-10-07T09:01:02.113Z ERROR [worker-6] unhandled exception in handler Orders…(+12c)
 ## tail (L4812–L4813)
 4812: 2026-10-07T09:01:38.741Z INFO  [main] received SIGTERM, draining 12 in-flight r…(+7c)
 4813: 2026-10-07T09:01:38.749Z INFO  [main] shutdown complete exit=0
-## omitted 4,794/4,813 lines (99.6%): T4 ×4,340, T9 ×178, T5 ×172, T7 ×39, T10 ×34, T11 ×25, T6 ×5, T13 ×1 · 11 templates not listed
+## omitted 4,795/4,813 lines (99.6%): T4 ×4,340, T9 ×179, T5 ×172, T7 ×39, T10 ×34, T11 ×25, T6 ×5, T13 ×1 · 11 templates not listed
 ## raw: (not saved)
    expand with: pare --only T<n> < raw   ·   drop noise: pare --except T<n>,T<m> < raw

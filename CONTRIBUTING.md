@@ -265,9 +265,9 @@ directory and reports output tokens and the share of must-survive lines
 text appears whole in the output, not run on into a longer name, after
 pare's compact lists of failing tests are written out in full;
 `--strict` matches the literal text; a keep line may list forms that
-each count as `a || b`. Tokens are bytes / 2.8, so a budget of
-2,000 is 2,000 real tokens (`bench/tokens.py` checks the rate against
-tiktoken).
+each count as `a || b`. Tokens are bytes / 2.0, so a budget of
+2,000 is 2,000 real Claude tokens (`bench/tokens.py` checks the rate
+against tiktoken and, with `--anthropic MODEL`, Anthropic's count).
 
 ```
 .venv/bin/pip install -r bench/requirements.txt    # tidyout; see below for sqz

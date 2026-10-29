@@ -1,4 +1,4 @@
-# pare: 4,813 lines, 535,403 B (~191,216 tok) → ~888 tok (budget 2,000) · 14 templates
+# pare: 4,813 lines, 535,403 B (~267,702 tok) → ~1,244 tok (budget 2,000) · 14 templates
 ## head (L1–L3)
 1: 2026-10-07T09:00:00.000Z INFO  [main] starting inventory-api v2.14.3 (git 9f1c2ab) pid=4182
 2: 2026-10-07T09:00:00.012Z INFO  [main] config: db=postgres://db-primary.internal:5432/inv pool=20 cache=redis://cache:6379

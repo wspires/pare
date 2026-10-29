@@ -9,6 +9,11 @@ builds, labelled by the trigger tests and their exceptions). No set yet
 holds logs from real agent sessions; that is the gap, and the first
 section says how to fill it.
 
+Every number in this record before 29 October 2026 is at 2.8 bytes per
+token, the default then; the default is 2.0 since (`docs/DESIGN.md`,
+"Tokens and the budget"), and the README's table carries the latest two
+samples at that rate. The agent-success run below used 2.8 too.
+
 One rule governs the directory: a sample is measured before anyone reads
 it, and once a change to pare has been judged on it, it is spent and the
 next fresh sample measures that change. The record below says, for each

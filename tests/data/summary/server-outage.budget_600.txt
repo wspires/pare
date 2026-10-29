@@ -1,19 +1,14 @@
-# pare: 4,813 lines, 535,403 B (~191,216 tok) → ~585 tok (budget 600) · 14 templates
-## head (L1–L2)
+# pare: 4,813 lines, 535,403 B (~267,702 tok) → ~585 tok (budget 600) · 14 templates
+## head (L1–L1)
 1: 2026-10-07T09:00:00.000Z INFO  [main] starting inventory-api v2.14.3 (git 9f1c2ab) pid=4182
-2: 2026-10-07T09:00:00.012Z INFO  [main] config: db=postgres://db-primary.internal:5432/inv pool=20 cache=redis://cache:6379
 ## templates (by salience)
 T12  ×1 E L3250: 2026-10-07T09:01:05.848Z FATAL [db] giving up after 30 reconnect attempts; circuit breaker OPEN for 60s
 T8   ×1 E L3001: 2026-10-07T09:01:01.277Z ERROR [db] connection to db-primary.internal:5432 lost: read tcp 10.4.1.17:53022->10.4.2.5:5432: connection reset by peer
 T10  ×6 (42 lines) E L3003: 2026-10-07T09:01:01.288Z ERROR [worker-0] unhandled exception in handler OrdersHandler.list
 3004:     psycopg.OperationalError: connection failed: server closed the connection unexpectedly
-3005:         at inventory/db/pool.py:212 in acquire
-3006:         at inventory/db/pool.py:188 in _checkout
-  ┆ (+3 more lines)
+  ┆ (+5 more lines)
 T9   ×180 E L3002: 2026-10-07T09:01:01.281Z ERROR [worker-0] http: GET /api/v1/cart 500 1137ms rid=bb94b0cd err="pool exhausted: timed out waiting for connection after 5000ms"
-T11  ×26 E L3010: 2026-10-07T09:01:01.301Z WARN  [db] reconnect attempt 1/30 to db-primary.internal:5432 failed: dial tcp: connection refused
-## tail (L4812–L4813)
-4812: 2026-10-07T09:01:38.741Z INFO  [main] received SIGTERM, draining 12 in-flight requests
+## tail (L4813–L4813)
 4813: 2026-10-07T09:01:38.749Z INFO  [main] shutdown complete exit=0
-## omitted 4,801/4,813 lines (99.8%): T4 ×4,340, T9 ×179, T5 ×172, T7 ×40 · +5 more templates; 9 templates not listed
+## omitted 4,806/4,813 lines (99.9%): T4 ×4,340, T9 ×179, T5 ×172, T7 ×40 · +7 more templates; 10 templates not listed
 ## raw: (not saved)

@@ -47,7 +47,7 @@ pub struct Args {
     /// was named.
     #[command(subcommand)]
     pub cmd: Option<Cmd>,
-    /// Output budget in tokens (bytes/2.8 by default). `auto` or `auto:N`
+    /// Output budget in tokens (bytes/2.0 by default). `auto` or `auto:N`
     /// stops early when little is left worth showing, at most 2000 (or N);
     /// a number is a fixed budget the summary fills
     /// [default: $PARE_BUDGET, else auto]
@@ -66,8 +66,8 @@ pub struct Args {
     /// Clip lines longer than this (at least 10)
     #[arg(long, default_value_t = 200, value_parser = clap::value_parser!(i64).range(10..), help_heading = "Summary")]
     pub width: i64,
-    /// Bytes per token for the budget and the token estimate (2.8, measured
-    /// on common tokenizers; 4 is the prose rule of thumb)
+    /// Bytes per token for the budget and the token estimate (2.0, measured
+    /// on Claude's tokenizer; 2.8 for cl100k/o200k, 4 the prose rule of thumb)
     #[arg(long = "bytes-per-token", alias = "chars-per-token", value_name = "N", default_value_t = DEFAULT_CHARS_PER_TOKEN, help_heading = "Summary")]
     pub chars_per_token: f64,
     /// pare's own marks in ASCII (-> x | ... <=) instead of → × · ┆ … ≤
@@ -767,7 +767,7 @@ mod tests {
             (a.budget(), a.head, a.tail, a.width, a.every),
             (2000, 5, 10, 200, 20000)
         );
-        assert!((a.chars_per_token - 2.8).abs() < f64::EPSILON);
+        assert!((a.chars_per_token - 2.0).abs() < f64::EPSILON);
         assert_eq!(a.flush_on, "error");
     }
 

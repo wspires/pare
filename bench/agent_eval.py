@@ -81,7 +81,7 @@ RUNS_DIR = os.path.join(ROOT, "bench", "agent-runs")
 HOOK_PATH = os.path.join(ROOT, "integrations", "claude-code", "pare-hook.py")
 
 DEFAULT_MODEL = "claude-opus-5-5"
-BYTES_PER_TOKEN = 2.8  # pare's own proxy, for the dry run; real counts come from the API
+BYTES_PER_TOKEN = 2.0  # pare's own proxy, for the dry run; real counts come from the API
 
 SYSTEM_FIX = """You are a software engineer working in a checkout of a project, through a bash tool.
 Fix what the task describes, run the project's own checks to confirm, then stop and

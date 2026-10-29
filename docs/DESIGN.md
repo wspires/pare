@@ -131,10 +131,12 @@ drain3, by tests on every log in the repository.
 
 ## Tokens and the budget
 
-**What a token is here.** pare counts tokens as `ceil(bytes / 2.8)` of
+**What a token is here.** pare counts tokens as `ceil(bytes / 2.0)` of
 UTF-8 text, for its own output and for the budget, and the benchmark uses
-the same rule for every tool. This is a proxy, not a tokenizer; 2.8 is the
-measured rate below, and `--bytes-per-token` changes it. Four bytes per
+the same rule for every tool. This is a proxy, not a tokenizer; 2.0 is the
+rate measured on Claude's tokenizer below (2.8, the default until 29
+October 2026, is the rate on OpenAI's), and `--bytes-per-token` changes
+it. Four bytes per
 token is the usual rule of thumb for English prose, and the default while
 the heuristics were developed; log text is denser in tokens because
 paths, hashes, hex, punctuation and digits split into many short pieces.
@@ -175,18 +177,20 @@ outputs through Anthropic's `count_tokens` API. **Measured on 29 October
 | pare output at budget 2000 | 2.85 | 2.83 | 1.96 |
 
 Per file Claude's rate on pare's output runs from 1.78 to 2.14 bytes per
-token, a third denser than the OpenAI tokenizers. So for a Claude agent
-the 2.8 default overstates the budget: `--budget 2000` prints about
-2,870 Claude tokens and `--budget 600` about 860. The honest setting
-for Claude is `--bytes-per-token 2.0`; at the same nominal budgets that
-is a 30 % smaller summary, and on the recall benchmark it costs 25
-points at 600 on the dev corpus (78 % to 53 %), 16 on Defects4J (90 % to
-74 %) and 17 on SWE-bench (62 % to 45 %), and one to five points at
-2,000. Whether the default moves to 2.0, with the budgets in the README
-restated, is open (ROADMAP.md, "Claude token rate").
+token, a third denser than the OpenAI tokenizers. So at 2.8 a Claude
+agent got more than the budget said: `--budget 2000` printed about
+2,870 Claude tokens and `--budget 600` about 860. **The default is 2.0
+since 29 October 2026.** At the same nominal budgets that is a 30 %
+smaller summary, and on the recall benchmark it costs 25 points at 600
+on the dev corpus (78 % to 53 %), 16 on Defects4J seed 7 (90 % to 74 %)
+and 17 on SWE-bench seed 5 (62 % to 45 %), and one to five points at
+2,000; the README's tables are at the new rate, and every number in
+HISTORY.md and in the held-out record before that date is at 2.8. A
+budget of 600 is now 1,200 bytes, too little for a run with several
+failures; 1,000 to 2,000 is the working range.
 
-So the default is `--bytes-per-token 2.8`, the measured value for these
-tokenizers on this corpus, and the budget is a real-token ceiling. At
+So the default was `--bytes-per-token 2.8` from the first measurement
+until the Claude one above, and the budget is a real-token ceiling. At
 `--budget 2000` that produced at most 1,982 cl100k tokens per file (9,794
 in total) and kept 72 of 73 must-survive lines (98.6 %, min 93 %). At 600
 it is 30 % less text than the bytes/4 setting and recall drops to 75 %
@@ -286,7 +290,9 @@ SWE-bench seed 5 agree: `auto` keeps what 2,000 keeps (37 of 37, 27 of
 **The default since.** With four fresh samples where `auto` loses
 nothing against `--budget 2000` and costs 21 to 31 % fewer tokens, it is
 pare's default: no `--budget` means `auto` (at most 2,000), and a number
-is a fixed budget as before. The cost is a less predictable output size
+is a fixed budget as before. (Those figures are at 2.8 bytes per token;
+at the 2.0 default `auto` keeps what 2,000 keeps on the same two samples
+at 77 % and 83 % of its tokens.) The cost is a less predictable output size
 (from a few hundred tokens to the ceiling) for the same command.
 `PARE_REFERENCE_RULES=1` restores the Python version's fixed 2,000, so
 parity is unchanged (it passes `--budget` on every run anyway).
@@ -506,7 +512,7 @@ columns, not shown, grow with every term on.
 
 ## Allocation
 
-The budget is `--budget` tokens at `bytes / 2.8` (`--bytes-per-token`),
+The budget is `--budget` tokens at `bytes / 2.0` (`--bytes-per-token`),
 and it is a hard limit. In outline, with the rules below filling in each
 step:
 

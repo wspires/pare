@@ -574,7 +574,7 @@ fn command_mode_keeps_the_exit_code_and_records_the_run() {
         "{text}"
     );
     assert!(
-        text.contains("\n  \"exit\": 3,\n") && text.contains("\n  \"chars_per_token\": 2.8\n}\n"),
+        text.contains("\n  \"exit\": 3,\n") && text.contains("\n  \"chars_per_token\": 2.0\n}\n"),
         "{text}"
     );
     // `pare stats` reads the records back.
@@ -650,7 +650,7 @@ fn follow_writes_a_block_per_window() {
     assert!(headers[1].contains("nothing new"), "{text}");
     assert!(
         text.ends_with(
-            "# pare: end of input · 32 lines, 600 B (~215 tok) · 2 templates · raw: (not saved)\n"
+            "# pare: end of input · 32 lines, 600 B (~300 tok) · 2 templates · raw: (not saved)\n"
         ),
         "{text}"
     );

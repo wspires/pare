@@ -6,10 +6,10 @@ budget with tiktoken's cl100k_base and o200k_base (and any Hugging Face
 tokenizer JSON given with --hf), and prints bytes per token for each, next to the bytes/4 rule of thumb.
 The pare runs use --bytes-per-token 4 so the proxy error is visible; with
 --bytes-per-token it also runs pare calibrated to that value (pare's
-default is 2.8) and reports the real token count and recall per case.
+default is 2.0) and reports the real token count and recall per case.
 
 Usage
-    python bench/tokens.py [--budgets 600,2000] [--bytes-per-token 2.8] [--hf tokenizer.json] [--anthropic MODEL]
+    python bench/tokens.py [--budgets 600,2000] [--bytes-per-token 2.0] [--hf tokenizer.json] [--anthropic MODEL]
 
 Needs `pip install tiktoken` (and `tokenizers` for --hf). tiktoken fetches
 its vocabularies on first use; behind a proxy, point TIKTOKEN_CACHE_DIR at
