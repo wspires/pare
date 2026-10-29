@@ -71,12 +71,11 @@ real credentials or a decision that is not the code's to make.
   the two 4 KB cases that expanded every trial print whole and take one
   turn, and the 8 to 20 KB cases split three to two for the summary, so
   the factor stays at two.
-- [ ] **State the harness's own overhead.** In the pare condition the
-  prompt carries the `pare` tool's schema and a paragraph on expanding,
-  about 560 tokens that raw's prompt does not, which is a third of the
-  bill on a 2 KB log and makes a passed-through case read as a loss.
-  Count the prompt once per run with an empty output, print it with the
-  totals, and show the per-task columns net of it. *Repo.*
+- [x] **State the harness's own overhead.** Each trial counts its
+  fixed prompt (system text, tool schemas, the task prompt with no
+  output) with one free `count_tokens` call; the summary shows it and
+  the input net of it, once per turn, in the condition table and the
+  per-task cells (`corpus/agent/README.md`).
 
 ### Candidates, not before evidence asks
 

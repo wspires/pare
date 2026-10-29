@@ -113,8 +113,16 @@ effort and pare version from `config.json`.
 
 The output of one run is a table per task kind: success rate, mean
 score, input tokens over the whole trial (cache reads and writes
-included), output tokens, the largest single prompt, turns, and the
-bytes of command output the agent was shown.
+included), the fixed prompt and the input net of it, output tokens,
+the largest single prompt, turns, and the bytes of command output the
+agent was shown. The fixed prompt is counted once per trial with a free
+`count_tokens` call on the system text, the tool schemas and the task
+prompt with no output in it. It differs by condition (the pare
+condition carries a `pare` tool and a paragraph on expanding, about
+560 tokens that raw does not) and is resent every turn, so on a small
+log it is a third of the bill; the net column, and the "(net N)" in
+the per-task cells, take it off once per turn and are the fair
+comparison of what each condition's output cost.
 
 A note on what this can and cannot show. Success on a fix task is the
 check command passing, which an agent can reach by a route the summary

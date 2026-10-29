@@ -979,10 +979,11 @@ unchanged by the change and came out as before; pare:
   carries the `pare` tool's schema and a paragraph on expanding a
   summary; raw carries neither. On a 2 KB log that is a third of the
   bill. Under the Claude Code hook an agent carries no such text, so
-  the fair reading of the eight small cases is a tie. The harness
-  could state the overhead per run (count the prompt once with no
-  output) and show it beside the totals; until it does, subtract about
-  560 from pare's column on any case that passed through.
+  the fair reading of the eight small cases is a tie. The harness now
+  counts that fixed prompt once per trial and reports input net of it
+  (`corpus/agent/README.md`); the runs above predate that column, so
+  subtract about 560 from pare's column on any case that passed
+  through.
 - **Between 8 and 20 KB the picture stays mixed**: django-13741,
   scikit-learn-12682 and now astropy-7606 win for the summary; JxPath-15
   and Gson-5 lose by half and a fifth. Three to two is not a case for

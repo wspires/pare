@@ -182,15 +182,16 @@ def test_cargo_inventory_fails_as_shipped_and_passes_when_fixed(tmp_path):
 def test_summary_table():
     records = [
         {"task": "a", "kind": "fix", "condition": "raw", "trial": 1, "success": True, "score": 1.0,
-         "usage": {"total_input": 1000, "output": 100, "turns": 3, "context_max": 800}, "tool_result_bytes": 5000},
+         "usage": {"total_input": 1000, "output": 100, "turns": 3, "context_max": 800}, "tool_result_bytes": 5000,
+         "prompt_tokens": 200, "net_input": 400},
         {"task": "a", "kind": "fix", "condition": "pare", "trial": 1, "success": False, "score": 0.0,
          "usage": {"total_input": 300, "output": 90, "turns": 4, "context_max": 200}, "tool_result_bytes": 900},
         {"task": "a", "kind": "fix", "condition": "pare", "trial": 2, "success": False, "score": 0.0, "error": "boom"},
     ]
     text = ae.summarize(records)
-    assert "| raw | 1 | 100 % | 1.00 | 1,000 | 100 | 800 | 3.0 | 5,000 | 0 |" in text
-    assert "| pare | 2 | 0 % | 0.00 | 300 | 90 | 200 | 4.0 | 900 | 1 |" in text
-    assert "| a | 1/1 · 1,000 tok | 0/2 · 300 tok |" in text
+    assert "| raw | 1 | 100 % | 1.00 | 1,000 | 200 | 400 | 100 | 800 | 3.0 | 5,000 | 0 |" in text
+    assert "| pare | 2 | 0 % | 0.00 | 300 | - | - | 90 | 200 | 4.0 | 900 | 1 |" in text  # no count recorded
+    assert "| a | 1/1 · 1,000 tok (net 400) | 0/2 · 300 tok |" in text
 
 
 # --- the loop, end to end, against a scripted stand-in for the model
@@ -249,7 +250,13 @@ class FakeClient:
         class _Beta:
             messages = _Messages()
 
+        class _Counting:
+            def count_tokens(_self, **kwargs):
+                # A stand-in count: the fixed prompt is 700 tokens, plus 100 per tool.
+                return _Usage(700 + 100 * len(kwargs.get("tools") or []), 0)
+
         self.beta = _Beta()
+        self.messages = _Counting()
 
 
 def test_fix_trial_end_to_end_with_scripted_agent(tmp_path):
@@ -267,6 +274,7 @@ def test_fix_trial_end_to_end_with_scripted_agent(tmp_path):
     assert r["success"] and r["ended"] == "done" and r["answer"] == "Fixed four bugs."
     assert r["usage"]["turns"] == 3 and r["usage"]["total_input"] == 3500 + 3500 + 1200
     assert r["usage"]["context_max"] == 3500 and r["usage"]["output"] == 210
+    assert r["prompt_tokens"] == 800 and r["net_input"] == 8200 - 3 * 800  # one tool, three turns
     assert r["initial_result_bytes"] > 100_000  # the raw pytest run
     assert r["tool_result_bytes"] > r["initial_result_bytes"]
     assert os.path.exists(os.path.join(ae.ROOT, r["transcript"]))
@@ -298,6 +306,7 @@ def test_diagnose_trial_with_pare_expansion(tmp_path):
     assert "error" not in r, r
     assert r["success"] and r["score"] == 1.0 and r["missed"] == []
     assert client.requests[0]["tools"] == [ae.PARE_TOOL] and client.requests[0]["betas"] == ["server-side-fallback-2026-07-01"]
+    assert r["prompt_tokens"] == 800 and r["net_input"] == r["usage"]["total_input"] - 800 * r["usage"]["turns"]
     assert "summarised by `pare`" in client.requests[0]["messages"][0]["content"]
     r2 = ae.run_trial(FakeClient(["PricingTest failed."]), o, task, ae.Pare(o), 2, str(tmp_path))
     assert not r2["success"] and r2["score"] == pytest.approx(0.0) and len(r2["missed"]) == 3

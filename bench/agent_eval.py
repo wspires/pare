@@ -604,6 +604,21 @@ def initial_result(task: Task, cond: Condition, workspace: str | None, work: str
     return cond.wrap_log(task, work), None
 
 
+def prompt_tokens(client, opts, system: str, tools: list[dict], user: str) -> int | None:
+    """What the fixed part of a trial's prompt costs, in the model's own
+    count: the system text, the tool schemas and the task prompt with no
+    command output in it. It is paid on every turn, and it differs by
+    condition (the pare condition carries a tool and a paragraph on
+    expanding), so the per-task tables show tokens net of it. One free
+    count_tokens call; None when the client cannot count."""
+    try:
+        return client.messages.count_tokens(
+            model=opts.model, system=[{"type": "text", "text": system}], tools=tools,
+            messages=[{"role": "user", "content": user}]).input_tokens
+    except Exception:  # an older SDK, or a stand-in for the client
+        return None
+
+
 def user_message(task: Task, cond: Condition, output: str, code: int | None) -> str:
     parts = [task.prompt]
     if cond.instructions():
@@ -650,9 +665,14 @@ def run_trial(client, opts, task: Task, cond: Condition, trial: int, out_dir: st
 
         tools = [BASH_TOOL] if task.kind == "fix" else cond.tools(task)
         system = SYSTEM_FIX if task.kind == "fix" else SYSTEM_DIAGNOSE
+        fixed = prompt_tokens(client, opts, system, tools, user_message(task, cond, "", code))
         final, usage, messages, ended = run_agent(client, opts, system, user_message(task, cond, output, code), tools, execute)
         record.update(usage=usage.as_dict(), ended=ended, tool_result_bytes=tool_bytes, answer=final,
-                      commands=commands["run"], commands_wrapped=commands["wrapped"])
+                      commands=commands["run"], commands_wrapped=commands["wrapped"], prompt_tokens=fixed)
+        if fixed is not None:
+            # The input the trial spent on command output and conversation: the
+            # fixed prompt is resent on every turn, so it comes off once per turn.
+            record["net_input"] = usage.total_input - fixed * usage.turns
         if task.kind == "fix":
             check_out, check_code = run_shell(task.check, workspace, env, opts.command_timeout)
             record["success"] = check_code == 0
@@ -694,17 +714,20 @@ def summarize(records: list[dict]) -> str:
     for kind in kinds:
         rows = [r for r in records if r["kind"] == kind]
         lines.append(f"### {kind} tasks ({len({r['task'] for r in rows})} tasks, {len(rows)} trials)\n")
-        lines.append("| condition | trials | success | score | input tok | output tok | context max | turns | tool bytes | errors |")
-        lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+        lines.append("| condition | trials | success | score | input tok | prompt tok | net input | output tok | context max | turns | tool bytes | errors |")
+        lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
         for c in conds:
             rs = [r for r in rows if r["condition"] == c]
             if not rs:
                 continue
             ok = [r for r in rs if "usage" in r]
             errs = len(rs) - len(ok)
+            counted = [r for r in ok if r.get("net_input") is not None]
+            fixed = f"{mean(r['prompt_tokens'] for r in counted):,.0f}" if counted else "-"
+            net = f"{mean(r['net_input'] for r in counted):,.0f}" if counted else "-"
             lines.append(
                 f"| {c} | {len(rs)} | {100 * mean(r['success'] for r in rs):.0f} % | {mean(r['score'] for r in rs):.2f} "
-                f"| {mean(r['usage']['total_input'] for r in ok):,.0f} | {mean(r['usage']['output'] for r in ok):,.0f} "
+                f"| {mean(r['usage']['total_input'] for r in ok):,.0f} | {fixed} | {net} | {mean(r['usage']['output'] for r in ok):,.0f} "
                 f"| {mean(r['usage']['context_max'] for r in ok):,.0f} | {mean(r['usage']['turns'] for r in ok):.1f} "
                 f"| {mean(r['tool_result_bytes'] for r in ok):,.0f} | {errs} |")
         lines.append("")
@@ -719,12 +742,17 @@ def summarize(records: list[dict]) -> str:
                     continue
                 ok = [r for r in rs if "usage" in r]
                 tok = f"{mean(r['usage']['total_input'] for r in ok):,.0f}" if ok else "err"
-                cells.append(f"{sum(r['success'] for r in rs)}/{len(rs)} · {tok} tok")
+                counted = [r for r in ok if r.get("net_input") is not None]
+                net = f" (net {mean(r['net_input'] for r in counted):,.0f})" if counted else ""
+                cells.append(f"{sum(r['success'] for r in rs)}/{len(rs)} · {tok} tok{net}")
             lines.append(f"| {task} | " + " | ".join(cells) + " |")
         lines.append("")
     lines.append("Success: a fix task's check command exits 0; a diagnose task's answer names every expected finding. "
-                 "Input tokens count every turn's prompt (cache reads and writes included); context max is the "
-                 "largest single prompt. Tool bytes is what the agent was shown of command output.")
+                 "Input tokens count every turn's prompt (cache reads and writes included). Prompt tok is the fixed "
+                 "part of a trial's prompt (system text, tool schemas, the task prompt without the command output), "
+                 "which differs by condition and is resent every turn; net input is input tokens less that, once per "
+                 "turn: what the trial spent on command output and conversation. Context max is the largest single "
+                 "prompt. Tool bytes is what the agent was shown of command output.")
     return "\n".join(lines)
 
 
