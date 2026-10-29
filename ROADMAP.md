@@ -40,10 +40,15 @@ real credentials or a decision that is not the code's to make.
   into held-out cases with keep lists written before pare's output is
   looked at (`corpus/heldout/README.md`, "Protocol"). Aim for 15 to 20.
   *Maintainer, on a machine whose transcripts persist.*
-- [ ] **Claude token rate.** `bench/tokens.py --anthropic claude-opus-5-5`
-  on a machine with credentials. If the rate differs much from the 2.8
-  bytes per token measured on cl100k and o200k, change the default.
-  *Maintainer.*
+- [ ] **Claude token rate.** Measured on 29 October 2026: Claude Opus
+  5.5 tokenizes pare's output at 1.96 bytes per token against 2.82 for
+  cl100k and o200k (`docs/DESIGN.md`, "Tokens and the budget"), so a
+  `--budget 2000` summary is about 2,870 Claude tokens. The decision:
+  move the default to 2.0 (every summary shrinks by 30 %; recall at 600
+  drops 16 to 25 points on the benchmarks, one to five at 2,000; the
+  README's tables, the golden files and parity all move with it), keep
+  2.8 and document the Claude rate, or let `auto` pick the rate from
+  `$PARE_MODEL`. *Maintainer.*
 - [x] **Agent-success eval.** `bench/agent_eval.py` runs an agent on each
   task in `corpus/agent/` with the raw output, a truncation, pare's
   summary, sqz or tidyout as its tool result (`corpus/agent/README.md`).

@@ -164,10 +164,26 @@ output 1.1 % against 1.3 %.
 
 Claude is a main target and its current tokenizer is none of the three
 above. `bench/tokens.py --anthropic claude-opus-5-5` counts the same
-outputs through Anthropic's `count_tokens` API (it needs the `anthropic`
-package and credentials, which the development container did not have);
-run it before trusting the 2.8 default for a Claude agent, and pass the
-measured value as `--bytes-per-token` if it differs much.
+outputs through Anthropic's `count_tokens` API. **Measured on 29 October
+2026** over the nine dev-corpus files with Claude Opus 5.5's tokenizer
+(the one Opus 4.7 and later share):
+
+| text | cl100k | o200k | Claude Opus 5.5 |
+|---|---|---|---|
+| raw corpus, 1.63 MB | 2.59 | 2.59 | 1.80 |
+| pare output at budget 600 | 2.82 | 2.82 | 1.96 |
+| pare output at budget 2000 | 2.85 | 2.83 | 1.96 |
+
+Per file Claude's rate on pare's output runs from 1.78 to 2.14 bytes per
+token, a third denser than the OpenAI tokenizers. So for a Claude agent
+the 2.8 default overstates the budget: `--budget 2000` prints about
+2,870 Claude tokens and `--budget 600` about 860. The honest setting
+for Claude is `--bytes-per-token 2.0`; at the same nominal budgets that
+is a 30 % smaller summary, and on the recall benchmark it costs 25
+points at 600 on the dev corpus (78 % to 53 %), 16 on Defects4J (90 % to
+74 %) and 17 on SWE-bench (62 % to 45 %), and one to five points at
+2,000. Whether the default moves to 2.0, with the budgets in the README
+restated, is open (ROADMAP.md, "Claude token rate").
 
 So the default is `--bytes-per-token 2.8`, the measured value for these
 tokenizers on this corpus, and the budget is a real-token ceiling. At
