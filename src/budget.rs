@@ -11,10 +11,12 @@
 /// Bytes per token unless `--bytes-per-token` says otherwise.
 pub const DEFAULT_CHARS_PER_TOKEN: f64 = 2.0;
 
-/// An automatic budget passes input through whole only up to this many
-/// tokens (or its ceiling, if lower); a fixed budget does up to the budget.
-/// Tuned with `bench/run.py`: see `docs/DESIGN.md`, "Automatic budget".
-pub const AUTO_PASSTHROUGH_TOKENS: i64 = 1000;
+/// An automatic budget passes input through whole up to this many times
+/// its ceiling (4,000 tokens by default); a fixed budget does up to the
+/// budget. Set from the agent runs, not the recall benchmark: a summary
+/// of output the model can read in one turn cost a round trip more often
+/// than it saved tokens. See `docs/DESIGN.md`, "Automatic budget".
+pub const AUTO_PASSTHROUGH_FACTOR: i64 = 2;
 
 /// An automatic budget sizes the head and tail windows as a budget of this
 /// many tokens would (or its ceiling, if lower), so a higher ceiling does
@@ -55,7 +57,15 @@ impl Budget {
     /// Input up to this many bytes is the output, unchanged.
     #[must_use]
     pub fn passthrough_bytes(&self) -> i64 {
-        self.capped(AUTO_PASSTHROUGH_TOKENS).bytes()
+        if self.auto {
+            Budget {
+                tokens: self.tokens * AUTO_PASSTHROUGH_FACTOR,
+                ..*self
+            }
+            .bytes()
+        } else {
+            self.bytes()
+        }
     }
 
     /// The budget, in bytes, that the head and tail windows are sized for.
@@ -137,8 +147,8 @@ mod tests {
             auto: true,
             ..B
         };
-        assert_eq!(auto(600).passthrough_bytes(), 1200);
-        assert_eq!(auto(4000).passthrough_bytes(), 2000);
+        assert_eq!(auto(600).passthrough_bytes(), 2400); // twice the ceiling
+        assert_eq!(auto(4000).passthrough_bytes(), 16_000);
         assert_eq!(auto(4000).sizing_bytes(), 4000);
         assert_eq!(auto(4000).bytes(), 8000); // still the ceiling
     }

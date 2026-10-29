@@ -160,11 +160,14 @@ tokenizer of the current Claude models, through Anthropic's token-count
 API (`--bytes-per-token` changes it: 2.8 is the rate for OpenAI's cl100k
 and o200k tokenizers, and the default until October 2026).
 
-By default the size follows the log (`auto`): pare stops once what is
-left is below error level, at most 2,000 tokens. On the latest held-out
-samples it kept what a fixed 2,000 kept at about 80 % of the tokens
-([Results](#results)).
-`--budget auto:4000` raises the ceiling; `--budget N` is a fixed budget
+By default the size follows the log (`auto`): output under 4,000
+tokens is printed whole, since on the agent runs a summary of a log
+that size cost a round trip more often than it saved tokens; above
+that pare summarises, and stops once what is left is below error level,
+at most 2,000 tokens. On the latest held-out samples it keeps what a
+fixed 2,000 keeps ([Results](#results)).
+`--budget auto:4000` raises the ceiling (and the pass-through, which is
+twice it); `--budget N` is a fixed budget
 the summary fills (1,000 to 2,000 suits an agent loop; 600 is tight, see
 [Results](#results)). Without
 `--budget`, pare takes `$PARE_BUDGET`, else `auto`, so a harness can set
@@ -312,7 +315,7 @@ training scores.
 | tool | output tokens | share of input | lines kept |
 |---|---|---|---|
 | pare 0.2.0, `--budget 2000` | 12,812 | 1.6 % | 99 % |
-| pare 0.2.0, `--budget auto` | 11,401 | 1.4 % | 98 % |
+| pare 0.2.0, `--budget auto` | 12,388 | 1.5 % | 98 % |
 | pare 0.2.0, `--budget 600` | 5,017 | 0.6 % | 53 % |
 | sqz 1.9.0 | 375,276 | 55 % | 55 % |
 | tidyout 0.2.0 | 411,114 | 60 % | 89 % |
@@ -336,8 +339,13 @@ training data and a new one is drawn. The latest, measured blind:
 
 | sample | cases | pare 0.2.0 (600 / 1,000 / 2,000) | `auto` |
 |---|---:|---|---|
-| Defects4J, seed 7 | 16 | 86 / 92 / 100 % | 100 % at 77 % of the tokens of 2,000 |
-| SWE-bench Verified, seed 5 | 17 | 56 / 70 / 100 % | 100 % at 83 % |
+| Defects4J, seed 7 | 16 | 86 / 92 / 100 % | 100 % at 125 % of the tokens of 2,000 |
+| SWE-bench Verified, seed 5 | 17 | 56 / 70 / 100 % | 100 % at 96 % |
+
+`auto` prints more than a fixed 2,000 on the Defects4J sample because
+most of those builds are under 8 KB and pass through whole, which the
+agent runs showed to be cheaper than a summary the agent then expands
+([docs/DESIGN.md](docs/DESIGN.md#automatic-budget)).
 
 Measured at the Claude rate of 2.0 bytes per token, the default since
 29 October 2026; the same samples at the old rate, and the numbers

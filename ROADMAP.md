@@ -61,16 +61,17 @@ real credentials or a decision that is not the code's to make.
   logs over 60 KB; on the fourteen of 2 to 19 KB it cost 21 % more, at
   1.6 turns against 1.0, because the agent expanded the summary on
   seven of sixteen cases (`corpus/heldout/README.md`, "Third run").
-- [ ] **Raise `auto`'s pass-through.** `auto` summarises anything over
-  1,000 tokens (2,000 bytes at the current rate); three agent runs put
-  the break-even for output the model reads in one turn near 20 KB,
-  where the recall benchmark cannot see a cost because it does not
-  count the round trip. Read the transcripts of the seven expanded
-  held-out cases for what the agent went back for (the error messages
-  that a compact failing-test list drops, probably), then set the
-  pass-through from them, and measure the change with the agent
-  harness, not the recall one: it is the only measurement here that
-  prices a turn. *Maintainer, then repo.*
+- [x] **Raise `auto`'s pass-through.** From 1,000 tokens to twice the
+  ceiling, 4,000 by default, on the three agent runs' evidence
+  (`docs/DESIGN.md`, "The pass-through, from the agent runs"). The
+  recall benchmark is unchanged by it.
+- [ ] **Measure the new pass-through with the agent harness.** Rerun the
+  held-out agent run (`corpus/heldout/README.md`, "Third run", the
+  command is there) on the same sixteen cases: the five 4 to 8 KB cases
+  that cost more than raw should now tie it, and the three expanded
+  cases between 8 and 20 KB say whether the factor should be higher.
+  The recall benchmark cannot measure this: it does not count a turn.
+  *Maintainer.*
 
 ### Candidates, not before evidence asks
 

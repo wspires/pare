@@ -216,7 +216,8 @@ things change, and nothing else:
 - **Pass-through up to 1,000 tokens** (or the ceiling, if lower) instead
   of up to the budget. A fixed budget of 2,000 passes a 1,900-token log
   through whole; that was 77 of the 179 benchmark cases and 41 % of the
-  output tokens.
+  output tokens. *Reversed on 29 October 2026, to twice the ceiling: see
+  "The pass-through, from the agent runs" below.*
 - **Head and tail windows sized for 2,000 tokens** at most, so a higher
   ceiling does not lengthen them.
 
@@ -262,6 +263,41 @@ second, SWE-bench seed 4 (18 tasks), keeps 29 of 30 with `auto` at
 the same at every budget and is not `auto`'s. Defects4J seed 7 and
 SWE-bench seed 5 agree: `auto` keeps what 2,000 keeps (37 of 37, 27 of
 27) at 69 % and 79 % of its tokens.
+
+**The pass-through, from the agent runs.** The recall benchmark counts
+tokens printed and lines kept; it cannot see a turn. The agent runs
+(`corpus/heldout/README.md`, "Agent-success evaluation") can, and on
+sixteen held-out test runs of 2 to 68 KB they showed the 1,000-token
+pass-through costing more than it saved: the agent expanded the summary
+on seven of the sixteen cases, in every trial, and on the fourteen logs
+under 20 KB pare's trials averaged 21 % more tokens than the raw output
+at 1.6 turns against 1.0. The 1,000-token summaries of 4 KB logs were
+the clearest loss (Codec-10 at 2.4 times raw's tokens, sympy-19637 at
+3.2), while every summary of a log over 60 KB won by five to one. So
+under `auto` input up to **twice the ceiling** (4,000 tokens, 8 KB at
+2.0 bytes per token) now passes through whole, and only larger output
+is summarised, to at most the ceiling. On the recall benchmark the
+change costs nothing and prints more on the small cases:
+
+| corpus | before: tokens, recall | after: tokens, recall |
+|---|---|---|
+| dev (9) | 11,401, 98 % | 12,388, 98 % |
+| generated (11) | 11,976, 91 % | 13,637, 93 % |
+| Defects4J dev (19) | 28,785, 100 % | 47,266, 100 % |
+| Defects4J seed 7 (16) | 21,884, 100 % | 35,368, 100 % |
+| SWE-bench seed 5 (17) | 21,608, 100 % | 24,884, 100 % |
+
+The Defects4J totals rise by half or more because most of those builds
+are 4 to 9 KB and now print whole: on the agent run those were the
+cases where the summary cost a turn, so the extra tokens buy the turn
+back. `auto` now prints more than a fixed 2,000 on Defects4J seed 7
+(125 % of its tokens) and less on SWE-bench seed 5 (96 %).
+
+The break-even the runs suggest is nearer 20 KB than 8, but the cases
+between 8 and 20 KB split (django-13741 and scikit-learn-12682 won for
+the summary, JxPath-15, astropy-7606 and Gson-5 lost), so the factor
+stops at two until a run with the new pass-through says more. `auto:N`
+scales both: `auto:4000` passes through up to 8,000 tokens.
 
 **The default since.** With four fresh samples where `auto` loses
 nothing against `--budget 2000` and costs 21 to 31 % fewer tokens, it is
