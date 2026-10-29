@@ -180,8 +180,10 @@ Per file Claude's rate on pare's output runs from 1.78 to 2.14 bytes per
 token, a third denser than the OpenAI tokenizers. So at 2.8 a Claude
 agent got more than the budget said: `--budget 2000` printed about
 2,870 Claude tokens and `--budget 600` about 860. **The default is 2.0
-since 29 October 2026.** At the same nominal budgets that is a 30 %
-smaller summary, and on the recall benchmark it costs 25 points at 600
+since 29 October 2026.** Rerun at that rate on the same day, the budget-2,000
+outputs count at most about 2,040 Claude tokens and the budget-600 ones
+about 610, so the budget holds to within 2 %. At the same nominal
+budgets that is a 30 % smaller summary, and on the recall benchmark it costs 25 points at 600
 on the dev corpus (78 % to 53 %), 16 on Defects4J seed 7 (90 % to 74 %)
 and 17 on SWE-bench seed 5 (62 % to 45 %), and one to five points at
 2,000; the README's tables are at the new rate, and every number in
