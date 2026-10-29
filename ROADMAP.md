@@ -55,14 +55,22 @@ real credentials or a decision that is not the code's to make.
   truncation missed the outage cause every time; on a 4 KB cargo output
   pare cost more turns than raw (`corpus/heldout/README.md`,
   "Agent-success evaluation").
-- [ ] **Agent-success eval on held-out cases and the small-output cell.**
-  Run `--heldout corpus/heldout/defects4j --sample 8` and the SWE-bench
-  set for the same table on labels no one here wrote. And the small
-  outputs: in two runs (at 2.8 and at 2.0) pare cost more turns than raw
-  once on the 4 KB cargo output and once on the 10 KB Maven log, the
-  same outcome each time. Read those transcripts for what the agent went
-  back for; if `auto` is summarising output the agent would rather read
-  whole, raise its pass-through. *Maintainer.*
+- [x] **Agent-success eval on held-out cases.** Sixteen cases from
+  Defects4J seed 7 and SWE-bench seed 5, 144 trials: every condition
+  named every failing test, and pare cost less than raw only on the two
+  logs over 60 KB; on the fourteen of 2 to 19 KB it cost 21 % more, at
+  1.6 turns against 1.0, because the agent expanded the summary on
+  seven of sixteen cases (`corpus/heldout/README.md`, "Third run").
+- [ ] **Raise `auto`'s pass-through.** `auto` summarises anything over
+  1,000 tokens (2,000 bytes at the current rate); three agent runs put
+  the break-even for output the model reads in one turn near 20 KB,
+  where the recall benchmark cannot see a cost because it does not
+  count the round trip. Read the transcripts of the seven expanded
+  held-out cases for what the agent went back for (the error messages
+  that a compact failing-test list drops, probably), then set the
+  pass-through from them, and measure the change with the agent
+  harness, not the recall one: it is the only measurement here that
+  prices a turn. *Maintainer, then repo.*
 
 ### Candidates, not before evidence asks
 
