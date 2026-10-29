@@ -12,7 +12,8 @@ section says how to fill it.
 Every number in this record before 29 October 2026 is at 2.8 bytes per
 token, the default then; the default is 2.0 since (`docs/DESIGN.md`,
 "Tokens and the budget"), and the README's table carries the latest two
-samples at that rate. The agent-success run below used 2.8 too.
+samples at that rate. Of the two agent-success runs below, the first
+used 2.8 and the second 2.0.
 
 One rule governs the directory: a sample is measured before anyone reads
 it, and once a change to pare has been judged on it, it is spent and the
@@ -757,11 +758,12 @@ This sample is now spent by any change measured on it.
 ## Agent-success evaluation
 
 Recall measures presence, not usefulness. The complementary test: take a
-few real tasks (fix a failing test, fix a broken build, find the cause of an
-outage from a log) and run an agent on each with the full output, with
-pare's summary, with sqz's output and with tidyout's output as the tool
-result. Report task success and tokens side by side. A summary that keeps
-every must-survive line but buries it in forty others may still lose here.
+few real tasks (fix a failing test, fix a broken build, find the cause of
+an outage from a log) and run an agent on each with the full output, a
+head-and-tail truncation, pare's summary, sqz's output or tidyout's as
+the tool result. Report task success and tokens side by side. A summary
+that keeps every must-survive line but buries it in forty others may
+still lose here.
 
 The harness is `bench/agent_eval.py`; its tasks and their format are in
 `corpus/agent/README.md`, and `--heldout DIR` turns the cases here into
@@ -779,7 +781,8 @@ outage log) and `maven-test-cause` (a real Surefire failure); the two fix
 tasks are `pytest-ledger` (four seeded bugs behind a 1,900-line
 `log_cli` run) and `cargo-inventory` (two compile errors and a wrong
 test, 109 lines). `truncate` is the head and tail at 30,000 characters,
-what a harness does to a long tool result.
+what a harness does to a long tool result; the sqz and tidyout
+conditions were not run.
 
 | condition | diagnose: success | input tok | turns | fix: success | input tok | turns |
 |---|---:|---:|---:|---:|---:|---:|
@@ -818,8 +821,9 @@ What it shows:
   the agent then went back to the compiler's own annotated snippets.
   That is the one cell where the summary is a tax, and a lead for
   `auto`: an output that already fits the ceiling should pass through.
-  The transcripts (`bench/agent-runs/20261029T015127Z/transcripts/`)
-  say which lines it went back for.
+  The transcripts (`bench/agent-runs/20261029T015127Z/transcripts/`,
+  on the machine that ran it; run directories are not committed) say
+  which lines it went back for.
 
 ### Second run, the same day, at 2.0 bytes per token
 
