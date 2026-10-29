@@ -821,7 +821,44 @@ What it shows:
   The transcripts (`bench/agent-runs/20261029T015127Z/transcripts/`)
   say which lines it went back for.
 
-What it does not show: these are four tasks, two of them synthetic and
+### Second run, the same day, at 2.0 bytes per token
+
+The same 36 trials with the default `--bytes-per-token` moved from 2.8
+to 2.0 (`docs/DESIGN.md`, "Tokens and the budget"), so every pare
+summary is 30 % smaller than in the first run; everything else the same.
+
+| condition | diagnose: success | input tok | turns | fix: success | input tok | turns |
+|---|---:|---:|---:|---:|---:|---:|
+| raw | 6/6 | 160,102 | 1.0 | 6/6 | 157,037 | 5.0 |
+| truncate | 3/6 | 11,542 | 1.0 | 6/6 | 47,183 | 4.5 |
+| pare | 6/6 | 11,404 | 2.3 | 6/6 | 28,352 | 4.2 |
+
+| task | raw | truncate | pare |
+|---|---:|---:|---:|
+| outage-cause | 3/3 · 315,120 | 0/3 · 18,002 | 3/3 · 15,287 |
+| maven-test-cause | 3/3 · 5,083 | 3/3 · 5,083 | 3/3 · 7,520 |
+| pytest-ledger | 3/3 · 281,254 | 3/3 · 61,325 | 3/3 · 23,621 |
+| cargo-inventory | 3/3 · 32,820 | 3/3 · 33,040 | 3/3 · 33,082 |
+
+- **Still 12 of 12, for less.** Against the first run pare's fix tasks
+  went from 36,693 to 28,352 tokens and from 5.2 to 4.2 turns, now
+  fewer turns than raw's 5.0; the diagnose tasks from 12,178 to 11,404.
+  The smaller summary cost the agent nothing it needed.
+- **The cargo cell evened out.** Three trials at 33k tokens and five
+  turns under every condition, where the first run had pare at 43k and
+  six turns. The lead about `auto` summarising an output that fits the
+  ceiling is not supported by this run; one run each way, so it stays a
+  lead, not a finding.
+- **The Maven cell is the new one to read.** pare took two turns and
+  7,520 tokens on a 10 KB log that raw answers in one turn at 5,083: the
+  smaller summary left out something the agent went back for. The same
+  outcome, at 1.5 times the cost of just reading the log. On output
+  this size the summary buys nothing, which argues for `auto` passing
+  through more than it does.
+- **Truncation missed the outage cause three more times.** Six of six
+  now.
+
+What neither run shows: these are four tasks, two of them synthetic and
 all four written by someone who knows pare, and success is the check
 command passing or the findings being named, not the quality of the
 explanation. The held-out cases (`--heldout corpus/heldout/defects4j`)

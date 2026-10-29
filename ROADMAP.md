@@ -57,11 +57,12 @@ real credentials or a decision that is not the code's to make.
   "Agent-success evaluation").
 - [ ] **Agent-success eval on held-out cases and the small-output cell.**
   Run `--heldout corpus/heldout/defects4j --sample 8` and the SWE-bench
-  set for the same table on labels no one here wrote. And read the
-  cargo-inventory transcripts: `auto` summarised a 4 KB output that fits
-  the ceiling, and the agent went back for the compiler's snippets; if
-  that holds, an output under the ceiling should pass through.
-  *Maintainer.*
+  set for the same table on labels no one here wrote. And the small
+  outputs: in two runs (at 2.8 and at 2.0) pare cost more turns than raw
+  once on the 4 KB cargo output and once on the 10 KB Maven log, the
+  same outcome each time. Read those transcripts for what the agent went
+  back for; if `auto` is summarising output the agent would rather read
+  whole, raise its pass-through. *Maintainer.*
 
 ### Candidates, not before evidence asks
 
