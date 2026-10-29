@@ -169,9 +169,10 @@ cause rather than a weight:
 
 *As written before any held-out sample existed. Item 1 was answered in
 part: the held-out samples that follow are drawn from datasets, and logs
-from real agent sessions are still wanted (ROADMAP.md, "Real logs");
-item 2 has its harness, `bench/agent_eval.py`, and no recorded run yet
-(ROADMAP.md, "Agent-success eval").*
+from real agent sessions are still wanted (ROADMAP.md, "Real logs").
+Item 2 was run on 29 October 2026 with `bench/agent_eval.py`, twice
+(`corpus/heldout/README.md`, "Agent-success evaluation"); what is still
+open is the same run on held-out cases (ROADMAP.md).*
 
 The numbers above are a **training score**. The misses were fixed by
 looking at the same eight cases, and three of the eight (jest-fail,
@@ -713,3 +714,23 @@ compression competes. Observations, recorded rather than fixed:
   `Warning:` blocks with `on main.tf line N` context, and tsc's indented
   continuation messages all segment and level-detect as intended; no
   regex change was needed for these four formats.
+
+## The Claude token rate
+
+*29 October 2026. The measurement and the new default are in DESIGN.md,
+"Tokens and the budget"; the first calibration is above, "Calibrated to
+real tokens".*
+
+`bench/tokens.py --anthropic claude-opus-5-5` counted pare's output
+through Anthropic's `count_tokens` API: 1.96 bytes per token on the nine
+dev-corpus files, against 2.82 for cl100k and o200k, so a `--budget
+2000` summary had been reaching a Claude agent as about 2,870 tokens.
+The default moved from 2.8 to 2.0 the same day. At the same nominal
+budgets the summaries are 30 % smaller, and the recall benchmark pays
+for it where the budget was already tight: 25 points at 600 on the dev
+corpus, 16 and 17 on the latest Defects4J and SWE-bench samples, one to
+five at 2,000. Every number in this file and in the held-out record
+before that date is at 2.8; the README's tables were restated at 2.0,
+and 600 stopped being a budget to recommend. The agent-success
+evaluation was rerun at the new rate (the held-out README's second run)
+with the same outcome on every task at fewer tokens overall.
