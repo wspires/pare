@@ -296,3 +296,34 @@ def test_diagnose_trial_with_pare_expansion(tmp_path):
     assert "Long command output is summarised by `pare`" in client.requests[0]["messages"][0]["content"]
     r2 = ae.run_trial(FakeClient(["PricingTest failed."]), o, task, ae.Pare(o), 2, str(tmp_path))
     assert not r2["success"] and r2["score"] == pytest.approx(0.0) and len(r2["missed"]) == 3
+
+
+# --- preflight: requirements, an old pare, missing credentials
+
+
+def test_requires_checks_programs_and_modules():
+    t = ae.Task("x", {"kind": "diagnose", "log": "nope.log", "command": "c", "prompt": "p", "expect": ["a"],
+                      "requires": ["python3:pytest", "python3:no_such_module_zz", "no-such-program-zz"]}, "/")
+    assert t.missing_tools() == ["no_such_module_zz for python3", "no-such-program-zz"]
+
+
+def test_pare_condition_refuses_a_binary_that_rejects_the_budget(tmp_path):
+    fake = tmp_path / "pare"
+    fake.write_text("#!/bin/sh\nfor a in \"$@\"; do [ \"$a\" = auto ] && { echo \"error: invalid value 'auto' for '--budget <BUDGET>'\" >&2; exit 2; }; done\n"
+                    "[ \"$1\" = --version ] && echo 'pare 0.1.0'\ncat\n")
+    fake.chmod(0o755)
+    old = ae.Pare(opts(pare_bin=str(fake), budget="auto"))
+    assert not old.available()
+    assert "rejects --budget auto" in old.unavailable_reason() and "cargo build --release" in old.unavailable_reason()
+    assert ae.Pare(opts(pare_bin=str(fake), budget=2000)).available()
+    assert "does not exist" in ae.Pare(opts(pare_bin=str(tmp_path / "missing"))).unavailable_reason()
+
+
+def test_missing_credentials_fail_once_before_any_trial(monkeypatch):
+    pytest.importorskip("anthropic")
+    for var in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_PROFILE"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("HOME", tempfile.mkdtemp())  # no `ant auth login` profile on disk
+    with pytest.raises(SystemExit) as e:
+        ae.make_client("claude-opus-5-5")
+    assert "ANTHROPIC_API_KEY" in str(e.value) or "credentials" in str(e.value).lower()

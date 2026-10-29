@@ -27,11 +27,11 @@ grades the agent's answer against the terms it must name; the only tool is
 the one pare's condition needs for expansion.
 
 Usage
-    python bench/agent_eval.py --list
-    python bench/agent_eval.py --dry-run                     # the tool results each condition would give, no model calls
-    python bench/agent_eval.py --conditions raw,pare --trials 3
-    python bench/agent_eval.py --heldout corpus/heldout/defects4j --sample 8 --seed 1
-    python bench/agent_eval.py --report bench/agent-runs/<stamp>/results.jsonl
+    python3 bench/agent_eval.py --list
+    python3 bench/agent_eval.py --dry-run                     # the tool results each condition would give, no model calls
+    python3 bench/agent_eval.py --conditions raw,pare --trials 3
+    python3 bench/agent_eval.py --heldout corpus/heldout/defects4j --sample 8 --seed 1
+    python3 bench/agent_eval.py --report bench/agent-runs/<stamp>/results.jsonl
 
 Needs `pip install anthropic` and credentials (ANTHROPIC_API_KEY, or
 `ant auth login`); the pare binary (--pare-bin, default target/release/pare)
@@ -113,7 +113,18 @@ class Task:
             raise ValueError(f"{name}: unknown kind {self.kind!r}")
 
     def missing_tools(self) -> list[str]:
-        return [t for t in self.requires if shutil.which(t) is None]
+        """The `requires` entries not satisfied: a program not on PATH, or
+        for `prog:module` a Python interpreter that cannot import the module."""
+        missing = []
+        for req in self.requires:
+            prog, _, module = req.partition(":")
+            if shutil.which(prog) is None:
+                missing.append(prog)
+            elif module:
+                p = subprocess.run([prog, "-c", f"import {module}"], capture_output=True)
+                if p.returncode != 0:
+                    missing.append(f"{module} for {prog}")
+        return missing
 
     def __repr__(self):
         return f"Task({self.name}, {self.kind})"
@@ -259,7 +270,21 @@ class Pare(Condition):
     name = "pare"
 
     def available(self):
-        return os.path.exists(self.opts.pare_bin)
+        return self.unavailable_reason() is None
+
+    def unavailable_reason(self) -> str | None:
+        """Why the pare condition cannot run: no binary, or one too old for
+        the budget it would be given (an older build rejects `auto`)."""
+        if not os.path.exists(self.opts.pare_bin):
+            return f"{self.opts.pare_bin} does not exist: cargo build --release, or pass --pare-bin"
+        p = subprocess.run([self.opts.pare_bin, "--budget", str(self.opts.budget), "--no-tee"],
+                           input=b"x\n", capture_output=True)
+        if p.returncode != 0:
+            err = p.stderr.decode(errors="replace").strip().splitlines()
+            return (f"{self.opts.pare_bin} (pare {self.version() or '?'}) rejects --budget {self.opts.budget}: "
+                    f"{err[0] if err else 'exit ' + str(p.returncode)}. Rebuild it (cargo build --release) "
+                    f"or pass a numeric --budget")
+        return None
 
     def version(self):
         p = subprocess.run([self.opts.pare_bin, "--version"], capture_output=True, text=True)
@@ -508,10 +533,25 @@ def transcript_json(messages: list) -> list:
 # Trials
 
 
-def make_client():
-    import anthropic
-
-    return anthropic.Anthropic()
+def make_client(model: str):
+    """A client whose credentials have been checked with one free call
+    (count_tokens), so a missing key fails here, once, not in every trial."""
+    try:
+        import anthropic
+    except ImportError:
+        sys.exit("the anthropic package is missing: pip install anthropic (or .venv/bin/pip install -r bench/requirements.txt)")
+    client = anthropic.Anthropic()
+    try:
+        client.messages.count_tokens(model=model, messages=[{"role": "user", "content": "ping"}])
+    except anthropic.AuthenticationError as e:
+        sys.exit(f"credentials rejected: {e.message}")
+    except anthropic.NotFoundError:
+        sys.exit(f"unknown model {model!r}")
+    except anthropic.APIConnectionError as e:
+        sys.exit(f"cannot reach the API: {e}")
+    except TypeError as e:  # the SDK's error when it finds no credentials at all
+        sys.exit(f"{e}\nSet ANTHROPIC_API_KEY, or run `ant auth login`; --dry-run needs neither.")
+    return client
 
 
 def initial_result(task: Task, cond: Condition, workspace: str | None, work: str, env: dict) -> tuple[str, int | None]:
@@ -705,7 +745,8 @@ def main() -> int:
             return 2
         c = CONDITIONS[name](opts)
         if not c.available():
-            print(f"{name}: not available (install it, or --pare-bin for pare); skipped", file=sys.stderr)
+            reason = c.unavailable_reason() if isinstance(c, Pare) else "not installed"
+            print(f"{name}: {reason}; skipped", file=sys.stderr)
             continue
         conds.append(c)
     if not conds:
@@ -744,7 +785,7 @@ def main() -> int:
     with open(os.path.join(out_dir, "config.json"), "w", encoding="utf-8") as f:
         json.dump({**vars(opts), "tasks": [t.name for t in tasks],
                    "versions": {c.name: c.version() for c in conds}}, f, indent=1, default=str)
-    client = make_client()
+    client = make_client(opts.model)
     results_path = os.path.join(out_dir, "results.jsonl")
     records = []
     total = len(tasks) * len(conds) * opts.trials

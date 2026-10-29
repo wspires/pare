@@ -30,9 +30,9 @@ A directory with `task.json`:
 {
   "kind": "fix",
   "workspace": "proj",
-  "command": "python -m pytest",
-  "check": "python -m pytest -q -p no:cacheprovider",
-  "requires": ["python"],
+  "command": "python3 -m pytest",
+  "check": "python3 -m pytest -q -p no:cacheprovider",
+  "requires": ["python3:pytest"],
   "prompt": "The test suite of this small Python ledger library fails. Fix the library ...",
   "notes": "what is broken, for the reader; the agent never sees this"
 }
@@ -44,7 +44,8 @@ and a `bash` tool. Every bash result goes through the condition too (in
 the pare condition, commands starting with `pare` are passed through,
 so the agent can expand a summary). Afterwards `check` runs in the
 workspace and exit 0 is success. `requires` lists programs the task
-needs; a task whose programs are missing is skipped.
+needs, and `prog:module` a Python interpreter that can import a module;
+a task whose requirements are missing is skipped, saying which.
 
 A **diagnose** task has no workspace:
 
@@ -81,20 +82,24 @@ fix task, check that the project is broken as shipped and that the
 intended fix makes `check` pass (`bench/test_agent_eval.py` does this
 for the shipped ones). For a diagnose task, write `expect` before
 running pare on the log, as with a keep list. Then
-`python bench/agent_eval.py --tasks NAME --dry-run --show` prints what
+`python3 bench/agent_eval.py --tasks NAME --dry-run --show` prints what
 each condition would give the agent.
 
 ## Running it
 
 ```
-python bench/agent_eval.py --list
-python bench/agent_eval.py --dry-run                                    # no model calls
-python bench/agent_eval.py --conditions raw,truncate,pare --trials 3
-python bench/agent_eval.py --heldout corpus/heldout/defects4j --sample 8 --conditions raw,pare
-python bench/agent_eval.py --report bench/agent-runs/<stamp>/results.jsonl
+python3 bench/agent_eval.py --list
+python3 bench/agent_eval.py --dry-run                                    # no model calls
+python3 bench/agent_eval.py --conditions raw,truncate,pare --trials 3
+python3 bench/agent_eval.py --heldout corpus/heldout/defects4j --sample 8 --conditions raw,pare
+python3 bench/agent_eval.py --report bench/agent-runs/<stamp>/results.jsonl
 ```
 
-Needs `pip install anthropic` and credentials. Every trial spends money,
+Needs `pip install anthropic` and credentials (`ANTHROPIC_API_KEY`, or
+`ant auth login`), checked once with a free call before any trial runs;
+the pare condition needs a build that takes the budget it is given
+(`--budget auto` needs pare 0.2.0 or later: `cargo build --release`).
+Every trial spends money,
 and a `raw` trial on `outage-cause` sends 190k tokens per turn. Results
 land in `bench/agent-runs/<stamp>/`: `results.jsonl` (one record per
 trial), a transcript per trial, `summary.md`. The directory is ignored by
