@@ -40,9 +40,13 @@ A directory with `task.json`:
 
 A **fix** task copies `workspace` to a temporary directory, runs
 `command` there through the condition, and gives the agent that output
-and a `bash` tool. Every bash result goes through the condition too (in
-the pare condition, commands starting with `pare` are passed through,
-so the agent can expand a summary). Afterwards `check` runs in the
+and a `bash` tool. Every bash result goes through the condition too; in
+the pare condition that means exactly what the Claude Code hook does
+(`integrations/claude-code/pare-hook.py`, whose `plan()` the harness
+calls): test, build and install commands are wrapped, and `cat`,
+`grep`, `sed`, pipelines and `pare` itself expanding a summary print as
+usual. The record counts the agent's commands and how many were
+wrapped. Afterwards `check` runs in the
 workspace and exit 0 is success. `requires` lists programs the task
 needs, and `prog:module` a Python interpreter that can import a module;
 a task whose requirements are missing is skipped, saying which.

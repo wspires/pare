@@ -110,8 +110,13 @@ def test_pare_condition_summarises_and_expands(tmp_path):
 def test_pare_condition_wraps_live_command_and_passes_pare_through(tmp_path):
     cond = ae.Pare(opts(budget=600))
     work = str(tmp_path)
-    out, code = cond.wrap_live("seq 1 5000; echo 'ERROR boom' >&2; exit 7", str(tmp_path), dict(os.environ), work)
-    assert out.startswith("# pare:") and code == 7 and "ERROR boom" in out
+    out, code = cond.wrap_live("seq 1 5000; echo 'ERROR boom' >&2; exit 7", str(tmp_path), dict(os.environ), work, always=True)
+    assert out.startswith("# pare:") and code == 7 and "ERROR boom" in out and cond.last_wrapped
+    # the agent's own commands are wrapped as the hook decides: a pipeline or cat is not, pytest is
+    piped, pcode = cond.wrap_live("seq 1 5000 | tail -2", str(tmp_path), dict(os.environ), work)
+    assert piped == "4999\n5000\n" and pcode == 0 and not cond.last_wrapped
+    assert cond.plan("cat src/main.rs")[0] is None and cond.plan("cargo test")[0] is not None
+    assert cond.plan("python3 -m pytest -q")[1] == "wrapped" and cond.plan("pare --only T3 < run.log")[0] is None
     raw_line = [l for l in out.splitlines() if l.startswith("## raw:")][0]
     runfile = raw_line.split("raw:", 1)[1].split(" · ")[0].strip()
     out2, code2 = cond.wrap_live(f"pare --since L1 --until L2 < {runfile}", str(tmp_path), dict(os.environ), work)
@@ -293,7 +298,7 @@ def test_diagnose_trial_with_pare_expansion(tmp_path):
     assert "error" not in r, r
     assert r["success"] and r["score"] == 1.0 and r["missed"] == []
     assert client.requests[0]["tools"] == [ae.PARE_TOOL] and client.requests[0]["betas"] == ["server-side-fallback-2026-07-01"]
-    assert "Long command output is summarised by `pare`" in client.requests[0]["messages"][0]["content"]
+    assert "summarised by `pare`" in client.requests[0]["messages"][0]["content"]
     r2 = ae.run_trial(FakeClient(["PricingTest failed."]), o, task, ae.Pare(o), 2, str(tmp_path))
     assert not r2["success"] and r2["score"] == pytest.approx(0.0) and len(r2["missed"]) == 3
 

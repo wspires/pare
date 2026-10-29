@@ -14,8 +14,11 @@ spends. Each trial runs one task under one condition:
                raw       the output as printed
                truncate  the head and tail, as an agent harness cuts a
                          long tool result (--truncate-chars, 30,000)
-               pare      pare's summary at --budget (default auto); the
-                         agent may expand it with `pare --only T<n> < RUN`
+               pare      pare's summary at --budget (default auto) of the
+                         task's command and, as the Claude Code hook decides,
+                         of the agent's test, build and install commands (cat,
+                         grep and pipelines print as usual); the agent may
+                         expand a summary with `pare --only T<n> < RUN`
                sqz       sqz compress, when sqz is installed
                tidyout   tidyout <cmd>, when tidyout is installed
 
@@ -61,9 +64,21 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import collect  # noqa: E402  (the keep-line matcher: a term counts whole, not run on into a longer name)
 import run as bench_run  # noqa: E402  (sqz and tidyout replay of a saved log)
 
+def load_hook():
+    """The Claude Code hook, as a module: its plan() decides which of the
+    agent's commands the pare condition wraps, so the condition is the
+    integration, not a stricter or looser version of it."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("pare_hook", HOOK_PATH)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TASK_DIR = os.path.join(ROOT, "corpus", "agent")
 RUNS_DIR = os.path.join(ROOT, "bench", "agent-runs")
+HOOK_PATH = os.path.join(ROOT, "integrations", "claude-code", "pare-hook.py")
 
 DEFAULT_MODEL = "claude-opus-5-5"
 BYTES_PER_TOKEN = 2.8  # pare's own proxy, for the dry run; real counts come from the API
@@ -291,7 +306,8 @@ class Pare(Condition):
         return p.stdout.strip().replace("pare ", "")
 
     def instructions(self):
-        return ("Long command output is summarised by `pare` to fit a token budget. The summary's "
+        return ("The output of test, build and install commands is summarised by `pare` to fit a token "
+                "budget; other commands print as usual. The summary's "
                 "last lines name the run file holding the full output; `pare --only T<n> < RUNFILE` "
                 "prints every line of one template, and `pare --since L<a> --until L<b> < RUNFILE` "
                 "a line range.")
@@ -306,15 +322,41 @@ class Pare(Condition):
         env["PATH"] = os.path.dirname(os.path.abspath(self.opts.pare_bin)) + os.pathsep + env.get("PATH", "")
         return env
 
-    def wrap_live(self, command, cwd, env, work):
+    def plan(self, command: str) -> tuple[str | None, str]:
+        """What the Claude Code hook would do with the command: a rewrite to
+        `pare -- ...`, or None and why not (cat, grep, sed, a pipeline, cd ...)."""
+        hook = getattr(self, "_hook", None) or load_hook()
+        self._hook = hook
+        saved = {k: os.environ.get(k) for k in ("PARE_BIN", "PARE_HOOK_BUDGET", "PARE_HOOK_DISABLE", "PARE_HOOK_EXTRA")}
+        os.environ["PARE_BIN"] = os.path.abspath(self.opts.pare_bin)
+        os.environ["PARE_HOOK_BUDGET"] = str(self.opts.budget)
+        os.environ.pop("PARE_HOOK_DISABLE", None)
+        os.environ.pop("PARE_HOOK_EXTRA", None)
+        try:
+            return hook.plan(command)
+        finally:
+            for k, v in saved.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+
+    def wrap_live(self, command, cwd, env, work, always=False):
+        """Run the agent's command as the hook would: wrapped in pare when it
+        is a test, build or install command, untouched otherwise (`cat`,
+        `grep`, `sed`, pipelines, and pare itself expanding a summary). The
+        task's own command is always wrapped (`always`): it is the noisy one
+        by definition."""
         env = self._env(work, env)
-        first = shlex.split(command)[0] if command.strip() else ""
-        if os.path.basename(first) == "pare":
-            # The agent expanding a summary (or wrapping a command itself): not wrapped again.
+        rewritten, reason = self.plan(command)
+        if always and rewritten is None:
+            rewritten = f"{shlex.quote(self.opts.pare_bin)} --budget {self.opts.budget} -- sh -c {shlex.quote(command)}"
+            reason = "the task's command"
+        self.last_wrapped = rewritten is not None
+        if rewritten is None:
             out, code = run_shell(command, cwd, env, self.opts.command_timeout)
-            return out.decode("utf-8", errors="replace"), code
-        wrapped = f"{shlex.quote(self.opts.pare_bin)} --budget {self.opts.budget} -- sh -c {shlex.quote(command)}"
-        out, code = run_shell(wrapped, cwd, env, self.opts.command_timeout + 30)
+        else:
+            out, code = run_shell(rewritten, cwd, env, self.opts.command_timeout + 30)
         return out.decode("utf-8", errors="replace"), code
 
     def wrap_log(self, task, work):
@@ -556,6 +598,8 @@ def make_client(model: str):
 
 def initial_result(task: Task, cond: Condition, workspace: str | None, work: str, env: dict) -> tuple[str, int | None]:
     if task.kind == "fix":
+        if isinstance(cond, Pare):
+            return cond.wrap_live(task.command, workspace, env, work, always=True)
         return cond.wrap_live(task.command, workspace, env, work)
     return cond.wrap_log(task, work), None
 
@@ -586,10 +630,14 @@ def run_trial(client, opts, task: Task, cond: Condition, trial: int, out_dir: st
         tool_bytes += len(output.encode("utf-8"))
         record["initial_result_bytes"] = len(output.encode("utf-8"))
 
+        commands = {"run": 0, "wrapped": 0}
+
         def execute(name, inp):
             nonlocal tool_bytes
             if name == "bash" and task.kind == "fix":
                 text, rc = cond.wrap_live(inp["command"], workspace, env, work)
+                commands["run"] += 1
+                commands["wrapped"] += int(getattr(cond, "last_wrapped", False))
                 text = text or "(no output)"
                 text += f"\n[exit code {rc}]"
                 tool_bytes += len(text.encode("utf-8"))
@@ -603,7 +651,8 @@ def run_trial(client, opts, task: Task, cond: Condition, trial: int, out_dir: st
         tools = [BASH_TOOL] if task.kind == "fix" else cond.tools(task)
         system = SYSTEM_FIX if task.kind == "fix" else SYSTEM_DIAGNOSE
         final, usage, messages, ended = run_agent(client, opts, system, user_message(task, cond, output, code), tools, execute)
-        record.update(usage=usage.as_dict(), ended=ended, tool_result_bytes=tool_bytes, answer=final)
+        record.update(usage=usage.as_dict(), ended=ended, tool_result_bytes=tool_bytes, answer=final,
+                      commands=commands["run"], commands_wrapped=commands["wrapped"])
         if task.kind == "fix":
             check_out, check_code = run_shell(task.check, workspace, env, opts.command_timeout)
             record["success"] = check_code == 0
