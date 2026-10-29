@@ -765,4 +765,59 @@ dataset's labels. A run writes `bench/agent-runs/<stamp>/summary.md`;
 the ones worth keeping go here, with the model, effort, pare version
 and number of trials.
 
-No run has been recorded yet.
+### First run: 29 October 2026
+
+Claude Opus 5.5 at effort `medium`, pare 0.2.0 built from the branch,
+`--budget auto`, three trials per cell, on a Mac; 36 trials, no errors.
+The two diagnose tasks are `outage-cause` (the 4,813-line synthetic
+outage log) and `maven-test-cause` (a real Surefire failure); the two fix
+tasks are `pytest-ledger` (four seeded bugs behind a 1,900-line
+`log_cli` run) and `cargo-inventory` (two compile errors and a wrong
+test, 109 lines). `truncate` is the head and tail at 30,000 characters,
+what a harness does to a long tool result.
+
+| condition | diagnose: success | input tok | turns | fix: success | input tok | turns |
+|---|---:|---:|---:|---:|---:|---:|
+| raw | 6/6 | 160,102 | 1.0 | 6/6 | 124,379 | 4.2 |
+| truncate | 3/6 | 11,542 | 1.0 | 6/6 | 53,246 | 4.7 |
+| pare | 6/6 | 12,178 | 2.3 | 6/6 | 36,693 | 5.2 |
+
+Per task, successes and mean input tokens over the whole trial:
+
+| task | raw | truncate | pare |
+|---|---:|---:|---:|
+| outage-cause | 3/3 · 315,120 | 0/3 · 18,002 | 3/3 · 20,492 |
+| maven-test-cause | 3/3 · 5,083 | 3/3 · 5,083 | 3/3 · 3,864 |
+| pytest-ledger | 3/3 · 220,591 | 3/3 · 72,153 | 3/3 · 30,157 |
+| cargo-inventory | 3/3 · 28,167 | 3/3 · 34,338 | 3/3 · 43,229 |
+
+What it shows:
+
+- **pare did every task the raw output did**, at 8 % of the input
+  tokens on the diagnose tasks and 30 % on the fix tasks. The largest
+  single prompt fell from 160k to 6k tokens on the diagnose tasks and
+  from 33k to 9k on the fix tasks, which is what a long session pays
+  for on every later turn.
+- **Truncation failed where it was supposed to.** It missed the outage
+  cause in all three trials: the lost connection, the exhausted pool
+  and the breaker are in the middle of the log, and the head and tail
+  are startup and shutdown. That is the failure the README's "Why pare"
+  section describes, measured.
+- **On the two big logs pare paid for itself in turns too**: on the
+  outage it spent two or three expansions (`--since`, `--only`) and
+  still came in at 6 % of raw's tokens; on the ledger run it fixed four
+  bugs in three to six turns against raw's four.
+- **On the small cargo output pare cost more**: 43k tokens against
+  raw's 28k and six turns against four, with the same outcome. The
+  output is 4 KB, under the ceiling, and `auto` summarised it anyway;
+  the agent then went back to the compiler's own annotated snippets.
+  That is the one cell where the summary is a tax, and a lead for
+  `auto`: an output that already fits the ceiling should pass through.
+  The transcripts (`bench/agent-runs/20261029T015127Z/transcripts/`)
+  say which lines it went back for.
+
+What it does not show: these are four tasks, two of them synthetic and
+all four written by someone who knows pare, and success is the check
+command passing or the findings being named, not the quality of the
+explanation. The held-out cases (`--heldout corpus/heldout/defects4j`)
+are the next run, and real agent logs after that.

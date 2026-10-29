@@ -44,15 +44,21 @@ real credentials or a decision that is not the code's to make.
   on a machine with credentials. If the rate differs much from the 2.8
   bytes per token measured on cl100k and o200k, change the default.
   *Maintainer.*
-- [ ] **Agent-success eval.** Recall measures presence, not usefulness.
-  The harness is built: `bench/agent_eval.py` runs an agent on each task
-  in `corpus/agent/` (fix a Python library, fix a Rust crate, explain an
-  outage, read a Maven failure) and on held-out cases, with the raw
-  output, a head-and-tail truncation, pare's summary, sqz or tidyout as
-  its tool result, and reports success, tokens and turns side by side
-  (`corpus/agent/README.md`). What is left is running it: three or more
-  trials per cell on a machine with credentials, and the table in
-  `corpus/heldout/README.md`, "Agent-success evaluation". *Maintainer.*
+- [x] **Agent-success eval.** `bench/agent_eval.py` runs an agent on each
+  task in `corpus/agent/` with the raw output, a truncation, pare's
+  summary, sqz or tidyout as its tool result (`corpus/agent/README.md`).
+  First run, 36 trials: pare matched the raw output on every task at
+  8 % of the tokens on the diagnose tasks and 30 % on the fix tasks;
+  truncation missed the outage cause every time; on a 4 KB cargo output
+  pare cost more turns than raw (`corpus/heldout/README.md`,
+  "Agent-success evaluation").
+- [ ] **Agent-success eval on held-out cases and the small-output cell.**
+  Run `--heldout corpus/heldout/defects4j --sample 8` and the SWE-bench
+  set for the same table on labels no one here wrote. And read the
+  cargo-inventory transcripts: `auto` summarised a 4 KB output that fits
+  the ceiling, and the agent went back for the compiler's snippets; if
+  that holds, an output under the ceiling should pass through.
+  *Maintainer.*
 
 ### Candidates, not before evidence asks
 
