@@ -72,8 +72,8 @@ printf 'hello\nworld\n' | target/release/pare --no-tee
 target/release/pare --no-tee < corpus/dev/cargo-build.log
 ```
 
-The first build downloads the dependencies (about 55 crates) from
-crates.io; later builds only recompile what changed.
+The first build downloads the dependencies from crates.io; later builds
+only recompile what changed.
 
 `cargo run` builds and runs in one step. The first `--` separates cargo's
 arguments from pare's, and pare's own `--` (command mode) comes after
@@ -315,6 +315,14 @@ around the change (`// Rust note:` comments are for choices a C++ reader
 would ask about, not for what the code says). Docs that describe what
 changed go in the same pull request: the CHANGELOG line, the DESIGN rule,
 the HISTORY entry.
+
+A measured number lives in one place and the other docs point there:
+benchmark results in the README's "Results" table and the held-out
+record, the token rate and performance in DESIGN.md. A number written
+anywhere else is a record of its time and says so (a date, a version,
+or "at 2.8 bytes per token"), never a current claim that a later
+measurement can leave stale. Prefer bytes and line counts to token
+counts where the rate could change.
 
 ## Layout
 

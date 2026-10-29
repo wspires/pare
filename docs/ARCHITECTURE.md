@@ -10,11 +10,12 @@ setting up, building and testing are in
 [ROADMAP.md](../ROADMAP.md), stage 5.
 
 Every mode and flag of the Python version is here, with the same output
-under `PARE_REFERENCE_RULES=1` ("Testing" below): on 3,766 parity runs
-(269 inputs under 14 flag sets) every output and exit status is
-identical, and on the 2,144 batch runs so is every line's record, depth,
-severity, template, score and sizes, and every template's counts,
-marker, salience and text, scores to the bit. Rules added since the port
+under `PARE_REFERENCE_RULES=1` ("Testing" below): over every log in the
+repository and the generated edge cases, under 14 flag sets, every
+output and exit status is identical, and in batch mode so is every
+line's record, depth, severity, template, score and sizes, and every
+template's counts, marker, salience and text, scores to the bit
+(`bench/check.sh` prints the current run count). Rules added since the port
 (structured lines, the tail window's verdict rule, `auto` as the default
 budget, the binary-input check, and the smaller changes "Output marks
 and the reference switch" lists) are what the switch turns off.
@@ -307,9 +308,8 @@ keeps its clusters' tokens and its prefix tree, which grow with the
 number of distinct shapes, not with the input. The compiled patterns and
 the `regex` crate's search caches take about 15 MB, which is most of a
 small log's footprint. Measured times and peak memory, on one stated
-log, are in DESIGN.md, "Performance" (24 MB on 0.75 MB of input, 71 MB on
-30 MB; the Python version took 65 MB and 28 s on a 30 MB log of its
-own).
+log, are in DESIGN.md, "Performance", and the Python version's in
+HISTORY.md, "Performance of the Python version".
 
 ## Errors and exit statuses
 

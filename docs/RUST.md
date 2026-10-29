@@ -637,8 +637,8 @@ than pull in a date crate for one timestamp format.
   were not the cost, the backtracking engine was, which led to the
   two-engine design. After it, the segmentation pass over a 30 MB log
   took 2.1 s where it had taken 25 s; the whole run today, with severity,
-  scoring and the summary, is in DESIGN.md, "Performance" (4.4 s and
-  71 MB on 30 MB; the Python version took 28 s).
+  scoring and the summary, is measured in DESIGN.md, "Performance", and
+  the Python version's in HISTORY.md.
 - **Start-up counts too.** pare runs on every command an agent sends
   through it, mostly short ones. Python's classes make the patterns large
   (`\b` is four copies of a 12 KB class), and `fancy-regex` takes

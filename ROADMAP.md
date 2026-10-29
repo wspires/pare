@@ -1,8 +1,8 @@
 # Roadmap
 
 pare 0.2.0 is built: a single Rust binary, verified byte for byte against
-the Python prototype it replaced, measured on thirteen held-out samples
-drawn blind from SWE-bench and Defects4J, and not yet released. This file
+the Python prototype it replaced, measured on held-out samples drawn
+blind from SWE-bench and Defects4J, and not yet released. This file
 says what comes next, in order, and keeps one line per finished item with
 a pointer to its record. The experiments are in `docs/HISTORY.md`, the
 held-out samples in `corpus/heldout/README.md`, the changes in

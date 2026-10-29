@@ -20,7 +20,7 @@ Homebrew, an install script, pipx/uv (`pare-cli`) or cargo (`pare-cli`).
 - **Same output as before, with its own rules switched off.** Under
   `PARE_REFERENCE_RULES=1` (for testing) it prints exactly what the
   Python version did, byte for byte, on every log in the repository
-  under every flag set tested (3,766 runs), with the same exit statuses.
+  under every flag set tested, with the same exit statuses.
   What the switch turns off is listed at the end of this section.
   Template ids are the same, so `pare --only T3 < run-file` works on run
   files saved by either version.

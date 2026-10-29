@@ -162,7 +162,8 @@ and o200k tokenizers, and the default until October 2026).
 
 By default the size follows the log (`auto`): pare stops once what is
 left is below error level, at most 2,000 tokens. On the latest held-out
-samples it kept what a fixed 2,000 kept at 77 to 83 % of the tokens.
+samples it kept what a fixed 2,000 kept at about 80 % of the tokens
+([Results](#results)).
 `--budget auto:4000` raises the ceiling; `--budget N` is a fixed budget
 the summary fills (1,000 to 2,000 suits an agent loop; 600 is tight, see
 [Results](#results)). Without
@@ -271,9 +272,9 @@ and the frame nearest it; pino's and bunyan's numeric levels
 ## How it works
 
 1. **Tee** stdin to a content-hashed run file, in one pass with the steps
-   below: pare keeps about 40 bytes per line in memory, not the lines,
-   so a 30 MB log runs in about 50 MB and 5 s, spent as the input
-   arrives.
+   below: pare keeps a few dozen bytes per line in memory, not the
+   lines, so time is linear in the input and spent as it arrives, and
+   memory stays small ([docs/DESIGN.md](docs/DESIGN.md#performance)).
 2. **Segment** lines into records: indented continuations, stack frames and
    compiler gutters join the line above.
 3. **Mask** timestamps, IPs, hashes, paths and numbers, then **cluster** the
@@ -297,7 +298,7 @@ Recall is the share of must-survive lines (the failing tests, the error
 messages, the verdict) that a tool's output keeps; `bench/run.py`
 measures it. Two kinds of number, reported apart:
 
-**The development corpus** (`corpus/dev/`, nine logs, 583k tokens: real
+**The development corpus** (`corpus/dev/`, nine logs, 1.6 MB: real
 pytest, go test, cargo, make and npm runs, three seeded synthetic logs
 and a synthetic Android logcat), against two other filters written for
 agents: [sqz](https://github.com/ojuschugh1/sqz), which compresses
@@ -340,11 +341,12 @@ training data and a new one is drawn. The latest, measured blind:
 
 Measured at the Claude rate of 2.0 bytes per token, the default since
 29 October 2026; the same samples at the old rate, and the numbers
-before each held-out fix, are in the record. Seven Defects4J and five
+before each held-out fix, are in the record. Seven Defects4J and six
 SWE-bench samples so far; the full record, with every miss and what was
-done about it, is in [corpus/heldout/README.md](corpus/heldout/README.md). The tool-specific
-rules (pytest markers, rustc gutters, logcat levels) are worth up to 18
-points at 600 on SWE-bench and nothing on Defects4J
+done about it, is in
+[corpus/heldout/README.md](corpus/heldout/README.md). The tool-specific
+rules (pytest markers, rustc gutters, logcat levels) earn several points
+at 600 on SWE-bench and nothing on Defects4J
 ([docs/DESIGN.md](docs/DESIGN.md#tool-specific-rules)).
 
 ## Contributing
