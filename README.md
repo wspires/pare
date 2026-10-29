@@ -9,7 +9,7 @@ how to get it back.
 pytest -v 2>&1 | pare --budget 2000
 ```
 
-A 308-line, 9,523-token pytest run becomes this (1,705 tokens), exactly
+A 308-line, 9,523-token pytest run becomes this (1,763 tokens), exactly
 as printed; the last lines name the run file on the machine it ran on:
 
 ```

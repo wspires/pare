@@ -873,17 +873,18 @@ in the batch format, budgeted on its own, and ends with a blank line so a
 consumer can split the stream:
 
 ```
-# pare #2: L4,001–L8,023 · 4,023 lines, 152,938 B (~54,621 tok) → ~591 tok (budget 600) · 13 templates, 10 new
+# pare #2: L4,001–L8,023 · 4,023 lines, 152,938 B (~76,469 tok) → ~599 tok (budget 600) · 13 templates, 10 new
 ## templates (by salience)
 T26  ×1 new E L5297: webpack 5.95.0 compiled with 1 error and 1 warning in 94213 ms
 T24  ×1 new E L5288: ERROR in ./src/store/cartSlice.ts 88:31
 T30  ×1 (34 lines) new E L6888: FAIL src/api/useFetch3.test.tsx
-  6914│   ✕ formats total #25 (22 ms)
+6918:     thrown: "Exceeded timeout of 5000 ms for a test.
+  ┆ (+29 more lines)
   ...
 ## tail (L7994–L8023)
   ...
-## omitted 4,007/4,023 lines (99.6%): T29 ×2,557, T20 ×1,223, T23 ×60, T30 ×29 · +2 more templates; 4 templates not listed; 135 blank
-## raw: ~/.cache/pare/runs/follow-20261009-005020-1315.log --since L4001 --until L8023
+## omitted 4,013/4,023 lines (99.8%): T29 ×2,557, T20 ×1,223, T23 ×60, T30 ×32 · +4 more templates; 6 templates not listed; 135 blank
+## raw: ~/.cache/pare/runs/follow-20261029-142825-240.log --since L4001 --until L8023
 ```
 
 **Flush conditions.** Any of: `--every N` lines (default 20,000, which

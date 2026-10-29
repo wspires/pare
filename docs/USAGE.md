@@ -18,11 +18,12 @@ every line), where the real rate is lower and a budget-600 summary can
 run a few per cent over.
 
 The budget is a hard ceiling on the rendered output, header and ledger
-included, and must be at least 1. Below about 1,000 tokens it gets
-tight, and below about 400 the fixed skeleton (header, head and tail
-windows, ledger) is most of the output. Output that already fits the
-budget is printed as it is, with no `## raw:` line (it is already all of
-it).
+included, and must be at least 1. Below about 1,400 tokens it gets
+tight, and below about 600 the fixed skeleton (header, head and tail
+windows, ledger) is most of the output; 1,000 to 2,000 is the working
+range ([DESIGN.md](DESIGN.md#tokens-and-the-budget)). Output that
+already fits the budget is printed as it is, with no `## raw:` line (it
+is already all of it).
 
 Without `--budget`, pare reads `$PARE_BUDGET` (an empty value counts as
 unset; `auto` and `auto:N` work there too), else uses `auto`.
@@ -40,7 +41,7 @@ measurements behind it are in [DESIGN.md](DESIGN.md#automatic-budget).
 A summary is plain text in sections, each starting with `#`:
 
 ```
-# pare: 308 lines, 19,046 B (~6,803 tok) → ~1,249 tok (budget 2,000) · 35 templates
+# pare: 308 lines, 19,046 B (~9,523 tok) → ~1,763 tok (budget 2,000) · 35 templates
 ## head (L1–L5)          the first lines
 ## templates (by salience)   one entry per shape, with its count and an example
 ## selected lines        other lines worth their cost, with ┆ gap markers

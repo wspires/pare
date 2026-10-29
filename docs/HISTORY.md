@@ -5,7 +5,8 @@ What was tried, in the order it was tried, with the numbers at the time.
 for its evidence; `corpus/heldout/README.md` has every held-out sample
 with its misses; ROADMAP.md says what came next. Sections are kept as
 written, with a note where a measurement has since been superseded.
-Budgets are in tokens at bytes / 2.8 unless a section says bytes/4, the
+Budgets are in tokens at bytes / 2.8, the rate until 29 October 2026
+(DESIGN.md, "Tokens and the budget"), unless a section says bytes/4, the
 unit the heuristics were first developed in.
 
 ## The benchmark when the heuristics were frozen
