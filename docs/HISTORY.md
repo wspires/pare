@@ -66,6 +66,32 @@ recall to 93 %.
 
 ### Calibrated to real tokens (bytes/2.8)
 
+*Moved here from DESIGN.md when the default became 2.0 (29 October 2026);
+the current measurement, on Claude's tokenizer, is in DESIGN.md, "Tokens
+and the budget".*
+
+Why 2.8: `bench/tokens.py` counted the corpus and pare's output with
+OpenAI's cl100k_base and o200k_base through tiktoken, and with the Claude
+tokenizer JSON that litellm ships (the older public one with a 65k
+vocabulary; the tokenizer behind current Claude models is not published).
+Bytes per token, totals over the eight corpus files the corpus then had:
+
+| text | cl100k | o200k | Claude (legacy) |
+|---|---|---|---|
+| raw corpus, 1.37 MB | 2.59 | 2.59 | 2.43 |
+| pare output at budget 600 | 2.86 | 2.85 | 2.80 |
+| pare output at budget 2000 | 2.84 | 2.83 | 2.74 |
+
+Per file the raw logs ranged from 2.1 bytes per token (the synthetic
+service log) to 3.8 (the pytest run); pare's output sat in a narrower
+band of 2.6 to 3.2. So bytes/4 undercounted pare's output by about
+40 %: a budget of 600 produced roughly 850 real tokens and 2000 roughly
+2,850. The raw input is denser still, so the compression ratios were, if
+anything, conservative: in cl100k tokens pare's budget-2000 output was
+2.0 % of the input (10,665 of 527,288) against 2.2 % by bytes/4, and the
+budget-600 output 1.1 % against 1.3 %. One file (go test, 2.6 bytes per
+token) still exceeded 600 by 7 % at 2.8.
+
 The same runs with `--chars-per-token 2.8`, so every count is within a
 few percent of a cl100k/o200k count and pare's budget is a real-token
 ceiling. sqz and tidyout have no budget, so only their counts change.

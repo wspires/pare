@@ -18,10 +18,10 @@ every line), where the real rate is lower and a budget-600 summary can
 run a few per cent over.
 
 The budget is a hard ceiling on the rendered output, header and ledger
-included, and must be at least 1. Below about 1,400 tokens it gets
-tight, and below about 600 the fixed skeleton (header, head and tail
-windows, ledger) is most of the output; 1,000 to 2,000 is the working
-range ([DESIGN.md](DESIGN.md#tokens-and-the-budget)). Output that
+included, and must be at least 1. 1,000 to 2,000 is the working range;
+600 is too little for a run with several failures, and below about 600
+the fixed skeleton (header, head and tail windows, ledger) is most of
+the output ([DESIGN.md](DESIGN.md#tokens-and-the-budget)). Output that
 already fits the budget is printed as it is, with no `## raw:` line (it
 is already all of it).
 

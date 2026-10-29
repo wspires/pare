@@ -132,43 +132,21 @@ drain3, by tests on every log in the repository.
 ## Tokens and the budget
 
 **What a token is here.** pare counts tokens as `ceil(bytes / 2.0)` of
-UTF-8 text, for its own output and for the budget, and the benchmark uses
-the same rule for every tool. This is a proxy, not a tokenizer; 2.0 is the
-rate measured on Claude's tokenizer below (2.8, the default until 29
-October 2026, is the rate on OpenAI's), and `--bytes-per-token` changes
-it. Four bytes per
-token is the usual rule of thumb for English prose, and the default while
-the heuristics were developed; log text is denser in tokens because
-paths, hashes, hex, punctuation and digits split into many short pieces.
+UTF-8 text, for its own output and for the budget, and the benchmark
+uses the same rule for every tool. This is a proxy, not a tokenizer: 2.0
+is the rate measured on Claude's tokenizer below, and
+`--bytes-per-token` changes it (2.8 is the rate on OpenAI's cl100k and
+o200k, and the default until 29 October 2026; 4 is the rule of thumb for
+English prose, the unit the heuristics were first developed in). Log
+text is denser in tokens than prose because paths, hashes, hex,
+punctuation and digits split into many short pieces.
 
-**Measured.** `bench/tokens.py` counts the corpus and pare's output with
-real tokenizers: OpenAI's cl100k_base and o200k_base through tiktoken, and
-the Claude tokenizer JSON that litellm ships (the older public one with a
-65k vocabulary; the tokenizer behind current Claude models is not
-published, and Anthropic's `count_tokens` API is the exact source).
-Bytes per token, totals over the eight corpus files the corpus then had:
-
-| text | cl100k | o200k | Claude (legacy) |
-|---|---|---|---|
-| raw corpus, 1.37 MB | 2.59 | 2.59 | 2.43 |
-| pare output at budget 600 | 2.86 | 2.85 | 2.80 |
-| pare output at budget 2000 | 2.84 | 2.83 | 2.74 |
-
-Per file the raw logs range from 2.1 bytes per token (the synthetic
-service log: timestamps, IPs and hex on every line) to 3.8 (the pytest
-run); pare's output sits in a narrower band of 2.6 to 3.2. So bytes/4
-undercounts pare's output by about 40 %: a budget of 600 produces
-roughly 850 real tokens and 2000 roughly 2,850. The raw input is denser
-still, so the benchmark's compression ratios are, if anything,
-conservative: in cl100k tokens pare's budget-2000 output is 2.0 % of the
-input (10,665 of 527,288) against 2.2 % by bytes/4, and the budget-600
-output 1.1 % against 1.3 %.
-
-Claude is a main target and its current tokenizer is none of the three
-above. `bench/tokens.py --anthropic claude-opus-5-5` counts the same
-outputs through Anthropic's `count_tokens` API. **Measured on 29 October
-2026** over the nine dev-corpus files with Claude Opus 5.5's tokenizer
-(the one Opus 4.7 and later share):
+**Measured.** `bench/tokens.py` counts the dev corpus and pare's output
+with real tokenizers: OpenAI's cl100k_base and o200k_base through
+tiktoken, and the tokenizer behind the current Claude models through
+Anthropic's `count_tokens` API (`--anthropic claude-opus-5-5`; Opus 4.7
+and later share it). Bytes per token over the nine dev-corpus files, on
+29 October 2026:
 
 | text | cl100k | o200k | Claude Opus 5.5 |
 |---|---|---|---|
@@ -176,44 +154,38 @@ outputs through Anthropic's `count_tokens` API. **Measured on 29 October
 | pare output at budget 600 | 2.82 | 2.82 | 1.96 |
 | pare output at budget 2000 | 2.85 | 2.83 | 1.96 |
 
-Per file Claude's rate on pare's output runs from 1.78 to 2.14 bytes per
-token, a third denser than the OpenAI tokenizers. So at 2.8 a Claude
-agent got more than the budget said: `--budget 2000` printed about
-2,870 Claude tokens and `--budget 600` about 860. **The default is 2.0
-since 29 October 2026.** Rerun at that rate on the same day, the budget-2,000
+Per file, Claude's rate on pare's output runs from 1.78 to 2.14 bytes
+per token, a third denser than the OpenAI tokenizers; the raw logs range
+more widely (2.1 on the synthetic service log, with timestamps, IPs and
+hex on every line, to 3.8 on the pytest run, in cl100k), and pare's
+output sits in a narrower band. So at 2.8 a Claude agent got more than
+the budget said: `--budget 2000` printed about 2,870 Claude tokens and
+`--budget 600` about 860. At 2.0, rerun the same day, the budget-2,000
 outputs count at most about 2,040 Claude tokens and the budget-600 ones
-about 610, so the budget holds to within 2 %. At the same nominal
-budgets that is a 30 % smaller summary, and on the recall benchmark it costs 25 points at 600
-on the dev corpus (78 % to 53 %), 16 on Defects4J seed 7 (90 % to 74 %)
-and 17 on SWE-bench seed 5 (62 % to 45 %), and one to five points at
-2,000; the README's tables are at the new rate, and every number in
-HISTORY.md and in the held-out record before that date is at 2.8. A
-budget of 600 is now 1,200 bytes, too little for a run with several
-failures; 1,000 to 2,000 is the working range.
-
-So the default was `--bytes-per-token 2.8` from the first measurement
-until the Claude one above, and the budget is a real-token ceiling. At
-`--budget 2000` that produced at most 1,982 cl100k tokens per file (9,794
-in total) and kept 72 of 73 must-survive lines (98.6 %, min 93 %). At 600
-it is 30 % less text than the bytes/4 setting and recall drops to 75 %
-(min 53 %): the tight setting in the bytes/4 tables below is really about
-850 tokens. One file (go test, 2.6 bytes per token) still exceeded 600 by
-7 %; set `--bytes-per-token 2.5` for a strict ceiling on dense logs, or
-`4` to reproduce the bytes/4 tables. The bench has the same flag.
+about 610: the budget holds to within 2 %. The same nominal budget is a
+30 % smaller summary, and on the recall benchmark that costs 25 points
+at 600 on the dev corpus (78 % to 53 %), 16 on Defects4J seed 7 (90 % to
+74 %) and 17 on SWE-bench seed 5 (62 % to 45 %), and one to five points
+at 2,000. The README's tables are at the new rate; every number in
+HISTORY.md and in the held-out record before that date is at 2.8, and
+the earlier calibration (the bytes/4 era, and the legacy public Claude
+tokenizer) is in HISTORY.md, "Calibrated to real tokens". For a strict
+ceiling on the densest logs set `--bytes-per-token 1.8`, the lowest
+per-file rate measured; `2.8` reproduces the numbers from before
+October.
 
 **How to set the budget.** The budget is a hard ceiling on what reaches
-the agent's context, and the ledger plus run file make everything above it
-recoverable on demand, so the question is how much context one tool
+the agent's context, and the ledger plus run file make everything above
+it recoverable on demand, so the question is how much context one tool
 result should cost by default:
 
-- For an agent loop, 1,000 to 2,000 tokens per tool call is a good
-  default. At 2,000 pare kept 72 of 73 must-survive lines on the then
-  eight corpus files, including the 750 KB CI log, at 2.0 % of the input (in
-  bytes/4 units, about 2,850 real tokens, it kept all 73).
-- Below about 1,000 the budget gets tight. At a real 600 the corpus held
-  75 %; the bytes/4 600 setting, about 850 real tokens, held 97 % with
-  two stack-frame misses in the largest log. Below about 400 the fixed
-  skeleton (header, windows, ledger) is most of the output.
+- For an agent loop, 1,000 to 2,000 tokens per tool call. At 2,000 pare
+  keeps 99 % of the dev corpus's must-survive lines at 1.6 % of the
+  input, and every line of the latest held-out samples (README,
+  "Results"); at 1,000 it keeps 92 % and 70 % of those two samples.
+- A budget of 600 is 1,200 bytes, too little for a run with several
+  failures: 53 % on the dev corpus, 86 % and 56 % held out. Below about
+  600 the fixed skeleton (header, windows, ledger) is most of the output.
 - Small outputs are passed through untouched when they fit, so a high
   budget costs nothing on a 50-line command; the budget only bites on
   output that needs it.
@@ -224,13 +196,15 @@ result should cost by default:
 
 The right number ultimately depends on the context window and how many
 tool calls a task takes; a 200k-token window with 40 tool calls at 2,000
-each spends 80k on tool output, which is the kind of arithmetic the budget
-exists to make explicit.
+each spends 80k on tool output, which is the kind of arithmetic the
+budget exists to make explicit.
 
 ### Automatic budget
 
 `--budget auto` treats the budget as a ceiling (2,000, or
-N with `auto:N`) that the summary need not reach. The allocator already
+N with `auto:N`) that the summary need not reach. (The measurements in
+this section are at 2.8 bytes per token, the rate when `auto` was tuned;
+the ones at 2.0 are at its end.) The allocator already
 places entries in order of salience; under `auto` it stops once nothing
 worth an entry of its own is left, so a log with one error gets a short
 summary and a log with many errors gets more, up to the ceiling. Three
@@ -489,8 +463,9 @@ superseded by the repeat penalty and exemplar bodies.
 at weight 0 (`END_TPL_BONUS`, `START_TPL_BONUS`, `END_LINE_BONUS`,
 `FIRST_BONUS`), and `bench/ablate.py --corpus DIR ...` switches each on at
 the weight it had ("with ..." rows), reporting each set on its own line.
-Change in recall, percentage points at 600 / 1,000 / 2,000 (* = the
-latest fresh samples; Defects4J with alternative-form labels):
+Change in recall, percentage points at 600 / 1,000 / 2,000, at 2.8
+bytes per token (* = the latest fresh samples; Defects4J with
+alternative-form labels):
 
 | term (old weight) | dev corpus | generated | D4J s1 | D4J s0 | D4J s2 | D4J s3* | SWE s0 | SWE s1 | SWE s2* |
 |---|---|---|---|---|---|---|---|---|---|
@@ -723,8 +698,8 @@ When the rules were frozen, the dev corpus without them gave 87.7 % at 600
 and 94.5 % at 2000 (bytes/4 units; with them 97.3 % and 100 %).
 
 **Rechecked on nine sets**, each rule switched off on its own. Change in
-recall, percentage points at 600 / 1,000 / 2,000 (* = the latest fresh
-samples; output size where it moved):
+recall, percentage points at 600 / 1,000 / 2,000, at 2.8 bytes per token
+(* = the latest fresh samples; output size where it moved):
 
 | switched off | dev corpus | generated | D4J s1, s0, s2, s3* | SWE s0 | SWE s1 | SWE s2* |
 |---|---|---|---|---|---|---|
