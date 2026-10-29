@@ -103,13 +103,13 @@ Needs `pip install anthropic` and credentials (`ANTHROPIC_API_KEY`, or
 `ant auth login`), checked once with a free call before any trial runs;
 the pare condition needs a build that takes the budget it is given
 (`--budget auto` needs pare 0.2.0 or later: `cargo build --release`).
-Every trial spends money,
-and a `raw` trial on `outage-cause` sends 190k tokens per turn. Results
-land in `bench/agent-runs/<stamp>/`: `results.jsonl` (one record per
-trial), a transcript per trial, `summary.md`. The directory is ignored by
-git; copy a summary into `corpus/heldout/README.md` under "Agent-success
-evaluation" when it is worth keeping, with the model, effort and pare
-version from `config.json`.
+Every trial spends money: a `raw` trial on `outage-cause` costs about
+300k input tokens, the 535 KB log on every turn (the record's first
+run). Results land in `bench/agent-runs/<stamp>/`: `results.jsonl` (one
+record per trial), a transcript per trial, `summary.md`. The directory
+is ignored by git; copy a summary into `corpus/heldout/README.md` under
+"Agent-success evaluation" when it is worth keeping, with the model,
+effort and pare version from `config.json`.
 
 The output of one run is a table per task kind: success rate, mean
 score, input tokens over the whole trial (cache reads and writes
