@@ -32,9 +32,10 @@ unset; `auto` and `auto:N` work there too), else uses `auto`.
 `--budget auto:N`) that the summary stops short of once nothing at error
 level is left to show: only error-level shapes get a template entry,
 output up to twice the ceiling (4,000 tokens) passes through whole, and
-the head and tail windows are sized for 2,000 whatever the ceiling. A number, `--budget 2000`, is a
-fixed budget the summary fills, as the Python version's default was. The
-measurements behind it are in [DESIGN.md](DESIGN.md#automatic-budget).
+the head and tail windows are sized for 2,000 whatever the ceiling. A
+number, `--budget 2000`, is a fixed budget the summary fills, as the
+Python version's default was. The measurements behind it are in
+[DESIGN.md](DESIGN.md#automatic-budget).
 
 ## What pare prints
 

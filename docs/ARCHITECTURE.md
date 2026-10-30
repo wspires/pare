@@ -124,7 +124,7 @@ end of input ─▶ Pass::finish ─▶ Store + hash + spool
                          ▼
                $PARE_DUMP set? ─▶ dump::write_dump
                          │
-               summary::passthrough: fits the budget? (auto: 1,000 tokens)
+               summary::passthrough: fits the budget? (auto: twice the ceiling)
                   yes ─▶ read lines back by offset, clean, write
                   no  ─▶ summary::summarize
                            head and tail windows (at most 30 % of the budget;
