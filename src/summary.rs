@@ -182,6 +182,20 @@ static PARAMS: LazyLock<PyRegex> = LazyLock::new(|| {
 /// ```
 #[must_use]
 pub fn fmt_int(n: i64) -> String {
+    fmt_int_impl(n)
+}
+
+/// The `## raw:` line of a batch run: the run file, or why there is none.
+#[must_use]
+pub fn raw_line(run_path: Option<&str>, not_saved: Option<&str>) -> String {
+    match (run_path, not_saved) {
+        (Some(p), _) => format!("## raw: {p}"),
+        (None, Some(why)) => format!("## raw: (not saved: {why})"),
+        (None, None) => "## raw: (not saved)".to_owned(),
+    }
+}
+
+fn fmt_int_impl(n: i64) -> String {
     let digits = n.unsigned_abs().to_string();
     let mut out = String::with_capacity(digits.len() + digits.len() / 3 + 1);
     if n < 0 {
@@ -496,6 +510,9 @@ pub struct Options {
     pub max_templates: i64,
     /// The run file as the run line shows it; `None` under `--no-tee`.
     pub run_path: Option<String>,
+    /// Why there is no run file, when there is a reason worth printing (a
+    /// piped input over `$PARE_RUN_MAX_MB`).
+    pub not_saved: Option<String>,
     /// Bytes of input.
     pub in_bytes: u64,
     /// Added to the run line (command mode: the exit status).
@@ -620,7 +637,7 @@ pub fn summarize(store: &Store, vocab: &Vocab, spool: &Path, opts: &Options) -> 
     let mut run_line = match (&opts.run_path, opts.follow) {
         (Some(p), Some(_)) => format!("## raw: {p} --since L{b1} --until L{last}"),
         (Some(p), None) => format!("## raw: {p}"),
-        (None, _) => "## raw: (not saved)".to_owned(),
+        (None, _) => raw_line(None, opts.not_saved.as_deref()),
     };
     if let Some(note) = &opts.note {
         run_line.push_str(&format!(" {} {note}", crate::text::glyphs().dot));

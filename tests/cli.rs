@@ -883,3 +883,172 @@ fn binary_output_in_command_mode_keeps_the_exit_status() {
     );
     assert!(text.trim_end().ends_with("exit 3"), "{text}");
 }
+
+/// `pare` with a file as its standard input, as `pare < file` gives it.
+fn pare_from_file(args: &[&str], input: &Path, env: &[(&str, &str)]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_pare"))
+        .args(args)
+        .env_remove("PARE_VOCAB")
+        .env_remove("PARE_BUDGET")
+        .env_remove("PARE_REFERENCE_RULES")
+        .envs(env.iter().copied())
+        .env("PARE_RUN_PRUNE", "off")
+        .stdin(fs::File::open(input).unwrap())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .expect("the pare binary runs")
+}
+
+fn names_in(dir: &Path) -> Vec<String> {
+    let mut v: Vec<String> = fs::read_dir(dir)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|n| !n.starts_with('.'))
+        .collect();
+    v.sort();
+    v
+}
+
+#[cfg(unix)]
+#[test]
+fn a_file_on_stdin_is_referred_to_not_copied() {
+    let dir = TempDir::new("stdin-file");
+    let log = dir.path().join("build.log");
+    fs::copy(
+        concat!(env!("CARGO_MANIFEST_DIR"), "/corpus/dev/ci-pipeline.log"),
+        &log,
+    )
+    .unwrap();
+    let runs = dir.path().join("runs");
+    let real = fs::canonicalize(&log).unwrap();
+
+    let out = pare_from_file(
+        &["--run-dir", runs.to_str().unwrap(), "--budget", "600"],
+        &log,
+        &[],
+    );
+    assert!(out.status.success());
+    let text = String::from_utf8_lossy(&out.stdout).into_owned();
+    assert!(
+        text.contains(&format!("## raw: {}\n", real.display())),
+        "the run line names the file itself: {text}"
+    );
+    // No copy, one record naming the file.
+    let names = names_in(&runs);
+    assert_eq!(names.len(), 1, "{names:?}");
+    assert!(names[0].ends_with(".json"), "{names:?}");
+    let record = fs::read_to_string(runs.join(&names[0])).unwrap();
+    assert!(
+        record.contains("\"ref\"") && record.contains(real.to_str().unwrap()),
+        "{record}"
+    );
+    assert!(record.contains("\"out_bytes\""), "{record}");
+    // `pare stats` counts it, showing the file where a command would be.
+    let stats = pare(&["stats", "--run-dir", runs.to_str().unwrap()], b"");
+    let stats = String::from_utf8_lossy(&stats.stdout);
+    assert!(
+        stats.contains("1 command run") && stats.contains(&format!("< {}", real.display())),
+        "{stats}"
+    );
+
+    // The summary is the piped run's, apart from the run line and the
+    // header's output size, which counts the run line's length.
+    let runs2 = dir.path().join("runs2");
+    let piped = pare(
+        &["--run-dir", runs2.to_str().unwrap(), "--budget", "600"],
+        &fs::read(&log).unwrap(),
+    );
+    let strip = |t: &str| {
+        t.lines()
+            .filter(|l| !l.starts_with("## raw:") && !l.starts_with("# pare:"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    assert_eq!(strip(&text), strip(&String::from_utf8_lossy(&piped.stdout)));
+    assert!(
+        names_in(&runs2).iter().any(|n| n.ends_with(".log")),
+        "a pipe is still copied"
+    );
+
+    // Expanding reads the file: the same template ids.
+    let only = pare_from_file(&["--no-tee", "--only", "T29"], &log, &[]);
+    let only = String::from_utf8_lossy(&only.stdout);
+    assert!(
+        only.starts_with("# pare --only T29: 11,288 of 17,832 lines"),
+        "{only}"
+    );
+
+    // A file not read from its start is copied, since offsets would not match.
+    let runs3 = dir.path().join("runs3");
+    let mut f = fs::File::open(&log).unwrap();
+    std::io::Seek::seek(&mut f, std::io::SeekFrom::Start(100)).unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_pare"))
+        .args(["--run-dir", runs3.to_str().unwrap(), "--budget", "600"])
+        .env("PARE_RUN_PRUNE", "off")
+        .stdin(f)
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    assert!(
+        names_in(&runs3).iter().any(|n| n.ends_with(".log")),
+        "{:?}",
+        names_in(&runs3)
+    );
+
+    // The Python version copied everything: so does the reference switch.
+    let runs4 = dir.path().join("runs4");
+    pare_from_file(
+        &["--run-dir", runs4.to_str().unwrap(), "--budget", "600"],
+        &log,
+        &[("PARE_REFERENCE_RULES", "1")],
+    );
+    assert!(
+        names_in(&runs4).iter().any(|n| n.ends_with(".log")),
+        "{:?}",
+        names_in(&runs4)
+    );
+}
+
+#[test]
+fn a_piped_input_over_the_size_cap_is_not_kept() {
+    let dir = TempDir::new("cap");
+    let input = fs::read(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/corpus/dev/ci-pipeline.log"
+    ))
+    .unwrap();
+    let runs = dir.path().join("runs");
+    let out = pare_with(
+        &["--run-dir", runs.to_str().unwrap(), "--budget", "600"],
+        &input,
+        &[("PARE_RUN_MAX_MB", "0.01")],
+    );
+    assert!(out.status.success());
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        text.contains("## raw: (not saved: 750,094 B is over $PARE_RUN_MAX_MB, 0.01 MB)\n"),
+        "{text}"
+    );
+    assert!(
+        !text.contains("expand with"),
+        "no hint without a run file: {text}"
+    );
+    assert!(names_in(&runs).is_empty(), "{:?}", names_in(&runs));
+    // Asked for by name, the run file is written whatever its size.
+    let keep = dir.path().join("keep.log");
+    pare_with(
+        &["--run-file", keep.to_str().unwrap(), "--budget", "600"],
+        &input,
+        &[("PARE_RUN_MAX_MB", "0.01")],
+    );
+    assert_eq!(fs::metadata(&keep).unwrap().len(), input.len() as u64);
+    // 0 means no limit.
+    let runs0 = dir.path().join("runs0");
+    pare_with(
+        &["--run-dir", runs0.to_str().unwrap(), "--budget", "600"],
+        &input,
+        &[("PARE_RUN_MAX_MB", "0")],
+    );
+    assert!(names_in(&runs0).iter().any(|n| n.ends_with(".log")));
+}

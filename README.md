@@ -219,8 +219,10 @@ and `--since`. Details: [docs/USAGE.md](docs/USAGE.md#follow-mode).
 Run files live in `~/.cache/pare/runs` (`$PARE_RUN_DIR`). pare prunes
 them itself: runs older than 14 days go, then the oldest until the rest
 fit in 500 MB (`$PARE_RUN_KEEP_DAYS`, `$PARE_RUN_MAX_MB`;
-`$PARE_RUN_PRUNE=off` stops it; `pare prune [--dry-run]` sweeps now).
-Details: [docs/USAGE.md](docs/USAGE.md#run-files).
+`$PARE_RUN_PRUNE=off` stops it; `pare prune [--dry-run]` sweeps now). A
+file on standard input (`pare < build.log`) is not copied but read in
+place, and a piped input over the size limit is summarised but not
+kept. Details: [docs/USAGE.md](docs/USAGE.md#run-files).
 
 ## Teaching pare your logs
 

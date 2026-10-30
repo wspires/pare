@@ -373,6 +373,16 @@ class Pare(Condition):
         env = self._env(work)
         runs = sorted(glob.glob(os.path.join(env["PARE_RUN_DIR"], "*.log")))
         if not runs:
+            # A file read in place is not copied: its record names it.
+            for rec in sorted(glob.glob(os.path.join(env["PARE_RUN_DIR"], "*.json")), key=os.path.getmtime):
+                try:
+                    with open(rec, encoding="utf-8") as f:
+                        ref = (json.load(f).get("ref") or {}).get("path")
+                except (OSError, ValueError):
+                    ref = None
+                if ref and os.path.exists(ref):
+                    runs = [ref]
+        if not runs:
             return "no run file"
         argv = shlex.split(args)
         if any(a in ("--", "-f", "--follow", "stats", "prune", "vocab") for a in argv):

@@ -85,6 +85,12 @@ Homebrew, an install script, pipx/uv (`pare-cli`) or cargo (`pare-cli`).
   errors. pare now prints `# pare: binary input (NUL at byte N), … B ·
   not summarised` and the run-file line, saves the input as usual, and
   exits as usual.
+- **Large inputs cost no disk.** A file on standard input (`pare <
+  build.log`) is read in place instead of copied: the run line names the
+  file, expanding reads it, and the run directory gets only the `.json`
+  record (Linux and macOS, when the file is read from its start). A
+  piped input larger than `$PARE_RUN_MAX_MB` is summarised but not
+  kept, and the run line says so; `--run-file` keeps it regardless.
 - **License:** MIT OR Apache-2.0.
 - The Python version is kept in `reference/` as the reference the Rust
   version is tested against; it is no longer packaged.

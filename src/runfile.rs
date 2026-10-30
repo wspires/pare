@@ -13,6 +13,8 @@ use std::env;
 use std::fs::{self, File, OpenOptions};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
+#[cfg(unix)]
+use std::time::UNIX_EPOCH;
 
 use crate::error::{Error, Result};
 
@@ -37,6 +39,87 @@ pub fn default_run_dir() -> PathBuf {
 fn home_dir() -> PathBuf {
     let var = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
     env::var_os(var).map_or_else(|| PathBuf::from("."), PathBuf::from)
+}
+
+/// Standard input when it is a regular file read from its start: its path
+/// and identity. Such a run refers to the file instead of copying it (the
+/// summary's lines are read back from it by offset, as from a run file)
+/// and leaves a record naming it in the run directory.
+#[derive(Debug, Clone)]
+pub struct StdinFile {
+    /// The file's absolute path, as the kernel reports it for the open
+    /// descriptor.
+    pub path: PathBuf,
+    /// Its modification time, seconds since the epoch.
+    pub mtime: f64,
+    /// Its inode number, so a later reader can tell whether the path still
+    /// holds the same file.
+    pub inode: u64,
+}
+
+/// Standard input as a regular file, or `None` for a pipe, a terminal, a
+/// file not positioned at its start (`(head -c 100 >/dev/null; pare) <
+/// log`), or a file whose path cannot be recovered (Linux and macOS can;
+/// elsewhere the input is copied as usual).
+#[cfg(unix)]
+#[must_use]
+pub fn stdin_file() -> Option<StdinFile> {
+    use std::io::Seek;
+    use std::os::fd::AsFd;
+    use std::os::unix::fs::MetadataExt;
+    // Rust note: `try_clone_to_owned` duplicates the descriptor (`dup`), so
+    // the `File` built from it closes its own copy and leaves stdin open.
+    let fd = std::io::stdin().as_fd().try_clone_to_owned().ok()?;
+    let mut file = File::from(fd);
+    let st = file.metadata().ok()?;
+    if !st.is_file() || file.stream_position().ok()? != 0 {
+        return None;
+    }
+    let path = fd_path(&file)?;
+    let at = fs::metadata(&path).ok()?;
+    if at.ino() != st.ino() || at.dev() != st.dev() {
+        return None;
+    }
+    let mtime = st
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+        .map_or(0.0, |d| d.as_secs_f64());
+    Some(StdinFile {
+        path,
+        mtime,
+        inode: st.ino(),
+    })
+}
+
+/// No regular-file detection off Unix: the input is copied.
+#[cfg(not(unix))]
+#[must_use]
+pub fn stdin_file() -> Option<StdinFile> {
+    None
+}
+
+/// The path behind standard input's descriptor.
+#[cfg(target_os = "linux")]
+fn fd_path(_file: &File) -> Option<PathBuf> {
+    // A deleted file reads back as "... (deleted)", which then fails the
+    // metadata check in the caller.
+    let path = fs::read_link("/proc/self/fd/0").ok()?;
+    path.is_absolute().then_some(path)
+}
+
+/// The path behind standard input's descriptor.
+#[cfg(target_vendor = "apple")]
+fn fd_path(file: &File) -> Option<PathBuf> {
+    let mut path = PathBuf::new();
+    nix::fcntl::fcntl(file, nix::fcntl::FcntlArg::F_GETPATH(&mut path)).ok()?;
+    path.is_absolute().then_some(path)
+}
+
+/// Other Unixes: no portable way to the path, so the input is copied.
+#[cfg(all(unix, not(target_os = "linux"), not(target_vendor = "apple")))]
+fn fd_path(_file: &File) -> Option<PathBuf> {
+    None
 }
 
 /// A file the input is written to, removed when dropped unless it was kept

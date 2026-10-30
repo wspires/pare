@@ -19,8 +19,10 @@ line's record, depth, severity, template, score and sizes, and every
 template's counts, marker, salience and text, scores to the bit
 (`bench/check.sh` prints the current run count). Rules added since the
 port (structured lines, the tail window's verdict rule, `auto` as the
-default budget, the binary-input check, and the smaller changes "Output
-marks and the reference switch" lists) are what the switch turns off.
+default budget, the binary-input check, the run file that is not written
+for a file on stdin or a piped input over the size cap, and the smaller
+changes "Output marks and the reference switch" lists) are what the
+switch turns off.
 
 ## Crate layout
 
@@ -92,7 +94,9 @@ follow mode or batch mode.
 ## Data flow (batch mode)
 
 ```
-stdin ──read 1 MiB──▶ Pass::feed ──▶ spool file (write as read)
+stdin ──read 1 MiB──▶ Pass::feed ──▶ spool file (write as read; none when
+                         │       │     stdin is a regular file: runfile::stdin_file,
+                         │       │     whose path is then read back from instead)
                          │       └──▶ SHA-256 (hash as read)
                          │  (a NUL in the first 8 KiB: binary; spooled and
                          │   hashed, no further, and batch prints one line)
@@ -292,7 +296,8 @@ pare's own: true unless `PARE_REFERENCE_RULES` is set. It gates
 structured lines (`text::clip`, `vocab`'s numeric levels), the tail
 window's verdict rule (`Summarizer::windowed`), `auto` as the default
 budget (`cli::Args::budget_for_summary`), the binary-input check
-(`Pass::check_binary`), the usage exit status
+(`Pass::check_binary`), reading a file on stdin in place and the size
+cap on a piped run file (`cli::batch`), the usage exit status
 (`error::Error::exit_status`), the expand-with hint's dependence on a
 run file and the ledger's singular forms (`summary`). The parity check
 and the golden-summary test set the variable; everything else runs with

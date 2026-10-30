@@ -45,7 +45,7 @@ serde_json = { version = "1", features = ["preserve_order"] }
 sha2 = "0.10"
 
 [target.'cfg(unix)'.dependencies]
-nix = { version = "0.30", default-features = false, features = ["signal"] }
+nix = { version = "0.30", default-features = false, features = ["signal", "fs"] }
 signal-hook = "0.3"
 
 [lints.rust]

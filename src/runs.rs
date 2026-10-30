@@ -172,6 +172,57 @@ fn prune_limits() -> (f64, f64) {
     )
 }
 
+/// `$PARE_RUN_MAX_MB` as a byte count and as the label `pare prune`
+/// prints, or `None` when it is 0 (no limit). A piped input larger than
+/// this is not kept as a run file: it would exceed the whole directory's
+/// allowance by itself.
+#[must_use]
+pub fn run_max() -> Option<(u64, String)> {
+    let (_, max_mb) = prune_limits();
+    if max_mb == 0.0 {
+        return None;
+    }
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let bytes = (max_mb * 1024.0 * 1024.0) as u64;
+    Some((bytes, format!("{} MB", py_g(max_mb))))
+}
+
+/// The record of a run whose input was a file read in place
+/// (`runfile::stdin_file`): no run file, since the input is where it was,
+/// but the same counts as a command run's record, and under `"ref"` the
+/// file's path, modification time and inode.
+pub fn write_ref_record(
+    run_dir: &Path,
+    digest: &str,
+    src: &crate::runfile::StdinFile,
+    lines: usize,
+    nbytes: u64,
+    out: (u64, i64, f64),
+) {
+    // A run file summarised in place (`pare < <run dir>/x.log`) already
+    // has a record, a command's, which says more than this one would.
+    let at = run_dir.join(format!("{digest}.json"));
+    if at.exists() {
+        return;
+    }
+    let mut r = serde_json::Map::new();
+    r.insert(
+        "path".into(),
+        Value::String(src.path.to_string_lossy().into_owned()),
+    );
+    r.insert("mtime".into(), Value::String(utc_stamp(src.mtime)));
+    r.insert("inode".into(), Value::from(src.inode));
+    let mut meta = serde_json::Map::new();
+    meta.insert("ref".into(), Value::Object(r));
+    meta.insert("lines".into(), Value::from(lines));
+    meta.insert("bytes".into(), Value::from(nbytes));
+    meta.insert("pare".into(), Value::String(crate::VERSION.to_owned()));
+    meta.insert("out_bytes".into(), Value::from(out.0));
+    meta.insert("budget".into(), Value::from(out.1));
+    meta.insert("chars_per_token".into(), Value::from(out.2));
+    let _ = fs::write(at, dumps(&Value::Object(meta)) + "\n");
+}
+
 fn py_strip_parse(v: &str) -> Option<f64> {
     v.trim_matches(py_isspace).replace('_', "").parse().ok()
 }
@@ -397,11 +448,21 @@ pub fn stats(run_dir: &Path, out: &mut impl Write) -> io::Result<()> {
             .and_then(Value::as_array)
             .map(|a| a.iter().filter_map(Value::as_str).collect())
             .unwrap_or_default();
+        // A run that read a file in place has no command: show the file.
+        let referred = m
+            .get("ref")
+            .and_then(|r| r.get("path"))
+            .and_then(Value::as_str)
+            .map(|p| format!("< {p}"));
         rows.push(Row {
             started: m
                 .get("started")
                 .map_or_else(String::new, |v| py_str(Some(v))),
-            command: collapse_space(&words.join(" ")),
+            command: if words.is_empty() {
+                referred.unwrap_or_default()
+            } else {
+                collapse_space(&words.join(" "))
+            },
             bytes: m.get("bytes").and_then(Value::as_f64).unwrap_or(0.0),
             out_bytes,
             cpt,

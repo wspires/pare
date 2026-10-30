@@ -118,6 +118,7 @@ impl<W: Write> State<'_, W> {
             width: s.width,
             max_templates: s.max_templates,
             run_path: self.run_path.map(str::to_owned),
+            not_saved: None,
             in_bytes: store.total_bytes,
             note: None,
             follow: Some(Follow {

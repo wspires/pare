@@ -162,6 +162,21 @@ pare --min-severity error < runfile      # error lines and above
 pare --since L200 --until L400 < runfile # a line range (or -200: the last 200)
 ```
 
+Two inputs are not copied. A file on standard input (`pare < build.log`)
+is read in place: the `## raw:` line names the file itself, expanding
+reads it, and the run directory gets only the small `.json` record,
+with the file's path, modification time and inode under `"ref"`, so
+`pare stats` still counts the run. That holds on Linux and macOS when
+the file is read from its start; a file read from elsewhere, or on
+another system, is copied as a pipe is. And a piped input larger than
+`$PARE_RUN_MAX_MB` (500 MB by default) is summarised but not kept, since
+by itself it would exceed the run directory's whole allowance: the run
+line says `## raw: (not saved: 1,234,567,890 B is over $PARE_RUN_MAX_MB,
+500 MB)`. `--run-file` saves it whatever its size, and
+`$PARE_RUN_MAX_MB=0` lifts the cap. In both cases the input is still read
+in one pass with a few dozen bytes per line in memory; a 1 GB log costs
+no more disk than a 1 KB one.
+
 Template ids are stable for a given input and flags: the pipeline is
 deterministic and the ids are numbered in order of first appearance. They
 depend on the masks in use, so a run file saved with `--vocab` needs the
@@ -305,7 +320,7 @@ status 0.
 | `PARE_BUDGET` | the budget when `--budget` is not given: a number, `auto` or `auto:N`; empty counts as unset |
 | `PARE_RUN_DIR` | where run files go (default `~/.cache/pare/runs`); `--run-dir` overrides it |
 | `PARE_RUN_KEEP_DAYS` | prune run files older than this many days (default 14; 0 for no age limit) |
-| `PARE_RUN_MAX_MB` | then remove the oldest until the rest fit (default 500; 0 for no size limit) |
+| `PARE_RUN_MAX_MB` | then remove the oldest until the rest fit (default 500; 0 for no size limit); a piped input larger than this is not kept |
 | `PARE_RUN_PRUNE` | `off`: never prune automatically |
 | `PARE_VOCAB` | a vocabulary file, as `--vocab`; empty counts as unset |
 

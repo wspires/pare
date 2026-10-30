@@ -318,10 +318,13 @@ scales both: `auto:4000` passes through up to 8,000 tokens.
    (`$PARE_RUN_DIR` or `~/.cache/pare/runs/<sha>.log`), so nothing is lost
    and the same input always maps to the same path. Run files are pruned
    after 14 days, or past 500 MB in all, oldest first and never one under
-   a day old (USAGE.md, "Run files"). Input with a NUL byte in its first
-   8 KiB (git's and grep's test for a binary file) is saved and hashed
-   but not segmented: the steps below are skipped and the output is one
-   line saying so, plus the run-file line.
+   a day old (USAGE.md, "Run files"). A file on standard input is not
+   copied: its lines are read back from it, and a record names it; a
+   piped input larger than `$PARE_RUN_MAX_MB` is not kept, since alone
+   it would exceed the directory's allowance. Input with a NUL byte in
+   its first 8 KiB (git's and grep's test for a binary file) is saved
+   and hashed but not segmented: the steps below are skipped and the
+   output is one line saying so, plus the run-file line.
 2. **Segment.** Lines become records: a line indented deeper than the
    previous record's head, or shaped like a continuation (stack frame,
    caret marker, `Caused by:`, assertion detail, diff hunk; plus the

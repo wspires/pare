@@ -21,7 +21,9 @@ for a in "$@"; do
         *) echo "usage: bench/check.sh [--quick | --rust]" >&2; exit 2 ;;
     esac
 done
-if [ -x .venv/bin/python ]; then py=.venv/bin/python; else py=python3; fi
+# The venv's python, and first on PATH, so that a task the tests run with a
+# bare `python3` gets the one with pytest, as CI's does.
+if [ -x .venv/bin/python ]; then py=.venv/bin/python; PATH="$PWD/.venv/bin:$PATH"; export PATH; else py=python3; fi
 
 step() { printf '\n== %s\n' "$*"; }
 skip() { printf '   skipped: %s (CI runs it)\n' "$*"; }

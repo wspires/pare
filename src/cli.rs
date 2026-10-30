@@ -19,7 +19,7 @@ use crate::dump;
 use crate::error::{Error, Result};
 use crate::follow;
 use crate::pass;
-use crate::runfile::{Spool, default_run_dir};
+use crate::runfile::{self, Spool, default_run_dir};
 use crate::runs;
 use crate::score;
 use crate::select;
@@ -510,30 +510,66 @@ fn load_vocab(path: &std::path::Path) -> Result<Vocab> {
 fn batch(args: &Args, vocab: &Vocab, mut run: Option<&mut CommandRun>) -> Result<u8> {
     let budget = args.budget_for_summary();
     let tee = !args.no_tee;
-    // Where the input goes while it is read, and the run directory it will
-    // be renamed into (None: --no-tee, or an explicit --run-file).
-    let (mut spool, run_dir) = if !tee {
-        (Spool::temporary()?, None)
+    // Standard input that is a regular file is not copied: the run refers
+    // to it by path and reads its lines back from it. Everything else is
+    // spooled as it is read.
+    let source = if tee && args.run_file.is_none() && run.is_none() && pass::rust_rules() {
+        runfile::stdin_file()
+    } else {
+        None
+    };
+    // The run directory (None: --no-tee, or an explicit --run-file).
+    let run_dir = if tee && args.run_file.is_none() {
+        let dir = args.run_dir.clone().unwrap_or_else(default_run_dir);
+        create_dir(&dir)?;
+        runs::maybe_prune(&dir);
+        Some(dir)
+    } else {
+        None
+    };
+    // Where the input goes while it is read (None: a file read in place).
+    let mut spool = if source.is_some() {
+        None
+    } else if !tee {
+        Some(Spool::temporary()?)
     } else if let Some(file) = &args.run_file {
         if let Some(dir) = file.parent().filter(|d| !d.as_os_str().is_empty()) {
             create_dir(dir)?;
         }
         let mut tmp = file.clone().into_os_string();
         tmp.push(".tmp");
-        (Spool::create(PathBuf::from(tmp))?, None)
+        Some(Spool::create(PathBuf::from(tmp))?)
     } else {
-        let dir = args.run_dir.clone().unwrap_or_else(default_run_dir);
-        create_dir(&dir)?;
-        runs::maybe_prune(&dir);
-        let tmp = dir.join(format!(".pare-{}.tmp", std::process::id()));
-        (Spool::create(tmp)?, Some(dir))
+        let dir = run_dir
+            .as_ref()
+            .expect("a teed run without --run-file has a run directory");
+        Some(Spool::create(
+            dir.join(format!(".pare-{}.tmp", std::process::id())),
+        )?)
     };
 
-    let read = match run.as_deref_mut() {
-        Some(r) => pass::read_all(r.output(), spool.file(), vocab, args.width),
-        None => pass::read_all(io::stdin().lock(), spool.file(), vocab, args.width),
+    // Rust note: each arm calls the generic `read_all` with its own writer
+    // type (a `File` or `io::sink()`) and keeps only the store and digest,
+    // so the arms agree on a type although the readers do not.
+    let read_err = |e| Error::io("reading the input", e);
+    let (mut store, digest) = match (run.as_deref_mut(), spool.as_mut()) {
+        (Some(r), Some(sp)) => {
+            let (s, d, _) =
+                pass::read_all(r.output(), sp.file(), vocab, args.width).map_err(read_err)?;
+            (s, d)
+        }
+        (None, Some(sp)) => {
+            let (s, d, _) = pass::read_all(io::stdin().lock(), sp.file(), vocab, args.width)
+                .map_err(read_err)?;
+            (s, d)
+        }
+        (None, None) => {
+            let (s, d, _) = pass::read_all(io::stdin().lock(), io::sink(), vocab, args.width)
+                .map_err(read_err)?;
+            (s, d)
+        }
+        (Some(_), None) => unreachable!("a command's output is always spooled"),
     };
-    let (mut store, digest, _) = read.map_err(|e| Error::io("reading the input", e))?;
     let exit_code = match run.as_deref_mut() {
         Some(r) => r
             .wait()
@@ -554,33 +590,54 @@ fn batch(args: &Args, vocab: &Vocab, mut run: Option<&mut CommandRun>) -> Result
         return Ok(exit_code);
     }
 
-    // Rust note: `_temp` keeps a `--no-tee` spool alive until the end of
-    // the function, when its `Drop` removes it. A plain `_` would not bind
-    // it at all, and the value would be dropped (and the file removed) on
-    // that very line.
-    let (spool_path, _temp) = if tee {
-        let target = match (&args.run_file, &run_dir) {
-            (Some(file), _) => file.clone(),
-            (None, Some(dir)) => dir.join(format!("{digest}.log")),
-            (None, None) => unreachable!("a teed run has a run file or a run directory"),
-        };
-        (spool.persist(&target)?, None)
-    } else {
-        (spool.path().to_path_buf(), Some(spool))
+    // A piped input over $PARE_RUN_MAX_MB is not kept: by itself it would
+    // exceed the run directory's whole allowance and be pruned first.
+    let over_cap = spool.is_some()
+        && tee
+        && args.run_file.is_none()
+        && pass::rust_rules()
+        && runs::run_max().is_some_and(|(cap, _)| store.total_bytes > cap);
+    // Where a command run's record goes, with or without a run file.
+    let record_at: Option<PathBuf> = match (&args.run_file, &run_dir) {
+        (_, _) if !tee => None,
+        (Some(file), _) => Some(file.clone()),
+        (None, Some(dir)) => Some(dir.join(format!("{digest}.log"))),
+        (None, None) => None,
     };
-    let run_path = tee.then(|| py_abspath(&spool_path));
-    if let (Some(r), true) = (run.as_deref(), tee) {
-        r.write_meta(&spool_path, store.len(), store.total_bytes, None);
+    // Rust note: `_temp` keeps a spool that is not persisted alive until
+    // the end of the function, when its `Drop` removes it. A plain `_`
+    // would not bind it at all, and the value would be dropped (and the
+    // file removed) on that very line.
+    let (spool_path, _temp, run_path, not_saved) = match (spool, &source) {
+        (None, Some(src)) => (src.path.clone(), None, Some(py_abspath(&src.path)), None),
+        (Some(sp), _) if !tee || over_cap => {
+            let why = over_cap.then(|| {
+                let (_, label) = runs::run_max().expect("over a cap that exists");
+                format!(
+                    "{} B is over $PARE_RUN_MAX_MB, {label}",
+                    summary::fmt_int(i64::try_from(store.total_bytes).unwrap_or(i64::MAX))
+                )
+            });
+            (sp.path().to_path_buf(), Some(sp), None, why)
+        }
+        (Some(sp), _) => {
+            let target = record_at
+                .clone()
+                .expect("a teed run has a run file or a run directory");
+            let path = sp.persist(&target)?;
+            (path.clone(), None, Some(py_abspath(&path)), None)
+        }
+        (None, None) => unreachable!("a run without a spool read a file in place"),
+    };
+    if let (Some(r), Some(at)) = (run.as_deref(), &record_at) {
+        r.write_meta(at, store.len(), store.total_bytes, None);
     }
 
     if let Some(at) = store.binary_at {
         // Not a log: say so in one line, with the run file, and stop. The
         // lines were not segmented, so there is nothing to score.
         let dot = crate::text::glyphs().dot;
-        let mut run_line = match &run_path {
-            Some(p) => format!("## raw: {p}"),
-            None => "## raw: (not saved)".to_owned(),
-        };
+        let mut run_line = summary::raw_line(run_path.as_deref(), not_saved.as_deref());
         if let Some(n) = &note {
             run_line.push_str(&format!(" {dot} {n}"));
         }
@@ -590,13 +647,12 @@ fn batch(args: &Args, vocab: &Vocab, mut run: Option<&mut CommandRun>) -> Result
             summary::fmt_int(i64::try_from(store.total_bytes).unwrap_or(i64::MAX)),
         );
         write_out(&mut out, text.as_bytes())?;
-        if let (Some(r), true) = (run.as_deref(), tee) {
-            r.write_meta(
-                &spool_path,
-                0,
-                store.total_bytes,
-                Some((text.len() as u64, args.budget(), args.chars_per_token)),
-            );
+        let printed = (text.len() as u64, args.budget(), args.chars_per_token);
+        if let (Some(r), Some(at)) = (run.as_deref(), &record_at) {
+            r.write_meta(at, 0, store.total_bytes, Some(printed));
+        }
+        if let (Some(src), Some(dir)) = (&source, &run_dir) {
+            runs::write_ref_record(dir, &digest, src, 0, store.total_bytes, printed);
         }
         return Ok(exit_code);
     }
@@ -663,6 +719,7 @@ fn batch(args: &Args, vocab: &Vocab, mut run: Option<&mut CommandRun>) -> Result
                 width: args.width,
                 max_templates: args.max_templates,
                 run_path,
+                not_saved,
                 in_bytes: store.total_bytes,
                 note,
                 follow: None,
@@ -678,14 +735,13 @@ fn batch(args: &Args, vocab: &Vocab, mut run: Option<&mut CommandRun>) -> Result
     out.flush()
         .map_err(|e| Error::io("writing the output", e))
         .or_else(ignore_broken_pipe)?;
-    if let (Some(r), true) = (run.as_deref(), tee) {
-        // What the command printed against what pare printed, for `pare stats`.
-        r.write_meta(
-            &spool_path,
-            store.len(),
-            store.total_bytes,
-            Some((out_bytes, args.budget(), args.chars_per_token)),
-        );
+    // What the input was against what pare printed, for `pare stats`.
+    let printed = (out_bytes, args.budget(), args.chars_per_token);
+    if let (Some(r), Some(at)) = (run.as_deref(), &record_at) {
+        r.write_meta(at, store.len(), store.total_bytes, Some(printed));
+    }
+    if let (Some(src), Some(dir)) = (&source, &run_dir) {
+        runs::write_ref_record(dir, &digest, src, store.len(), store.total_bytes, printed);
     }
     Ok(exit_code)
 }
