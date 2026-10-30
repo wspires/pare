@@ -201,25 +201,27 @@ budget exists to make explicit.
 
 ### Automatic budget
 
-`--budget auto` treats the budget as a ceiling (2,000, or
-N with `auto:N`) that the summary need not reach. (The measurements in
-this section are at 2.8 bytes per token, the rate when `auto` was tuned;
-the ones at 2.0 are at its end.) The allocator already
-places entries in order of salience; under `auto` it stops once nothing
-worth an entry of its own is left, so a log with one error gets a short
+`--budget auto` treats the budget as a ceiling (2,000, or N with
+`auto:N`) that the summary need not reach. The allocator already places
+entries in order of salience; under `auto` it stops once nothing worth
+an entry of its own is left, so a log with one error gets a short
 summary and a log with many errors gets more, up to the ceiling. Three
 things change, and nothing else:
 
 - **Template floor 3.0 instead of 1.5.** Only shapes at error level get a
   template entry; warnings and summaries still compete as raw lines,
   under the unchanged line floor (1.0), and still appear in the ledger.
-- **Pass-through up to 1,000 tokens** (or the ceiling, if lower) instead
-  of up to the budget. A fixed budget of 2,000 passes a 1,900-token log
-  through whole; that was 77 of the 179 benchmark cases and 41 % of the
-  output tokens. *Reversed on 29 October 2026, to twice the ceiling: see
-  "The pass-through, from the agent runs" below.*
+- **Pass-through up to twice the ceiling** (4,000 tokens by default,
+  8 KB at 2.0 bytes per token) instead of up to the budget: output that
+  size prints whole, and only larger output is summarised. Tuned to
+  1,000 tokens on the recall benchmark first, and raised on the agent
+  runs' evidence ("The pass-through, from the agent runs" below).
 - **Head and tail windows sized for 2,000 tokens** at most, so a higher
   ceiling does not lengthen them.
+
+The tuning below is at 2.8 bytes per token, the rate then, and with the
+1,000-token pass-through; the figures at 2.0 and with the current
+pass-through follow it.
 
 Tuned with `bench/run.py --pare-bin target/release/pare` over all 179
 cases (the corpus, the generated corpus, Defects4J dev, and the
@@ -264,6 +266,17 @@ the same at every budget and is not `auto`'s. Defects4J seed 7 and
 SWE-bench seed 5 agree: `auto` keeps what 2,000 keeps (37 of 37, 27 of
 27) at 69 % and 79 % of its tokens.
 
+**The default since.** With four fresh samples where `auto` loses
+nothing against `--budget 2000` and costs 21 to 31 % fewer tokens, it is
+pare's default: no `--budget` means `auto` (at most 2,000), and a number
+is a fixed budget as before. (Those figures are at 2.8 bytes per token;
+at the 2.0 default `auto` keeps what 2,000 keeps on the same two samples
+at 77 % and 83 % of its tokens, before the pass-through change below.)
+The cost is a less predictable output size (from a few hundred tokens
+to twice the ceiling) for the same command.
+`PARE_REFERENCE_RULES=1` restores the Python version's fixed 2,000, so
+parity is unchanged (it passes `--budget` on every run anyway).
+
 **The pass-through, from the agent runs.** The recall benchmark counts
 tokens printed and lines kept; it cannot see a turn. The agent runs
 (`corpus/heldout/README.md`, "Agent-success evaluation") can, and on
@@ -298,16 +311,6 @@ between 8 and 20 KB split (django-13741 and scikit-learn-12682 won for
 the summary, JxPath-15, astropy-7606 and Gson-5 lost), so the factor
 stops at two until a run with the new pass-through says more. `auto:N`
 scales both: `auto:4000` passes through up to 8,000 tokens.
-
-**The default since.** With four fresh samples where `auto` loses
-nothing against `--budget 2000` and costs 21 to 31 % fewer tokens, it is
-pare's default: no `--budget` means `auto` (at most 2,000), and a number
-is a fixed budget as before. (Those figures are at 2.8 bytes per token;
-at the 2.0 default `auto` keeps what 2,000 keeps on the same two samples
-at 77 % and 83 % of its tokens.) The cost is a less predictable output size
-(from a few hundred tokens to the ceiling) for the same command.
-`PARE_REFERENCE_RULES=1` restores the Python version's fixed 2,000, so
-parity is unchanged (it passes `--budget` on every run anyway).
 
 ## Pipeline
 
