@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 176 72" width="176" height="72" role="img" aria-label="pare">
+  <!--
+    The pare wordmark: a rounded monoline "pare" whose p ends in the
+    dotted ┆ that pare prints where lines were omitted. Drawn as strokes,
+    not text, so it needs no font. Strokes take the surrounding color
+    (currentColor) when inlined; as a standalone image they follow the
+    viewer's light or dark scheme. The square mark is pare-mark.svg.
+  -->
+  <style>
+    svg:root { color: #1f2328; }
+    @media (prefers-color-scheme: dark) { svg:root { color: #e6edf3; } }
+  </style>
+  <g fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <!-- p -->
+    <g transform="translate(6 6)">
+      <line x1="4" y1="6" x2="4" y2="36"/>
+      <line x1="4" y1="45" x2="4" y2="61" stroke-width="5" stroke-dasharray="0.1 8"/>
+      <circle cx="19" cy="21" r="15"/>
+    </g>
+    <!-- a -->
+    <g transform="translate(48 6)">
+      <circle cx="19" cy="21" r="15"/>
+      <line x1="34" y1="6" x2="34" y2="36"/>
+    </g>
+    <!-- r -->
+    <g transform="translate(92 6)">
+      <line x1="4" y1="6" x2="4" y2="36"/>
+      <path d="M4 21A15 15 0 0 1 32 13.5"/>
+    </g>
+    <!-- e -->
+    <g transform="translate(136 6)">
+      <path d="M34 21A15 15 0 1 0 30.5 30.6"/>
+      <line x1="4" y1="21" x2="34" y2="21"/>
+    </g>
+  </g>
+</svg>

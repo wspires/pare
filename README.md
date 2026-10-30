@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/wspires/pare/main/assets/pare.svg" alt="pare" width="176" height="72">
+
 # pare
 
 A Unix filter that summarizes noisy command output (test runs, builds, logs)
