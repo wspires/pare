@@ -1,9 +1,10 @@
 # Using pare: the details
 
 What the README leaves out: the exact behaviour of the budget, what pare
-prints, command mode, follow mode, run files and the subcommands, what
-it returns and reads from the environment, and what a script or an agent
-can rely on. `pare --help` lists every flag and variable;
+prints, command mode, follow mode and run files, how to adapt pare to a
+new log format, the subcommands, what it returns and reads from the
+environment, and what a script or an agent can rely on. `pare --help`
+lists every flag and variable;
 [DESIGN.md](DESIGN.md) says why things work as they do.
 
 ## Tokens and the budget
@@ -182,6 +183,97 @@ run file:
 Only files pare named are touched: run files, follow run files and stale
 spool files. A pruned run keeps its small `.json` record, with a
 `"pruned"` timestamp, so `pare stats` still counts it.
+
+## Adapting pare to a new log format
+
+pare's signals are generic (log levels, HTTP statuses, exit codes,
+indentation, and a vocabulary of the words developer tools use), so most
+formats work untouched, and JSON and logfmt lines are recognised on
+their own. When a tool's output comes out wrong, the fix is a vocabulary
+file nearly every time, and the way to find out which fix is to look at
+how pare read the lines. A worked example: an ASP.NET service logging
+through Serilog, whose levels are `INF`, `WRN` and `ERR`.
+
+**1. Run it and read the ledger.** `pare --budget 600 < billing.log`
+prints the templates it found and, in the ledger, what it folded; with a
+run file, `pare --only T3 < runfile` prints one template's lines. Here
+the summary already looks right: the exception, its trace and the two
+retries are shown, and 70 request lines fold into one template whose
+one 500 is the exemplar.
+
+**2. See how each line was read.** `PARE_DUMP=lines.tsv` writes one `L`
+row per line: line number, record, depth, severity (`-1` none, 0 debug
+to 4 fatal), blank, template, score, rendered and stripped sizes; and
+one `T` row per template.
+
+```
+$ PARE_DUMP=lines.tsv pare --no-tee < billing.log > /dev/null
+$ awk -F'\t' '$1 == "L" && ($2 == 1 || $2 == 35 || $2 == 41)' lines.tsv
+L   1    0   0  -1  0  T1   0.000000  65  61    [09:14:04 INF] Starting Acme.Billing.Api ...
+L   35   34  0  -1  0  T4   4.500000  85  80    [09:14:34 WRN] Payment gateway timed out ...
+L   41   40  0   3  0  T5   4.500000  75  70    [09:14:38 ERR] Unhandled exception ...
+```
+
+The `ERR` line has severity 3 (`ERR` is a built-in level token); the
+`WRN` and `INF` lines have none. The warning still scored 4.5, because
+`timed out` and `retrying` are warning words, which is why the summary
+was right anyway. But anything that reads levels rather than words
+misses them: `pare --min-severity warn < runfile` returns the exception
+and the 500 and not the two retries, and in follow mode `--flush-on`
+would not fire on them.
+
+**3. Pick the fix.** Four kinds of entry, in a file passed with
+`--vocab` (start from `pare vocab > my.vocab`, or write only the
+sections you add):
+
+- **A level token**, when the tool spells its levels its own way.
+  Serilog's three:
+
+  ```
+  [level-warn]
+  WRN
+  [level-info]
+  INF
+  ```
+
+  With this file the dump shows `INF` lines at severity 1 and `WRN` at
+  2, and `--min-severity warn` returns four lines: the retries too.
+- **A continuation regex**, when a multi-line record is split into
+  records. PHP prints its frames at column 0
+  (`#0 /srv/app/src/Checkout.php(88): Cart->total()`), so a fatal
+  error's trace became five templates; with
+
+  ```
+  [continuation]
+  /^Stack trace:$/
+  /^#\d+ /
+  ```
+
+  it is one record under one template, and `--only` on it prints the
+  whole trace. The README's Go panic is the same fix.
+- **A mask**, when one shape becomes many templates because an
+  identifier pare cannot recognise as variable leads each line (the
+  README's `[mask TENANT]` example).
+- **A word or phrase**, when the tool's own word for failure is not in
+  the built-in classes. Kotlin's `e: App.kt: (12, 5): Unresolved
+  reference: fooBar` scores 0 by its words; an `[error]` section with
+  `unresolved reference` scores it 3, like any error line.
+
+**4. Check it and keep it.** Rerun with `--vocab my.vocab` and compare
+the dump's severity column, or the `--min-severity` selection, or the
+ledger's counts. Then set `PARE_VOCAB=my.vocab` where the tool runs
+(the Claude Code hook's rewrites pick it up too, since pare reads it).
+Template ids depend on the masks in use, so a run file saved with a
+vocabulary needs the same one to expand.
+
+**5. When it is code instead.** A shape that depends on position or
+markers rather than words (pytest's `E` and `>` gutters, rustc's `NN |`
+lines, logcat's header), a level written as a number or a letter
+(pino's `"level":50`, logcat's `E/`), or a structured format is a rule
+in the source, with a switch and an ablation row, held to evidence
+(CONTRIBUTING.md, "Changing pare's behaviour"). The ask that gets one
+added is a real log and a keep list of the lines a person fixing the
+problem would need, the way `corpus/generated/` holds its formats.
 
 ## Subcommands
 

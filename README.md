@@ -265,6 +265,9 @@ they are one template. Masks run before the built-in ones (timestamps,
 numbers, ...), on the line as written. Template ids depend on the masks,
 so `--only T3` on a saved run file needs the same `--vocab`.
 
+A worked example, from a wrong reading to the entry that fixes it, is in
+[docs/USAGE.md](docs/USAGE.md#adapting-pare-to-a-new-log-format).
+
 Structured logs need nothing either. A JSON line (slog, pino, zap,
 bunyan, structlog) or a logfmt line (`level=error msg="..." err="..."`)
 is recognized on its own, and when it is longer than `--width` pare keeps
