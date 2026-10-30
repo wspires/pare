@@ -230,14 +230,14 @@ each on purpose rather than by accident:
 
 1. **Parity and the golden files.** A rule that changes the default
    output of plain-text logs (as structured lines, the tail window's
-   verdict rule, `auto` as the default budget and the binary-input
-   check did) goes behind
-   `pass::rust_rules()`, which `PARE_REFERENCE_RULES=1` turns off; parity
-   and the golden-file test in `tests/cli.rs` run with it set, so they
-   keep checking everything else, and the new rule gets tests of its own
-   (`tests/cli.rs` has one per rule to copy). Regenerating the golden
-   files from the Rust version instead is the planned end of parity
-   (ROADMAP.md, "Retire parity"), not something a single change does.
+   verdict rule, `auto` as the default budget and the binary-input check
+   did) goes behind `pass::rust_rules()`, which `PARE_REFERENCE_RULES=1`
+   turns off; parity and the golden-file test in `tests/cli.rs` run with
+   it set, so they keep checking everything else, and the new rule gets
+   tests of its own (`tests/cli.rs` has one per rule to copy).
+   Regenerating the golden files from the Rust version instead is the
+   planned end of parity (ROADMAP.md, "Retire parity"), not something a
+   single change does.
 2. **The evidence.** Every rule in pare was measured before it shipped:
    `bench/run.py --pare-bin target/release/pare` over `corpus/dev/`,
    `corpus/generated/`, `corpus/defects4j-dev/` and every set under
@@ -245,9 +245,12 @@ each on purpose rather than by accident:
    A change should not lose a must-survive line on any set at any budget
    without saying why, and a held-out sample a change was judged on is
    spent: record it as such in `corpus/heldout/README.md` and draw a
-   fresh one to confirm the change (its "Protocol" section). Write the
-   result into `docs/DESIGN.md` as a rule and into `docs/HISTORY.md` as
-   what was tried.
+   fresh one to confirm the change (its "Protocol" section). A change
+   to what pare prints whole or to the budget's shape is measured with
+   `bench/agent_eval.py` as well, since the recall benchmark cannot see
+   a turn (the pass-through was set that way). Write the result into
+   `docs/DESIGN.md` as a rule and into `docs/HISTORY.md` as what was
+   tried.
 3. **Template ids.** `--only T3 < runfile` relies on the clustering and
    the masks being what they were when the run file was written. A
    change to `drain.rs`, to the built-in masks or to segmentation
@@ -308,15 +311,14 @@ change.
 
 Branch from `main` and open a pull request; the four CI jobs must pass
 (`bench/check.sh` runs them before you push; the hook above runs it for
-you).
-Say in the pull request what the change does, what it was measured on
-and what moved (a before/after table from `bench/run.py` for anything
+you). Say in the pull request what the change does, what it was measured
+on and what moved (a before/after table from `bench/run.py` for anything
 that touches scoring, segmentation or allocation), and give any new
 dependency a reason. Keep the comment density and style of the code
 around the change (`// Rust note:` comments are for choices a C++ reader
 would ask about, not for what the code says). Docs that describe what
-changed go in the same pull request: the CHANGELOG line, the DESIGN rule,
-the HISTORY entry.
+changed go in the same pull request: the CHANGELOG line, the DESIGN
+rule, the HISTORY entry.
 
 A measured number lives in one place and the other docs point there:
 benchmark results in the README's "Results" table and the held-out
