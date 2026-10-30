@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/wspires/pare/main/assets/pare.svg" alt="pare" width="176" height="72">
+<img src="assets/pare.svg" alt="pare" width="176" height="72">
 
 # pare
 

@@ -16,5 +16,7 @@ other place that wants one.
 Both SVGs are drawn as strokes, not text, so they need no font. Inlined
 in a page they take the surrounding color (`currentColor`); loaded as an
 image they are dark on light and light on dark, following the viewer's
-color scheme. The README loads the wordmark by its raw GitHub URL so that
-the same file also renders on crates.io and PyPI.
+color scheme. The README loads the wordmark by relative path, which
+GitHub and crates.io render; PyPI does not rewrite relative paths, so the
+image is missing there until the repository is public and the README can
+use the raw GitHub URL.
