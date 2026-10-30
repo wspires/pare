@@ -1,10 +1,12 @@
 # pare: architecture
 
 How the Rust code is organised, how data flows through it, and where it
-differs from the Python prototype it began as (`reference/pare.py`), which
-is kept frozen as the reference the binary is tested against byte for
-byte. What the algorithm does and why is in [DESIGN.md](DESIGN.md); what
-is Rust-specific, explained for a C++ reader, is in [RUST.md](RUST.md);
+differs from the Python prototype it began as (`reference/pare.py`),
+which is kept frozen as the reference the binary is tested against byte
+for byte (frozen apart from its default token rate, moved with the Rust
+version's on 29 October 2026 so that parity compares like with like).
+What the algorithm does and why is in [DESIGN.md](DESIGN.md); what is
+Rust-specific, explained for a C++ reader, is in [RUST.md](RUST.md);
 setting up, building and testing are in
 [CONTRIBUTING.md](../CONTRIBUTING.md). The port's stages are recorded in
 [ROADMAP.md](../ROADMAP.md), stage 5.
@@ -15,10 +17,10 @@ repository and the generated edge cases, under 14 flag sets, every
 output and exit status is identical, and in batch mode so is every
 line's record, depth, severity, template, score and sizes, and every
 template's counts, marker, salience and text, scores to the bit
-(`bench/check.sh` prints the current run count). Rules added since the port
-(structured lines, the tail window's verdict rule, `auto` as the default
-budget, the binary-input check, and the smaller changes "Output marks
-and the reference switch" lists) are what the switch turns off.
+(`bench/check.sh` prints the current run count). Rules added since the
+port (structured lines, the tail window's verdict rule, `auto` as the
+default budget, the binary-input check, and the smaller changes "Output
+marks and the reference switch" lists) are what the switch turns off.
 
 ## Crate layout
 

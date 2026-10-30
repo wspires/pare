@@ -219,7 +219,9 @@ python3 -m venv .venv
 
 The reference is frozen: it is the record of what pare did when the port
 was made, and it is not maintained or packaged. A change to pare is made
-in the Rust version.
+in the Rust version. The one exception so far is its default token
+rate, moved from 2.8 to 2.0 with the Rust version's on 29 October 2026
+so that parity keeps comparing the two at the same rate.
 
 ## Changing pare's behaviour
 
