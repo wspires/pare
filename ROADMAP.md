@@ -40,48 +40,15 @@ real credentials or a decision that is not the code's to make.
   into held-out cases with keep lists written before pare's output is
   looked at (`corpus/heldout/README.md`, "Protocol"). Aim for 15 to 20.
   *Maintainer, on a machine whose transcripts persist.*
-- [x] **Claude token rate.** Measured on 29 October 2026: Claude Opus
-  5.5 tokenizes pare's output at 1.96 bytes per token against 2.82 for
-  cl100k and o200k, so a `--budget 2000` summary was about 2,870 Claude
-  tokens. The default is 2.0 since: summaries are 30 % smaller at the
-  same budget, the README's tables are restated, and 600 is no longer a
-  budget to recommend (`docs/DESIGN.md`, "Tokens and the budget";
-  CHANGELOG).
-- [x] **Agent-success eval.** `bench/agent_eval.py` runs an agent on each
-  task in `corpus/agent/` with the raw output, a truncation, pare's
-  summary, sqz or tidyout as its tool result (`corpus/agent/README.md`).
-  First run, 36 trials: pare matched the raw output on every task at
-  8 % of the tokens on the diagnose tasks and 30 % on the fix tasks;
-  truncation missed the outage cause every time; on a 4 KB cargo output
-  pare cost more turns than raw (`corpus/heldout/README.md`,
-  "Agent-success evaluation").
-- [x] **Agent-success eval on held-out cases.** Sixteen cases from
-  Defects4J seed 7 and SWE-bench seed 5, 144 trials: every condition
-  named every failing test, and pare cost less than raw only on the two
-  logs over 60 KB; on the fourteen of 2 to 19 KB it cost 21 % more, at
-  1.6 turns against 1.0, because the agent expanded the summary on
-  seven of sixteen cases (`corpus/heldout/README.md`, "Third run").
-- [x] **Raise `auto`'s pass-through.** From 1,000 tokens to twice the
-  ceiling, 4,000 by default, on the three agent runs' evidence
-  (`docs/DESIGN.md`, "The pass-through, from the agent runs"). The
-  recall benchmark is unchanged by it.
-- [x] **Measure the new pass-through with the agent harness.** Done
-  the same day (`corpus/heldout/README.md`, "Fourth run"): still 48 of
-  48, pare's mean fell from 4,593 to 4,208 tokens and 1.6 to 1.5 turns,
-  the two 4 KB cases that expanded every trial print whole and take one
-  turn, and the 8 to 20 KB cases split three to two for the summary, so
-  the factor stays at two.
-- [x] **State the harness's own overhead.** Each trial counts its
-  fixed prompt (system text, tool schemas, the task prompt with no
-  output) with one free `count_tokens` call; the summary shows it and
-  the input net of it, once per turn, in the condition table and the
-  per-task cells (`corpus/agent/README.md`).
 
 ### Candidates, not before evidence asks
 
 Each is a miss the current sets show. None changes before a fresh sample
 or real logs say it matters, and a change spends the sample it is
-measured on (`corpus/heldout/README.md`).
+measured on (`corpus/heldout/README.md`). Three of the four are misses
+at 600, which is no longer a budget to recommend since the token rate
+changed (stage 6 below); they stand only if a miss at 1,000 or in real
+logs shows the same.
 
 - [ ] **Inner runs in pytest's own suite.** Both pytest misses on fresh
   data (pytest-8399, pytest-7205) come from the inner pytest sessions
@@ -121,11 +88,10 @@ measured on (`corpus/heldout/README.md`).
   need.
 - [ ] **Retire parity.** `bench/parity.py` holds the Rust version to the
   Python reference, with `PARE_REFERENCE_RULES=1` turning off the
-  Rust-only rules (structured lines, the tail verdict rule, `auto` as the
-  default, the binary-input check). Once those rules outnumber what
-  parity still checks,
-  regenerate the golden files from the Rust version and drop the
-  reference from CI. *Repo.*
+  Rust-only rules (structured lines, the tail verdict rule, `auto` as
+  the default, the binary-input check). Once those rules outnumber what
+  parity still checks, regenerate the golden files from the Rust version
+  and drop the reference from CI. *Repo.*
 
 ## Done
 
@@ -138,7 +104,9 @@ that references to "stage 3" and "stage 5" elsewhere still land.
 The gate for everything after it: no tuning before held-out numbers
 existed. Thirteen blind samples were drawn, seven from Defects4J and six
 from SWE-bench Verified; each was measured before anyone read it, and
-counted as spent once a change was measured on it.
+counted as spent once a change was measured on it. The agent harness
+then measured what recall cannot: whether an agent given the summary
+still does the task, and what it spends.
 
 | done | what | record |
 |---|---|---|
@@ -153,6 +121,9 @@ counted as spent once a change was measured on it.
 | SWE-bench seed 4 | 90 / 97 / 97 %; its miss (pytest-8399) led to the tail verdict rule | same, "SWE-bench seed 4" |
 | Defects4J seed 7 | 92 / 100 / 100 %, and 100 % with `auto` at 69 %; the verdict rule changes nothing on Java | same, "Defects4J seed 7" |
 | SWE-bench seed 5 | 67 / 70 / 100 %, and 100 % with `auto`; every miss is pytest-7205's inner runs | same, "SWE-bench seed 5" |
+| Agent-success eval, four tasks | `bench/agent_eval.py` over `corpus/agent/`: 36 trials; pare matched the raw output on every task at 8 % of the tokens on the diagnose tasks and 30 % on the fix tasks, truncation missed the outage cause every time; rerun at 2.0 bytes per token with the same outcome | `corpus/heldout/README.md`, "Agent-success evaluation" |
+| Agent-success eval, held-out cases | sixteen cases from Defects4J seed 7 and SWE-bench seed 5, 144 trials: every condition named every failing test; pare cheaper than raw only on the two logs over 60 KB, and 21 % dearer on the fourteen under 20 KB because the agent expanded the summary on seven of them | same, "Third run" |
+| The new pass-through, measured | still 48 of 48; pare's mean fell from 4,593 to 4,208 tokens and 1.6 to 1.5 turns, and the 8 to 20 KB cases split three to two, so the factor stays at two. The harness counts each trial's fixed prompt and reports input net of it | same, "Fourth run"; `corpus/agent/README.md` |
 
 ### Stage 2: make collection a side effect of use
 
@@ -218,7 +189,8 @@ written to be read: `//!` module docs naming the Python counterpart,
 ### Stage 6: after the port
 
 Each changes nothing unless it is used, except `auto`, which became the
-default, and the command-line changes made before the first release.
+default, the token rate and `auto`'s pass-through, and the command-line
+changes made before the first release.
 
 | done | what | record |
 |---|---|---|
@@ -226,6 +198,8 @@ default, and the command-line changes made before the first release.
 | Configurable continuation rules | a `[continuation]` class in the vocabulary file; the built-in rules became its defaults | `docs/DESIGN.md`, "Vocabulary" |
 | Configurable masks | `[mask NAME]` sections, run before the built-in masks | same |
 | `--budget auto` | the budget as a ceiling the summary stops short of; the default since four fresh samples kept what 2,000 kept at 69 to 79 % of its tokens | `docs/DESIGN.md`, "Automatic budget" |
+| The token rate | 2.0 bytes per token, measured on Claude's tokenizer (1.96, against 2.82 for cl100k and o200k): summaries 30 % smaller at the same budget, the README's tables restated, 600 no longer a budget to recommend | `docs/DESIGN.md`, "Tokens and the budget"; `CHANGELOG.md` |
+| `auto`'s pass-through | twice the ceiling (4,000 tokens) instead of 1,000, on the agent runs' evidence; the recall benchmark unchanged by it | `docs/DESIGN.md`, "The pass-through, from the agent runs" |
 | The command line | `prune`, `stats` and `vocab` as subcommands, `--ascii`, `--bytes-per-token`, grouped `--help`, usage errors exit 2, `--interval` defaults to 30 | `CHANGELOG.md`, Unreleased; `docs/USAGE.md` |
 | Binary input | a NUL byte in the first 8 KiB: saved, not summarised, two lines out | `docs/USAGE.md`, "What pare prints" |
 | Structured lines | JSON and logfmt lines recognized one by one and clipped keeping the fields that say what went wrong; pino's numeric levels count. Real structured logs in a held-out sample are still owed | `docs/DESIGN.md`, "Structured lines" |
