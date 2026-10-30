@@ -261,10 +261,9 @@ file names the pare version that wrote it, so the mismatch can be seen.
   which `pare stats` and `bench/collect.py` read. Fields may be added;
   none is removed or changes meaning.
 - Output that fits the budget (under `auto`, twice its ceiling) is
-  printed as it is, byte for byte, and
-  a selection (`--only`, `--since`, ...) prints the log's own bytes: pare
-  rewrites none of the input, only its own lines change between
-  versions.
+  printed as it is, byte for byte, and a selection (`--only`, `--since`,
+  ...) prints the log's own bytes: pare rewrites none of the input, only
+  its own lines change between versions.
 - Template ids within one version, for one input and one vocabulary.
 
 **Not promised:** which lines a summary selects, the token estimate (the
