@@ -1,0 +1,23 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>pare social preview</title>
+<!--
+  Source of social-preview.png, the 1280×640 card GitHub shows when the
+  repository is linked (Settings → General → Social preview). Render it
+  in a dark colour scheme so pare.svg picks its light strokes:
+
+    node -e "require('playwright').chromium.launch().then(async b=>{const p=await b.newPage({viewport:{width:1280,height:640},colorScheme:'dark'});await p.goto('file://'+process.cwd()+'/assets/social-preview.html');await p.screenshot({path:'assets/social-preview.png'});await b.close()})"
+-->
+<style>
+  html, body { margin: 0; width: 1280px; height: 640px; background: #0d1117; color: #e6edf3; overflow: hidden; }
+  .wrap { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 0 112px; box-sizing: border-box; }
+  .logo { display: block; width: 528px; height: 216px; }
+  .tag { margin-top: 44px; font: 400 31px/1.4 ui-monospace, Menlo, Consolas, monospace; color: #c9d1d9; white-space: nowrap; }
+  .cmd { margin-top: 36px; font: 400 26px/1.4 ui-monospace, Menlo, Consolas, monospace; color: #8b949e; }
+  .cmd b { color: #58a6ff; font-weight: 400; }
+</style>
+<div class="wrap">
+  <img class="logo" src="pare.svg" alt="pare">
+  <div class="tag">Summarize noisy command output to a token budget,<br>for AI agents and humans. Nothing is lost.</div>
+  <div class="cmd">$ pytest -v 2&gt;&amp;1 | <b>pare --budget 2000</b></div>
+</div>
