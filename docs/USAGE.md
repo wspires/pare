@@ -11,19 +11,18 @@ can rely on. `pare --help` lists every flag and variable;
 Tokens are estimated as bytes / 2.0, the rate measured on pare's output
 with the tokenizer of the current Claude models through Anthropic's
 token-count API (OpenAI's cl100k and o200k give 2.8, the default before
-October 2026). `--bytes-per-token` changes it
-(`--chars-per-token` is accepted as an alias): 4 gives the prose rule of
-thumb, 2.5 a strict ceiling on dense logs (timestamps, IPs and hex on
-every line), where the real rate is lower and a budget-600 summary can
-run a few per cent over.
+October 2026). `--bytes-per-token` changes it (`--chars-per-token` is
+accepted as an alias): 4 gives the prose rule of thumb, 1.8 a strict
+ceiling on the densest logs (timestamps, IPs and hex on every line), the
+lowest per-file rate measured.
 
 The budget is a hard ceiling on the rendered output, header and ledger
 included, and must be at least 1. 1,000 to 2,000 is the working range;
 600 is too little for a run with several failures, and below about 600
 the fixed skeleton (header, head and tail windows, ledger) is most of
 the output ([DESIGN.md](DESIGN.md#tokens-and-the-budget)). Output that
-already fits the budget is printed as it is, with no `## raw:` line (it
-is already all of it).
+already fits the budget (under `auto`, twice its ceiling) is printed as
+it is, with no `## raw:` line (it is already all of it).
 
 Without `--budget`, pare reads `$PARE_BUDGET` (an empty value counts as
 unset; `auto` and `auto:N` work there too), else uses `auto`.
@@ -261,7 +260,8 @@ file names the pare version that wrote it, so the mismatch can be seen.
   `pare`),
   which `pare stats` and `bench/collect.py` read. Fields may be added;
   none is removed or changes meaning.
-- Output that fits the budget is printed as it is, byte for byte, and
+- Output that fits the budget (under `auto`, twice its ceiling) is
+  printed as it is, byte for byte, and
   a selection (`--only`, `--since`, ...) prints the log's own bytes: pare
   rewrites none of the input, only its own lines change between
   versions.
