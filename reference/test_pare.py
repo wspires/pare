@@ -1217,6 +1217,24 @@ def load_hook():
     return mod
 
 
+def test_claude_code_plugin_runs_this_hook_at_pare_version():
+    """The plugin's version moves with Cargo.toml's (RELEASING.md, step 1), its
+    hooks.json runs this file, and the marketplace lists it at that path."""
+    plugin = os.path.dirname(HOOK)
+    with open(os.path.join(plugin, ".claude-plugin", "plugin.json")) as f:
+        manifest = json.load(f)
+    with open(os.path.join(ROOT, "Cargo.toml")) as f:
+        cargo = re.search(r'^version = "(.*)"$', f.read(), re.M).group(1)
+    assert manifest["version"] == cargo
+    with open(os.path.join(plugin, "hooks", "hooks.json")) as f:
+        (entry,) = json.load(f)["hooks"]["PreToolUse"]
+    assert entry["matcher"] == "Bash"
+    assert [h["command"] for h in entry["hooks"]] == ['python3 "${CLAUDE_PLUGIN_ROOT}/pare-hook.py"']
+    with open(os.path.join(ROOT, ".claude-plugin", "marketplace.json")) as f:
+        market = json.load(f)
+    assert [(p["name"], p["source"]) for p in market["plugins"]] == [(manifest["name"], "./integrations/claude-code")]
+
+
 @pytest.mark.parametrize("command,expected", [
     ("pytest -x tests/", "{pare} -- pytest -x tests/"),
     ("pytest 2>&1", "{pare} -- pytest"),

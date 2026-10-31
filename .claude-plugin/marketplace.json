@@ -1,0 +1,15 @@
+{
+  "name": "pare",
+  "owner": { "name": "Wade Spires", "url": "https://github.com/wspires" },
+  "metadata": {
+    "description": "The pare plugin for Claude Code: noisy command output summarized to a token budget."
+  },
+  "plugins": [
+    {
+      "name": "pare",
+      "source": "./integrations/claude-code",
+      "description": "Runs noisy Bash commands through pare, which summarizes their output to a token budget and keeps the full output in a run file.",
+      "category": "development"
+    }
+  ]
+}

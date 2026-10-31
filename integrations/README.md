@@ -61,6 +61,27 @@ Check what it would do with a command:
 integrations/claude-code/pare-hook.py --explain "npm test -- --runInBand"
 ```
 
+### As a plugin
+
+The repository is also a Claude Code plugin marketplace. The plugin
+(`claude-code/`) installs this hook and a skill that tells the agent how
+to read a summary and expand a run file, the instruction above in skill
+form:
+
+```
+claude plugin marketplace add wspires/pare
+claude plugin install pare@pare
+```
+
+or `/plugin marketplace add wspires/pare` and `/plugin install pare@pare`
+inside a session. The plugin does not include `pare` itself; install it
+first (the README's "Install"). Its version is pare's, so Claude Code
+offers plugin users an update with each release, not with each commit.
+In this repository the hook is also registered by `.claude/settings.json`,
+so with the plugin installed it runs twice here, to the same rewrite.
+
+### By hand
+
 Register it in `.claude/settings.json` (project) or
 `~/.claude/settings.json` (user), with an absolute path:
 

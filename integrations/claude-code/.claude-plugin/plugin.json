@@ -1,0 +1,11 @@
+{
+  "name": "pare",
+  "displayName": "pare",
+  "version": "0.2.0",
+  "description": "Runs noisy Bash commands (test suites, builds, package installs, terraform plan, kubectl logs) through pare, which prints a summary that fits a token budget and saves the full output to a run file the agent can expand. Needs the pare binary on PATH.",
+  "author": { "name": "Wade Spires", "url": "https://github.com/wspires" },
+  "homepage": "https://github.com/wspires/pare",
+  "repository": "https://github.com/wspires/pare",
+  "license": "MIT OR Apache-2.0",
+  "keywords": ["bash", "tokens", "context", "summary", "tests", "builds", "logs"]
+}
