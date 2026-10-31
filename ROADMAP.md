@@ -15,16 +15,6 @@ real credentials or a decision that is not the code's to make.
 
 ## Next
 
-### Release
-
-- [ ] **The other three channels.** The GitHub release is live and
-  `install.sh`, the archives and `cargo binstall` work from it. PyPI,
-  Homebrew and crates.io each need the one-time setup in RELEASING.md
-  (the trusted publisher, the tap repository and its token, the
-  registry token), then a re-run of that one job on the `v0.2.0`
-  workflow run; until then three of the README's five install lines
-  fail. *Maintainer.*
-
 ### Evidence
 
 - [ ] **Real logs.** Every held-out case so far is a dataset test run; no
@@ -205,7 +195,7 @@ changes made before the first release.
 
 | done | what | record |
 |---|---|---|
-| 0.2.0 | tagged `v0.2.0` on 31 October 2026 from a public repository; the workflow built the five archives and six wheels and published the GitHub release. PyPI, Homebrew and crates.io wait on their one-time setup (above) | `RELEASING.md`; `CHANGELOG.md`, 0.2.0 |
+| 0.2.0 | tagged `v0.2.0` on 31 October 2026 from a public repository; the workflow built the five archives and six wheels and published the GitHub release, and after the one-time setup of each channel the same day, re-running one job each, `pare-cli` on crates.io and PyPI and the formula in `wspires/homebrew-tap`. Every install line in the README works | `RELEASING.md`; `CHANGELOG.md`, 0.2.0 |
 | The compatibility promise | as drafted: a patch prints the same bytes; a minor release may change what a summary holds and says so in the CHANGELOG, "renumbers templates" when it does; the section markers, flags, exit statuses and the `.json` record's fields hold across 0.x. In force from 0.2.0 | `docs/USAGE.md`, "What you can rely on" |
 
 Before all of that: the Python prototype, the benchmark against sqz and
