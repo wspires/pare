@@ -1,8 +1,9 @@
 # Roadmap
 
-pare 0.2.0 is built: a single Rust binary, verified byte for byte against
-the Python prototype it replaced, measured on held-out samples drawn
-blind from SWE-bench and Defects4J, and not yet released. This file
+pare 0.2.0 is released: a single Rust binary, verified byte for byte
+against the Python prototype it replaced, measured on held-out samples
+drawn blind from SWE-bench and Defects4J, tagged `v0.2.0` on 31 October
+2026 with the archives on the GitHub release. This file
 says what comes next, in order, and keeps one line per finished item with
 a pointer to its record. The experiments are in `docs/HISTORY.md`, the
 held-out samples in `corpus/heldout/README.md`, the changes in
@@ -16,17 +17,13 @@ real credentials or a decision that is not the code's to make.
 
 ### Release
 
-- [ ] **First release.** The one-time setup in RELEASING.md (the tap
-  repository, two secrets, PyPI's trusted publisher), then tag `v0.2.0`.
-  Until then every install line in the README fails. *Maintainer.*
-- [ ] **Version and the compatibility promise.** Drafted in
-  `docs/USAGE.md`, "What you can rely on": a patch release prints the
-  same bytes; a minor release may change what a summary holds and says
-  so in the CHANGELOG, and says "renumbers templates" when it does; the
-  section markers, flags (renamed ones keep an alias), exit statuses and
-  the `.json` record's fields hold across 0.x; the record already names
-  the pare version that wrote a run file. To accept or amend before
-  0.2.0, since the release makes the promise. *Maintainer.*
+- [ ] **The other three channels.** The GitHub release is live and
+  `install.sh`, the archives and `cargo binstall` work from it. PyPI,
+  Homebrew and crates.io each need the one-time setup in RELEASING.md
+  (the trusted publisher, the tap repository and its token, the
+  registry token), then a re-run of that one job on the `v0.2.0`
+  workflow run; until then three of the README's five install lines
+  fail. *Maintainer.*
 
 ### Evidence
 
@@ -200,9 +197,16 @@ changes made before the first release.
 | `--budget auto` | the budget as a ceiling the summary stops short of; the default since four fresh samples kept what 2,000 kept at 69 to 79 % of its tokens | `docs/DESIGN.md`, "Automatic budget" |
 | The token rate | 2.0 bytes per token, measured on Claude's tokenizer (1.96, against 2.82 for cl100k and o200k): summaries 30 % smaller at the same budget, the README's tables restated, 600 no longer a budget to recommend | `docs/DESIGN.md`, "Tokens and the budget"; `CHANGELOG.md` |
 | `auto`'s pass-through | twice the ceiling (4,000 tokens) instead of 1,000, on the agent runs' evidence; the recall benchmark unchanged by it | `docs/DESIGN.md`, "The pass-through, from the agent runs" |
-| The command line | `prune`, `stats` and `vocab` as subcommands, `--ascii`, `--bytes-per-token`, grouped `--help`, usage errors exit 2, `--interval` defaults to 30 | `CHANGELOG.md`, Unreleased; `docs/USAGE.md` |
+| The command line | `prune`, `stats` and `vocab` as subcommands, `--ascii`, `--bytes-per-token`, grouped `--help`, usage errors exit 2, `--interval` defaults to 30 | `CHANGELOG.md`, 0.2.0; `docs/USAGE.md` |
 | Binary input | a NUL byte in the first 8 KiB: saved, not summarised, two lines out | `docs/USAGE.md`, "What pare prints" |
 | Structured lines | JSON and logfmt lines recognized one by one and clipped keeping the fields that say what went wrong; pino's numeric levels count. Real structured logs in a held-out sample are still owed | `docs/DESIGN.md`, "Structured lines" |
+
+### Stage 7: the first release
+
+| done | what | record |
+|---|---|---|
+| 0.2.0 | tagged `v0.2.0` on 31 October 2026 from a public repository; the workflow built the five archives and six wheels and published the GitHub release. PyPI, Homebrew and crates.io wait on their one-time setup (above) | `RELEASING.md`; `CHANGELOG.md`, 0.2.0 |
+| The compatibility promise | as drafted: a patch prints the same bytes; a minor release may change what a summary holds and says so in the CHANGELOG, "renumbers templates" when it does; the section markers, flags, exit statuses and the `.json` record's fields hold across 0.x. In force from 0.2.0 | `docs/USAGE.md`, "What you can rely on" |
 
 Before all of that: the Python prototype, the benchmark against sqz and
 tidyout, the dev and generated corpora, real-tokenizer calibration, the
