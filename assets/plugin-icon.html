@@ -1,0 +1,19 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>pare plugin icon</title>
+<!--
+  Source of integrations/claude-code/.claude-plugin/icon.png, the
+  1024×1024 icon of the Claude Code plugin's directory listing: the mark
+  (pare-mark.svg) in light strokes on a dark tile, since a PNG cannot
+  follow the viewer's color scheme. Render it from the repository root:
+
+    node -e "require('playwright').chromium.launch().then(async b=>{const p=await b.newPage({viewport:{width:1024,height:1024},colorScheme:'dark'});await p.goto('file://'+process.cwd()+'/assets/plugin-icon.html');await p.screenshot({path:'integrations/claude-code/.claude-plugin/icon.png'});await b.close()})"
+
+  The directory takes the icon only the first time the plugin is
+  submitted; changing the file later does not change the listing.
+-->
+<style>
+  html, body { margin: 0; width: 1024px; height: 1024px; background: #0d1117; overflow: hidden; }
+  img { position: absolute; left: 192px; top: 211px; width: 640px; height: 640px; }
+</style>
+<img src="pare-mark.svg" alt="pare">

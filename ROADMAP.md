@@ -15,6 +15,16 @@ real credentials or a decision that is not the code's to make.
 
 ## Next
 
+### Distribution
+
+- [ ] **The plugin in Anthropic's directory.** The plugin passes
+  `claude plugin validate --strict --profile directory
+  integrations/claude-code`. Submitting it is done in the browser, at
+  claude.ai/directory/manage ("Submit new", "Plugin bundle", repository
+  `wspires/pare`, plugin path `integrations/claude-code`); a new listing
+  is reviewed by a person, and a hook script in a subfolder is held for
+  that review. *Maintainer, with a paid claude.ai plan.*
+
 ### Evidence
 
 - [ ] **Real logs.** Every held-out case so far is a dataset test run; no

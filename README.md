@@ -152,6 +152,15 @@ macOS (Apple Silicon and Intel) or Windows from the
 
 Building from a checkout is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
+For Claude Code there is also a plugin that routes noisy commands through
+pare on its own (`integrations/README.md`, "As a plugin"); install `pare`
+first, then:
+
+```
+claude plugin marketplace add wspires/pare
+claude plugin install pare@pare
+```
+
 ## Use
 
 ### The budget
@@ -195,7 +204,7 @@ printed, over every run so far.
 [integrations/README.md](integrations/README.md) has two ways to route an
 agent's noisy commands through pare: an instruction for `CLAUDE.md` or
 `AGENTS.md`, and a Claude Code hook that rewrites test, build and install
-commands automatically.
+commands automatically, installed by hand or as a Claude Code plugin.
 
 ### Following a stream
 

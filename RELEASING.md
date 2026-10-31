@@ -69,7 +69,11 @@ crates.io) or fails on its own (PyPI) without stopping the others.
 
 ## Checklist for a release
 
-1. On a branch: set the version in `Cargo.toml` (`version = "0.3.0"`),
+1. On a branch: set the version in `Cargo.toml` (`version = "0.3.0"`)
+   and in the Claude Code plugin's
+   `integrations/claude-code/.claude-plugin/plugin.json` (a test checks
+   that they match; plugin users are offered an update only when it
+   changes),
    run `cargo build` so `Cargo.lock` follows (the release builds and
    `cargo publish` run with `--locked`, and a stale lockfile stops the
    release at its first build), and rename the "Unreleased" section of

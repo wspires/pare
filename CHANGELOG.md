@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- **A Claude Code plugin.** The repository is now a plugin marketplace:
+  `claude plugin marketplace add wspires/pare`, then
+  `claude plugin install pare@pare`. The plugin installs the existing
+  PreToolUse hook, which rewrites noisy Bash commands to
+  `pare -- <command>`, and a skill with the instruction from
+  `integrations/README.md`: how to read a summary and expand a run file.
+  It needs `pare` on PATH and does nothing without it. Its version
+  follows pare's (`RELEASING.md`, step 1).
+
 ## 0.2.0 (2026-10-31)
 
 pare is now a single native binary, written in Rust, and installable with

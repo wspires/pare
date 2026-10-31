@@ -8,6 +8,9 @@ other place that wants one.
   headers and anywhere with width.
 - `pare-mark.svg`: the p alone, for square slots (favicon, avatar,
   tile). Same construction as the wordmark.
+- `plugin-icon.html`: the source of the Claude Code plugin's listing
+  icon (`integrations/claude-code/.claude-plugin/icon.png`), the mark on
+  a dark tile, and how to render it.
 - `social-preview.png`: the 1280×640 card GitHub shows when the
   repository is linked. It is uploaded by hand under Settings → General
   → Social preview; `social-preview.html` is its source and says how to
