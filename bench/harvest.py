@@ -89,7 +89,7 @@ FOLLOW_EVENTS = 30  # assistant blocks after the output that count as the agent'
 
 
 def load_hook():
-    path = os.path.join(ROOT, "integrations", "claude-code", "pare-hook.py")
+    path = os.path.join(ROOT, "integrations", "claude-code-hook", "pare-hook.py")
     spec = importlib.util.spec_from_file_location("pare_hook", path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)

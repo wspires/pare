@@ -1,25 +1,19 @@
 # pare plugin for Claude Code
 
-This plugin routes noisy Bash commands through
+This plugin teaches Claude Code to use
 [pare](https://github.com/wspires/pare), a Unix filter that summarizes
-command output (test runs, builds, logs) to fit a token budget. The agent
-sees a short summary instead of thousands of lines, and nothing is lost:
-the full output is saved to a run file that the summary names and the
-agent can expand.
+command output (test runs, builds, logs) to fit a token budget. The
+agent sees a short summary instead of thousands of lines, and nothing is
+lost: the full output is saved to a run file that the summary names and
+the agent can expand.
 
 ## What it adds
 
-- **A PreToolUse hook on Bash** (`pare-hook.py`). When the agent runs a
-  single simple command that usually prints a lot (pytest, npm test,
-  cargo build, go test, make, Maven, Gradle, terraform plan, kubectl
-  logs and others), the hook rewrites it to `pare -- <command>`. It
-  leaves compound commands, watch modes, background commands and
-  anything not on its list alone, and does nothing if `pare` is not
-  installed.
-- **A skill** (`/pare:pare`) that tells the agent how to run commands
-  through pare, read a summary, and expand a run file.
-
-The hook never fails closed: on any error the command runs unchanged.
+A skill (`/pare:pare`) that tells the agent to run commands whose output
+can be long as `pare -- <command>`, how to read the summary, and how to
+get omitted lines back from the run file with `--only` and
+`--since`/`--until`. The plugin has no hooks, scripts or programs: it is
+instructions only.
 
 ## Requirements
 
@@ -32,8 +26,6 @@ pipx install pare-cli                            # or: uv tool install pare-cli
 cargo binstall pare-cli                          # or: cargo install pare-cli
 ```
 
-The hook also needs `python3`.
-
 ## Install
 
 ```
@@ -44,29 +36,20 @@ claude plugin install pare@pare
 Or, inside a session, `/plugin marketplace add wspires/pare` and then
 `/plugin install pare@pare`.
 
-## Settings
+## Automatic rewriting
 
-The hook reads these environment variables:
-
-| Variable | Effect |
-|---|---|
-| `PARE_BIN` | Path to the pare executable (default: `pare` on PATH). |
-| `PARE_HOOK_BUDGET` | `--budget` for rewritten commands: a number, `auto` or `auto:N`. |
-| `PARE_HOOK_DECISION` | Unset, `ask` or `allow`: the permission decision sent with a rewrite. |
-| `PARE_HOOK_EXTRA` | An extra regex of commands to wrap. |
-| `PARE_HOOK_DISABLE` | Set it to turn the hook off without uninstalling. |
-
-Permissions matter here: by default no decision is sent, so an allow
-rule written for `npm test` does not match the rewritten
-`pare -- npm test`. Read "Permissions" in the repository's
-[integrations guide](https://github.com/wspires/pare/blob/main/integrations/README.md)
-before choosing `allow`.
-
-Check what the hook would do with a command:
+With the skill alone the agent decides when to use pare. For every
+listed command (pytest, npm test, cargo build, go test, make, terraform
+plan and others) to go through pare without the agent choosing, also
+install the `pare-hook` plugin from the same marketplace:
 
 ```
-python3 pare-hook.py --explain "npm test -- --runInBand"
+claude plugin install pare-hook@pare
 ```
+
+It is a separate plugin because Anthropic's plugin directory accepts
+hooks and scripts only from verified organizations
+(`integrations/claude-code-hook/README.md` in the repository).
 
 ## License
 

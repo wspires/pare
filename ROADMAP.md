@@ -17,13 +17,17 @@ real credentials or a decision that is not the code's to make.
 
 ### Distribution
 
-- [ ] **The plugin in Anthropic's directory.** The plugin passes
-  `claude plugin validate --strict --profile directory
-  integrations/claude-code`. Submitting it is done in the browser, at
-  claude.ai/directory/manage ("Submit new", "Plugin bundle", repository
-  `wspires/pare`, plugin path `integrations/claude-code`); a new listing
-  is reviewed by a person, and a hook script in a subfolder is held for
-  that review. *Maintainer, with a paid claude.ai plan.*
+- [ ] **The plugin in Anthropic's directory.** Submitted at
+  claude.ai/directory/manage (repository `wspires/pare`, plugin path
+  `integrations/claude-code`). The first version was refused: the
+  directory accepts hooks, scripts and programs only from verified
+  organizations, and an individual account cannot become one. The
+  submitted plugin is now the skill alone, Markdown, JSON and the icon,
+  and passes `claude plugin validate --strict --profile directory
+  integrations/claude-code`; the hook is the separate `pare-hook`
+  plugin, from this repository's marketplace only. Next: "Check for new
+  commits" on the submission, then a person reviews the new listing.
+  *Maintainer.*
 
 ### Evidence
 

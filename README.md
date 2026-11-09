@@ -152,13 +152,15 @@ macOS (Apple Silicon and Intel) or Windows from the
 
 Building from a checkout is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-For Claude Code there is also a plugin that routes noisy commands through
-pare on its own (`integrations/README.md`, "As a plugin"); install `pare`
-first, then:
+For Claude Code there are also two plugins (`integrations/README.md`,
+"As a plugin"): `pare`, a skill that tells the agent how to use pare, and
+`pare-hook`, which routes noisy commands through pare on its own. Install
+`pare` first, then:
 
 ```
 claude plugin marketplace add wspires/pare
 claude plugin install pare@pare
+claude plugin install pare-hook@pare
 ```
 
 ## Use

@@ -1204,9 +1204,9 @@ def test_collect_needs_the_command_for_a_piped_run(tmp_path):
     assert p.returncode == 0 and (tmp_path / "c" / "make-{}.cmd".format(__import__("datetime").date.today().strftime("%Y%m%d"))).exists()
 
 
-# --- integrations/claude-code/pare-hook.py ----------------------------------------
+# --- integrations/claude-code-hook/pare-hook.py ----------------------------------------
 
-HOOK = os.path.join(ROOT, "integrations", "claude-code", "pare-hook.py")
+HOOK = os.path.join(ROOT, "integrations", "claude-code-hook", "pare-hook.py")
 
 
 def load_hook():
@@ -1217,22 +1217,42 @@ def load_hook():
     return mod
 
 
-def test_claude_code_plugin_runs_this_hook_at_pare_version():
-    """The plugin's version moves with Cargo.toml's (RELEASING.md, step 1), its
-    hooks.json runs this file, and the marketplace lists it at that path."""
-    plugin = os.path.dirname(HOOK)
-    with open(os.path.join(plugin, ".claude-plugin", "plugin.json")) as f:
-        manifest = json.load(f)
+def test_claude_code_plugins_at_pare_version():
+    """Both plugins' versions move with Cargo.toml's (RELEASING.md, step 1),
+    pare-hook's hooks.json runs this file, and the marketplace lists both."""
     with open(os.path.join(ROOT, "Cargo.toml")) as f:
         cargo = re.search(r'^version = "(.*)"$', f.read(), re.M).group(1)
-    assert manifest["version"] == cargo
-    with open(os.path.join(plugin, "hooks", "hooks.json")) as f:
+    names = {}
+    for folder in ("claude-code", "claude-code-hook"):
+        with open(os.path.join(ROOT, "integrations", folder, ".claude-plugin", "plugin.json")) as f:
+            manifest = json.load(f)
+        assert manifest["version"] == cargo, folder
+        names[manifest["name"]] = "./integrations/" + folder
+    assert names == {"pare": "./integrations/claude-code", "pare-hook": "./integrations/claude-code-hook"}
+    with open(os.path.join(os.path.dirname(HOOK), "hooks", "hooks.json")) as f:
         (entry,) = json.load(f)["hooks"]["PreToolUse"]
     assert entry["matcher"] == "Bash"
     assert [h["command"] for h in entry["hooks"]] == ['python3 "${CLAUDE_PLUGIN_ROOT}/pare-hook.py"']
     with open(os.path.join(ROOT, ".claude-plugin", "marketplace.json")) as f:
         market = json.load(f)
-    assert [(p["name"], p["source"]) for p in market["plugins"]] == [(manifest["name"], "./integrations/claude-code")]
+    assert {p["name"]: p["source"] for p in market["plugins"]} == names
+
+
+def test_directory_plugin_holds_only_files_the_directory_accepts():
+    """Anthropic's plugin directory refuses hooks, scripts and programs from
+    unverified organizations: the submitted plugin must stay instructions only."""
+    folder = os.path.join(ROOT, "integrations", "claude-code")
+    tracked = subprocess.run(["git", "ls-files", "-z", folder], cwd=ROOT, capture_output=True,
+                             check=True).stdout.decode().split("\0")
+    allowed = (".md", ".txt", ".json", ".yaml", ".yml", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico")
+    for path in filter(None, tracked):
+        assert path.endswith(allowed), path
+        with open(os.path.join(ROOT, path), "rb") as f:
+            assert not f.read(2) == b"#!", path
+        assert "/hooks/" not in "/" + path, path
+    with open(os.path.join(folder, ".claude-plugin", "plugin.json")) as f:
+        manifest = json.load(f)
+    assert not {"hooks", "mcpServers", "lspServers"} & set(manifest)
 
 
 @pytest.mark.parametrize("command,expected", [

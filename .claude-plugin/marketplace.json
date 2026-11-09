@@ -2,13 +2,19 @@
   "name": "pare",
   "owner": { "name": "Wade Spires", "url": "https://github.com/wspires" },
   "metadata": {
-    "description": "The pare plugin for Claude Code: noisy command output summarized to a token budget."
+    "description": "Claude Code plugins for pare: noisy command output summarized to a token budget."
   },
   "plugins": [
     {
       "name": "pare",
       "source": "./integrations/claude-code",
-      "description": "Runs noisy Bash commands through pare, which summarizes their output to a token budget and keeps the full output in a run file.",
+      "description": "A skill for running noisy commands through pare, which summarizes their output to a token budget and keeps the full output in a run file, and for expanding that run file.",
+      "category": "development"
+    },
+    {
+      "name": "pare-hook",
+      "source": "./integrations/claude-code-hook",
+      "description": "A hook that rewrites noisy Bash commands (tests, builds, installs) to run through pare automatically. Install with the pare plugin.",
       "category": "development"
     }
   ]

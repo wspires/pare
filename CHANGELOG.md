@@ -2,14 +2,17 @@
 
 ## Unreleased
 
-- **A Claude Code plugin.** The repository is now a plugin marketplace:
-  `claude plugin marketplace add wspires/pare`, then
-  `claude plugin install pare@pare`. The plugin installs the existing
-  PreToolUse hook, which rewrites noisy Bash commands to
-  `pare -- <command>`, and a skill with the instruction from
-  `integrations/README.md`: how to read a summary and expand a run file.
-  It needs `pare` on PATH and does nothing without it. Its version
-  follows pare's (`RELEASING.md`, step 1).
+- **Claude Code plugins.** The repository is now a plugin marketplace
+  (`claude plugin marketplace add wspires/pare`) with two plugins:
+  `pare@pare`, a skill with the instruction from `integrations/README.md`
+  plus how to read a summary and expand a run file, and `pare-hook@pare`,
+  the existing PreToolUse hook that rewrites noisy Bash commands to
+  `pare -- <command>`. They are separate because Anthropic's plugin
+  directory accepts hooks and scripts only from verified organizations,
+  so only the skill is submitted there. Both need `pare` on PATH, and
+  the hook does nothing without it. The hook moved to
+  `integrations/claude-code-hook/`. Their version follows pare's
+  (`RELEASING.md`, step 1).
 
 ## 0.2.0 (2026-10-31)
 
