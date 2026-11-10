@@ -693,7 +693,7 @@ shell reports pare's) and the command line itself. In command mode:
 
 `integrations/` builds on it: an instruction for agents' instruction
 files, and a Claude Code PreToolUse hook
-(`integrations/claude-code/pare-hook.py`) that rewrites a single, simple
+(`integrations/claude-code-hook/pare-hook.py`) that rewrites a single, simple
 test, build or install command to `pare -- CMD` (pare's default budget,
 `auto`, applies). The hook skips compound commands (a subshell would
 change what persists, such as `cd`), watch modes and dev servers (which

@@ -20,10 +20,11 @@ pare --budget 1000 -- ./gradlew build
 ```
 
 pare ends the summary with the exit status and exits with the command's
-exit code, so a failure is still a failure. The plugin's hook already
-rewrites common commands (pytest, npm test, cargo build, go test, make,
-terraform plan and others) this way, so a command may come back as a
-pare summary even when you did not write `pare --`.
+exit code, so a failure is still a failure. If the `pare-hook` plugin is
+installed, its hook already rewrites common commands (pytest, npm test,
+cargo build, go test, make, terraform plan and others) this way, so a
+command may come back as a pare summary even when you did not write
+`pare --`.
 
 Do not use pare for output you need exactly: reading files, `git diff`,
 `grep`, or anything you will edit from.

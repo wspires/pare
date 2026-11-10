@@ -38,8 +38,8 @@ agent decides when to use it.
 
 ## 2. A Claude Code hook (automatic)
 
-`claude-code/pare-hook.py` is a PreToolUse hook for the Bash tool. When the
-command is a single simple command from its list (pytest, npm/pnpm/yarn
+`claude-code-hook/pare-hook.py` is a PreToolUse hook for the Bash tool.
+When the command is a single simple command from its list (pytest, npm/pnpm/yarn
 test and build, cargo, go test, make, Maven, Gradle, dotnet, terraform
 plan, docker build, kubectl logs, and others), it rewrites it to
 `pare -- <command>`, so pare's default budget (`auto`, or `$PARE_BUDGET`)
@@ -58,27 +58,34 @@ applies; `PARE_HOOK_BUDGET=1000` adds `--budget 1000`. It leaves alone:
 Check what it would do with a command:
 
 ```
-integrations/claude-code/pare-hook.py --explain "npm test -- --runInBand"
+integrations/claude-code-hook/pare-hook.py --explain "npm test -- --runInBand"
 ```
 
 ### As a plugin
 
-The repository is also a Claude Code plugin marketplace. The plugin
-(`claude-code/`) installs this hook and a skill that tells the agent how
-to read a summary and expand a run file, the instruction above in skill
-form:
+The repository is also a Claude Code plugin marketplace with two
+plugins:
+
+- `pare` (`claude-code/`): a skill with the instruction above, plus how
+  to read a summary and expand a run file. Instructions only, no code.
+  This is the plugin submitted to Anthropic's plugin directory.
+- `pare-hook` (`claude-code-hook/`): this hook. The directory accepts
+  hooks and scripts only from verified organizations, so it is a
+  separate plugin, installed from this marketplace only.
 
 ```
 claude plugin marketplace add wspires/pare
 claude plugin install pare@pare
+claude plugin install pare-hook@pare
 ```
 
-or `/plugin marketplace add wspires/pare` and `/plugin install pare@pare`
-inside a session. The plugin does not include `pare` itself; install it
-first (the README's "Install"). Its version is pare's, so Claude Code
-offers plugin users an update with each release, not with each commit.
-In this repository the hook is also registered by `.claude/settings.json`,
-so with the plugin installed it runs twice here, to the same rewrite.
+or `/plugin marketplace add wspires/pare` and `/plugin install
+pare@pare` (and `pare-hook@pare`) inside a session. Neither includes
+`pare` itself; install it first (the README's "Install"). Their version
+is pare's, so Claude Code offers plugin users an update with each
+release, not with each commit. In this repository the hook is also
+registered by `.claude/settings.json`, so with `pare-hook` installed it
+runs twice here, to the same rewrite.
 
 ### By hand
 
@@ -92,7 +99,7 @@ Register it in `.claude/settings.json` (project) or
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "/path/to/pare/integrations/claude-code/pare-hook.py", "timeout": 10 }
+          { "type": "command", "command": "/path/to/pare/integrations/claude-code-hook/pare-hook.py", "timeout": 10 }
         ]
       }
     ]

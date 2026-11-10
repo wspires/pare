@@ -42,7 +42,7 @@ A **fix** task copies `workspace` to a temporary directory, runs
 `command` there through the condition, and gives the agent that output
 and a `bash` tool. Every bash result goes through the condition too; in
 the pare condition that means exactly what the Claude Code hook does
-(`integrations/claude-code/pare-hook.py`, whose `plan()` the harness
+(`integrations/claude-code-hook/pare-hook.py`, whose `plan()` the harness
 calls): test, build and install commands are wrapped, and `cat`,
 `grep`, `sed`, pipelines and `pare` itself expanding a summary print as
 usual. The record counts the agent's commands and how many were

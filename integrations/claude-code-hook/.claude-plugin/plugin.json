@@ -1,0 +1,11 @@
+{
+  "name": "pare-hook",
+  "displayName": "pare hook",
+  "version": "0.2.0",
+  "description": "A PreToolUse hook that rewrites noisy Bash commands (test suites, builds, package installs, terraform plan, kubectl logs) to `pare -- <command>`, so the agent sees a summary that fits a token budget instead of the full output. Needs the pare binary on PATH; pairs with the pare plugin's skill.",
+  "author": { "name": "Wade Spires", "url": "https://github.com/wspires" },
+  "homepage": "https://github.com/wspires/pare",
+  "repository": "https://github.com/wspires/pare",
+  "license": "MIT OR Apache-2.0",
+  "keywords": ["bash", "hook", "tokens", "context", "summary", "tests", "builds"]
+}

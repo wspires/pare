@@ -78,7 +78,7 @@ def load_hook():
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TASK_DIR = os.path.join(ROOT, "corpus", "agent")
 RUNS_DIR = os.path.join(ROOT, "bench", "agent-runs")
-HOOK_PATH = os.path.join(ROOT, "integrations", "claude-code", "pare-hook.py")
+HOOK_PATH = os.path.join(ROOT, "integrations", "claude-code-hook", "pare-hook.py")
 
 DEFAULT_MODEL = "claude-opus-5-5"
 BYTES_PER_TOKEN = 2.0  # pare's own proxy, for the dry run; real counts come from the API
